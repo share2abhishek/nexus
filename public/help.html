@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEXUS — Documentation & Help</title>
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #080c14; --bg2: #0d1421; --bg3: #111827;
+      --card: rgba(17,25,40,0.75); --border: rgba(255,255,255,0.07);
+      --purple: #7c3aed; --blue: #3b82f6; --cyan: #06b6d4;
+      --green: #10b981; --orange: #f59e0b;
+      --grad: linear-gradient(135deg,#7c3aed,#3b82f6,#06b6d4);
+      --text: #f0f4ff; --muted: #94a3b8; --dim: #475569;
+      --sidebar-w: 280px;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+    /* ── Sidebar ── */
+    .help-sidebar {
+      width: var(--sidebar-w); position: fixed; top: 0; left: 0; bottom: 0;
+      background: rgba(8,12,20,0.97); border-right: 1px solid var(--border);
+      overflow-y: auto; display: flex; flex-direction: column; z-index: 100;
+    }
+    .help-sidebar-logo {
+      padding: 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .help-sidebar-logo img { width: 34px; height: 34px; border-radius: 8px; }
+    .help-sidebar-logo span { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .help-sidebar-logo a { font-size: 11px; color: var(--dim); text-decoration: none; margin-left: auto; }
+    .help-sidebar-logo a:hover { color: var(--muted); }
+
+    .help-search { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .help-search input {
+      width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 13px; outline: none;
+      font-family: 'Inter', sans-serif;
+    }
+    .help-search input:focus { border-color: var(--purple); }
+    .help-search input::placeholder { color: var(--dim); }
+
+    .help-nav { flex: 1; padding: 12px 12px; }
+    .help-nav-section { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--dim); text-transform: uppercase; padding: 10px 8px 6px; }
+    .help-nav a {
+      display: block; padding: 8px 12px; border-radius: 7px; font-size: 13px;
+      color: var(--muted); text-decoration: none; transition: all 0.15s; margin-bottom: 1px;
+    }
+    .help-nav a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .help-nav a.active { color: #a78bfa; background: rgba(124,58,237,0.15); }
+
+    /* ── Main Content ── */
+    .help-main { margin-left: var(--sidebar-w); flex: 1; padding: 0; max-width: 860px; margin-right: auto; }
+
+    /* ── Back to app bar ── */
+    .help-topbar {
+      background: rgba(8,12,20,0.8); border-bottom: 1px solid var(--border);
+      padding: 12px 40px; display: flex; align-items: center; gap: 12px;
+      backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 50;
+    }
+    .help-topbar a { font-size: 13px; color: var(--muted); text-decoration: none; display: flex; align-items: center; gap: 6px; transition: color 0.2s; }
+    .help-topbar a:hover { color: var(--text); }
+    .help-topbar-title { font-size: 14px; font-weight: 600; color: var(--text); margin-left: auto; }
+
+    /* ── Content ── */
+    .help-content { padding: 48px 40px 80px; }
+
+    .help-hero {
+      background: linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(59,130,246,0.08) 100%);
+      border: 1px solid rgba(124,58,237,0.2); border-radius: 16px;
+      padding: 36px; margin-bottom: 48px;
+    }
+    .help-hero h1 { font-family: 'Space Grotesk', sans-serif; font-size: 32px; font-weight: 800; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 10px; }
+    .help-hero p { font-size: 15px; color: var(--muted); line-height: 1.7; }
+
+    h2.section { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 800; margin: 48px 0 20px; padding-top: 48px; border-top: 1px solid var(--border); scroll-margin-top: 80px; }
+    h2.section:first-of-type { border-top: none; padding-top: 0; }
+    h3 { font-size: 17px; font-weight: 700; margin: 28px 0 12px; color: #a78bfa; }
+
+    p { font-size: 14px; color: var(--muted); line-height: 1.8; margin-bottom: 14px; }
+    ul, ol { padding-left: 20px; margin-bottom: 14px; }
+    li { font-size: 14px; color: var(--muted); line-height: 1.8; margin-bottom: 4px; }
+    li strong { color: var(--text); }
+
+    code {
+      background: rgba(124,58,237,0.15); color: #a78bfa;
+      padding: 2px 7px; border-radius: 5px; font-size: 13px; font-family: monospace;
+    }
+    pre {
+      background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px; overflow-x: auto; margin-bottom: 16px;
+    }
+    pre code { background: none; color: #7dd3fc; padding: 0; font-size: 13px; }
+
+    .callout {
+      border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; font-size: 13px; line-height: 1.7;
+      display: flex; gap: 10px;
+    }
+    .callout.info    { background: rgba(59,130,246,0.1);  border: 1px solid rgba(59,130,246,0.2);  color: #93c5fd; }
+    .callout.warning { background: rgba(245,158,11,0.1);  border: 1px solid rgba(245,158,11,0.2);  color: #fcd34d; }
+    .callout.success { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.2);  color: #6ee7b7; }
+    .callout.tip     { background: rgba(124,58,237,0.1);  border: 1px solid rgba(124,58,237,0.2);  color: #c4b5fd; }
+
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
+    th { background: rgba(255,255,255,0.04); padding: 10px 14px; text-align: left; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--muted); }
+    td strong { color: var(--text); }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .kbd { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 2px 7px; font-size: 12px; font-family: monospace; color: var(--text); }
+
+    .badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-free    { background: rgba(16,185,129,0.15); color: #34d399; }
+    .badge-paid    { background: rgba(245,158,11,0.15);  color: #fbbf24; }
+    .badge-local   { background: rgba(124,58,237,0.15); color: #a78bfa; }
+
+    .steps-list { counter-reset: steps; }
+    .steps-list li {
+      counter-increment: steps; list-style: none; padding-left: 0;
+      display: flex; gap: 14px; margin-bottom: 16px; align-items: flex-start;
+    }
+    .steps-list li::before {
+      content: counter(steps); min-width: 26px; height: 26px; border-radius: 50%;
+      background: var(--grad); display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0; margin-top: 2px;
+    }
+
+    @media (max-width: 900px) {
+      .help-sidebar { transform: translateX(-100%); }
+      .help-main { margin-left: 0; }
+      .help-content { padding: 24px 20px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ──────────────────────────────────────────────────────────────── -->
+<aside class="help-sidebar">
+  <div class="help-sidebar-logo">
+    <img src="icon.svg" alt="NEXUS" />
+    <span>NEXUS Docs</span>
+    <a href="/">← App</a>
+  </div>
+
+  <div class="help-search">
+    <input type="text" id="search-input" placeholder="🔍 Search docs…" oninput="searchDocs(this.value)" />
+  </div>
+
+  <nav class="help-nav" id="help-nav">
+    <div class="help-nav-section">Getting Started</div>
+    <a href="#quickstart">Quick Start</a>
+    <a href="#installation">Installation</a>
+    <a href="#first-login">First Login & Admin</a>
+    <a href="#ai-setup">Setting Up AI</a>
+
+    <div class="help-nav-section">Social Media</div>
+    <a href="#platforms">Platform Connections</a>
+    <a href="#compose">Compose & Post</a>
+    <a href="#scheduling">Scheduling</a>
+    <a href="#calendar">Content Calendar</a>
+
+    <div class="help-nav-section">AI Tools</div>
+    <a href="#ai-generate">AI Content Generator</a>
+    <a href="#ai-media">AI Image & Video</a>
+    <a href="#hashtags">Hashtag Research</a>
+    <a href="#templates">Content Templates</a>
+
+    <div class="help-nav-section">Marketing</div>
+    <a href="#seo">SEO Tools</a>
+    <a href="#aso">App Store (ASO)</a>
+    <a href="#email">Email Marketing</a>
+    <a href="#adcopy">Ad Copy & PR</a>
+    <a href="#utm">UTM Builder</a>
+    <a href="#brand">Brand Kit</a>
+
+    <div class="help-nav-section">Administration</div>
+    <a href="#admin">Admin Dashboard</a>
+    <a href="#invite-codes">Invite Codes</a>
+    <a href="#user-management">User Management</a>
+    <a href="#settings">Settings</a>
+
+    <div class="help-nav-section">Reference</div>
+    <a href="#api-keys">API Keys Guide</a>
+    <a href="#ollama">Ollama Local AI</a>
+    <a href="#troubleshooting">Troubleshooting</a>
+    <a href="#shortcuts">Keyboard Shortcuts</a>
+  </nav>
+</aside>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────────── -->
+<main class="help-main">
+  <div class="help-topbar">
+    <a href="/">← Back to App</a>
+    <a href="/landing.html">Home</a>
+    <span class="help-topbar-title">NEXUS Documentation v2.0</span>
+  </div>
+
+  <div class="help-content" id="docs-content">
+
+    <div class="help-hero">
+      <h1>NEXUS Documentation</h1>
+      <p>Complete guide to using NEXUS — your AI-powered one-stop digital marketing platform. Find step-by-step setup guides, feature documentation, and troubleshooting tips.</p>
+    </div>
+
+    <!-- ── Quick Start ── -->
+    <h2 class="section" id="quickstart">⚡ Quick Start</h2>
+    <p>Get NEXUS running in under 10 minutes:</p>
+    <ol class="steps-list">
+      <li><div><strong>Run the installer</strong><br><code>.\install\setup.ps1</code> (Windows, run as Administrator). Automatically installs Node.js and all dependencies.</div></li>
+      <li><div><strong>Open NEXUS</strong><br>Double-click the <strong>NEXUS</strong> shortcut on your Desktop, or run <code>npm start</code> in the NEXUS folder.</div></li>
+      <li><div><strong>Create your admin account</strong><br>Go to <code>http://localhost:3000</code> → you'll be redirected to the login page. The first registered user becomes Super Admin.</div></li>
+      <li><div><strong>Set up free AI</strong><br>In Settings → Local AI (Ollama): install Ollama, pull <code>llama3.2</code>, enable it. Free forever.</div></li>
+      <li><div><strong>Connect social accounts</strong><br>Settings → Social Platforms → enter your API credentials → Connect each platform.</div></li>
+      <li><div><strong>Generate your first post</strong><br>AI Generate → type a prompt → click Generate → use in Compose → Post Now ✅</div></li>
+    </ol>
+
+    <!-- ── Installation ── -->
+    <h2 class="section" id="installation">💾 Installation</h2>
+
+    <h3>Windows (Recommended)</h3>
+    <pre><code># Run in PowerShell as Administrator
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\install\setup.ps1
+
+# With Ollama local AI bundled:
+.\install\setup.ps1 -InstallOllama
+
+# Custom install path:
+.\install\setup.ps1 -InstallPath "D:\NEXUS" -InstallOllama</code></pre>
+
+    <div class="callout info">ℹ️ The installer automatically downloads Node.js v20 LTS if it's not installed. Requires ~500MB disk space (+ 2GB per AI model).</div>
+
+    <h3>Manual Installation</h3>
+    <pre><code>cd nexus
+npm install
+copy .env.example .env
+npm start</code></pre>
+
+    <h3>System Requirements</h3>
+    <table>
+      <tr><th>Component</th><th>Minimum</th><th>Recommended</th></tr>
+      <tr><td><strong>OS</strong></td><td>Windows 10 / macOS 12 / Ubuntu 20</td><td>Windows 11</td></tr>
+      <tr><td><strong>RAM</strong></td><td>4 GB</td><td>8+ GB (for local AI)</td></tr>
+      <tr><td><strong>Disk</strong></td><td>500 MB</td><td>20 GB (for AI models)</td></tr>
+      <tr><td><strong>Node.js</strong></td><td>v18+</td><td>v20 LTS</td></tr>
+      <tr><td><strong>CPU</strong></td><td>Any modern CPU</td><td>8+ cores for faster AI</td></tr>
+      <tr><td><strong>GPU</strong></td><td>Optional</td><td>NVIDIA 8GB+ for fast local AI</td></tr>
+    </table>
+
+    <!-- ── First Login ── -->
+    <h2 class="section" id="first-login">🔐 First Login & Admin Account</h2>
+    <p>NEXUS uses email + password authentication. The <strong>first user to register</strong> automatically becomes the Super Admin (👑).</p>
+
+    <div class="callout success">✅ When you register as the first user, you'll see "👑 You are the Super Admin" message. This account controls all platform settings and user access.</div>
+
+    <h3>Admin Capabilities</h3>
+    <ul>
+      <li><strong>Monitor all users</strong> — see post counts, AI usage, last active time</li>
+      <li><strong>Manage user roles</strong> — promote/demote between Admin and User</li>
+      <li><strong>Suspend/activate accounts</strong> — suspended users can't log in</li>
+      <li><strong>Generate invite codes</strong> — for invite-only registration mode</li>
+      <li><strong>View activity log</strong> — all posts across all users</li>
+      <li><strong>Control registration</strong> — Open, Invite Only, or Closed</li>
+    </ul>
+
+    <!-- ── AI Setup ── -->
+    <h2 class="section" id="ai-setup">🤖 Setting Up AI</h2>
+
+    <h3>Option 1: Free Local AI with Ollama <span class="badge badge-free">Recommended</span></h3>
+    <ol class="steps-list">
+      <li><div>Download Ollama from <a href="https://ollama.com/download" style="color:#60a5fa">ollama.com/download</a> and install it.</div></li>
+      <li><div>Open PowerShell and run: <code>ollama pull llama3.2</code> (downloads ~2GB)</div></li>
+      <li><div>In NEXUS: Settings → 🦙 Local AI → Check → Enable → Save</div></li>
+    </ol>
+
+    <div class="callout tip">💡 Best Ollama models for marketing content: <code>llama3.2</code> (fast, 2GB), <code>mistral</code> (best writing, 4GB), <code>llama3.1:8b</code> (highest quality, 5GB)</div>
+
+    <h3>Option 2: Google Gemini <span class="badge badge-free">Free Tier Available</span></h3>
+    <ol class="steps-list">
+      <li><div>Go to <a href="https://aistudio.google.com" style="color:#60a5fa">aistudio.google.com</a> → Sign in → Get API Key</div></li>
+      <li><div>In NEXUS: Settings → 🤖 AI Keys → paste your key → Save</div></li>
+    </ol>
+
+    <h3>Option 3: Anthropic Claude <span class="badge badge-paid">API Key Required</span></h3>
+    <ol class="steps-list">
+      <li><div>Go to <a href="https://console.anthropic.com" style="color:#60a5fa">console.anthropic.com</a> → Create API Key</div></li>
+      <li><div>In NEXUS: Settings → 🤖 AI Keys → Anthropic Claude → paste → Save</div></li>
+    </ol>
+
+    <h3>AI Priority Order</h3>
+    <p>NEXUS tries AI providers in this order, falling back if unavailable:</p>
+    <ol>
+      <li><strong>Ollama</strong> (if enabled and running)</li>
+      <li><strong>Google Gemini</strong> (if GOOGLE_AI_KEY is set)</li>
+      <li><strong>Anthropic Claude</strong> (if ANTHROPIC_API_KEY is set)</li>
+    </ol>
+
+    <!-- ── Platforms ── -->
+    <h2 class="section" id="platforms">🔗 Platform Connections</h2>
+    <p>NEXUS connects to 8 social platforms. Each requires API credentials from the platform's developer portal.</p>
+
+    <table>
+      <tr><th>Platform</th><th>Developer Portal</th><th>Required Credentials</th></tr>
+      <tr><td><strong>LinkedIn</strong></td><td><a href="https://linkedin.com/developers/apps" style="color:#60a5fa">linkedin.com/developers</a></td><td>Client ID, Client Secret</td></tr>
+      <tr><td><strong>Facebook + Instagram</strong></td><td><a href="https://developers.facebook.com" style="color:#60a5fa">developers.facebook.com</a></td><td>App ID, App Secret</td></tr>
+      <tr><td><strong>Pinterest</strong></td><td><a href="https://developers.pinterest.com" style="color:#60a5fa">developers.pinterest.com</a></td><td>App ID, App Secret</td></tr>
+      <tr><td><strong>Twitter / X</strong></td><td><a href="https://developer.twitter.com" style="color:#60a5fa">developer.twitter.com</a></td><td>API Key, API Secret</td></tr>
+      <tr><td><strong>YouTube + Google Business</strong></td><td><a href="https://console.cloud.google.com" style="color:#60a5fa">console.cloud.google.com</a></td><td>OAuth Client ID, Secret</td></tr>
+      <tr><td><strong>TikTok</strong></td><td><a href="https://developers.tiktok.com" style="color:#60a5fa">developers.tiktok.com</a></td><td>Client Key, Client Secret</td></tr>
+    </table>
+
+    <div class="callout warning">⚠️ Facebook requires the "Manage everything on your Page" Use Case to be added to your app before page posting works. Use Graph API Explorer with a <strong>Page Token</strong> (not User Token) for best results.</div>
+
+    <!-- ── Compose ── -->
+    <h2 class="section" id="compose">✏️ Compose & Post</h2>
+    <p>The Compose page lets you write content and publish immediately or schedule for later.</p>
+    <ul>
+      <li><strong>Write or paste</strong> your content (or use AI Generate and click → Compose)</li>
+      <li><strong>Select platforms</strong> by clicking the platform toggles</li>
+      <li><strong>Add an image URL</strong> (optional — required for Instagram)</li>
+      <li><strong>Post Now</strong> — publishes immediately to all selected platforms</li>
+      <li><strong>Schedule</strong> — pick a date/time, post is added to the queue</li>
+    </ul>
+    <div class="callout info">ℹ️ Instagram requires an image URL — text-only posts are not supported by Instagram's API.</div>
+
+    <!-- ── Scheduling ── -->
+    <h2 class="section" id="scheduling">📅 Scheduling Posts</h2>
+    <p>NEXUS checks for due posts every minute and publishes them automatically.</p>
+
+    <h3>Schedule a post</h3>
+    <p>Compose → click <strong>Schedule</strong> → pick date/time → click <strong>Schedule Post</strong></p>
+
+    <h3>Bulk scheduling via CSV</h3>
+    <p>Create a CSV file in your <code>CONTENT_FOLDER</code> (default: <code>D:/social</code>):</p>
+    <pre><code>content,platforms,scheduled_at,image_url
+"Your post text","linkedin,facebook","2026-07-01 09:00",
+"Another post","instagram","2026-07-02 10:00","https://example.com/img.jpg"</code></pre>
+    <p>Then: Local Files → Import CSV Schedule</p>
+
+    <!-- ── AI Generate ── -->
+    <h2 class="section" id="ai-generate">✨ AI Content Generator</h2>
+    <p>Generates platform-optimized social media content from a text prompt.</p>
+
+    <h3>How to use</h3>
+    <ol class="steps-list">
+      <li><div>Select your <strong>AI model</strong> from the model bar at the top</div></li>
+      <li><div>Enter a <strong>prompt</strong> describing what you want to post about</div></li>
+      <li><div>Select <strong>target platforms</strong> (affects content style)</div></li>
+      <li><div>Pick a <strong>tone</strong> (Professional, Casual, Witty, Inspirational, Educational)</div></li>
+      <li><div>Click <strong>Generate Content</strong></div></li>
+      <li><div>Edit if needed → click <strong>→ Compose</strong> → Post or Schedule</div></li>
+    </ol>
+
+    <h3>Content Types (via SEO / Tools routes)</h3>
+    <table>
+      <tr><th>Type</th><th>Description</th></tr>
+      <tr><td><code>social_post</code></td><td>Standard social media post</td></tr>
+      <tr><td><code>seo_meta</code></td><td>SEO meta title + description</td></tr>
+      <tr><td><code>aso</code></td><td>App Store listing content</td></tr>
+      <tr><td><code>email_campaign</code></td><td>Email newsletter / campaign</td></tr>
+      <tr><td><code>ad_copy</code></td><td>Google + Meta ad copy</td></tr>
+      <tr><td><code>press_release</code></td><td>Publication-ready press release</td></tr>
+    </table>
+
+    <!-- ── AI Media ── -->
+    <h2 class="section" id="ai-media">🎨 AI Image & Video Generator</h2>
+
+    <h3>Image Generation</h3>
+    <p>Go to <strong>AI Media Creator → Images</strong></p>
+    <ul>
+      <li>Requires <code>STABILITY_API_KEY</code> (free credits at stability.ai) or <code>OPENAI_API_KEY</code></li>
+      <li>8 style presets: Photorealistic, Cartoon, Anime, Digital Illustration, 3D Render, Watercolor, Sketch, Abstract</li>
+      <li>Use <strong>Enhance Prompt</strong> to improve your prompt before generating</li>
+      <li>Use <strong>→ Use in Post</strong> to add the image URL to your Compose</li>
+    </ul>
+
+    <h3>Video Generation</h3>
+    <p>Go to <strong>AI Media Creator → Video</strong></p>
+    <ul>
+      <li>Requires <code>LUMA_API_KEY</code> (30 free/month) or <code>RUNWAY_API_KEY</code> (125 free credits)</li>
+      <li>Text-to-video or Image-to-video (provide an image URL as the starting frame)</li>
+      <li>Video generation takes 30–120 seconds — click <strong>Check Status</strong> to poll for completion</li>
+    </ul>
+
+    <h3>Animation</h3>
+    <p>Animate a static image into a short video clip:</p>
+    <ol class="steps-list">
+      <li><div>Generate an image first (Images tab)</div></li>
+      <li><div>Go to Animation tab → paste the base64 image data or image URL</div></li>
+      <li><div>Select motion intensity → click Generate Animation</div></li>
+    </ol>
+    <div class="callout warning">⚠️ Animation requires <code>STABILITY_API_KEY</code>.</div>
+
+    <!-- ── SEO ── -->
+    <h2 class="section" id="seo">🔍 SEO Tools</h2>
+
+    <h3>Meta Tag Generator</h3>
+    <p>Enter your page title, target keyword, and URL → generates optimized meta title, description, Open Graph tags, focus keywords, and SEO score with improvement suggestions.</p>
+
+    <h3>Keyword Research</h3>
+    <p>Enter a topic/product + niche → generates primary keywords, long-tail keywords, question keywords, content ideas, and negative keywords — all with intent labels (informational/commercial/transactional) and difficulty ratings.</p>
+
+    <h3>Content Optimizer</h3>
+    <p>Paste existing content + target keyword → returns SEO score (0–100), readability score, keyword density, issues list, and improvement suggestions with suggested headings structure.</p>
+
+    <h3>Tracked Keywords</h3>
+    <p>Add keywords to monitor your rankings over time. Enter keyword + target URL → saved to your dashboard for manual rank tracking.</p>
+
+    <!-- ── ASO ── -->
+    <h2 class="section" id="aso">📱 App Store Optimization</h2>
+    <p>Generates complete app store listings optimized for both Apple App Store and Google Play.</p>
+    <ul>
+      <li><strong>App Store (iOS)</strong>: Title (30 chars), Subtitle (30 chars), Keyword field (100 chars), Full description</li>
+      <li><strong>Google Play</strong>: Title (50 chars), Short description (80 chars), Full description (4000 chars)</li>
+      <li>Screenshot ideas + icon design suggestions + ASO ranking tips</li>
+    </ul>
+
+    <!-- ── Email ── -->
+    <h2 class="section" id="email">📧 Email Marketing</h2>
+
+    <h3>Adding Subscribers</h3>
+    <ul>
+      <li><strong>Single add</strong>: Email Marketing → Subscribers → fill form → Add Subscriber</li>
+      <li><strong>Bulk import</strong>: paste comma/newline-separated email list → Bulk Import</li>
+    </ul>
+
+    <h3>Sending Campaigns</h3>
+    <ol class="steps-list">
+      <li><div>Configure SMTP in Settings → Email / SMTP (Gmail: use App Password)</div></li>
+      <li><div>Use AI Generate to create email content, or write your own</div></li>
+      <li><div>Save as campaign → Send Now</div></li>
+    </ol>
+
+    <div class="callout tip">💡 Gmail SMTP: Go to myaccount.google.com/apppasswords → Create App Password → use it as SMTP_PASS</div>
+
+    <h3>Email Types</h3>
+    <table>
+      <tr><th>Type</th><th>Use for</th></tr>
+      <tr><td>Newsletter</td><td>Regular updates, content roundups</td></tr>
+      <tr><td>Product Launch</td><td>New feature or product announcements</td></tr>
+      <tr><td>Promotional</td><td>Discounts, special offers, CTAs</td></tr>
+      <tr><td>Welcome / Onboarding</td><td>New user welcome sequences</td></tr>
+      <tr><td>Re-engagement</td><td>Win back inactive users</td></tr>
+      <tr><td>Product Update</td><td>Release notes, changelog</td></tr>
+    </table>
+
+    <!-- ── Ad Copy ── -->
+    <h2 class="section" id="adcopy">📣 Ad Copy & Press Release</h2>
+
+    <h3>Ad Copy Generator</h3>
+    <p>Enter product name, target audience, USP, and campaign goal → generates complete Google Ads (3 headlines + 2 descriptions) and Meta Ads (primary text + headline) with 2 A/B variations and suggested keywords.</p>
+
+    <h3>Press Release Generator</h3>
+    <p>Enter app name, announcement, company name, key features, and a quote → generates a complete, publication-ready press release with FOR IMMEDIATE RELEASE header, dateline, body, spokesperson quote, boilerplate, and contact section.</p>
+
+    <h3>Best Posting Times</h3>
+    <p>Enter your industry and target audience → AI recommends best days and times to post for each platform with frequency guidelines.</p>
+
+    <!-- ── UTM ── -->
+    <h2 class="section" id="utm">🔗 UTM Link Builder</h2>
+    <p>Build trackable URLs for Google Analytics campaign tracking.</p>
+    <table>
+      <tr><th>Parameter</th><th>Description</th><th>Example</th></tr>
+      <tr><td><strong>Source</strong></td><td>Where traffic comes from</td><td>linkedin, newsletter</td></tr>
+      <tr><td><strong>Medium</strong></td><td>Marketing channel type</td><td>social, email, cpc</td></tr>
+      <tr><td><strong>Campaign</strong></td><td>Campaign identifier</td><td>summer_launch</td></tr>
+      <tr><td><strong>Term</strong></td><td>Paid search keywords</td><td>task management app</td></tr>
+      <tr><td><strong>Content</strong></td><td>A/B test identifier</td><td>hero_cta, sidebar</td></tr>
+    </table>
+
+    <!-- ── Admin ── -->
+    <h2 class="section" id="admin">👑 Admin Dashboard</h2>
+    <p>Only visible to users with the <strong>Admin</strong> role. Access via the sidebar or user menu.</p>
+
+    <h3>Overview Tab</h3>
+    <p>Shows platform-wide stats: total users, users active today, total posts published, AI generations, and scheduled posts in queue.</p>
+
+    <h3>Users Tab</h3>
+    <p>Lists all registered users with their activity stats, role, and status.</p>
+    <ul>
+      <li><strong>👑 Make Admin</strong> — promote a user to admin role</li>
+      <li><strong>🚫 Suspend</strong> — block a user from logging in</li>
+      <li><strong>✅ Activate</strong> — re-enable a suspended account</li>
+      <li><strong>🗑 Delete</strong> — permanently delete user and all their data</li>
+    </ul>
+
+    <!-- ── Invite Codes ── -->
+    <h2 class="section" id="invite-codes">🎟️ Invite Codes</h2>
+    <p>Control who can register with invite codes when using <strong>Invite Only</strong> registration mode.</p>
+
+    <h3>Generate a code</h3>
+    <p>Admin Dashboard → Invite Codes → set note, expiry, max uses → Generate Code</p>
+
+    <h3>Share a code</h3>
+    <ul>
+      <li><strong>Direct link</strong>: <code>http://localhost:3000/login.html?invite=YOURCODE</code></li>
+      <li><strong>Code only</strong>: share the 12-character code, user enters it at registration</li>
+    </ul>
+
+    <h3>Registration Modes</h3>
+    <table>
+      <tr><th>Mode</th><th>Behavior</th></tr>
+      <tr><td><strong>🌐 Open</strong></td><td>Anyone can register — no code needed (default)</td></tr>
+      <tr><td><strong>🎟️ Invite Only</strong></td><td>Registration requires a valid invite code from admin</td></tr>
+      <tr><td><strong>🔒 Closed</strong></td><td>No new registrations allowed at all</td></tr>
+    </table>
+
+    <!-- ── API Keys ── -->
+    <h2 class="section" id="api-keys">🔑 API Keys Guide</h2>
+    <table>
+      <tr><th>Key</th><th>Service</th><th>Free Tier?</th><th>Get it at</th></tr>
+      <tr><td><code>GOOGLE_AI_KEY</code></td><td>Gemini AI (text gen)</td><td>✅ Yes</td><td>aistudio.google.com</td></tr>
+      <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Claude AI (text gen)</td><td>❌ No</td><td>console.anthropic.com</td></tr>
+      <tr><td><code>STABILITY_API_KEY</code></td><td>Stable Diffusion (images)</td><td>✅ 25 credits</td><td>stability.ai</td></tr>
+      <tr><td><code>OPENAI_API_KEY</code></td><td>DALL-E 3 (images)</td><td>❌ No</td><td>platform.openai.com</td></tr>
+      <tr><td><code>LUMA_API_KEY</code></td><td>Dream Machine (video)</td><td>✅ 30/month</td><td>lumalabs.ai</td></tr>
+      <tr><td><code>RUNWAY_API_KEY</code></td><td>Gen-3 (video)</td><td>✅ 125 credits</td><td>runwayml.com</td></tr>
+    </table>
+
+    <div class="callout tip">💡 Per-user API keys: Each user can set their own keys in <strong>My API Keys</strong> (user menu). These override the global .env keys for that user's sessions.</div>
+
+    <!-- ── Ollama ── -->
+    <h2 class="section" id="ollama">🦙 Ollama Local AI Guide</h2>
+
+    <h3>Best models by use case</h3>
+    <table>
+      <tr><th>Model</th><th>Size</th><th>Best for</th><th>Min RAM</th></tr>
+      <tr><td><code>llama3.2:1b</code></td><td>1.3 GB</td><td>Fast basic tasks</td><td>4 GB</td></tr>
+      <tr><td><code>llama3.2</code></td><td>2 GB</td><td>General content</td><td>4 GB</td></tr>
+      <tr><td><code>mistral</code></td><td>4.1 GB</td><td>Best writing</td><td>8 GB</td></tr>
+      <tr><td><code>gemma2:2b</code></td><td>1.6 GB</td><td>Balanced quality/speed</td><td>4 GB</td></tr>
+      <tr><td><code>deepseek-r1:7b</code></td><td>4.7 GB</td><td>Analysis & reasoning</td><td>8 GB</td></tr>
+      <tr><td><code>qwen2.5:7b</code></td><td>4.4 GB</td><td>Multilingual content</td><td>8 GB</td></tr>
+      <tr><td><code>llama3.1:8b</code></td><td>4.7 GB</td><td>Highest quality text</td><td>8 GB</td></tr>
+    </table>
+
+    <h3>Common Ollama commands</h3>
+    <pre><code>ollama list              # list downloaded models
+ollama pull mistral      # download a model
+ollama run llama3.2      # test a model interactively
+ollama rm mistral        # remove a model
+ollama ps                # show running models</code></pre>
+
+    <div class="callout warning">⚠️ Ollama must be running before NEXUS can use it. If you restart your PC, open the Ollama app from the system tray before starting NEXUS.</div>
+
+    <!-- ── Troubleshooting ── -->
+    <h2 class="section" id="troubleshooting">🔧 Troubleshooting</h2>
+
+    <h3>Server won't start (EADDRINUSE)</h3>
+    <p>Port 3000 is already in use. Kill existing Node.js processes:</p>
+    <pre><code>Get-Process node | Stop-Process -Force   # PowerShell
+# then restart: npm start</code></pre>
+
+    <h3>Facebook posting error 403</h3>
+    <p>The stored token is missing <code>pages_manage_posts</code> permission. Solution:</p>
+    <ol>
+      <li>Go to <a href="https://developers.facebook.com/tools/explorer" style="color:#60a5fa">Graph API Explorer</a></li>
+      <li>Select your app → User or Page → <strong>select your Page name</strong> (not User Token)</li>
+      <li>Add permission: <code>pages_manage_posts</code></li>
+      <li>Generate token → copy → Settings → Facebook → Paste token manually</li>
+    </ol>
+
+    <h3>Ollama not responding</h3>
+    <ul>
+      <li>Ensure Ollama app is open (system tray icon)</li>
+      <li>Or run <code>ollama serve</code> in a terminal</li>
+      <li>Check URL in Settings → Local AI (default: <code>http://localhost:11434</code>)</li>
+    </ul>
+
+    <h3>AI generation returns empty response</h3>
+    <ul>
+      <li>If using Ollama: model might still be loading. Wait 30 seconds and retry.</li>
+      <li>Check the model is downloaded: <code>ollama list</code></li>
+      <li>Try switching to a different AI model in the model selector bar</li>
+    </ul>
+
+    <h3>Google AI 404 error</h3>
+    <p>The API version was incorrect. This is fixed in NEXUS v2.0. Restart the server: <code>npm start</code></p>
+
+    <!-- ── Shortcuts ── -->
+    <h2 class="section" id="shortcuts">⌨️ Keyboard Shortcuts</h2>
+    <table>
+      <tr><th>Shortcut</th><th>Action</th></tr>
+      <tr><td><span class="kbd">Enter</span> on login page</td><td>Submit login/register form</td></tr>
+      <tr><td>Click platform chip</td><td>Select AI model for generation</td></tr>
+      <tr><td>Click platform toggle</td><td>Select/deselect social platform</td></tr>
+      <tr><td>☀️ / 🌙 button (header)</td><td>Toggle light / dark mode</td></tr>
+      <tr><td>Click hashtag badge</td><td>Copy individual hashtag to clipboard</td></tr>
+      <tr><td>Click platform card (Settings)</td><td>Expand/collapse credentials form</td></tr>
+    </table>
+
+    <div style="margin-top:60px;padding:24px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.2);border-radius:12px;text-align:center">
+      <div style="font-size:20px;margin-bottom:8px">🚀</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;margin-bottom:8px">Ready to start?</div>
+      <div style="font-size:14px;color:var(--muted);margin-bottom:16px">Open NEXUS and start marketing smarter.</div>
+      <a href="/" style="background:var(--grad);padding:10px 28px;border-radius:8px;color:#fff;text-decoration:none;font-weight:700;font-size:14px">Open NEXUS App →</a>
+    </div>
+
+  </div><!-- /help-content -->
+</main>
+
+<script>
+  // Highlight active nav link on scroll
+  const sections = document.querySelectorAll('h2.section');
+  const navLinks  = document.querySelectorAll('.help-nav a');
+  const observer  = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(a => a.classList.remove('active'));
+        const id   = entry.target.id;
+        const link = document.querySelector(`.help-nav a[href="#${id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+
+  // Search
+  function searchDocs(query) {
+    const q = query.toLowerCase().trim();
+    const content = document.getElementById('docs-content');
+    if (!q) { content.querySelectorAll('.search-highlight').forEach(e => e.replaceWith(e.firstChild)); return; }
+    navLinks.forEach(link => {
+      const text = link.textContent.toLowerCase();
+      link.style.opacity = text.includes(q) ? '1' : '0.3';
+    });
+  }
+
+  // Handle ?invite= param — open register tab
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('from') === 'app') document.title = 'NEXUS Help — In App';
+</script>
+</body>
+</html>

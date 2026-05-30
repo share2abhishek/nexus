@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEXUS — Sign In</title>
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+
+    .auth-container {
+      width: 100%;
+      max-width: 440px;
+      padding: 0 20px;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .auth-logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .auth-logo img { width: 64px; height: 64px; border-radius: 16px; margin-bottom: 12px; }
+
+    .auth-logo-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 28px;
+      font-weight: 900;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .auth-logo-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .auth-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      backdrop-filter: blur(20px);
+      overflow: hidden;
+    }
+
+    .auth-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 16px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      transition: var(--transition);
+      font-family: 'Inter', sans-serif;
+    }
+
+    .auth-tab.active {
+      color: var(--text-primary);
+      background: rgba(124,58,237,0.08);
+      border-bottom: 2px solid var(--accent-purple);
+    }
+
+    .auth-tab:hover:not(.active) { color: var(--text-secondary); background: var(--glass); }
+
+    .auth-body { padding: 28px; }
+
+    .auth-panel { display: none; }
+    .auth-panel.active { display: block; }
+
+    .auth-error {
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #f87171;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .auth-success {
+      background: rgba(16,185,129,0.12);
+      border: 1px solid rgba(16,185,129,0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--accent-green);
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .auth-btn {
+      width: 100%;
+      padding: 13px;
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      background: var(--gradient-primary);
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(124,58,237,0.4);
+      transition: var(--transition);
+      font-family: 'Inter', sans-serif;
+      margin-top: 8px;
+    }
+
+    .auth-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; filter: none; }
+
+    .auth-divider {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 20px 0;
+      position: relative;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 42%;
+      height: 1px;
+      background: var(--border);
+    }
+    .auth-divider::before { left: 0; }
+    .auth-divider::after  { right: 0; }
+
+    .auth-footer {
+      text-align: center;
+      padding: 16px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .input-icon-wrap { position: relative; }
+    .input-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+      pointer-events: none;
+    }
+    .input-with-icon { padding-left: 38px !important; }
+  </style>
+</head>
+<body>
+
+<div class="auth-container">
+  <!-- Logo -->
+  <div class="auth-logo">
+    <img src="icon.svg" alt="NEXUS" />
+    <div class="auth-logo-title">NEXUS</div>
+    <div class="auth-logo-sub">AI Digital Marketing Platform</div>
+  </div>
+
+  <!-- Card -->
+  <div class="auth-card">
+    <!-- Tabs -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login"    onclick="switchAuthTab('login')">Sign In</button>
+      <button class="auth-tab"        id="tab-register" onclick="switchAuthTab('register')">Create Account</button>
+    </div>
+
+    <div class="auth-body">
+
+      <!-- Login Panel -->
+      <div class="auth-panel active" id="panel-login">
+        <div class="auth-error"   id="login-error"></div>
+        <div class="auth-success" id="login-success"></div>
+
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">📧</span>
+            <input type="email" class="form-input input-with-icon" id="login-email"
+              placeholder="you@example.com" autocomplete="email" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">🔒</span>
+            <input type="password" class="form-input input-with-icon" id="login-password"
+              placeholder="Your password" autocomplete="current-password" />
+          </div>
+        </div>
+
+        <button class="auth-btn" id="btn-login" onclick="doLogin()">
+          Sign In →
+        </button>
+      </div>
+
+      <!-- Register Panel -->
+      <div class="auth-panel" id="panel-register">
+        <div id="first-user-notice" style="display:none;background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.3);border-radius:8px;padding:10px 14px;font-size:12px;color:#a78bfa;margin-bottom:14px">
+          👑 You're the first user — your account will be the <strong>Super Admin</strong>.
+        </div>
+        <div id="reg-closed-msg" style="display:none;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 14px;font-size:13px;color:#f87171;margin-bottom:14px">
+          🔒 Registration is currently closed. Contact the admin for access.
+        </div>
+        <div class="auth-error"   id="reg-error"></div>
+        <div class="auth-success" id="reg-success"></div>
+
+        <div class="form-group">
+          <label class="form-label">Your Name</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">👤</span>
+            <input type="text" class="form-input input-with-icon" id="reg-name"
+              placeholder="John Doe" autocomplete="name" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">📧</span>
+            <input type="email" class="form-input input-with-icon" id="reg-email"
+              placeholder="you@example.com" autocomplete="email" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Password <span style="color:var(--text-muted);font-weight:400">(min 6 characters)</span></label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">🔒</span>
+            <input type="password" class="form-input input-with-icon" id="reg-password"
+              placeholder="Create a password" autocomplete="new-password" />
+          </div>
+        </div>
+
+        <!-- Invite code (shown only in invite mode) -->
+        <div class="form-group" id="invite-code-row" style="display:none">
+          <label class="form-label">Invite Code <span style="color:#ef4444">*</span></label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">🎟️</span>
+            <input type="text" class="form-input input-with-icon" id="reg-invite"
+              placeholder="Enter your invite code" autocomplete="off"
+              style="text-transform:uppercase;letter-spacing:2px" />
+          </div>
+        </div>
+
+        <button class="auth-btn" id="btn-register" onclick="doRegister()">
+          Create Account →
+        </button>
+      </div>
+
+    </div>
+
+    <div class="auth-footer">
+      NEXUS v2.0 · Your data stays on your machine · 100% private
+      <br style="margin-bottom:6px">
+      <a href="/help.html" target="_blank" style="color:#60a5fa;text-decoration:none;font-size:12px">📖 Documentation & Help</a>
+      &nbsp;·&nbsp;
+      <a href="/landing.html" style="color:#60a5fa;text-decoration:none;font-size:12px">🏠 About NEXUS</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Check if already logged in + get registration info
+  Promise.all([
+    fetch('/users/me').then(r => r.json()),
+    fetch('/users/registration-info').then(r => r.json()),
+  ]).then(([me, regInfo]) => {
+    if (me.authenticated) { window.location.href = '/'; return; }
+
+    // Show first-user message
+    if (regInfo.is_first_user) {
+      document.getElementById('first-user-notice').style.display = 'block';
+    }
+
+    // Handle registration mode
+    if (regInfo.mode === 'closed') {
+      document.getElementById('tab-register').style.display = 'none';
+      document.getElementById('reg-closed-msg').style.display = 'block';
+    } else if (regInfo.mode === 'invite') {
+      document.getElementById('invite-code-row').style.display = 'block';
+    }
+
+    // Set app name
+    if (regInfo.app_name) {
+      document.querySelector('.auth-logo-title').textContent = regInfo.app_name;
+      document.title = regInfo.app_name + ' — Sign In';
+    }
+  });
+
+  function switchAuthTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(`tab-${tab}`).classList.add('active');
+    document.getElementById(`panel-${tab}`).classList.add('active');
+  }
+
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = '❌ ' + msg;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 5000);
+  }
+
+  function showSuccess(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = '✅ ' + msg;
+    el.style.display = 'block';
+  }
+
+  async function doLogin() {
+    const btn   = document.getElementById('btn-login');
+    const email = document.getElementById('login-email').value.trim();
+    const pass  = document.getElementById('login-password').value;
+    if (!email || !pass) return showError('login-error', 'Please fill in all fields');
+
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+    try {
+      const r    = await fetch('/users/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: pass }) });
+      const data = await r.json();
+      if (!r.ok) return showError('login-error', data.error);
+      showSuccess('login-success', `Welcome back, ${data.user.name}!`);
+      setTimeout(() => window.location.href = '/', 600);
+    } catch { showError('login-error', 'Connection error — is the server running?'); }
+    finally { btn.disabled = false; btn.textContent = 'Sign In →'; }
+  }
+
+  async function doRegister() {
+    const btn         = document.getElementById('btn-register');
+    const name        = document.getElementById('reg-name').value.trim();
+    const email       = document.getElementById('reg-email').value.trim();
+    const pass        = document.getElementById('reg-password').value;
+    const invite_code = document.getElementById('reg-invite')?.value.trim().toUpperCase();
+    if (!email || !pass) return showError('reg-error', 'Email and password are required');
+
+    btn.disabled = true; btn.textContent = 'Creating account…';
+    try {
+      const r    = await fetch('/users/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: pass, name, invite_code }) });
+      const data = await r.json();
+      if (!r.ok) { showError('reg-error', data.error); if (data.needs_invite) document.getElementById('invite-code-row').style.display = 'block'; return; }
+      showSuccess('reg-success', `Account created! ${data.user.role === 'admin' ? '👑 You are the Super Admin!' : 'Redirecting…'}`);
+      setTimeout(() => window.location.href = '/', 800);
+    } catch { showError('reg-error', 'Connection error'); }
+    finally { btn.disabled = false; btn.textContent = 'Create Account →'; }
+  }
+
+  // Enter key support
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const active = document.querySelector('.auth-panel.active').id;
+    if (active === 'panel-login')    doLogin();
+    if (active === 'panel-register') doRegister();
+  });
+</script>
+</body>
+</html>

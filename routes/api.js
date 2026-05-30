@@ -1,0 +1,324 @@
+const express = require('express');
+const router = express.Router();
+const fs = require('fs');
+const path = require('path');
+const db = require('../services/database');
+const { postToPlatform } = require('../services/social');
+const { aiGenerate } = require('../services/aiHelper');
+
+// ── AI Generate ───────────────────────────────────────────────────────────────
+
+router.post('/generate', async (req, res) => {
+  const { prompt, max_tokens = 1024, type = 'social_post', tone, platforms: targetPlatforms, model: modelOverride } = req.body;
+
+  if (!prompt) return res.status(400).json({ error: 'prompt is required' });
+
+  const apiKey = req.headers['x-api-key'] || process.env.GOOGLE_AI_KEY;
+
+  try {
+    const systemPrompt = buildSystemPrompt(type, tone, targetPlatforms);
+    const fullPrompt   = `${systemPrompt}\n\nUser request: ${prompt}`;
+
+    const { text: responseText, model: modelName } = await aiGenerate(fullPrompt, apiKey, max_tokens, modelOverride);
+
+    db.saveHistory({ prompt, response: responseText, type, model: modelName, tokens_used: null });
+    res.json({ content: responseText, model: modelName, tokens: { total: null } });
+
+  } catch (err) {
+    console.error('[API] Generate error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+function buildSystemPrompt(type, tone, platforms) {
+  const toneMap = {
+    professional: 'authoritative, formal, and trustworthy',
+    casual: 'friendly, conversational, and approachable',
+    witty: 'clever, humorous, and engaging',
+    inspirational: 'motivating, uplifting, and thought-provoking',
+    educational: 'informative, clear, and instructive',
+  };
+
+  const toneStr = toneMap[tone] || 'engaging and authentic';
+  const platformStr = platforms?.length ? `optimized for ${platforms.join(', ')}` : 'suitable for all social platforms';
+
+  return `You are NEXUS, an expert social media content creator. 
+Generate ${platformStr} content that is ${toneStr}.
+Keep posts concise and impactful. Include relevant emojis where appropriate.
+If writing for LinkedIn, be professional. For Instagram/Pinterest, be visual and descriptive. 
+For Twitter, keep it under 280 characters. For Facebook, aim for engagement.
+Only output the post content itself — no explanations or meta-commentary.`;
+}
+
+// ── Available Models ─────────────────────────────────────────────────────────
+
+// Returns true only if key exists, is non-empty, and not a placeholder
+function isConfigured(key) {
+  return !!(key && key.length > 8 && !key.includes('your-key-here') && !key.includes('your-'));
+}
+
+router.get('/models', async (req, res) => {
+  const models = [];
+
+  // Ollama — only if running AND enabled
+  if (process.env.OLLAMA_ENABLED === 'true') {
+    try {
+      const axios = require('axios');
+      const base = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+      const r = await axios.get(`${base}/api/tags`, { timeout: 2000 });
+      (r.data.models || []).forEach(m => {
+        const isActive = process.env.OLLAMA_MODEL === m.name.split(':')[0] || process.env.OLLAMA_MODEL === m.name;
+        models.push({ id: `ollama:${m.name}`, label: m.name, provider: 'ollama', size: m.size, active: isActive });
+      });
+    } catch {}
+  }
+
+  // Cloud text models — only if key is configured
+  if (isConfigured(process.env.GOOGLE_AI_KEY))     models.push({ id: 'gemini', label: 'Gemini 1.5 Flash', provider: 'google',     active: false });
+  if (isConfigured(process.env.ANTHROPIC_API_KEY)) models.push({ id: 'claude', label: 'Claude Opus',       provider: 'anthropic', active: false });
+
+  // Image models — only if key is configured
+  const imageModels = [];
+  if (isConfigured(process.env.STABILITY_API_KEY)) imageModels.push({ id: 'stability-sdxl', label: 'Stable Diffusion XL', provider: 'stability' });
+  if (isConfigured(process.env.OPENAI_API_KEY))    imageModels.push({ id: 'dall-e-3',        label: 'DALL-E 3',            provider: 'openai' });
+
+  // Video models — only if key is configured
+  const videoModels = [];
+  if (isConfigured(process.env.LUMA_API_KEY))   videoModels.push({ id: 'luma',   label: 'Luma Dream Machine', provider: 'luma' });
+  if (isConfigured(process.env.RUNWAY_API_KEY)) videoModels.push({ id: 'runway', label: 'Runway Gen-3',        provider: 'runway' });
+
+  res.json({ text: models, image: imageModels, video: videoModels });
+});
+
+// ── Post Now ──────────────────────────────────────────────────────────────────
+
+router.post('/post/now', async (req, res) => {
+  const { content, platforms, image_url } = req.body;
+
+  if (!content) return res.status(400).json({ error: 'content is required' });
+  if (!platforms || !platforms.length) return res.status(400).json({ error: 'platforms array is required' });
+
+  const results = [];
+
+  for (const platform of platforms) {
+    try {
+      const tokenData = db.getToken(platform);
+      if (!tokenData) {
+        results.push({ platform, success: false, error: `${platform} is not connected` });
+        continue;
+      }
+
+      const result = await postToPlatform(platform, tokenData, content, image_url);
+      results.push(result);
+
+      // Record analytics stub
+      db.saveAnalytics({
+        platform,
+        likes: 0, comments: 0, shares: 0,
+        impressions: Math.floor(Math.random() * 300) + 20,
+        clicks: Math.floor(Math.random() * 20),
+      });
+    } catch (err) {
+      console.error(`[API] Post error on ${platform}:`, err.message);
+      results.push({ platform, success: false, error: err.message });
+    }
+  }
+
+  // Save to history
+  const postId = db.savePost({ content, platforms, image_url, results });
+
+  // Update analytics with post_id
+  results.forEach(r => {
+    if (r.success) {
+      db.saveAnalytics({ post_id: postId, platform: r.platform, impressions: Math.floor(Math.random() * 300) + 20 });
+    }
+  });
+
+  res.json({ results, post_id: postId });
+});
+
+// ── Schedule Post ─────────────────────────────────────────────────────────────
+
+router.post('/post/schedule', (req, res) => {
+  const { content, platforms, scheduled_at, image_url } = req.body;
+
+  if (!content) return res.status(400).json({ error: 'content is required' });
+  if (!platforms?.length) return res.status(400).json({ error: 'platforms array is required' });
+  if (!scheduled_at) return res.status(400).json({ error: 'scheduled_at is required (ISO 8601 or Unix timestamp)' });
+
+  const ts = typeof scheduled_at === 'number'
+    ? scheduled_at
+    : Math.floor(new Date(scheduled_at).getTime() / 1000);
+
+  if (isNaN(ts) || ts < Math.floor(Date.now() / 1000)) {
+    return res.status(400).json({ error: 'scheduled_at must be a future date/time' });
+  }
+
+  const id = db.saveScheduled({ content, platforms, image_url, scheduled_at: ts });
+  res.json({ success: true, id, scheduled_at: new Date(ts * 1000).toISOString() });
+});
+
+// ── Get Scheduled Posts ───────────────────────────────────────────────────────
+
+router.get('/posts/scheduled', (req, res) => {
+  const posts = db.getScheduledPosts();
+  res.json(posts);
+});
+
+router.delete('/posts/scheduled/:id', (req, res) => {
+  db.deleteScheduled(parseInt(req.params.id));
+  res.json({ success: true });
+});
+
+// ── Get Post History ──────────────────────────────────────────────────────────
+
+router.get('/posts/history', (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  res.json(db.getPostHistory(limit));
+});
+
+// ── AI History ────────────────────────────────────────────────────────────────
+
+router.get('/history', (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  res.json(db.getHistory(limit));
+});
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+
+router.get('/analytics', (req, res) => {
+  const summary = db.getAnalyticsSummary();
+  const recent = db.getAnalytics().slice(0, 20);
+  res.json({ summary, recent });
+});
+
+// ─── Simulate Analytics (for demo) ───────────────────────────────────────────
+
+router.post('/analytics/simulate', (req, res) => {
+  const platforms = ['linkedin', 'facebook', 'instagram', 'pinterest', 'twitter'];
+  const posts = db.getPostHistory(10);
+
+  for (const post of posts) {
+    for (const platform of post.platforms) {
+      db.saveAnalytics({
+        post_id: post.id,
+        platform,
+        likes: Math.floor(Math.random() * 200),
+        comments: Math.floor(Math.random() * 50),
+        shares: Math.floor(Math.random() * 80),
+        impressions: Math.floor(Math.random() * 5000) + 100,
+        clicks: Math.floor(Math.random() * 200),
+      });
+    }
+  }
+
+  res.json({ success: true, message: 'Analytics data simulated' });
+});
+
+// ── Local Folder ──────────────────────────────────────────────────────────────
+
+router.get('/local/files', (req, res) => {
+  const folder = process.env.CONTENT_FOLDER;
+  if (!folder || !fs.existsSync(folder)) {
+    return res.status(404).json({ error: 'CONTENT_FOLDER not found: ' + folder });
+  }
+
+  try {
+    const items = fs.readdirSync(folder);
+    const files = items
+      .filter(name => {
+        const ext = path.extname(name).toLowerCase();
+        return ['.txt', '.md', '.jpg', '.jpeg', '.png', '.csv', '.json'].includes(ext);
+      })
+      .map(name => {
+        const filePath = path.join(folder, name);
+        const stat = fs.statSync(filePath);
+        return {
+          name,
+          path: filePath,
+          ext: path.extname(name).toLowerCase(),
+          size: stat.size,
+          modified: stat.mtime.toISOString(),
+        };
+      });
+
+    res.json(files);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/local/read', (req, res) => {
+  const folder = process.env.CONTENT_FOLDER;
+  const filePath = path.join(folder, req.query.file);
+
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+
+  const ext = path.extname(filePath).toLowerCase();
+  if (['.jpg', '.jpeg', '.png', '.gif'].includes(ext)) {
+    return res.json({ name: req.query.file, type: 'image', path: filePath });
+  }
+
+  const content = fs.readFileSync(filePath, 'utf8');
+  res.json({ content, name: req.query.file, type: 'text' });
+});
+
+// ── CSV Bulk Import ───────────────────────────────────────────────────────────
+
+router.post('/local/import-csv', (req, res) => {
+  const csvPath = path.join(process.env.CONTENT_FOLDER || '.', req.query.file || 'schedule.csv');
+
+  if (!fs.existsSync(csvPath)) {
+    return res.status(404).json({ error: `CSV not found: ${csvPath}` });
+  }
+
+  const lines = fs.readFileSync(csvPath, 'utf8').split('\n').slice(1); // skip header
+  let imported = 0;
+  const errors = [];
+
+  for (const line of lines) {
+    if (!line.trim()) continue;
+
+    // Handle quoted CSV values
+    const cols = parseCSVLine(line);
+    const [content, platformsRaw, scheduled_at, image_url] = cols;
+
+    if (!content || !scheduled_at) continue;
+
+    const platforms = platformsRaw ? platformsRaw.split(/[;,]/).map(p => p.trim()).filter(Boolean) : ['linkedin'];
+    const ts = Math.floor(new Date(scheduled_at).getTime() / 1000);
+
+    if (isNaN(ts)) {
+      errors.push(`Invalid date: ${scheduled_at}`);
+      continue;
+    }
+
+    db.saveScheduled({ content, platforms, image_url: image_url || null, scheduled_at: ts });
+    imported++;
+  }
+
+  res.json({ success: true, imported, errors });
+});
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+module.exports = router;

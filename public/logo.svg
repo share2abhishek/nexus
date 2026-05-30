@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="600" height="200">
+  <defs>
+    <!-- Main purple → blue → cyan gradient -->
+    <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#7c3aed"/>
+      <stop offset="50%"  stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+
+    <!-- Text gradient (horizontal) -->
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#a78bfa"/>
+      <stop offset="50%"  stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+
+    <!-- Radial glow behind icon -->
+    <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#7c3aed" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#080c14" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Glow filter for nodes & lines -->
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Subtle glow for text -->
+    <filter id="textGlow" x="-5%" y="-20%" width="110%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Clip the background -->
+    <clipPath id="bgClip">
+      <rect width="600" height="200" rx="20"/>
+    </clipPath>
+  </defs>
+
+  <!-- ── Background ─────────────────────────────────────────────── -->
+  <rect width="600" height="200" fill="#080c14" rx="20"/>
+
+  <!-- Subtle grid lines -->
+  <g opacity="0.06" stroke="#ffffff" stroke-width="0.5">
+    <line x1="0"   y1="50"  x2="600" y2="50"/>
+    <line x1="0"   y1="100" x2="600" y2="100"/>
+    <line x1="0"   y1="150" x2="600" y2="150"/>
+    <line x1="100" y1="0"   x2="100" y2="200"/>
+    <line x1="200" y1="0"   x2="200" y2="200"/>
+    <line x1="300" y1="0"   x2="300" y2="200"/>
+    <line x1="400" y1="0"   x2="400" y2="200"/>
+    <line x1="500" y1="0"   x2="500" y2="200"/>
+  </g>
+
+  <!-- Radial glow behind icon -->
+  <circle cx="100" cy="100" r="110" fill="url(#glowGrad)"/>
+
+  <!-- ── Icon Mark ──────────────────────────────────────────────── -->
+
+  <!-- Outer hexagon ring -->
+  <polygon
+    points="100,28 136,48 136,88 100,108 64,88 64,48"
+    fill="none"
+    stroke="url(#mainGrad)"
+    stroke-width="2"
+    opacity="0.6"
+    filter="url(#glow)"/>
+
+  <!-- Inner hexagon ring -->
+  <polygon
+    points="100,42 120,54 120,78 100,90 80,78 80,54"
+    fill="none"
+    stroke="url(#mainGrad)"
+    stroke-width="1"
+    opacity="0.3"/>
+
+  <!-- Connection lines (N shape) -->
+  <!-- Left vertical -->
+  <line x1="82" y1="48" x2="82" y2="88"
+    stroke="url(#mainGrad)" stroke-width="3.5"
+    stroke-linecap="round" filter="url(#glow)"/>
+  <!-- Diagonal top-left → bottom-right -->
+  <line x1="82" y1="48" x2="118" y2="88"
+    stroke="url(#mainGrad)" stroke-width="3.5"
+    stroke-linecap="round" filter="url(#glow)"/>
+  <!-- Right vertical -->
+  <line x1="118" y1="48" x2="118" y2="88"
+    stroke="url(#mainGrad)" stroke-width="3.5"
+    stroke-linecap="round" filter="url(#glow)"/>
+
+  <!-- Extra spoke lines from center to hexagon vertices (network feel) -->
+  <g opacity="0.25" stroke="#06b6d4" stroke-width="1" filter="url(#glow)">
+    <line x1="100" y1="68" x2="100" y2="28"/>
+    <line x1="100" y1="68" x2="136" y2="48"/>
+    <line x1="100" y1="68" x2="136" y2="88"/>
+    <line x1="100" y1="68" x2="100" y2="108"/>
+    <line x1="100" y1="68" x2="64"  y2="88"/>
+    <line x1="100" y1="68" x2="64"  y2="48"/>
+  </g>
+
+  <!-- Center node -->
+  <circle cx="100" cy="68" r="5" fill="#3b82f6" filter="url(#glow)"/>
+  <circle cx="100" cy="68" r="2.5" fill="#ffffff"/>
+
+  <!-- Corner nodes (N vertices) -->
+  <circle cx="82"  cy="48" r="6" fill="#7c3aed" filter="url(#glow)"/>
+  <circle cx="82"  cy="48" r="3" fill="#ffffff"/>
+
+  <circle cx="118" cy="48" r="6" fill="#3b82f6" filter="url(#glow)"/>
+  <circle cx="118" cy="48" r="3" fill="#ffffff"/>
+
+  <circle cx="82"  cy="88" r="6" fill="#3b82f6" filter="url(#glow)"/>
+  <circle cx="82"  cy="88" r="3" fill="#ffffff"/>
+
+  <circle cx="118" cy="88" r="6" fill="#06b6d4" filter="url(#glow)"/>
+  <circle cx="118" cy="88" r="3" fill="#ffffff"/>
+
+  <!-- Hexagon vertex nodes (decorative) -->
+  <circle cx="100" cy="28"  r="3.5" fill="#7c3aed" opacity="0.7" filter="url(#glow)"/>
+  <circle cx="136" cy="48"  r="3.5" fill="#3b82f6" opacity="0.7" filter="url(#glow)"/>
+  <circle cx="136" cy="88"  r="3.5" fill="#06b6d4" opacity="0.7" filter="url(#glow)"/>
+  <circle cx="100" cy="108" r="3.5" fill="#06b6d4" opacity="0.7" filter="url(#glow)"/>
+  <circle cx="64"  cy="88"  r="3.5" fill="#3b82f6" opacity="0.7" filter="url(#glow)"/>
+  <circle cx="64"  cy="48"  r="3.5" fill="#7c3aed" opacity="0.7" filter="url(#glow)"/>
+
+  <!-- ── Text ──────────────────────────────────────────────────── -->
+
+  <!-- NEXUS wordmark -->
+  <text
+    x="168" y="90"
+    font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif"
+    font-size="62"
+    font-weight="900"
+    letter-spacing="6"
+    fill="url(#textGrad)"
+    filter="url(#textGlow)">NEXUS</text>
+
+  <!-- Divider line -->
+  <rect x="170" y="102" width="380" height="1.5" fill="url(#mainGrad)" opacity="0.4" rx="1"/>
+
+  <!-- Tagline -->
+  <text
+    x="172" y="125"
+    font-family="'Arial', 'Helvetica Neue', sans-serif"
+    font-size="13"
+    font-weight="400"
+    letter-spacing="5"
+    fill="#475569">AI DIGITAL MARKETING PLATFORM</text>
+
+  <!-- Version badge -->
+  <rect x="170" y="140" width="38" height="16" fill="rgba(124,58,237,0.25)" rx="4"
+        stroke="rgba(124,58,237,0.5)" stroke-width="0.8"/>
+  <text x="174" y="152"
+    font-family="Arial, sans-serif"
+    font-size="9"
+    font-weight="700"
+    letter-spacing="1"
+    fill="#a78bfa">v2.0</text>
+
+</svg>

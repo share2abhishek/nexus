@@ -1,0 +1,12 @@
+NEXUS — AI Digital Marketing Platform
+
+Copyright (c) 2026 NEXUS
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software to use, copy, modify, and distribute it for personal and
+commercial purposes, subject to the following conditions:
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
+This is a self-hosted application. Your data stays on your machine.
+No data is transmitted to external servers without your explicit configuration.

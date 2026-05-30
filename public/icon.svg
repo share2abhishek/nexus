@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#7c3aed"/>
+      <stop offset="50%"  stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#7c3aed" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#080c14" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="f1" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="200" height="200" fill="#080c14" rx="36"/>
+
+  <!-- Glow -->
+  <circle cx="100" cy="100" r="100" fill="url(#glow)"/>
+
+  <!-- Outer hexagon -->
+  <polygon points="100,22 148,50 148,106 100,134 52,106 52,50"
+    fill="none" stroke="url(#g1)" stroke-width="2.5" opacity="0.7" filter="url(#f1)"/>
+
+  <!-- Inner hexagon -->
+  <polygon points="100,40 130,57 130,91 100,108 70,91 70,57"
+    fill="none" stroke="url(#g1)" stroke-width="1" opacity="0.25"/>
+
+  <!-- N lines -->
+  <line x1="72" y1="52" x2="72" y2="104"
+    stroke="url(#g1)" stroke-width="5" stroke-linecap="round" filter="url(#f1)"/>
+  <line x1="72" y1="52" x2="128" y2="104"
+    stroke="url(#g1)" stroke-width="5" stroke-linecap="round" filter="url(#f1)"/>
+  <line x1="128" y1="52" x2="128" y2="104"
+    stroke="url(#g1)" stroke-width="5" stroke-linecap="round" filter="url(#f1)"/>
+
+  <!-- Spoke lines to hex vertices -->
+  <g opacity="0.2" stroke="#06b6d4" stroke-width="1">
+    <line x1="100" y1="78" x2="100" y2="22"/>
+    <line x1="100" y1="78" x2="148" y2="50"/>
+    <line x1="100" y1="78" x2="148" y2="106"/>
+    <line x1="100" y1="78" x2="100" y2="134"/>
+    <line x1="100" y1="78" x2="52"  y2="106"/>
+    <line x1="100" y1="78" x2="52"  y2="50"/>
+  </g>
+
+  <!-- Center node -->
+  <circle cx="100" cy="78" r="7" fill="#3b82f6" filter="url(#f1)"/>
+  <circle cx="100" cy="78" r="3.5" fill="#ffffff"/>
+
+  <!-- N corner nodes -->
+  <circle cx="72"  cy="52" r="9" fill="#7c3aed" filter="url(#f1)"/>
+  <circle cx="72"  cy="52" r="4" fill="#ffffff"/>
+
+  <circle cx="128" cy="52" r="9" fill="#3b82f6" filter="url(#f1)"/>
+  <circle cx="128" cy="52" r="4" fill="#ffffff"/>
+
+  <circle cx="72"  cy="104" r="9" fill="#3b82f6" filter="url(#f1)"/>
+  <circle cx="72"  cy="104" r="4" fill="#ffffff"/>
+
+  <circle cx="128" cy="104" r="9" fill="#06b6d4" filter="url(#f1)"/>
+  <circle cx="128" cy="104" r="4" fill="#ffffff"/>
+
+  <!-- Hex vertex dots -->
+  <circle cx="100" cy="22"  r="4" fill="#7c3aed" opacity="0.8"/>
+  <circle cx="148" cy="50"  r="4" fill="#3b82f6" opacity="0.8"/>
+  <circle cx="148" cy="106" r="4" fill="#06b6d4" opacity="0.8"/>
+  <circle cx="100" cy="134" r="4" fill="#06b6d4" opacity="0.8"/>
+  <circle cx="52"  cy="106" r="4" fill="#3b82f6" opacity="0.8"/>
+  <circle cx="52"  cy="50"  r="4" fill="#7c3aed" opacity="0.8"/>
+
+  <!-- NEXUS text below icon -->
+  <text x="100" y="168"
+    font-family="'Arial Black', sans-serif"
+    font-size="22"
+    font-weight="900"
+    letter-spacing="4"
+    fill="url(#g1)"
+    text-anchor="middle">NEXUS</text>
+
+  <text x="100" y="186"
+    font-family="Arial, sans-serif"
+    font-size="8"
+    letter-spacing="3"
+    fill="#475569"
+    text-anchor="middle">AI PLATFORM</text>
+</svg>

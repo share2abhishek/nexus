@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Database and data
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Environment (contains secrets)
+.env
+
+# Build output
+dist-app/
+build/icon.png
+build/icon.ico
+build/icon-*.png
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary
+*.tmp
+*.temp
