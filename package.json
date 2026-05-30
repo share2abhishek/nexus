@@ -1,7 +1,12 @@
 {
   "name": "nexus",
   "version": "2.0.0",
-  "description": "NEXUS — AI Digital Marketing Platform",
+  "description": "NEXUS — AI Digital Marketing Platform by Radixile Technology Solutions LLP",
+  "author": {
+    "name":  "Radixile Technology Solutions LLP",
+    "email": "support@radixile.com",
+    "url":   "https://radixile.com"
+  },
   "main": "electron/main.js",
   "scripts": {
     "start":          "node server/index.js",
@@ -47,13 +52,17 @@
     "png-to-ico":        "^2.1.8"
   },
   "build": {
-    "appId":       "com.nexus.marketing",
+    "appId":       "com.radixile.nexus",
     "productName": "NEXUS",
-    "copyright":   "NEXUS AI Digital Marketing Platform",
+    "copyright":   "© 2026 Radixile Technology Solutions LLP (India). All rights reserved.",
     "directories": {
       "output": "dist-app",
       "buildResources": "build"
     },
+    "extraResources": [
+      { "from": "resources/node", "to": "node",   "filter": ["node.exe"] },
+      { "from": "build",          "to": "build",  "filter": ["icon.png", "icon.ico"] }
+    ],
     "files": [
       "electron/**/*",
       "server/**/*",
@@ -68,9 +77,6 @@
       "!node_modules/.cache",
       "!dist-app/**/*",
       "!**/*.log"
-    ],
-    "extraResources": [
-      { "from": "public", "to": "public", "filter": ["**/*"] }
     ],
     "win": {
       "target": [
