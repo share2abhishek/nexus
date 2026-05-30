@@ -26,18 +26,38 @@ const PORT      = parseInt(process.env.PORT || '3000');
 const APP_URL   = `http://localhost:${PORT}`;
 const IS_DEV    = process.env.NODE_ENV === 'development';
 
-// Paths
-const APP_ROOT  = IS_DEV
-  ? path.join(__dirname, '..')
-  : path.join(process.resourcesPath, 'app');
+// Paths — resolved after app is ready (app.getPath needs app to be initialised)
+let APP_ROOT, BUNDLED_NODE, ICON_PATH;
 
-const BUNDLED_NODE = IS_DEV
-  ? path.join(__dirname, '..', 'resources', 'node', 'node.exe')
-  : path.join(process.resourcesPath, 'node', 'node.exe');
+function resolvePaths() {
+  const exeDir = path.dirname(app.getPath('exe')); // e.g. D:\Radixile\social\NEXUS
 
-const ICON_PATH = IS_DEV
-  ? path.join(__dirname, '..', 'build', 'icon.png')
-  : path.join(process.resourcesPath, 'build', 'icon.png');
+  if (IS_DEV) {
+    APP_ROOT     = path.join(__dirname, '..');
+    BUNDLED_NODE = path.join(__dirname, '..', 'resources', 'node', 'node.exe');
+    ICON_PATH    = path.join(__dirname, '..', 'build', 'icon.png');
+  } else {
+    APP_ROOT     = path.join(process.resourcesPath, 'app');
+
+    // Try multiple locations for bundled node.exe
+    const candidates = [
+      path.join(exeDir,                    'resources', 'node', 'node.exe'),
+      path.join(process.resourcesPath,     'node',              'node.exe'),
+      path.join(exeDir,                    'node',              'node.exe'),
+    ];
+    BUNDLED_NODE = candidates.find(p => { try { return fs.existsSync(p); } catch { return false; } }) || candidates[0];
+
+    ICON_PATH = [
+      path.join(exeDir,              'resources', 'build', 'icon.png'),
+      path.join(process.resourcesPath, 'build',            'icon.png'),
+    ].find(p => { try { return fs.existsSync(p); } catch { return false; } }) || '';
+  }
+
+  console.log('[Paths] exeDir:       ', exeDir);
+  console.log('[Paths] APP_ROOT:     ', APP_ROOT);
+  console.log('[Paths] BUNDLED_NODE: ', BUNDLED_NODE);
+  console.log('[Paths] ICON_PATH:    ', ICON_PATH);
+}
 
 const DATA_DIR  = path.join(app.getPath('userData'));
 
@@ -52,7 +72,23 @@ let psBlockerId  = null;
 // ── Windows Compatibility Check ───────────────────────────────────────────────
 
 function checkWindowsCompatibility() {
-  const release = os.release(); // e.g. "10.0.19041"
+  const platform = process.platform;
+
+  // macOS compatibility
+  if (platform === 'darwin') {
+    const release = os.release();
+    const major   = parseInt(release.split('.')[0]);
+    // macOS Catalina (10.15) = Darwin 19
+    if (major < 19) {
+      return [`macOS version is too old.\n${APP_NAME} requires macOS Catalina (10.15) or later.`];
+    }
+    return [];
+  }
+
+  // Linux — generally compatible
+  if (platform === 'linux') return [];
+
+  const release = os.release();
   const parts   = release.split('.').map(Number);
   const major   = parts[0];
   const build   = parts[2] || 0;
@@ -95,9 +131,8 @@ function checkWindowsCompatibility() {
 
 function findNodeExe() {
   // 1. Bundled node.exe (highest priority — fully self-contained)
-  if (fs.existsSync(BUNDLED_NODE)) {
-    return BUNDLED_NODE;
-  }
+  try { if (BUNDLED_NODE && fs.existsSync(BUNDLED_NODE)) return BUNDLED_NODE; } catch {}
+  console.warn('[Node] Bundled node.exe not found at:', BUNDLED_NODE);
 
   // 2. System PATH
   try {
@@ -382,6 +417,9 @@ if (!gotLock) {
 // ── App Lifecycle ─────────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
+  // Resolve all paths now that app is ready
+  resolvePaths();
+
   // Windows compatibility checks
   const issues = checkWindowsCompatibility();
   if (issues.some(i => i.includes('not supported'))) {
@@ -423,13 +461,17 @@ app.whenReady().then(async () => {
   if (!nodeExe) {
     showError(
       `${APP_NAME} — Node.js Not Found`,
-      `Could not find Node.js on this computer.\n\nNEXUS requires Node.js to run the server.\n\n` +
-      `The bundled Node.js may be missing. Please reinstall ${APP_NAME}.\n\n` +
-      `Or download Node.js manually from: https://nodejs.org`
+      `Could not find Node.js to run the NEXUS server.\n\n` +
+      `Looked for bundled Node.js at:\n${BUNDLED_NODE}\n\n` +
+      `Fix options:\n` +
+      `1. Reinstall NEXUS from the latest installer\n` +
+      `2. Install Node.js from https://nodejs.org then restart NEXUS\n\n` +
+      `Support: support@radixile.com`
     );
     app.quit();
     return;
   }
+  console.log('[Node] Using Node.js at:', nodeExe);
 
   // Prepare data directory and .env
   const { envFile } = prepareDataDir();

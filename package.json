@@ -60,8 +60,8 @@
       "buildResources": "build"
     },
     "extraResources": [
-      { "from": "resources/node", "to": "node",   "filter": ["node.exe"] },
-      { "from": "build",          "to": "build",  "filter": ["icon.png", "icon.ico"] }
+      { "from": "resources/node",     "to": "node",  "filter": ["node.exe", "node"] },
+      { "from": "build",              "to": "build", "filter": ["icon.png", "icon.ico"] }
     ],
     "files": [
       "electron/**/*",

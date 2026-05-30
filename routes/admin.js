@@ -13,6 +13,37 @@ function requireAdmin(req, res, next) {
 
 router.use(requireAuth, requireAdmin);
 
+// ── Admin create user directly ────────────────────────────────────────────────
+
+router.post('/users/create', async (req, res) => {
+  const bcrypt = require('bcryptjs');
+  const { email, password, name, role = 'user' } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email' });
+  try {
+    const hash   = await bcrypt.hash(password, 10);
+    // createUser auto-makes first user admin, subsequent ones are 'user' unless overridden
+    const result = db.db.prepare(`INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)`)
+      .run(email.toLowerCase().trim(), hash, name?.trim() || null, ['admin','user'].includes(role) ? role : 'user');
+    res.json({ success: true, id: result.lastInsertRowid, email, role });
+  } catch (err) {
+    if (err.message?.includes('UNIQUE')) return res.status(409).json({ error: 'Email already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin reset user password ─────────────────────────────────────────────────
+
+router.patch('/users/:id/password', async (req, res) => {
+  const bcrypt = require('bcryptjs');
+  const { password } = req.body;
+  if (!password || password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  const hash = await bcrypt.hash(password, 10);
+  db.db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, parseInt(req.params.id));
+  res.json({ success: true });
+});
+
 // ── Platform overview stats ───────────────────────────────────────────────────
 
 router.get('/stats', (req, res) => {

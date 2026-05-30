@@ -1301,11 +1301,45 @@ async function loadAdminUsers() {
             ${u.status !== 'suspended'
               ? `<button class="btn btn-secondary btn-sm" onclick="suspendUser(${u.id})" title="Suspend">🚫</button>`
               : `<button class="btn btn-success btn-sm" onclick="activateUser(${u.id})" title="Activate">✅</button>`}
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="adminResetPassword(${u.id},'${escapeHtml(u.email)}')" title="Reset Password">🔑</button>
             <button class="btn btn-danger btn-sm btn-icon" onclick="deleteUser(${u.id},'${escapeHtml(u.email)}')" title="Delete">🗑</button>
           </div>
         </td>
       </tr>`).join('');
   } catch (err) { tbody.innerHTML = `<tr><td colspan="9" style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</td></tr>`; }
+}
+
+async function adminCreateUser() {
+  const email    = document.getElementById('new-user-email')?.value.trim();
+  const password = document.getElementById('new-user-password')?.value;
+  const name     = document.getElementById('new-user-name')?.value.trim();
+  const role     = document.getElementById('new-user-role')?.value;
+  if (!email || !password) return toast('Email and password are required', 'warning');
+  try {
+    const r = await fetch('/admin/users/create', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, name, role }),
+    }).then(r => r.json());
+    if (r.error) return toast(r.error, 'error');
+    toast(`✅ User created: ${email}`, 'success');
+    document.getElementById('new-user-email').value    = '';
+    document.getElementById('new-user-password').value = '';
+    document.getElementById('new-user-name').value     = '';
+    loadAdminUsers(); loadAdminDashboard();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function adminResetPassword(id, email) {
+  const pwd = prompt(`Reset password for ${email}\n\nEnter new password (min 6 chars):`);
+  if (!pwd) return;
+  if (pwd.length < 6) return toast('Password must be at least 6 characters', 'warning');
+  try {
+    await fetch(`/admin/users/${id}/password`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pwd }),
+    });
+    toast(`Password reset for ${email}`, 'success');
+  } catch (err) { toast(err.message, 'error'); }
 }
 
 async function makeAdmin(id)    { await fetch(`/admin/users/${id}/role`,   { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ role: 'admin' }) }); toast('User promoted to Admin', 'success'); loadAdminUsers(); }
