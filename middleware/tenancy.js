@@ -5,8 +5,7 @@ function makeWithWorkspace(membershipsRepo) {
   return async function withWorkspace(req, res, next) {
     const userId = req.session?.userId;
     const workspaceId = req.session?.activeWorkspaceId
-      || Number(req.headers['x-workspace-id'])
-      || Number(req.params.workspaceId);
+      ?? (Number(req.headers['x-workspace-id']) || Number(req.params.workspaceId));
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
     if (!workspaceId) return res.status(400).json({ error: 'No active workspace' });
     const role = await membershipsRepo.roleFor(userId, workspaceId);
