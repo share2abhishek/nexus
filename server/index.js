@@ -30,6 +30,9 @@ const configRoutes = require('../routes/config');
 const ollamaRoutes = require('../routes/ollama');
 const scheduler    = require('../services/scheduler');
 const { requireAuth, injectUserKeys } = require('../middleware/auth');
+const { makeWithWorkspace, requirePermission } = require('../middleware/tenancy');
+const membershipsRepo = require('../repos/membershipsRepo')(knex);
+const withWorkspace = makeWithWorkspace(membershipsRepo);
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -75,6 +78,23 @@ app.use('/api/email',  requireAuth, injectUserKeys, emailRoutes);
 app.use('/api/tools',  requireAuth, injectUserKeys, toolsRoutes);
 app.use('/api/media',  requireAuth, injectUserKeys, mediaRoutes);
 app.use('/api/config', requireAuth, configRoutes);
+
+// ── Tenancy Routes ────────────────────────────────────────────────────────────
+
+app.use('/workspaces', require('../routes/workspaces')(knex));
+app.use('/workspaces/:workspaceId/members', require('../routes/members')(knex, withWorkspace, requirePermission));
+app.use('/invitations', require('../routes/invitations')(knex, withWorkspace, requirePermission));
+
+app.post('/session/active-workspace', (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: 'Not authenticated' });
+  req.session.activeWorkspaceId = Number(req.body.workspaceId);
+  res.json({ ok: true });
+});
+
+app.get('/me/workspaces', async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: 'Not authenticated' });
+  res.json(await membershipsRepo.listForUser(req.session.userId));
+});
 
 // ── Root: landing for guests, app for logged-in users ────────────────────────
 
