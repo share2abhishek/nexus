@@ -9,7 +9,7 @@ exports.up = async function (knex) {
     t.string('name').notNullable();
     t.integer('owner_user_id').notNullable();
     t.string('plan').defaultTo('free');
-    t.integer('created_at').defaultTo(epochDefault);
+    t.bigInteger('created_at').defaultTo(epochDefault);
   });
 
   await knex.schema.createTable('org_members', (t) => {
@@ -26,7 +26,7 @@ exports.up = async function (knex) {
     t.string('name').notNullable();
     t.string('slug').notNullable();
     t.string('timezone').defaultTo('UTC');
-    t.integer('created_at').defaultTo(epochDefault);
+    t.bigInteger('created_at').defaultTo(epochDefault);
     t.unique(['org_id', 'slug']);
   });
 
@@ -36,21 +36,21 @@ exports.up = async function (knex) {
     t.integer('workspace_id').notNullable().references('id').inTable('workspaces').onDelete('CASCADE');
     t.string('role').notNullable(); // manager|creator|reviewer|client|analyst
     t.string('status').defaultTo('active');
-    t.integer('created_at').defaultTo(epochDefault);
+    t.bigInteger('created_at').defaultTo(epochDefault);
     t.unique(['user_id', 'workspace_id']);
   });
 
   await knex.schema.createTable('invitations', (t) => {
     t.increments('id').primary();
-    t.integer('org_id').notNullable();
+    t.integer('org_id').notNullable().references('id').inTable('organizations').onDelete('CASCADE');
     t.integer('workspace_id');
     t.string('email').notNullable();
     t.string('role').notNullable();
     t.string('token').notNullable().unique();
     t.integer('invited_by');
-    t.integer('expires_at');
-    t.integer('accepted_at');
-    t.integer('created_at').defaultTo(epochDefault);
+    t.bigInteger('expires_at');
+    t.bigInteger('accepted_at');
+    t.bigInteger('created_at').defaultTo(epochDefault);
   });
 
   await knex.schema.createTable('social_accounts', (t) => {
@@ -61,18 +61,18 @@ exports.up = async function (knex) {
     t.string('external_id');
     t.text('access_token');
     t.text('refresh_token');
-    t.integer('expires_at');
+    t.bigInteger('expires_at');
     t.text('profile_json');
     t.string('page_id');
     t.text('page_token');
     t.string('ig_account_id');
     t.string('board_id');
     t.string('status').defaultTo('active');
-    t.integer('created_at').defaultTo(epochDefault);
+    t.bigInteger('created_at').defaultTo(epochDefault);
     t.unique(['workspace_id', 'platform', 'external_id']);
   });
 
-  // Add workspace_id to existing data tables (create them if a fresh cloud DB).
+  // Add workspace_id to pre-existing data tables; silently skips tables that don't exist yet.
   const dataTables = ['posts', 'scheduled_posts', 'history', 'analytics', 'seo_keywords',
     'utm_links', 'templates', 'email_subscribers', 'email_campaigns', 'apps', 'brand_kit', 'user_settings'];
   for (const tbl of dataTables) {
