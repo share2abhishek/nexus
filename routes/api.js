@@ -5,6 +5,10 @@ const path = require('path');
 const db = require('../services/database');
 const { postToPlatform } = require('../services/social');
 const { aiGenerate } = require('../services/aiHelper');
+const knexInstance = require('../services/knex');
+const postsRepo = require('../repos/postsRepo')(knexInstance);
+const scheduledRepo = require('../repos/scheduledRepo')(knexInstance);
+const socialRepo = require('../repos/socialAccountsRepo')(knexInstance);
 
 // ── AI Generate ───────────────────────────────────────────────────────────────
 
@@ -103,7 +107,7 @@ router.post('/post/now', async (req, res) => {
 
   for (const platform of platforms) {
     try {
-      const tokenData = db.getToken(platform);
+      const tokenData = await socialRepo.getByPlatform(req.workspaceId, platform);
       if (!tokenData) {
         results.push({ platform, success: false, error: `${platform} is not connected` });
         continue;
@@ -125,8 +129,10 @@ router.post('/post/now', async (req, res) => {
     }
   }
 
-  // Save to history
-  const postId = db.savePost({ content, platforms, image_url, results });
+  // Save to workspace-scoped post history
+  const postId = await postsRepo.save(req.workspaceId, req.session.userId, {
+    content, platforms, image_url, results, status: 'published',
+  });
 
   // Update analytics with post_id
   results.forEach(r => {
@@ -140,7 +146,7 @@ router.post('/post/now', async (req, res) => {
 
 // ── Schedule Post ─────────────────────────────────────────────────────────────
 
-router.post('/post/schedule', (req, res) => {
+router.post('/post/schedule', async (req, res) => {
   const { content, platforms, scheduled_at, image_url } = req.body;
 
   if (!content) return res.status(400).json({ error: 'content is required' });
@@ -155,27 +161,47 @@ router.post('/post/schedule', (req, res) => {
     return res.status(400).json({ error: 'scheduled_at must be a future date/time' });
   }
 
-  const id = db.saveScheduled({ content, platforms, image_url, scheduled_at: ts });
-  res.json({ success: true, id, scheduled_at: new Date(ts * 1000).toISOString() });
+  try {
+    const id = await scheduledRepo.save(req.workspaceId, req.session.userId, { content, platforms, image_url, scheduled_at: ts });
+    res.json({ success: true, id, scheduled_at: new Date(ts * 1000).toISOString() });
+  } catch (err) {
+    console.error('[API] Schedule error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Get Scheduled Posts ───────────────────────────────────────────────────────
 
-router.get('/posts/scheduled', (req, res) => {
-  const posts = db.getScheduledPosts();
-  res.json(posts);
+router.get('/posts/scheduled', async (req, res) => {
+  try {
+    const posts = await scheduledRepo.listPending(req.workspaceId);
+    res.json(posts);
+  } catch (err) {
+    console.error('[API] Get scheduled error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-router.delete('/posts/scheduled/:id', (req, res) => {
-  db.deleteScheduled(parseInt(req.params.id));
-  res.json({ success: true });
+router.delete('/posts/scheduled/:id', async (req, res) => {
+  try {
+    await scheduledRepo.remove(req.workspaceId, parseInt(req.params.id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[API] Delete scheduled error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Get Post History ──────────────────────────────────────────────────────────
 
-router.get('/posts/history', (req, res) => {
+router.get('/posts/history', async (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
-  res.json(db.getPostHistory(limit));
+  try {
+    res.json(await postsRepo.history(req.workspaceId, limit));
+  } catch (err) {
+    console.error('[API] Post history error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── AI History ────────────────────────────────────────────────────────────────
@@ -266,7 +292,7 @@ router.get('/local/read', (req, res) => {
 
 // ── CSV Bulk Import ───────────────────────────────────────────────────────────
 
-router.post('/local/import-csv', (req, res) => {
+router.post('/local/import-csv', async (req, res) => {
   const csvPath = path.join(process.env.CONTENT_FOLDER || '.', req.query.file || 'schedule.csv');
 
   if (!fs.existsSync(csvPath)) {
@@ -294,8 +320,12 @@ router.post('/local/import-csv', (req, res) => {
       continue;
     }
 
-    db.saveScheduled({ content, platforms, image_url: image_url || null, scheduled_at: ts });
-    imported++;
+    try {
+      await scheduledRepo.save(req.workspaceId, req.session.userId, { content, platforms, image_url: image_url || null, scheduled_at: ts });
+      imported++;
+    } catch (err) {
+      errors.push(`Row failed: ${err.message}`);
+    }
   }
 
   res.json({ success: true, imported, errors });

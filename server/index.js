@@ -72,12 +72,12 @@ app.use('/ollama',     ollamaRoutes); // guided AI setup (status / pull)
 
 // ── Protected Routes (require login) ─────────────────────────────────────────
 
-app.use('/api',        requireAuth, injectUserKeys, apiRoutes);
-app.use('/api/seo',    requireAuth, injectUserKeys, seoRoutes);
-app.use('/api/email',  requireAuth, injectUserKeys, emailRoutes);
-app.use('/api/tools',  requireAuth, injectUserKeys, toolsRoutes);
-app.use('/api/media',  requireAuth, injectUserKeys, mediaRoutes);
-app.use('/api/config', requireAuth, configRoutes);
+app.use('/api',        requireAuth, withWorkspace, injectUserKeys, apiRoutes);
+app.use('/api/seo',    requireAuth, withWorkspace, injectUserKeys, seoRoutes);
+app.use('/api/email',  requireAuth, withWorkspace, injectUserKeys, emailRoutes);
+app.use('/api/tools',  requireAuth, withWorkspace, injectUserKeys, toolsRoutes);
+app.use('/api/media',  requireAuth, withWorkspace, injectUserKeys, mediaRoutes);
+app.use('/api/config', requireAuth, withWorkspace, configRoutes);
 
 // ── Tenancy Routes ────────────────────────────────────────────────────────────
 
