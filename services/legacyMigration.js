@@ -16,8 +16,8 @@ module.exports = async function runLegacyMigration(knex) {
   }
 
   await knex.transaction(async (trx) => {
-    const admin = await trx('users').orderBy('id').first();
-    if (!admin) { await cfg.set('tenancy_migrated', '1'); return; } // fresh install, nothing to migrate
+    const admin = await trx('users').where('role', 'admin').orderBy('id').first();
+    if (!admin) { await trx('platform_config').insert({ key: 'tenancy_migrated', value: '1' }).onConflict('key').merge({ value: '1' }); return; }
 
     const orgName = 'My Organization';
     const orgRows = await trx('organizations').insert({ name: orgName, owner_user_id: admin.id, plan: 'free' }).returning('id');
