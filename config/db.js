@@ -4,6 +4,7 @@ const path = require('path');
 function dbConfig() {
   const client = process.env.DB_CLIENT || 'sqlite';
   if (client === 'pg') {
+    if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required when DB_CLIENT=pg');
     return {
       client: 'pg',
       connection: process.env.DATABASE_URL,

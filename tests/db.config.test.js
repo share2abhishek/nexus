@@ -14,4 +14,10 @@ describe('dbConfig', () => {
     expect(c.client).toBe('pg');
     expect(c.connection).toBe('postgres://u:p@localhost/db');
   });
+
+  test('throws when DB_CLIENT=pg and DATABASE_URL missing', () => {
+    process.env.DB_CLIENT = 'pg';
+    delete process.env.DATABASE_URL;
+    expect(() => dbConfig()).toThrow('DATABASE_URL is required');
+  });
 });

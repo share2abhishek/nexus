@@ -80,6 +80,7 @@
     "asarUnpack": [
       "node_modules/better-sqlite3/**",
       "node_modules/connect-sqlite3/**",
+      "node_modules/sqlite3/**",
       "node_modules/bindings/**",
       "node_modules/file-uri-to-path/**"
     ],
@@ -89,6 +90,7 @@
       "routes/**/*",
       "services/**/*",
       "middleware/**/*",
+      "config/**/*",
       "public/**/*",
       "install/**/*",
       ".env.example",
