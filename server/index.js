@@ -1,8 +1,22 @@
-require('dotenv').config();
+const path    = require('path');
+
+// Load .env from the writable location Electron prepared (falls back to project
+// root in development). Plain `dotenv.config()` only reads ./.env, so pass it.
+require('dotenv').config(
+  process.env.DOTENV_CONFIG_PATH ? { path: process.env.DOTENV_CONFIG_PATH } : {}
+);
+
+// Writable data directory. When packaged, the app source lives inside a
+// read-only asar archive, so all databases/sessions must live in userData
+// (provided by Electron via NEXUS_DATA_DIR). Falls back to ../data in dev.
+const DATA_DIR = process.env.NEXUS_DATA_DIR || path.join(__dirname, '..', 'data');
+
+const knex               = require('../services/knex');
+const runLegacyMigration = require('../services/legacyMigration');
+
 const express = require('express');
 const session = require('express-session');
 const cors    = require('cors');
-const path    = require('path');
 
 const authRoutes   = require('../routes/auth');
 const usersRoutes  = require('../routes/users');
@@ -13,6 +27,7 @@ const emailRoutes  = require('../routes/email');
 const toolsRoutes  = require('../routes/tools');
 const mediaRoutes  = require('../routes/media');
 const configRoutes = require('../routes/config');
+const ollamaRoutes = require('../routes/ollama');
 const scheduler    = require('../services/scheduler');
 const { requireAuth, injectUserKeys } = require('../middleware/auth');
 
@@ -25,9 +40,16 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-const SQLiteStore = require('connect-sqlite3')(session);
+let sessionStore;
+if (process.env.DB_CLIENT === 'pg') {
+  const pgSession = require('connect-pg-simple')(session);
+  sessionStore = new pgSession({ conString: process.env.DATABASE_URL, createTableIfMissing: true });
+} else {
+  const SQLiteStore = require('connect-sqlite3')(session);
+  sessionStore = new SQLiteStore({ db: 'sessions.db', dir: DATA_DIR });
+}
 app.use(session({
-  store: new SQLiteStore({ db: 'sessions.db', dir: path.join(__dirname, '..', 'data') }),
+  store: sessionStore,
   secret: process.env.SESSION_SECRET || 'nexus-dev-secret',
   resave: false,
   saveUninitialized: false,
@@ -43,6 +65,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/auth',       authRoutes);   // OAuth platform callbacks
 app.use('/users',      usersRoutes);  // register / login / logout / me
 app.use('/admin',      adminRoutes);  // super admin dashboard
+app.use('/ollama',     ollamaRoutes); // guided AI setup (status / pull)
 
 // ── Protected Routes (require login) ─────────────────────────────────────────
 
@@ -83,18 +106,35 @@ app.use((err, req, res, next) => {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 
-app.listen(PORT, async () => {
-  console.log(`\n╔════════════════════════════════════════╗`);
-  console.log(`║   NEXUS v2.0 — Digital Marketing Suite ║`);
-  console.log(`║   http://localhost:${PORT}                ║`);
-  console.log(`╚════════════════════════════════════════╝\n`);
-
-  scheduler.start();
-
+async function bootstrap() {
   try {
-    const open = (await import('open')).default;
-    await open(`http://localhost:${PORT}`);
-  } catch {}
-});
+    await knex.migrate.latest();
+    await runLegacyMigration(knex);
+    console.log('[DB] Migrations complete.');
+  } catch (err) {
+    console.error('[DB] Migration error:', err.message);
+    // Don't exit on migration error — let the app start, log the issue
+  }
+
+  app.listen(PORT, async () => {
+    console.log(`\n╔════════════════════════════════════════╗`);
+    console.log(`║   NEXUS v2.0 — Digital Marketing Suite ║`);
+    console.log(`║   http://localhost:${PORT}                ║`);
+    console.log(`╚════════════════════════════════════════╝\n`);
+
+    scheduler.start();
+
+    // Only auto-open a browser when running standalone. Under Electron the
+    // desktop window handles the UI (NEXUS_NO_BROWSER=true).
+    if (process.env.NEXUS_NO_BROWSER !== 'true') {
+      try {
+        const open = (await import('open')).default;
+        await open(`http://localhost:${PORT}`);
+      } catch {}
+    }
+  });
+}
+
+bootstrap().catch(err => { console.error('[Startup] fatal', err); process.exit(1); });
 
 module.exports = app;
