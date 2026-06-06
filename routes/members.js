@@ -6,17 +6,23 @@ module.exports = (knex, withWorkspace, requirePermission) => {
   const members = require('../repos/membershipsRepo')(knex);
 
   router.get('/', withWorkspace, requirePermission('members.manage'), async (req, res) => {
-    res.json(await members.listMembers(req.workspaceId));
+    try {
+      res.json(await members.listMembers(req.workspaceId));
+    } catch (err) { res.status(500).json({ error: err.message }); }
   });
   router.post('/', withWorkspace, requirePermission('members.manage'), async (req, res) => {
-    const { userId, role } = req.body;
-    if (!ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role' });
-    await members.add({ userId, workspaceId: req.workspaceId, role });
-    res.status(201).json({ ok: true });
+    try {
+      const { userId, role } = req.body;
+      if (!ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role' });
+      await members.add({ userId, workspaceId: req.workspaceId, role });
+      res.status(201).json({ ok: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
   });
   router.delete('/:userId', withWorkspace, requirePermission('members.manage'), async (req, res) => {
-    await members.remove(Number(req.params.userId), req.workspaceId);
-    res.json({ ok: true });
+    try {
+      await members.remove(Number(req.params.userId), req.workspaceId);
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
   });
   return router;
 };

@@ -12,7 +12,9 @@ module.exports = (knex) => {
   }
 
   router.get('/', async (req, res) => {
-    res.json(await members.listForUser(req.session.userId));
+    try {
+      res.json(await members.listForUser(req.session.userId));
+    } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
   router.post('/', async (req, res) => {

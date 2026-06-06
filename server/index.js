@@ -93,7 +93,9 @@ app.post('/session/active-workspace', (req, res) => {
 
 app.get('/me/workspaces', async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'Not authenticated' });
-  res.json(await membershipsRepo.listForUser(req.session.userId));
+  try {
+    res.json(await membershipsRepo.listForUser(req.session.userId));
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Root: landing for guests, app for logged-in users ────────────────────────

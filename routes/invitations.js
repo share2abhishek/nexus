@@ -5,11 +5,22 @@ module.exports = (knex, withWorkspace, requirePermission) => {
   const invites = require('../repos/invitationsRepo')(knex);
 
   router.post('/', withWorkspace, requirePermission('members.manage'), async (req, res) => {
-    const { email, role } = req.body;
-    const inv = await invites.create({
-      orgId: req.body.orgId, workspaceId: req.workspaceId, email, role, invitedBy: req.session.userId,
-    });
-    res.status(201).json(inv); // caller emails the link /invite/<token>
+    try {
+      const { email, role } = req.body;
+      const knexInst = knex; // knex is in scope from the factory closure
+      const workspace = await knexInst('workspaces').where({ id: req.workspaceId }).first();
+      if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
+      const inv = await invites.create({
+        orgId: workspace.org_id,
+        workspaceId: req.workspaceId,
+        email,
+        role,
+        invitedBy: req.session.userId,
+      });
+      res.status(201).json(inv);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   router.post('/:token/accept', async (req, res) => {
