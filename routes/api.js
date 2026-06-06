@@ -221,9 +221,9 @@ router.get('/analytics', (req, res) => {
 
 // ─── Simulate Analytics (for demo) ───────────────────────────────────────────
 
-router.post('/analytics/simulate', (req, res) => {
+router.post('/analytics/simulate', async (req, res) => {
   const platforms = ['linkedin', 'facebook', 'instagram', 'pinterest', 'twitter'];
-  const posts = db.getPostHistory(10);
+  const posts = await postsRepo.history(req.workspaceId, 10);
 
   for (const post of posts) {
     for (const platform of post.platforms) {

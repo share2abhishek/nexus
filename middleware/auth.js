@@ -16,14 +16,18 @@ function optionalAuth(req, res, next) {
 
 // Inject user AI keys into request for this handler chain
 async function injectUserKeys(req, res, next) {
-  if (req.session?.userId) {
-    const s = await settingsRepo.get(req.session.userId);
-    if (s?.google_ai_key) req.googleKey = s.google_ai_key;
-    if (s?.anthropic_key) req.anthropicKey = s.anthropic_key;
-    if (s?.ollama_enabled) req.ollamaEnabled = !!s.ollama_enabled;
-    if (s?.ollama_model)  req.ollamaModel  = s.ollama_model;
+  try {
+    if (req.session?.userId) {
+      const s = await settingsRepo.get(req.session.userId);
+      if (s?.google_ai_key) req.googleKey = s.google_ai_key;
+      if (s?.anthropic_key) req.anthropicKey = s.anthropic_key;
+      if (s?.ollama_enabled) req.ollamaEnabled = !!s.ollama_enabled;
+      if (s?.ollama_model)  req.ollamaModel  = s.ollama_model;
+    }
+    next();
+  } catch (err) {
+    next(err);
   }
-  next();
 }
 
 module.exports = { requireAuth, optionalAuth, injectUserKeys };
