@@ -83,6 +83,7 @@ app.use('/api/config', requireAuth, withWorkspace, configRoutes);
 
 app.use('/workspaces', require('../routes/workspaces')(knex));
 app.use('/workspaces/:workspaceId/members', require('../routes/members')(knex, withWorkspace, requirePermission));
+app.use('/workspaces/:workspaceId/social-accounts', require('../routes/social-accounts')(knex, withWorkspace, requirePermission));
 app.use('/invitations', require('../routes/invitations')(knex, withWorkspace, requirePermission));
 
 app.post('/session/active-workspace', (req, res) => {
