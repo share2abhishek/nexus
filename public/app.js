@@ -916,7 +916,8 @@ function switchSettingsTab(tab, btn) {
   document.querySelectorAll('.settings-panel').forEach(p => p.style.display = 'none');
   document.getElementById(`settings-panel-${tab}`).style.display = '';
   document.querySelectorAll('.settings-tab-btn').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-secondary'); });
-  btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary');
+  if (btn) { btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary'); }
+  if (tab === 'members') loadMembers();
 }
 
 async function loadSettings() {
@@ -2775,11 +2776,15 @@ function toggleUserMenu() {
   if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
 }
 
-// Close dropdown when clicking outside
+// Close dropdowns when clicking outside
 document.addEventListener('click', e => {
   const wrap = document.getElementById('user-menu-wrap');
   if (wrap && !wrap.contains(e.target)) {
     const dd = document.getElementById('user-dropdown');
+    if (dd) dd.style.display = 'none';
+  }
+  if (!document.getElementById('workspace-switcher-wrap')?.contains(e.target)) {
+    const dd = document.getElementById('workspace-dropdown');
     if (dd) dd.style.display = 'none';
   }
 });
@@ -2787,6 +2792,99 @@ document.addEventListener('click', e => {
 async function doLogout() {
   await fetch('/users/logout', { method: 'POST' });
   window.location.href = '/login.html';
+}
+
+// ── Workspace Switcher ────────────────────────────────────────────────────────
+
+let currentWorkspaceId = null;
+let currentWorkspaceName = '';
+
+function toggleWorkspaceSwitcher() {
+  const dd = document.getElementById('workspace-dropdown');
+  dd.style.display = dd.style.display === 'none' ? '' : 'none';
+}
+
+async function loadWorkspaces() {
+  try {
+    const workspaces = await fetch('/me/workspaces').then(r => r.json());
+    const list = document.getElementById('workspace-list');
+    if (!list) return;
+    list.innerHTML = workspaces.map(w => `
+      <button class="btn" onclick="switchWorkspace(${w.workspace_id},'${escapeHtml(w.workspace_name)}')"
+        style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 14px;font-size:13px;color:var(--text-primary);${w.workspace_id === currentWorkspaceId ? 'background:var(--glass)' : ''}">
+        ${w.workspace_id === currentWorkspaceId ? '✓ ' : ''}${escapeHtml(w.workspace_name)}
+        <span style="font-size:11px;color:var(--text-muted);margin-left:auto">${w.role}</span>
+      </button>`).join('');
+    if (workspaces.length > 0 && !currentWorkspaceId) {
+      await switchWorkspace(workspaces[0].workspace_id, workspaces[0].workspace_name, false);
+    }
+  } catch {}
+}
+
+async function switchWorkspace(wsId, wsName, closeDropdown = true) {
+  try {
+    await fetch('/session/active-workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId: wsId }),
+    });
+    currentWorkspaceId = wsId;
+    currentWorkspaceName = wsName;
+    const label = document.getElementById('workspace-name-label');
+    if (label) label.textContent = wsName;
+    if (closeDropdown) {
+      const dd = document.getElementById('workspace-dropdown');
+      if (dd) dd.style.display = 'none';
+      await loadWorkspaces(); // refresh checkmarks
+    }
+  } catch {}
+}
+
+// ── Members Panel ─────────────────────────────────────────────────────────────
+
+async function loadMembers() {
+  const el = document.getElementById('members-list');
+  if (!el) return;
+  if (!currentWorkspaceId) { el.innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center">No active workspace</div>'; return; }
+  try {
+    const members = await fetch(`/workspaces/${currentWorkspaceId}/members`).then(r => r.json());
+    if (!members.length) { el.innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center">No members yet</div>'; return; }
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse">
+      <thead><tr style="font-size:11px;color:var(--text-muted);text-transform:uppercase;border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:8px 4px">User</th>
+        <th style="text-align:left;padding:8px 4px">Role</th>
+        <th style="text-align:left;padding:8px 4px">Status</th>
+      </tr></thead>
+      <tbody>${members.map(m => `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:10px 4px;font-size:13px">${escapeHtml(m.email || m.user_id)}</td>
+        <td style="padding:10px 4px"><span style="font-size:11px;background:var(--glass);padding:2px 8px;border-radius:20px">${escapeHtml(m.role)}</span></td>
+        <td style="padding:10px 4px"><span style="font-size:11px;color:${m.status==='active'?'#22c55e':'var(--text-muted)'}">${escapeHtml(m.status)}</span></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  } catch (err) {
+    el.innerHTML = `<div style="color:#ef4444;padding:20px">Failed to load members</div>`;
+  }
+}
+
+async function sendInvite() {
+  const email = document.getElementById('invite-email')?.value.trim();
+  const role = document.getElementById('invite-role')?.value;
+  const resultEl = document.getElementById('invite-result');
+  if (!email) { if (resultEl) resultEl.innerHTML = '<span style="color:#ef4444">Email is required</span>'; return; }
+  if (!currentWorkspaceId) { if (resultEl) resultEl.innerHTML = '<span style="color:#ef4444">No active workspace</span>'; return; }
+  try {
+    const r = await fetch('/invitations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId: currentWorkspaceId, email, role }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Failed to send invite');
+    if (resultEl) resultEl.innerHTML = `<span style="color:#22c55e">Invite sent! Share this link: <a href="${escapeHtml(data.invite_url)}" target="_blank" style="color:#60a5fa">${escapeHtml(data.invite_url)}</a></span>`;
+    document.getElementById('invite-email').value = '';
+  } catch (err) {
+    if (resultEl) resultEl.innerHTML = `<span style="color:#ef4444">${escapeHtml(err.message)}</span>`;
+  }
 }
 
 
@@ -3052,6 +3150,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initPlatformSelectors();
   initTheme();
   handleURLParams();
+  loadWorkspaces();
 
   // Restore API key
   if (State.anthropicKey) {

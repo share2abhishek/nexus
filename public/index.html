@@ -135,6 +135,20 @@
       <div class="header-actions">
         <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" id="btn-theme" title="Toggle light/dark mode">🌙</button>
         <button class="btn btn-secondary btn-sm" onclick="refreshStatus()" id="btn-refresh">🔄 Refresh</button>
+        <!-- Workspace Switcher -->
+        <div style="position:relative" id="workspace-switcher-wrap">
+          <button class="btn btn-secondary btn-sm" onclick="toggleWorkspaceSwitcher()" id="btn-workspace" style="display:flex;align-items:center;gap:6px;max-width:180px">
+            <span style="font-size:14px">🏢</span>
+            <span id="workspace-name-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">Loading…</span>
+            <span style="font-size:10px;opacity:0.6">▼</span>
+          </button>
+          <div id="workspace-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;min-width:220px;box-shadow:var(--shadow-lg);z-index:999;overflow:hidden">
+            <div style="padding:10px 14px;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid var(--border)">Your Workspaces</div>
+            <div id="workspace-list"></div>
+            <div style="height:1px;background:var(--border)"></div>
+            <button class="btn" onclick="navigateTo('settings');toggleWorkspaceSwitcher();setTimeout(()=>switchSettingsTab('members',document.querySelector('[data-tab=members]')),100)" style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 14px;font-size:13px;color:var(--text-primary)">👥 Manage Members</button>
+          </div>
+        </div>
         <!-- User menu -->
         <div style="position:relative" id="user-menu-wrap">
           <button class="btn btn-secondary btn-sm" onclick="toggleUserMenu()" id="btn-user" style="display:flex;align-items:center;gap:6px">
@@ -628,6 +642,7 @@
         <button class="btn btn-secondary btn-sm settings-tab-btn" onclick="switchSettingsTab('media-keys',this)">🎨 Media AI</button>
         <button class="btn btn-secondary btn-sm settings-tab-btn" onclick="switchSettingsTab('smtp',this)">📧 Email / SMTP</button>
         <button class="btn btn-secondary btn-sm settings-tab-btn" onclick="switchSettingsTab('about',this)">ℹ️ About</button>
+        <button class="btn btn-secondary btn-sm settings-tab-btn" data-tab="members" onclick="switchSettingsTab('members',this)">👥 Members</button>
       </div>
 
       <!-- ── Social Platforms Panel ────────────────────────────────────────── -->
@@ -847,6 +862,42 @@
             <div style="display:flex;gap:8px;align-items:center;min-width:320px">
               <input type="text" class="form-input" id="setting-content-folder" placeholder="D:/social" style="flex:1" />
               <button class="btn btn-primary btn-sm" onclick="saveContentFolder()">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Members Panel ──────────────────────────────────────────────────── -->
+      <div class="settings-panel" id="settings-panel-members" style="display:none">
+        <div class="settings-section">
+          <div class="settings-section-header">
+            <div class="settings-section-title">👥 Workspace Members</div>
+          </div>
+          <div class="card-body" style="padding:24px">
+            <div id="members-list" style="margin-bottom:24px">
+              <div style="text-align:center;padding:20px;color:var(--text-muted)">Loading members…</div>
+            </div>
+
+            <div style="border-top:1px solid var(--border);padding-top:20px">
+              <div style="font-size:14px;font-weight:600;margin-bottom:12px">Invite a Member</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                <div style="flex:1;min-width:200px">
+                  <label style="font-size:12px;color:var(--text-muted);margin-bottom:4px;display:block">Email address</label>
+                  <input id="invite-email" type="email" class="form-control" placeholder="colleague@company.com" style="width:100%" />
+                </div>
+                <div style="min-width:140px">
+                  <label style="font-size:12px;color:var(--text-muted);margin-bottom:4px;display:block">Role</label>
+                  <select id="invite-role" class="form-control">
+                    <option value="creator">Creator</option>
+                    <option value="reviewer">Reviewer</option>
+                    <option value="client">Client</option>
+                    <option value="analyst">Analyst</option>
+                    <option value="manager">Manager</option>
+                  </select>
+                </div>
+                <button class="btn btn-primary" onclick="sendInvite()">📩 Send Invite</button>
+              </div>
+              <div id="invite-result" style="margin-top:10px;font-size:13px"></div>
             </div>
           </div>
         </div>

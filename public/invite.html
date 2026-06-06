@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Accept Workspace Invitation — NEXUS</title>
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px">
+  <div class="card" style="max-width:440px;width:100%;text-align:center">
+    <div style="padding:32px 24px 16px">
+      <img src="icon.svg" alt="NEXUS" style="width:56px;height:56px;border-radius:14px;margin-bottom:16px" />
+      <div style="font-size:22px;font-weight:700;margin-bottom:8px">Workspace Invitation</div>
+      <div id="invite-status" style="font-size:14px;color:var(--text-muted)">Loading invitation…</div>
+    </div>
+    <div id="invite-body" style="padding:0 24px 32px"></div>
+  </div>
+</div>
+<script>
+(async () => {
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token');
+  const statusEl = document.getElementById('invite-status');
+  const bodyEl = document.getElementById('invite-body');
+
+  if (!token) {
+    statusEl.textContent = 'Invalid invitation link.';
+    return;
+  }
+
+  try {
+    const r = await fetch(`/invitations/${encodeURIComponent(token)}/accept`, { method: 'POST' });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Failed to accept invitation');
+    statusEl.textContent = 'You have joined the workspace!';
+    statusEl.style.color = '#22c55e';
+    bodyEl.innerHTML = `
+      <div style="margin-bottom:20px;font-size:14px;color:var(--text-secondary)">
+        You are now a member of <strong>${escapeHtml(data.workspace_name || 'the workspace')}</strong> as <strong>${escapeHtml(data.role || '')}</strong>.
+      </div>
+      <a href="/app" class="btn btn-primary" style="display:inline-flex">🚀 Open NEXUS</a>`;
+  } catch (err) {
+    statusEl.textContent = err.message;
+    statusEl.style.color = '#ef4444';
+    bodyEl.innerHTML = `<a href="/app" class="btn btn-secondary" style="display:inline-flex">← Back to NEXUS</a>`;
+  }
+})();
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+</body>
+</html>
