@@ -12,9 +12,13 @@ module.exports = (knex, requirePermission) => {
     if (!body || !body.trim()) {
       return res.status(400).json({ error: 'body is required' });
     }
-    const id = await contentRepo.create(req.workspaceId, req.session.userId, { title, body, platforms, image_url, social_account_ids });
-    const item = await contentRepo.getById(req.workspaceId, id);
-    res.status(201).json(item);
+    try {
+      const id = await contentRepo.create(req.workspaceId, req.session.userId, { title, body, platforms, image_url, social_account_ids });
+      const item = await contentRepo.getById(req.workspaceId, id);
+      res.status(201).json(item);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   router.get('/', requirePermission('content.view'), async (req, res) => {
@@ -22,12 +26,16 @@ module.exports = (knex, requirePermission) => {
     if (status && !STATUSES.includes(status)) {
       return res.status(400).json({ error: `status must be one of: ${STATUSES.join(', ')}` });
     }
-    const items = await contentRepo.list(req.workspaceId, {
-      status,
-      limit: limit != null ? Number(limit) : undefined,
-      offset: offset != null ? Number(offset) : undefined,
-    });
-    res.json(items);
+    try {
+      const items = await contentRepo.list(req.workspaceId, {
+        status,
+        limit: limit != null ? Number(limit) : undefined,
+        offset: offset != null ? Number(offset) : undefined,
+      });
+      res.json(items);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   router.get('/calendar', requirePermission('content.view'), async (req, res) => {
@@ -36,17 +44,25 @@ module.exports = (knex, requirePermission) => {
     if (!from || !to) {
       return res.status(400).json({ error: 'from and to query params (epoch seconds) are required' });
     }
-    const items = await contentRepo.list(req.workspaceId, { from, to });
-    res.json(items);
+    try {
+      const items = await contentRepo.list(req.workspaceId, { from, to });
+      res.json(items);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   router.get('/:id', requirePermission('content.view'), async (req, res) => {
-    const item = await contentRepo.getById(req.workspaceId, req.params.id);
-    if (!item) return res.status(404).json({ error: 'Not found' });
-    const comments = await knex('content_item_comments')
-      .where({ content_item_id: item.id, workspace_id: req.workspaceId })
-      .orderBy('created_at', 'asc');
-    res.json({ ...item, comments });
+    try {
+      const item = await contentRepo.getById(req.workspaceId, req.params.id);
+      if (!item) return res.status(404).json({ error: 'Not found' });
+      const comments = await knex('content_item_comments')
+        .where({ content_item_id: item.id, workspace_id: req.workspaceId })
+        .orderBy('created_at', 'asc');
+      res.json({ ...item, comments });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   return router;
