@@ -99,4 +99,26 @@ module.exports = (knex) => ({
   remove(workspaceId, id) {
     return knex('content_items').where({ workspace_id: workspaceId, id }).del();
   },
+
+  async getDueForPublish(now) {
+    const rows = await knex('content_items').where({ status: 'scheduled' }).where('scheduled_at', '<=', now);
+    return rows.map(deserialize);
+  },
+
+  markPublished(id) {
+    return knex('content_items').where({ id }).update({
+      status: 'published',
+      published_at: nowEpoch(),
+      error_message: null,
+      updated_at: nowEpoch(),
+    });
+  },
+
+  markFailed(id, errorMessage) {
+    return knex('content_items').where({ id }).update({
+      status: 'failed',
+      error_message: errorMessage,
+      updated_at: nowEpoch(),
+    });
+  },
 });

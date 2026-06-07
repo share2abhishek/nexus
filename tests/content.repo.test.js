@@ -215,3 +215,69 @@ describe('contentRepo.transition', () => {
     expect(result.error).toBe('not_found');
   });
 });
+
+describe('contentRepo scheduler helpers', () => {
+  let knex, contentRepo, workspaceId;
+
+  beforeAll(async () => {
+    knex = makeTestKnex();
+    await knex.migrate.latest();
+    contentRepo = contentRepoFactory(knex);
+    workspaceId = await makeWorkspace(knex, 'Scheduler WS', 'scheduler-ws');
+  });
+
+  afterAll(async () => { await knex.destroy(); });
+
+  test('getDueForPublish returns only scheduled items at/before the given time', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const past = now - 60;
+    const future = now + 3600;
+
+    const dueId = await contentRepo.create(workspaceId, 1, { body: 'Due', platforms: [] });
+    await knex('content_items').where({ id: dueId }).update({ status: 'scheduled', scheduled_at: past });
+
+    const notDueId = await contentRepo.create(workspaceId, 1, { body: 'Not due yet', platforms: [] });
+    await knex('content_items').where({ id: notDueId }).update({ status: 'scheduled', scheduled_at: future });
+
+    const draftId = await contentRepo.create(workspaceId, 1, { body: 'Still a draft', platforms: [] });
+    await knex('content_items').where({ id: draftId }).update({ scheduled_at: past });
+
+    const due = await contentRepo.getDueForPublish(now);
+    const ids = due.map(i => i.id);
+    expect(ids).toContain(dueId);
+    expect(ids).not.toContain(notDueId);
+    expect(ids).not.toContain(draftId);
+  });
+
+  test('getDueForPublish returns parsed platforms and social_account_ids', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const id = await contentRepo.create(workspaceId, 1, { body: 'Parse me', platforms: ['twitter', 'linkedin'], social_account_ids: [11, 22] });
+    await knex('content_items').where({ id }).update({ status: 'scheduled', scheduled_at: now - 1 });
+
+    const due = await contentRepo.getDueForPublish(now);
+    const item = due.find(i => i.id === id);
+    expect(item.platforms).toEqual(['twitter', 'linkedin']);
+    expect(item.social_account_ids).toEqual([11, 22]);
+  });
+
+  test('markPublished sets status, published_at, and clears error_message', async () => {
+    const id = await contentRepo.create(workspaceId, 1, { body: 'Publish me', platforms: [] });
+    await knex('content_items').where({ id }).update({ status: 'scheduled', error_message: 'stale error' });
+
+    await contentRepo.markPublished(id);
+    const item = await contentRepo.getById(workspaceId, id);
+    expect(item.status).toBe('published');
+    expect(item.published_at).not.toBeNull();
+    expect(item.error_message).toBeNull();
+  });
+
+  test('markFailed sets status and error_message', async () => {
+    const id = await contentRepo.create(workspaceId, 1, { body: 'Fail me', platforms: [] });
+    await knex('content_items').where({ id }).update({ status: 'scheduled' });
+
+    await contentRepo.markFailed(id, 'Token expired');
+    const item = await contentRepo.getById(workspaceId, id);
+    expect(item.status).toBe('failed');
+    expect(item.error_message).toBe('Token expired');
+  });
+});
