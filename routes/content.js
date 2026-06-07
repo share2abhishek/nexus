@@ -1,0 +1,53 @@
+const express = require('express');
+const contentRepoFactory = require('../repos/contentRepo');
+
+const STATUSES = ['draft', 'in_review', 'approved', 'scheduled', 'published', 'failed'];
+
+module.exports = (knex, requirePermission) => {
+  const router = express.Router();
+  const contentRepo = contentRepoFactory(knex);
+
+  router.post('/', requirePermission('content.create'), async (req, res) => {
+    const { title, body, platforms, image_url, social_account_ids } = req.body;
+    if (!body || !body.trim()) {
+      return res.status(400).json({ error: 'body is required' });
+    }
+    const id = await contentRepo.create(req.workspaceId, req.session.userId, { title, body, platforms, image_url, social_account_ids });
+    const item = await contentRepo.getById(req.workspaceId, id);
+    res.status(201).json(item);
+  });
+
+  router.get('/', requirePermission('content.view'), async (req, res) => {
+    const { status, limit, offset } = req.query;
+    if (status && !STATUSES.includes(status)) {
+      return res.status(400).json({ error: `status must be one of: ${STATUSES.join(', ')}` });
+    }
+    const items = await contentRepo.list(req.workspaceId, {
+      status,
+      limit: limit != null ? Number(limit) : undefined,
+      offset: offset != null ? Number(offset) : undefined,
+    });
+    res.json(items);
+  });
+
+  router.get('/calendar', requirePermission('content.view'), async (req, res) => {
+    const from = Number(req.query.from);
+    const to = Number(req.query.to);
+    if (!from || !to) {
+      return res.status(400).json({ error: 'from and to query params (epoch seconds) are required' });
+    }
+    const items = await contentRepo.list(req.workspaceId, { from, to });
+    res.json(items);
+  });
+
+  router.get('/:id', requirePermission('content.view'), async (req, res) => {
+    const item = await contentRepo.getById(req.workspaceId, req.params.id);
+    if (!item) return res.status(404).json({ error: 'Not found' });
+    const comments = await knex('content_item_comments')
+      .where({ content_item_id: item.id, workspace_id: req.workspaceId })
+      .orderBy('created_at', 'asc');
+    res.json({ ...item, comments });
+  });
+
+  return router;
+};
