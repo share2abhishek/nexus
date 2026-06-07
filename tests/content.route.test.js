@@ -231,3 +231,173 @@ describe('content routes — edit and delete', () => {
     });
   });
 });
+
+describe('content routes — status transitions and comments', () => {
+  let knex, workspaceId;
+
+  beforeAll(async () => {
+    knex = makeTestKnex();
+    await knex.migrate.latest();
+    workspaceId = await makeWorkspace(knex, 'Transition Routes WS', 'transition-routes-ws');
+  });
+
+  afterAll(async () => { await knex.destroy(); });
+
+  async function createAndSubmit(creatorApp) {
+    const created = await request(creatorApp).post('/api/content').send({ body: 'Lifecycle item', platforms: [] });
+    const id = created.body.id;
+    await request(creatorApp).patch(`/api/content/${id}/status`).send({ toStatus: 'in_review' });
+    return id;
+  }
+
+  describe('PATCH /api/content/:id/status', () => {
+    test('creator can submit their draft for review (content.submit)', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const created = await request(creatorApp).post('/api/content').send({ body: 'Submit me', platforms: [] });
+      const id = created.body.id;
+
+      const res = await request(creatorApp).patch(`/api/content/${id}/status`).send({ toStatus: 'in_review' });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('in_review');
+    });
+
+    test('creator cannot approve (lacks content.approve)', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const id = await createAndSubmit(creatorApp);
+
+      const res = await request(creatorApp).patch(`/api/content/${id}/status`).send({ toStatus: 'approved' });
+      expect(res.status).toBe(403);
+      expect(res.body.requiredPermission).toBe('content.approve');
+    });
+
+    test('reviewer can approve in-review content and is recorded as approved_by', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const id = await createAndSubmit(creatorApp);
+
+      const reviewerApp = makeApp(knex, workspaceId, 'reviewer', 9);
+      const res = await request(reviewerApp).patch(`/api/content/${id}/status`).send({ toStatus: 'approved' });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('approved');
+      expect(res.body.approved_by).toBe(9);
+    });
+
+    test('reviewer can reject in-review content back to draft', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const id = await createAndSubmit(creatorApp);
+
+      const reviewerApp = makeApp(knex, workspaceId, 'reviewer', 9);
+      const res = await request(reviewerApp).patch(`/api/content/${id}/status`).send({ toStatus: 'draft' });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('draft');
+    });
+
+    test('manager can schedule approved content with a future scheduled_at', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const id = await createAndSubmit(creatorApp);
+      const reviewerApp = makeApp(knex, workspaceId, 'reviewer', 9);
+      await request(reviewerApp).patch(`/api/content/${id}/status`).send({ toStatus: 'approved' });
+
+      const managerApp = makeApp(knex, workspaceId, 'manager', 5);
+      const futureEpoch = Math.floor(Date.now() / 1000) + 3600;
+      const res = await request(managerApp).patch(`/api/content/${id}/status`).send({ toStatus: 'scheduled', scheduled_at: futureEpoch });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('scheduled');
+      expect(res.body.scheduled_at).toBe(futureEpoch);
+    });
+
+    test('creator cannot schedule (lacks content.schedule)', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const id = await createAndSubmit(creatorApp);
+      const reviewerApp = makeApp(knex, workspaceId, 'reviewer', 9);
+      await request(reviewerApp).patch(`/api/content/${id}/status`).send({ toStatus: 'approved' });
+
+      const futureEpoch = Math.floor(Date.now() / 1000) + 3600;
+      const res = await request(creatorApp).patch(`/api/content/${id}/status`).send({ toStatus: 'scheduled', scheduled_at: futureEpoch });
+      expect(res.status).toBe(403);
+      expect(res.body.requiredPermission).toBe('content.schedule');
+    });
+
+    test('rejects scheduling without a future scheduled_at', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const id = await createAndSubmit(creatorApp);
+      const reviewerApp = makeApp(knex, workspaceId, 'reviewer', 9);
+      await request(reviewerApp).patch(`/api/content/${id}/status`).send({ toStatus: 'approved' });
+
+      const managerApp = makeApp(knex, workspaceId, 'manager', 5);
+      const res = await request(managerApp).patch(`/api/content/${id}/status`).send({ toStatus: 'scheduled' });
+      expect(res.status).toBe(400);
+    });
+
+    test('manager can cancel a schedule back to approved', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const id = await createAndSubmit(creatorApp);
+      const reviewerApp = makeApp(knex, workspaceId, 'reviewer', 9);
+      await request(reviewerApp).patch(`/api/content/${id}/status`).send({ toStatus: 'approved' });
+      const managerApp = makeApp(knex, workspaceId, 'manager', 5);
+      const futureEpoch = Math.floor(Date.now() / 1000) + 3600;
+      await request(managerApp).patch(`/api/content/${id}/status`).send({ toStatus: 'scheduled', scheduled_at: futureEpoch });
+
+      const res = await request(managerApp).patch(`/api/content/${id}/status`).send({ toStatus: 'approved' });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('approved');
+      expect(res.body.scheduled_at).toBeNull();
+    });
+
+    test('rejects an invalid transition (draft -> approved) with 400', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const created = await request(creatorApp).post('/api/content').send({ body: 'Skip review', platforms: [] });
+      const id = created.body.id;
+
+      const res = await request(creatorApp).patch(`/api/content/${id}/status`).send({ toStatus: 'approved' });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Invalid transition');
+    });
+
+    test('rejects an unknown status value with 400', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const created = await request(creatorApp).post('/api/content').send({ body: 'Bad status', platforms: [] });
+      const id = created.body.id;
+
+      const res = await request(creatorApp).patch(`/api/content/${id}/status`).send({ toStatus: 'bogus' });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('POST /api/content/:id/comments', () => {
+    test('reviewer (has content.comment) can add a comment to any state', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const created = await request(creatorApp).post('/api/content').send({ body: 'Commentable', platforms: [] });
+      const id = created.body.id;
+
+      const reviewerApp = makeApp(knex, workspaceId, 'reviewer', 9);
+      const res = await request(reviewerApp).post(`/api/content/${id}/comments`).send({ body: 'Looks good, minor tweak needed' });
+      expect(res.status).toBe(201);
+      expect(res.body.body).toBe('Looks good, minor tweak needed');
+      expect(res.body.user_id).toBe(9);
+
+      const detail = await request(reviewerApp).get(`/api/content/${id}`);
+      expect(detail.body.comments.length).toBe(1);
+      expect(detail.body.comments[0].body).toBe('Looks good, minor tweak needed');
+    });
+
+    test('creator cannot comment (lacks content.comment per the RBAC matrix)', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const created = await request(creatorApp).post('/api/content').send({ body: 'No comment for you', platforms: [] });
+      const id = created.body.id;
+
+      const res = await request(creatorApp).post(`/api/content/${id}/comments`).send({ body: 'Trying anyway' });
+      expect(res.status).toBe(403);
+      expect(res.body.requiredPermission).toBe('content.comment');
+    });
+
+    test('rejects an empty comment body', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const created = await request(creatorApp).post('/api/content').send({ body: 'Empty comment test', platforms: [] });
+      const id = created.body.id;
+
+      const reviewerApp = makeApp(knex, workspaceId, 'reviewer', 9);
+      const res = await request(reviewerApp).post(`/api/content/${id}/comments`).send({ body: '   ' });
+      expect(res.status).toBe(400);
+    });
+  });
+});
