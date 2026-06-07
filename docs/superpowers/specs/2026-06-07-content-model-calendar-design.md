@@ -188,9 +188,10 @@ app.use('/api/content', requireAuth, withWorkspace, injectUserKeys,
 | `GET /calendar` | `content.view` | items in a date range (`?from=&to=&view=month\|week\|agenda`) for calendar rendering |
 | `GET /:id` | `content.view` | full detail incl. comments |
 | `PATCH /:id` | `content.edit` | edit body/title/platforms/image/scheduled_at |
-| `PATCH /:id/status` | varies by transition (checked in handler against the table above) | drive the state machine (`{ toStatus, scheduled_at?, comment? }`) |
+| `PATCH /:id/status` | varies by transition (checked in handler against the table above) | drive the state machine (`{ toStatus, scheduled_at? }`) |
 | `DELETE /:id` | `content.edit` | delete an item in `draft` or `failed` status only (returns 409 for any other status — use `PATCH /:id/status` to move it back to `draft` first) |
 | `POST /:id/ai-assist` | `content.edit` | run an AI Assist action against this item's body (see below) |
+| `POST /:id/comments` | `content.comment` | add a comment to the item's thread, independent of status (per the "Comment | any state" rule — a dedicated endpoint, not folded into `PATCH /:id/status`, since comments must work even on `published`/`failed` items that have no valid status transition) |
 
 `PATCH /:id/status` is the single endpoint for all transitions 3–8 in the table;
 the handler looks up the requested `toStatus`, validates it's reachable from the
