@@ -238,9 +238,11 @@ user's choice of full coverage):
 - Each result shows a small model-source badge: 🦙 (Ollama), ✨ (Gemini), 🤖 (Claude)
 - "Insert" replaces/append result into the body editor; user can always edit
   AI output before saving — AI never writes directly to a saved/submitted item
-- If Ollama is selected as source but not running, the panel surfaces the same
-  "Ollama not detected — start it or use cloud model" messaging already
-  established by the Ollama Guided Setup status indicator
+- There is no source-selector control in the panel — per the "reuse, don't
+  duplicate" model-routing decision above, `aiGenerate`'s Ollama → Gemini →
+  Claude priority chain owns the routing decision (including silent fallback
+  when Ollama isn't running), and the badge simply reports whichever model
+  ultimately produced the result
 
 ### Calendar UI
 
