@@ -168,8 +168,18 @@ Factory module `module.exports = (knex) => ({...})` following the
 
 ### Routes — `routes/content.js`
 
-Factory `module.exports = (knex, withWorkspace, requirePermission) => router`,
-mounted at `/api/content`, mirroring `routes/social-accounts.js`:
+Factory `module.exports = (knex, requirePermission) => router`. Unlike
+`routes/social-accounts.js` (mounted at `/workspaces/:workspaceId/...` with
+`mergeParams` and its own `withWorkspace` call), `/api/content` follows the
+**`apiRoutes`/`seoRoutes` mounting pattern** in `server/index.js` — `withWorkspace`
+runs once at the `app.use(...)` level for the whole `/api/*` family, so by the
+time a request reaches this router, `req.workspaceId` and `req.role` are already
+set:
+
+```js
+app.use('/api/content', requireAuth, withWorkspace, injectUserKeys,
+  require('../routes/content')(knex, requirePermission));
+```
 
 | Method & path | Permission | Purpose |
 |---|---|---|
@@ -192,23 +202,28 @@ current status, checks the specific permission for that edge, then calls
 A focused service module exposing one entry point:
 
 ```js
-async function assist({ action, text, platform, context }) → { text, model, source }
+async function assist({ action, text, platform, apiKey }) → { text, model, source }
 ```
+
+`apiKey` is `req.googleKey` (set by the `injectUserKeys` middleware already mounted
+on `/api/*` routes) — passed straight through to `aiGenerate`'s `apiKey` parameter,
+exactly like `routes/api.js`'s `/generate` handler does.
 
 - **Actions:** `generate` (brief → full draft), `rewrite` (tone/style change),
   `shorten` (fit platform character limits), `hashtags` (suggest tags),
-  `platform_variants` (adapt one draft for multiple platforms at once).
-- **Model routing (priority order):**
-  1. **Ollama** (`http://localhost:11434`) — if the existing Ollama status
-     detection (from the "Ollama Guided Setup" phase, `routes/ollama.js`) reports
-     the server is running and a model is pulled, route there first. Free,
-     private, no API cost.
-  2. **Gemini** — if Ollama is unavailable and a Gemini key is configured.
-  3. **Claude** — final fallback if neither of the above is available.
-  - This priority order is implemented as a thin wrapper around the existing
-    `services/aiHelper.js` `aiGenerate()` multi-model router: `aiAssist` first
-    probes Ollama directly, and if that fails/unavailable, delegates to
-    `aiGenerate()` (which already knows how to pick between Gemini/Claude).
+  `platform_variants` (adapt one draft for multiple platforms at once). Each
+  action maps to a prompt-building function; `aiAssist.js` itself never talks to
+  a model directly.
+- **Model routing — reuse, don't duplicate:** `services/aiHelper.js`
+  `aiGenerate(prompt, apiKey, maxTokens)` (lines 60-129) **already** implements
+  the exact Ollama → Gemini → Claude priority chain this spec needs — it checks
+  `OLLAMA_ENABLED`/`isOllamaRunning()` first, then falls back to Gemini (using
+  the passed `apiKey`/`GOOGLE_AI_KEY`), then Claude (`ANTHROPIC_API_KEY`).
+  `aiAssist.assist()` is a thin wrapper: build the action's prompt, call
+  `aiGenerate(prompt, apiKey)` once, and derive the `source` badge from the
+  returned `model` string (`model.startsWith('ollama:')` → `'ollama'`,
+  `model.startsWith('gemini')` → `'gemini'`, otherwise `'claude'`). No separate
+  Ollama probe — `aiGenerate` already owns that decision.
 - **Response shape** includes `source: 'ollama' | 'gemini' | 'claude'` so the UI
   can show which model produced the result.
 
@@ -284,7 +299,7 @@ spec can retire the old loop.
 
 | File | Change |
 |---|---|
-| `server/index.js` | mount `routes/content.js` at `/api/content` (factory pattern, same as `social-accounts`) |
+| `server/index.js` | mount `routes/content.js` at `/api/content` with `requireAuth, withWorkspace, injectUserKeys` (same pattern as `apiRoutes`/`seoRoutes` — see Routes section above) |
 | `services/scheduler.js` | add `content_items` due-polling branch (see above) |
 | `public/index.html` | calendar view-toggle controls, status filter chips, slide-in detail panel markup, AI Assist panel markup, "New Content" button |
 | `public/app.js` | replace `renderCalendar()`'s `scheduled_posts`-only fetch with `/api/content/calendar`; add view-toggle handlers (`switchCalendarView`), detail panel (`openContentDetail`, `transitionContent`), AI Assist wiring (`runAiAssist`), and content editor create/edit flows |
