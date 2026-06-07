@@ -10,6 +10,23 @@ function deserialize(row) {
   };
 }
 
+const TRANSITIONS = {
+  draft: {
+    in_review: () => ({ reviewed_by: null }),
+  },
+  in_review: {
+    draft: () => ({ reviewed_by: null, approved_by: null }),
+    approved: (userId) => ({ approved_by: userId }),
+  },
+  approved: {
+    draft: () => ({ reviewed_by: null, approved_by: null }),
+    scheduled: (_userId, fields) => ({ scheduled_at: fields.scheduled_at }),
+  },
+  scheduled: {
+    approved: () => ({ scheduled_at: null }),
+  },
+};
+
 module.exports = (knex) => ({
   async create(workspaceId, userId, data) {
     const rows = await knex('content_items').insert({
@@ -64,6 +81,19 @@ module.exports = (knex) => ({
 
     await knex('content_items').where({ workspace_id: workspaceId, id }).update(patch);
     return this.getById(workspaceId, id);
+  },
+
+  async transition(workspaceId, id, { toStatus, userId, fields = {} }) {
+    const item = await knex('content_items').where({ workspace_id: workspaceId, id }).first();
+    if (!item) return { ok: false, error: 'not_found' };
+
+    const edges = TRANSITIONS[item.status];
+    const buildPatch = edges && edges[toStatus];
+    if (!buildPatch) return { ok: false, error: 'invalid_transition' };
+
+    const patch = { status: toStatus, updated_at: nowEpoch(), ...buildPatch(userId, fields) };
+    await knex('content_items').where({ workspace_id: workspaceId, id }).update(patch);
+    return { ok: true, item: await this.getById(workspaceId, id) };
   },
 
   remove(workspaceId, id) {
