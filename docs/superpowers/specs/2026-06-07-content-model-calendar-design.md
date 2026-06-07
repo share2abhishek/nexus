@@ -59,8 +59,10 @@ two needs: Quick Post for "post this right now," the content lifecycle for
 - Quick Post continues to write to `posts` and appears in Post History exactly as
   it does today. No changes to `repos/postsRepo.js` or its table.
 - Existing rows in `scheduled_posts` are left in place; the existing scheduler
-  loop keeps polling and publishing them via `scheduledRepo.getDue()` until that
-  table is empty (it will naturally drain as those posts fire or get cancelled).
+  loop in `services/scheduler.js` keeps polling and publishing them via the
+  legacy `getDuePosts()`/`getToken()`/`updateScheduledStatus()` functions in
+  `services/database.js` (its original, untouched code path) until that table
+  is empty — it will naturally drain as those posts fire or get cancelled.
 - All **new** scheduled content is created through `content_items` (status
   `scheduled`), processed by the extended scheduler.
 - There is **no migration script** and no `content_migrated` flag — this is a
@@ -246,8 +248,9 @@ statuses, color-coded) instead of only `scheduled_posts`:
 
 ### Scheduler integration
 
-`services/scheduler.js` gains a second polling branch alongside the existing
-`scheduledRepo.getDue()` loop:
+`services/scheduler.js` gains a second polling branch alongside its existing
+`getDuePosts()`-based loop (which keeps running unchanged against the legacy
+`scheduled_posts` table via `services/database.js`):
 
 ```js
 const dueContent = await contentRepo.getDueForPublish(now);
