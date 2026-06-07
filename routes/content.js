@@ -2,6 +2,8 @@ const express = require('express');
 const contentRepoFactory = require('../repos/contentRepo');
 
 const STATUSES = ['draft', 'in_review', 'approved', 'scheduled', 'published', 'failed'];
+const EDITABLE_STATUSES = ['draft', 'in_review', 'failed'];
+const DELETABLE_STATUSES = ['draft', 'failed'];
 
 module.exports = (knex, requirePermission) => {
   const router = express.Router();
@@ -60,6 +62,37 @@ module.exports = (knex, requirePermission) => {
         .where({ content_item_id: item.id, workspace_id: req.workspaceId })
         .orderBy('created_at', 'asc');
       res.json({ ...item, comments });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.patch('/:id', requirePermission('content.edit'), async (req, res) => {
+    try {
+      const item = await contentRepo.getById(req.workspaceId, req.params.id);
+      if (!item) return res.status(404).json({ error: 'Not found' });
+      if (!EDITABLE_STATUSES.includes(item.status)) {
+        return res.status(409).json({ error: 'Cannot edit content in its current status', status: item.status });
+      }
+      if (req.body.body !== undefined && !req.body.body.trim()) {
+        return res.status(400).json({ error: 'body cannot be empty' });
+      }
+      const updated = await contentRepo.update(req.workspaceId, item.id, req.body);
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.delete('/:id', requirePermission('content.edit'), async (req, res) => {
+    try {
+      const item = await contentRepo.getById(req.workspaceId, req.params.id);
+      if (!item) return res.status(404).json({ error: 'Not found' });
+      if (!DELETABLE_STATUSES.includes(item.status)) {
+        return res.status(409).json({ error: 'Cannot delete content in its current status', status: item.status });
+      }
+      await contentRepo.remove(req.workspaceId, item.id);
+      res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

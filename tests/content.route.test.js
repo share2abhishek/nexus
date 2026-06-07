@@ -127,3 +127,107 @@ describe('content routes — create, list, detail, calendar', () => {
     });
   });
 });
+
+describe('content routes — edit and delete', () => {
+  let knex, workspaceId;
+
+  beforeAll(async () => {
+    knex = makeTestKnex();
+    await knex.migrate.latest();
+    workspaceId = await makeWorkspace(knex, 'Edit WS', 'edit-ws');
+  });
+
+  afterAll(async () => { await knex.destroy(); });
+
+  describe('PATCH /api/content/:id', () => {
+    test('creator can edit their draft', async () => {
+      const app = makeApp(knex, workspaceId, 'creator');
+      const created = await request(app).post('/api/content').send({ body: 'Editable', platforms: [] });
+      const id = created.body.id;
+
+      const res = await request(app).patch(`/api/content/${id}`).send({ body: 'Edited body' });
+      expect(res.status).toBe(200);
+      expect(res.body.body).toBe('Edited body');
+    });
+
+    test('editing a failed item resets it to draft and clears error_message', async () => {
+      const app = makeApp(knex, workspaceId, 'creator');
+      const created = await request(app).post('/api/content').send({ body: 'Will fail', platforms: [] });
+      const id = created.body.id;
+      await knex('content_items').where({ id }).update({ status: 'failed', error_message: 'token expired' });
+
+      const res = await request(app).patch(`/api/content/${id}`).send({ body: 'Retry with new copy' });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('draft');
+      expect(res.body.error_message).toBeNull();
+    });
+
+    test('returns 409 when editing an approved item directly', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const created = await request(creatorApp).post('/api/content').send({ body: 'Locked soon', platforms: [] });
+      const id = created.body.id;
+      await request(creatorApp).patch(`/api/content/${id}/status`).send({ toStatus: 'in_review' });
+      const reviewerApp = makeApp(knex, workspaceId, 'reviewer', 9);
+      await request(reviewerApp).patch(`/api/content/${id}/status`).send({ toStatus: 'approved' });
+
+      const res = await request(creatorApp).patch(`/api/content/${id}`).send({ body: 'Too late' });
+      expect(res.status).toBe(409);
+    });
+
+    test('reviewer cannot edit (lacks content.edit)', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const created = await request(creatorApp).post('/api/content').send({ body: 'Mine', platforms: [] });
+      const id = created.body.id;
+
+      const reviewerApp = makeApp(knex, workspaceId, 'reviewer');
+      const res = await request(reviewerApp).patch(`/api/content/${id}`).send({ body: 'Hijack' });
+      expect(res.status).toBe(403);
+      expect(res.body.requiredPermission).toBe('content.edit');
+    });
+
+    test('returns 404 for an unknown id', async () => {
+      const app = makeApp(knex, workspaceId, 'creator');
+      const res = await request(app).patch('/api/content/999999').send({ body: 'Ghost' });
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('DELETE /api/content/:id', () => {
+    test('removes a draft', async () => {
+      const app = makeApp(knex, workspaceId, 'creator');
+      const created = await request(app).post('/api/content').send({ body: 'Delete me', platforms: [] });
+      const id = created.body.id;
+
+      const res = await request(app).delete(`/api/content/${id}`);
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
+      expect(await request(app).get(`/api/content/${id}`).then(r => r.status)).toBe(404);
+    });
+
+    test('removes a failed item', async () => {
+      const app = makeApp(knex, workspaceId, 'creator');
+      const created = await request(app).post('/api/content').send({ body: 'Failed delete', platforms: [] });
+      const id = created.body.id;
+      await knex('content_items').where({ id }).update({ status: 'failed' });
+
+      const res = await request(app).delete(`/api/content/${id}`);
+      expect(res.status).toBe(200);
+    });
+
+    test('returns 409 for an in_review item', async () => {
+      const app = makeApp(knex, workspaceId, 'creator');
+      const created = await request(app).post('/api/content').send({ body: 'Cannot delete', platforms: [] });
+      const id = created.body.id;
+      await request(app).patch(`/api/content/${id}/status`).send({ toStatus: 'in_review' });
+
+      const res = await request(app).delete(`/api/content/${id}`);
+      expect(res.status).toBe(409);
+    });
+
+    test('returns 404 for an unknown id', async () => {
+      const app = makeApp(knex, workspaceId, 'creator');
+      const res = await request(app).delete('/api/content/999999');
+      expect(res.status).toBe(404);
+    });
+  });
+});
