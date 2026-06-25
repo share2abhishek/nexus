@@ -49,6 +49,7 @@ const PAGE_META = {
   'tools-directory': { title: 'AI Tools Directory', subtitle: 'Top free and paid AI tools by category' },
   admin:             { title: 'Admin Dashboard',     subtitle: 'Monitor users, access, and platform health' },
   settings:          { title: 'Settings',            subtitle: 'Configure connections and preferences' },
+  clients:           { title: 'Clients & Brands',    subtitle: 'Manage client brand workspaces and isolated social media channels' },
 };
 
 // ── Platform Config ───────────────────────────────────────────────────────────
@@ -99,6 +100,7 @@ function navigateTo(page) {
     brand:            loadBrandKit,
     seo:              loadTrackedKeywords,
     settings:         loadSettings,
+    clients:          loadClients,
     generate:         loadModels,
     media:            loadModels,
     'user-settings':   loadUserSettings,
@@ -556,55 +558,668 @@ async function cancelScheduled(id) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Content Calendar
+// Content Calendar & Unified Content Model (Phase 1b)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function changeMonth(dir) {
-  State.calendarDate = new Date(State.calendarDate.getFullYear(), State.calendarDate.getMonth() + dir, 1);
+State.calendarView = 'week';
+State.calendarEvents = [];
+State.selectedContentItem = null;
+State.userWorkspaces = [];
+
+function changeCalendarView(view) {
+  State.calendarView = view;
+  ['week', 'month', 'agenda'].forEach(v => {
+    const btn = document.getElementById(`view-btn-${v}`);
+    if (btn) {
+      if (v === view) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+  });
+
+  // Adjust calendar-grid layout class
+  const grid = document.getElementById('calendar-grid');
+  if (grid) {
+    grid.className = `calendar-grid ${view}-view`;
+  }
+
   renderCalendar(State.calendarDate);
 }
 
-async function renderCalendar(date) {
-  const label = document.getElementById('calendar-month-label');
-  label.textContent = date.toLocaleDateString('en', { month: 'long', year: 'numeric' });
+function navigateCalendar(dir) {
+  const date = State.calendarDate;
+  if (State.calendarView === 'week') {
+    date.setDate(date.getDate() + dir * 7);
+  } else {
+    // Month or Agenda: navigate by month
+    date.setMonth(date.getMonth() + dir);
+  }
+  State.calendarDate = date;
+  renderCalendar(date);
+}
 
-  let posts = State.scheduledPosts;
-  if (!posts.length) {
-    try { posts = await api('GET', '/api/posts/scheduled'); State.scheduledPosts = posts; } catch {}
+// Backward compatibility helper
+function changeMonth(dir) {
+  navigateCalendar(dir);
+}
+
+async function renderCalendar(date) {
+  if (!currentWorkspaceId) {
+    const grid = document.getElementById('calendar-grid');
+    if (grid) grid.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px">Please select a workspace context first.</div>';
+    return;
   }
 
+  // Calculate start/end of view
+  let start, end;
+  const year = date.getFullYear();
+  const month = date.getMonth();
+
+  if (State.calendarView === 'week') {
+    start = new Date(date);
+    start.setDate(date.getDate() - date.getDay());
+    start.setHours(0, 0, 0, 0);
+
+    end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+
+    const formatOptions = { month: 'short', day: 'numeric' };
+    document.getElementById('calendar-date-label').textContent = 
+      `${start.toLocaleDateString('en', formatOptions)} – ${end.toLocaleDateString('en', formatOptions)}, ${start.getFullYear()}`;
+  } else if (State.calendarView === 'month') {
+    // Month view shows surrounding filler days (up to 42 cells)
+    const firstOfMonth = new Date(year, month, 1);
+    const startDay = firstOfMonth.getDay();
+    start = new Date(year, month, 1 - startDay);
+    start.setHours(0, 0, 0, 0);
+
+    end = new Date(start);
+    end.setDate(start.getDate() + 41);
+    end.setHours(23, 59, 59, 999);
+
+    document.getElementById('calendar-date-label').textContent = 
+      date.toLocaleDateString('en', { month: 'long', year: 'numeric' });
+  } else {
+    // Agenda: whole current month
+    start = new Date(year, month, 1, 0, 0, 0);
+    end = new Date(year, month + 1, 0, 23, 59, 59, 999);
+    document.getElementById('calendar-date-label').textContent = 
+      `Agenda: ${date.toLocaleDateString('en', { month: 'long', year: 'numeric' })}`;
+  }
+
+  const from = Math.floor(start.getTime() / 1000);
+  const to = Math.floor(end.getTime() / 1000);
+
+  try {
+    const events = await api('GET', `/api/content/calendar?from=${from}&to=${to}`);
+    State.calendarEvents = events;
+    renderCalendarData();
+  } catch (err) {
+    console.error('Error fetching calendar data:', err);
+    toast('Error fetching calendar content items', 'error');
+  }
+}
+
+function renderCalendarData() {
+  const grid = document.getElementById('calendar-grid');
+  if (!grid) return;
+
+  const activeStatuses = Array.from(document.querySelectorAll('#calendar-filters input[type="checkbox"]:checked'))
+    .map(el => el.value);
+
+  const filteredEvents = State.calendarEvents.filter(e => activeStatuses.includes(e.status));
+
+  if (State.calendarView === 'week') {
+    renderWeekView(State.calendarDate, filteredEvents);
+  } else if (State.calendarView === 'month') {
+    renderMonthView(State.calendarDate, filteredEvents);
+  } else {
+    renderAgendaView(State.calendarDate, filteredEvents);
+  }
+}
+
+function renderWeekView(date, events) {
+  const grid = document.getElementById('calendar-grid');
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const today = new Date();
+
+  // Find start of week
+  const startOfWeek = new Date(date);
+  startOfWeek.setDate(date.getDate() - date.getDay());
+
+  let html = days.map(d => `<div class="calendar-day-label">${d}</div>`).join('');
+
+  for (let i = 0; i < 7; i++) {
+    const currentDay = new Date(startOfWeek);
+    currentDay.setDate(startOfWeek.getDate() + i);
+    const isToday = currentDay.toDateString() === today.toDateString();
+    
+    // Filter events for this specific date
+    const dayEvents = events.filter(e => {
+      const ed = e.scheduled_at ? new Date(e.scheduled_at * 1000) : new Date(e.created_at * 1000);
+      return ed.toDateString() === currentDay.toDateString();
+    });
+
+    // Sort by scheduled time, then created time
+    dayEvents.sort((a, b) => (a.scheduled_at || a.created_at) - (b.scheduled_at || b.created_at));
+
+    html += `
+      <div class="calendar-day ${isToday ? 'today' : ''}" style="min-height: 250px">
+        <div class="calendar-day-num" style="display:flex;justify-content:space-between;align-items:center">
+          <span>${currentDay.getDate()}</span>
+          <span style="font-size:10px;opacity:0.6">${currentDay.toLocaleDateString('en', {month:'short'})}</span>
+        </div>
+        <div style="margin-top:8px">
+          ${dayEvents.map(e => {
+            const timeLabel = e.scheduled_at 
+              ? new Date(e.scheduled_at * 1000).toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit'}) 
+              : 'Draft';
+            const titleSnippet = escapeHtml(e.title || e.body.substring(0, 35) + (e.body.length > 35 ? '…' : ''));
+            const platformIcons = e.platforms.map(p => PLATFORMS[p]?.icon || '').join('');
+            return `
+              <div class="calendar-event-card event-status-${e.status}" onclick="openContentDetail(${e.id})">
+                <div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between">
+                  <span>${timeLabel}</span>
+                  <span>${platformIcons}</span>
+                </div>
+                <div style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${titleSnippet}</div>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function renderMonthView(date, events) {
   const grid = document.getElementById('calendar-grid');
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const today = new Date();
 
   const year = date.getFullYear();
   const month = date.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+  const firstOfMonth = new Date(year, month, 1);
+  const startDay = firstOfMonth.getDay();
 
   let html = days.map(d => `<div class="calendar-day-label">${d}</div>`).join('');
 
-  // Previous month filler
-  for (let i = firstDay - 1; i >= 0; i--) {
-    html += `<div class="calendar-day other-month"><div class="calendar-day-num">${daysInPrevMonth - i}</div></div>`;
-  }
+  // 42 cells total (6 weeks)
+  const cellStartDate = new Date(year, month, 1 - startDay);
 
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dayDate = new Date(year, month, d);
-    const isToday = dayDate.toDateString() === today.toDateString();
-    const dayPosts = posts.filter(p => {
-      const pd = new Date(p.scheduled_at * 1000);
-      return pd.getFullYear() === year && pd.getMonth() === month && pd.getDate() === d;
+  for (let i = 0; i < 42; i++) {
+    const currentDay = new Date(cellStartDate);
+    currentDay.setDate(cellStartDate.getDate() + i);
+    
+    const isToday = currentDay.toDateString() === today.toDateString();
+    const isOtherMonth = currentDay.getMonth() !== month;
+
+    const dayEvents = events.filter(e => {
+      const ed = e.scheduled_at ? new Date(e.scheduled_at * 1000) : new Date(e.created_at * 1000);
+      return ed.toDateString() === currentDay.toDateString();
     });
 
-    html += `<div class="calendar-day ${isToday ? 'today' : ''}">
-      <div class="calendar-day-num">${d}</div>
-      ${dayPosts.map(p => `<div class="calendar-event" title="${escapeHtml(p.content)}">${escapeHtml(p.content.substring(0, 20))}</div>`).join('')}
-    </div>`;
+    dayEvents.sort((a, b) => (a.scheduled_at || a.created_at) - (b.scheduled_at || b.created_at));
+
+    html += `
+      <div class="calendar-day ${isToday ? 'today' : ''} ${isOtherMonth ? 'other-month' : ''}" style="min-height: 100px">
+        <div class="calendar-day-num">${currentDay.getDate()}</div>
+        <div style="margin-top:4px">
+          ${dayEvents.map(e => {
+            const titleSnippet = escapeHtml(e.title || e.body.substring(0, 15) + (e.body.length > 15 ? '…' : ''));
+            const timeLabel = e.scheduled_at 
+              ? new Date(e.scheduled_at * 1000).toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit', hour12:false}) 
+              : 'D';
+            return `
+              <div class="calendar-event-card event-status-${e.status}" onclick="openContentDetail(${e.id})" style="padding:3px 6px;margin-bottom:2px;border-radius:4px;font-size:10px">
+                <span style="font-weight:700;opacity:0.8">${timeLabel}: ${titleSnippet}</span>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
   }
 
   grid.innerHTML = html;
+}
+
+function renderAgendaView(date, events) {
+  const grid = document.getElementById('calendar-grid');
+  if (!events.length) {
+    grid.innerHTML = `
+      <div class="empty-state" style="padding:40px 0">
+        <div class="empty-icon">📅</div>
+        <div class="empty-title">No content scheduled</div>
+        <div class="empty-desc">Create content items or change the filter status to see items in the agenda.</div>
+      </div>`;
+    return;
+  }
+
+  // Sort events chronologically
+  const sorted = [...events].sort((a, b) => (a.scheduled_at || a.created_at) - (b.scheduled_at || b.created_at));
+
+  // Group events by date string
+  const groups = {};
+  sorted.forEach(e => {
+    const d = e.scheduled_at ? new Date(e.scheduled_at * 1000) : new Date(e.created_at * 1000);
+    const dateStr = d.toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    if (!groups[dateStr]) groups[dateStr] = [];
+    groups[dateStr].push(e);
+  });
+
+  let html = '';
+  Object.entries(groups).forEach(([dateLabel, dayEvents]) => {
+    html += `
+      <div style="margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;color:#a78bfa;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:4px">${dateLabel}</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${dayEvents.map(e => {
+            const timeLabel = e.scheduled_at 
+              ? new Date(e.scheduled_at * 1000).toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit'}) 
+              : 'Not scheduled (Draft)';
+            const platformsText = e.platforms.map(p => (PLATFORMS[p]?.icon || '') + ' ' + (PLATFORMS[p]?.label || p)).join(', ');
+            return `
+              <div class="scheduled-item" style="cursor:pointer" onclick="openContentDetail(${e.id})">
+                <div class="scheduled-time" style="min-width: 100px">
+                  <div style="font-size:12px;font-weight:700;color:#a78bfa">${timeLabel}</div>
+                </div>
+                <div class="scheduled-content">
+                  <div style="font-weight:600;font-size:14px;color:var(--text-primary);margin-bottom:4px">${escapeHtml(e.title || 'Untitled Draft')}</div>
+                  <div class="scheduled-text" style="-webkit-line-clamp: 2; line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden">${escapeHtml(e.body)}</div>
+                  <div style="display:flex;gap:12px;align-items:center;margin-top:6px">
+                    <span style="font-size:11px;color:var(--text-muted)">Channels: ${platformsText}</span>
+                    <span class="badge event-status-${e.status}" style="font-size:9.5px;padding:2px 8px">${e.status}</span>
+                  </div>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openContentDetail(${e.id})">View Details</button>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  });
+
+  grid.innerHTML = html;
+}
+
+// ── Role Gating & Permissions frontend helpers ───────────────────────────────
+
+function getCurrentWorkspaceRole() {
+  const current = State.userWorkspaces?.find(w => w.workspace_id === currentWorkspaceId);
+  return current ? current.role : null;
+}
+
+function hasWorkspacePermission(permission) {
+  const role = getCurrentWorkspaceRole();
+  if (!role) return false;
+  const permissions = {
+    manager:  ['social.manage','members.manage','content.create','content.edit','content.submit',
+               'content.approve','content.comment','content.publish','content.schedule',
+               'content.view','analytics.view'],
+    creator:  ['content.create','content.edit','content.submit','content.view','analytics.view'],
+    reviewer: ['content.approve','content.comment','content.view','analytics.view'],
+    client:   ['content.approve','content.comment','content.view','analytics.view'],
+    analyst:  ['content.view','analytics.view'],
+  };
+  return permissions[role]?.includes(permission) || false;
+}
+
+// ── Slide-in Detail Panel Logic ──────────────────────────────────────────────
+
+async function openContentDetail(itemId) {
+  try {
+    const item = await api('GET', `/api/content/${itemId}`);
+    State.selectedContentItem = item;
+
+    // Load active settings to read the user default AI model or check Ollama
+    const userSettings = await fetch('/users/settings').then(r => r.json()).catch(() => ({}));
+    const model = userSettings.default_text_model || 'ollama';
+    const ollamaEnabled = !!userSettings.ollama_enabled;
+    const activeModelBadge = document.getElementById('detail-ai-model-badge');
+    if (activeModelBadge) {
+      activeModelBadge.textContent = ollamaEnabled && model === 'ollama' ? '🦙 Ollama' : model === 'gemini' ? '✨ Gemini' : '🤖 Claude';
+    }
+
+    // Set panel info
+    document.getElementById('detail-status-badge').textContent = item.status;
+    document.getElementById('detail-status-badge').className = `badge event-status-${item.status}`;
+    document.getElementById('detail-title-label').textContent = item.title || 'Draft Item';
+    document.getElementById('detail-body-container').textContent = item.body;
+    
+    // Image Preview
+    const imgContainer = document.getElementById('detail-image-container');
+    const imgPreview = document.getElementById('detail-image-preview');
+    if (item.image_url) {
+      imgPreview.src = item.image_url;
+      imgContainer.style.display = 'block';
+    } else {
+      imgContainer.style.display = 'none';
+      imgPreview.src = '';
+    }
+
+    // Error container
+    const errContainer = document.getElementById('detail-error-container');
+    if (item.status === 'failed' && item.error_message) {
+      errContainer.textContent = `⚠️ Publish failed: ${item.error_message}`;
+      errContainer.style.display = 'block';
+    } else {
+      errContainer.style.display = 'none';
+    }
+
+    // Channels
+    const accountsContainer = document.getElementById('detail-accounts-list');
+    accountsContainer.innerHTML = item.platforms.map(p => `
+      <span class="badge badge-purple" style="display:inline-flex;align-items:center;gap:4px">
+        <span>${PLATFORMS[p]?.icon || '🔗'}</span>
+        <span>${PLATFORMS[p]?.label || p}</span>
+      </span>
+    `).join('');
+
+    // Audit logs formatting
+    const auditLogs = document.getElementById('detail-audit-logs');
+    let auditHtml = `<div>📅 Created on ${new Date(item.created_at * 1000).toLocaleString()}</div>`;
+    if (item.submitted_by) auditHtml += `<div>📤 Submitted by User #${item.submitted_by}</div>`;
+    if (item.reviewed_by) auditHtml += `<div>👀 Reviewed by User #${item.reviewed_by}</div>`;
+    if (item.approved_by) auditHtml += `<div>✅ Approved by User #${item.approved_by}</div>`;
+    if (item.scheduled_at) auditHtml += `<div>⏰ Scheduled for ${new Date(item.scheduled_at * 1000).toLocaleString()}</div>`;
+    if (item.published_at) auditHtml += `<div>🚀 Published on ${new Date(item.published_at * 1000).toLocaleString()}</div>`;
+    auditLogs.innerHTML = auditHtml;
+
+    // AI Assist Sub-panel visibility
+    const isEditable = ['draft', 'in_review', 'failed'].includes(item.status);
+    const hasEditPermission = hasWorkspacePermission('content.edit');
+    const aiPanel = document.getElementById('detail-ai-assist-panel');
+    if (isEditable && hasEditPermission) {
+      aiPanel.style.display = 'block';
+    } else {
+      aiPanel.style.display = 'none';
+    }
+    document.getElementById('detail-ai-feedback').style.display = 'none';
+
+    // Populate comments
+    renderCommentsList(item.comments || []);
+
+    // Render footer buttons dynamically based on roles
+    renderDetailActionButtons(item);
+
+    // Slide panel open
+    document.getElementById('content-detail-backdrop').classList.add('open');
+    document.getElementById('content-detail-panel').classList.add('open');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function closeContentDetail() {
+  document.getElementById('content-detail-backdrop').classList.remove('open');
+  document.getElementById('content-detail-panel').classList.remove('open');
+  State.selectedContentItem = null;
+}
+
+function renderCommentsList(comments) {
+  const container = document.getElementById('detail-comments-list');
+  if (!comments || comments.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:12.5px;text-align:center;padding:12px 0">No comments yet.</div>';
+    return;
+  }
+  container.innerHTML = comments.map(c => `
+    <div class="comment-item">
+      <div class="comment-header">
+        <span class="comment-author">User #${c.user_id}</span>
+        <span>${new Date(c.created_at).toLocaleString()}</span>
+      </div>
+      <div class="comment-body">${escapeHtml(c.body)}</div>
+    </div>
+  `).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+async function submitCommentDetail() {
+  if (!State.selectedContentItem) return;
+  const input = document.getElementById('detail-comment-input');
+  const body = input.value.trim();
+  if (!body) return;
+
+  try {
+    const comment = await api('POST', `/api/content/${State.selectedContentItem.id}/comments`, { body });
+    if (!State.selectedContentItem.comments) State.selectedContentItem.comments = [];
+    State.selectedContentItem.comments.push(comment);
+    renderCommentsList(State.selectedContentItem.comments);
+    input.value = '';
+    toast('Comment added', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function renderDetailActionButtons(item) {
+  const container = document.getElementById('detail-panel-actions');
+  container.innerHTML = '';
+
+  const canSubmit = hasWorkspacePermission('content.submit');
+  const canApprove = hasWorkspacePermission('content.approve');
+  const canSchedule = hasWorkspacePermission('content.schedule');
+  const canEdit = hasWorkspacePermission('content.edit');
+
+  const buttons = [];
+
+  // Transition: Submit (draft -> in_review)
+  if (item.status === 'draft' && canSubmit) {
+    buttons.push(`<button class="btn btn-primary" onclick="transitionContentStatus(${item.id}, 'in_review')">📤 Submit for Review</button>`);
+  }
+
+  // Transition: Approve/Reject (in_review -> approved / draft)
+  if (item.status === 'in_review' && canApprove) {
+    buttons.push(`<button class="btn btn-success" onclick="transitionContentStatus(${item.id}, 'approved')">✅ Approve</button>`);
+    buttons.push(`<button class="btn btn-danger" onclick="transitionContentStatus(${item.id}, 'draft')">❌ Request Changes</button>`);
+  }
+
+  // Transition: Cancel Approval (approved -> draft)
+  if (item.status === 'approved' && canApprove) {
+    buttons.push(`<button class="btn btn-danger" onclick="transitionContentStatus(${item.id}, 'draft')">↩️ Revoke Approval</button>`);
+  }
+
+  // Transition: Schedule (approved -> scheduled)
+  if (item.status === 'approved' && canSchedule) {
+    buttons.push(`
+      <div style="display:flex;align-items:center;gap:6px">
+        <input type="datetime-local" class="form-input" id="detail-schedule-time" style="padding:6px 8px;font-size:12px;width:170px" />
+        <button class="btn btn-primary" onclick="scheduleContentDetail(${item.id})">⏰ Schedule</button>
+      </div>`);
+  }
+
+  // Transition: Cancel Schedule (scheduled -> approved)
+  if (item.status === 'scheduled' && canSchedule) {
+    buttons.push(`<button class="btn btn-secondary" onclick="transitionContentStatus(${item.id}, 'approved')">📅 Unschedule</button>`);
+  }
+
+  // Edit / Delete
+  if (canEdit) {
+    if (['draft', 'in_review', 'failed'].includes(item.status)) {
+      buttons.push(`<button class="btn btn-secondary btn-sm" onclick="openEditContentModal(${item.id})">✏️ Edit</button>`);
+    }
+    if (['draft', 'failed'].includes(item.status)) {
+      buttons.push(`<button class="btn btn-danger btn-sm" onclick="deleteContentItem(${item.id})">🗑️ Delete</button>`);
+    }
+  }
+
+  container.innerHTML = buttons.join('');
+}
+
+async function scheduleContentDetail(itemId) {
+  const input = document.getElementById('detail-schedule-time');
+  const dtStr = input?.value;
+  if (!dtStr) return toast('Please select date and time', 'warning');
+  
+  const epoch = Math.floor(new Date(dtStr).getTime() / 1000);
+  const now = Math.floor(Date.now() / 1000);
+  if (epoch <= now) return toast('Schedule date must be in the future', 'warning');
+
+  await transitionContentStatus(itemId, 'scheduled', epoch);
+}
+
+async function transitionContentStatus(itemId, toStatus, scheduled_at = null) {
+  try {
+    const body = { toStatus };
+    if (scheduled_at) body.scheduled_at = scheduled_at;
+    
+    await api('PATCH', `/api/content/${itemId}/status`, body);
+    toast(`Content state transitioned to: ${toStatus}`, 'success');
+    
+    await openContentDetail(itemId);
+    renderCalendar(State.calendarDate);
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function deleteContentItem(itemId) {
+  if (!confirm('Are you sure you want to permanently delete this content item?')) return;
+  try {
+    await api('DELETE', `/api/content/${itemId}`);
+    toast('Content deleted successfully', 'success');
+    closeContentDetail();
+    renderCalendar(State.calendarDate);
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function runAiAssistDetail(action) {
+  if (!State.selectedContentItem) return;
+  const itemId = State.selectedContentItem.id;
+  const feedbackEl = document.getElementById('detail-ai-feedback');
+  
+  feedbackEl.style.display = 'block';
+  feedbackEl.className = 'info';
+  feedbackEl.innerHTML = '<span class="spinner"></span> AI is working…';
+
+  try {
+    const platform = State.selectedContentItem.platforms?.[0] || 'linkedin';
+    const result = await api('POST', `/api/content/${itemId}/ai-assist`, { action, platform });
+    
+    const updated = await api('PATCH', `/api/content/${itemId}`, { body: result.text });
+    
+    State.selectedContentItem = updated;
+    document.getElementById('detail-body-container').textContent = updated.body;
+    
+    const auditLogs = document.getElementById('detail-audit-logs');
+    let auditHtml = `<div>📅 Created on ${new Date(updated.created_at * 1000).toLocaleString()}</div>`;
+    if (updated.submitted_by) auditHtml += `<div>📤 Submitted by User #${updated.submitted_by}</div>`;
+    if (updated.reviewed_by) auditHtml += `<div>👀 Reviewed by User #${updated.reviewed_by}</div>`;
+    if (updated.approved_by) auditHtml += `<div>✅ Approved by User #${updated.approved_by}</div>`;
+    auditLogs.innerHTML = auditHtml;
+
+    const sources = { ollama: '🦙 Ollama', gemini: '✨ Gemini', claude: '🤖 Claude' };
+    feedbackEl.innerHTML = `✅ Changed text successfully! <span style="font-weight:bold;color:#a78bfa">(${sources[result.source] || result.source})</span>`;
+    
+    renderCalendar(State.calendarDate);
+    toast('Content updated by AI Assist', 'success');
+  } catch (err) {
+    feedbackEl.innerHTML = `<span style="color:#ef4444">❌ AI Assist failed: ${escapeHtml(err.message)}</span>`;
+    toast(err.message, 'error');
+  }
+}
+
+// ── Content Editor Modal Logic ───────────────────────────────────────────────
+
+function openNewContentModal() {
+  document.getElementById('content-editor-modal-title').textContent = '✏️ Compose New Content';
+  document.getElementById('edit-content-id').value = '';
+  document.getElementById('edit-content-title').value = '';
+  document.getElementById('edit-content-body').value = '';
+  document.getElementById('edit-content-image').value = '';
+  
+  populateSocialAccountCheckboxes([]);
+  document.getElementById('content-editor-modal').style.display = 'flex';
+}
+
+async function openEditContentModal(itemId) {
+  try {
+    const item = await api('GET', `/api/content/${itemId}`);
+    document.getElementById('content-editor-modal-title').textContent = '✏️ Edit Content Draft';
+    document.getElementById('edit-content-id').value = item.id;
+    document.getElementById('edit-content-title').value = item.title || '';
+    document.getElementById('edit-content-body').value = item.body;
+    document.getElementById('edit-content-image').value = item.image_url || '';
+    
+    populateSocialAccountCheckboxes(item.social_account_ids || []);
+    
+    closeContentDetail();
+    document.getElementById('content-editor-modal').style.display = 'flex';
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function closeContentEditorModal() {
+  document.getElementById('content-editor-modal').style.display = 'none';
+}
+
+function populateSocialAccountCheckboxes(selectedIds) {
+  const container = document.getElementById('edit-content-accounts');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const workspace = State.userWorkspaces?.find(w => w.workspace_id === currentWorkspaceId);
+  const accounts = workspace?.social_accounts || [];
+
+  if (accounts.length === 0) {
+    container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);font-style:italic">No connected social accounts found. Connect platforms in settings.</div>';
+    return;
+  }
+
+  container.innerHTML = accounts.map(acc => {
+    const isChecked = selectedIds.includes(acc.id);
+    const platformDef = PLATFORMS[acc.platform] || { icon: '🔗', label: acc.platform };
+    return `
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-primary);cursor:pointer">
+        <input type="checkbox" name="edit-account-checkbox" value="${acc.id}" data-platform="${acc.platform}" ${isChecked ? 'checked' : ''} style="cursor:pointer" />
+        <span>${platformDef.icon} ${escapeHtml(acc.account_label || platformDef.label)}</span>
+      </label>
+    `;
+  }).join('');
+}
+
+async function saveContentItem() {
+  const itemId = document.getElementById('edit-content-id').value;
+  const title = document.getElementById('edit-content-title').value.trim();
+  const body = document.getElementById('edit-content-body').value.trim();
+  const image_url = document.getElementById('edit-content-image').value.trim() || null;
+
+  if (!body) {
+    return toast('Body content is required', 'warning');
+  }
+
+  const checkedEls = Array.from(document.querySelectorAll('input[name="edit-account-checkbox"]:checked'));
+  if (checkedEls.length === 0) {
+    return toast('Please select at least one social account', 'warning');
+  }
+
+  const social_account_ids = checkedEls.map(el => parseInt(el.value));
+  const platforms = [...new Set(checkedEls.map(el => el.dataset.platform))];
+
+  const payload = { title, body, image_url, social_account_ids, platforms };
+  const btn = document.getElementById('btn-save-content-item');
+  
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Saving…';
+
+  try {
+    if (itemId) {
+      await api('PATCH', `/api/content/${itemId}`, payload);
+      toast('Draft updated successfully', 'success');
+    } else {
+      await api('POST', '/api/content', payload);
+      toast('Draft created successfully', 'success');
+    }
+    closeContentEditorModal();
+    renderCalendar(State.calendarDate);
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = itemId ? 'Save Draft' : 'Create Draft';
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -928,6 +1543,13 @@ async function loadSettings() {
     document.getElementById('platform-cards-container').innerHTML =
       `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`;
   }
+  try {
+    const envStatus = await api('GET', '/api/config/env-status');
+    const el = document.getElementById('setting-default-model');
+    if (el && envStatus.default_text_model) {
+      el.value = envStatus.default_text_model;
+    }
+  } catch {}
   checkOllamaStatus();
   loadContentFolderSetting();
 }
@@ -1136,6 +1758,16 @@ async function setPinterestBoard(id, name) {
     toast(`Board "${name}" set as default. ✅`, 'success');
     document.getElementById('pinterest-board-selector').style.display = 'none';
     loadSettings();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function saveDefaultModelSetting() {
+  const model = document.getElementById('setting-default-model').value;
+  try {
+    await api('POST', '/api/config/ai-keys', { DEFAULT_TEXT_MODEL: model });
+    toast('✅ Default AI model saved!', 'success');
+    loadSettings();
+    loadModels();
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -1560,8 +2192,15 @@ async function loadModels() {
     renderModelChips('img-model-chips',  data.image, 'image', model => { ModelState.imageModel = model; });
     renderModelChips('vid-model-chips',  data.video, 'video', model => { ModelState.videoModel = model; });
 
-    // Auto-select first available
-    if (!ModelState.textModel  && data.text?.length)  selectModel(data.text[0],  'text');
+    // Auto-select active or first available
+    if (data.text?.length) {
+      const activeModel = data.text.find(m => m.active);
+      const currentId = ModelState.textModel?.id;
+      const targetModel = activeModel || data.text[0];
+      if (!ModelState.textModel || (activeModel && activeModel.id !== currentId)) {
+        selectModel(targetModel, 'text');
+      }
+    }
     if (!ModelState.imageModel && data.image?.length) selectModel(data.image[0], 'image');
     if (!ModelState.videoModel && data.video?.length) selectModel(data.video[0], 'video');
   } catch {}
@@ -1574,12 +2213,16 @@ function renderModelChips(containerId, models, type, onSelect) {
     container.innerHTML = `<span style="font-size:11px;color:var(--text-muted)">No ${type} models configured — add API keys in Settings</span>`;
     return;
   }
-  container.innerHTML = models.map((m, i) => {
+  container.innerHTML = models.map((m) => {
     const colorClass = PROVIDER_COLORS[m.provider] || 'badge-purple';
     const icon = PROVIDER_ICONS[m.provider] || '🤖';
     const sizeText = m.size ? ` · ${(m.size/1e9).toFixed(1)}GB` : '';
-    return `<button class="model-chip ${i === 0 ? 'active' : ''}" data-model-id="${m.id}" onclick="selectModel(${JSON.stringify(m).replace(/"/g,'&quot;')}, '${type}')"
-      style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:var(--glass);cursor:pointer;font-size:12px;font-weight:500;color:var(--text-secondary);transition:var(--transition)">
+    const isActive = m.active;
+    const bg = isActive ? 'rgba(124,58,237,0.2)' : 'var(--glass)';
+    const bc = isActive ? 'var(--accent-purple)' : 'var(--border)';
+    const color = isActive ? '#a78bfa' : 'var(--text-secondary)';
+    return `<button class="model-chip" data-model-id="${m.id}" onclick="selectModel(${JSON.stringify(m).replace(/"/g,'&quot;')}, '${type}')"
+      style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid ${bc};background:${bg};cursor:pointer;font-size:12px;font-weight:500;color:${color};transition:var(--transition)">
       ${icon} ${escapeHtml(m.label)}${sizeText}
     </button>`;
   }).join('');
@@ -2807,6 +3450,7 @@ function toggleWorkspaceSwitcher() {
 async function loadWorkspaces() {
   try {
     const workspaces = await fetch('/me/workspaces').then(r => r.json());
+    State.userWorkspaces = workspaces;
     const list = document.getElementById('workspace-list');
     if (!list) return;
     list.innerHTML = workspaces.map(w => `
@@ -2838,6 +3482,183 @@ async function switchWorkspace(wsId, wsName, closeDropdown = true) {
       await loadWorkspaces(); // refresh checkmarks
     }
   } catch {}
+}
+
+// ── Client & Brand Management ──────────────────────────────────────────────────
+
+async function loadClients() {
+  const grid = document.getElementById('clients-grid');
+  if (!grid) return;
+  grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:40px; color:var(--text-muted)"><div class="spinner lg" style="margin: 0 auto 12px"></div>Loading client brands…</div>';
+
+  try {
+    const clients = await fetch('/workspaces').then(r => r.json());
+    if (!clients || clients.length === 0) {
+      grid.innerHTML = `
+        <div style="grid-column: 1/-1;" class="empty-state">
+          <div class="empty-icon">👥</div>
+          <div class="empty-title">No client brands found</div>
+          <div class="empty-desc">Get started by adding your first client brand portfolio.</div>
+          <button class="btn btn-primary" onclick="openAddClientModal()" style="margin-top:16px">➕ Add Client Brand</button>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = clients.map(c => {
+      const activePlatforms = c.social_accounts && c.social_accounts.length > 0
+        ? c.social_accounts.map(acc => {
+            const p = PLATFORMS[acc.platform] || { icon: '🔗', label: acc.platform };
+            return `<span class="badge badge-purple" title="${escapeHtml(acc.account_label || p.label)}" style="display:inline-flex;align-items:center;gap:4px;margin:2px">
+              <span style="font-size:12px">${p.icon}</span> ${escapeHtml(p.label)}
+            </span>`;
+          }).join('')
+        : '<span style="color:var(--text-muted);font-size:12.5px;font-style:italic">No platforms connected</span>';
+
+      const isCurrent = (c.workspace_id === currentWorkspaceId);
+
+      return `
+        <div class="card" style="position:relative;display:flex;flex-direction:column;justify-content:between;transition:transform 0.2s, box-shadow 0.2s;${isCurrent ? 'border:1.5px solid var(--accent-purple);box-shadow: 0 0 15px rgba(124, 58, 237, 0.15)' : ''}">
+          ${isCurrent ? '<div style="position:absolute;top:12px;right:12px;background:var(--accent-purple);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;text-transform:uppercase">Active</div>' : ''}
+          <div class="card-body" style="padding:24px;flex-grow:1;display:flex;flex-direction:column;gap:12px">
+            <div>
+              <div style="font-size:18px;font-weight:700;color:var(--text-primary);margin-bottom:4px">${escapeHtml(c.name)}</div>
+              <div style="font-size:12px;color:var(--text-muted);font-family:monospace">slug: ${escapeHtml(c.slug)}</div>
+            </div>
+            
+            <div style="border-top:1px solid var(--border);padding-top:12px">
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Connected Channels</div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px">${activePlatforms}</div>
+            </div>
+
+            <div style="display:flex;justify-content:between;align-items:center;font-size:13px;color:var(--text-muted);margin-top:auto;border-top:1px solid var(--border);padding-top:12px">
+              <span>👥 <strong>${c.member_count}</strong> Member${c.member_count !== 1 ? 's' : ''}</span>
+              <span style="font-size:12px">Role: <strong style="text-transform:capitalize">${c.role}</strong></span>
+            </div>
+          </div>
+          <div class="card-footer" style="padding:16px 24px;background:rgba(255,255,255,0.01);border-top:1px solid var(--border);display:flex;gap:8px">
+            <button class="btn ${isCurrent ? 'btn-secondary' : 'btn-primary'}" onclick="switchClientWorkspace(${c.workspace_id}, '${escapeHtml(c.name)}')" style="flex:1" ${isCurrent ? 'disabled' : ''}>
+              ${isCurrent ? '🟢 Managing Client' : '🔌 Manage Social Media'}
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="navigateTo('settings');setTimeout(()=>switchSettingsTab('members',document.querySelector('[data-tab=members]')),100)" title="Client Settings">⚙️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteClient(${c.workspace_id}, '${escapeHtml(c.name)}')" title="Delete Client Brand" ${c.role !== 'manager' ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}>🗑️</button>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (err) {
+    grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:var(--text-danger)">⚠️ Error loading client brands: ${err.message}</div>`;
+  }
+}
+
+async function switchClientWorkspace(wsId, wsName) {
+  await switchWorkspace(wsId, wsName);
+  toast(`Switched workspace context to ${wsName}`, 'success');
+  loadClients(); // reload grid to update active status border/buttons
+}
+
+async function openAddClientModal() {
+  document.getElementById('client-name-input').value = '';
+  document.getElementById('client-slug-input').value = '';
+  document.getElementById('client-timezone-select').value = 'Asia/Kolkata';
+  
+  const orgSelect = document.getElementById('client-org-select');
+  orgSelect.innerHTML = '<option>Loading organizations…</option>';
+  
+  try {
+    const orgs = await fetch('/workspaces/organizations').then(r => r.json());
+    if (!orgs || orgs.length === 0) {
+      orgSelect.innerHTML = '<option value="">No Organization Found (Contact Admin)</option>';
+      document.getElementById('client-org-group').style.display = 'block';
+    } else {
+      orgSelect.innerHTML = orgs.map(o => `<option value="${o.id}">${escapeHtml(o.name)} (${o.role})</option>`).join('');
+      document.getElementById('client-org-group').style.display = orgs.length > 1 ? 'block' : 'none';
+      if (orgs.length === 1) {
+        orgSelect.value = orgs[0].id;
+      }
+    }
+  } catch (err) {
+    orgSelect.innerHTML = '<option value="">Error loading organizations</option>';
+  }
+
+  document.getElementById('add-client-modal').style.display = 'flex';
+}
+
+function closeAddClientModal() {
+  document.getElementById('add-client-modal').style.display = 'none';
+}
+
+function autoGenerateClientSlug() {
+  const name = document.getElementById('client-name-input').value;
+  const slug = name.toLowerCase().trim()
+    .replace(/[^a-z0-9\s-]/g, '')     // remove non-alphanumeric, spaces or dashes
+    .replace(/\s+/g, '-')             // replace spaces with single dashes
+    .replace(/-+/g, '-');             // replace multiple dashes with single dashes
+  document.getElementById('client-slug-input').value = slug;
+}
+
+async function submitCreateClient() {
+  const name = document.getElementById('client-name-input').value.trim();
+  const slug = document.getElementById('client-slug-input').value.trim();
+  const timezone = document.getElementById('client-timezone-select').value;
+  const orgId = parseInt(document.getElementById('client-org-select').value);
+
+  if (!name || !slug) {
+    return toast('Client name and slug are required', 'warning');
+  }
+  if (!orgId) {
+    return toast('A valid Organization must be selected', 'warning');
+  }
+
+  try {
+    const res = await fetch('/workspaces', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orgId, name, slug, timezone })
+    });
+    
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Failed to create workspace');
+    }
+
+    toast('🎉 Client workspace created successfully!', 'success');
+    closeAddClientModal();
+    
+    // Switch to new client workspace immediately
+    const newWs = await res.json();
+    await switchWorkspace(newWs.id, newWs.name);
+    loadClients();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function deleteClient(id, name) {
+  if (!confirm(`Are you absolutely sure you want to delete client "${name}"?\nThis will permanently delete all associated social media tokens, scheduled posts, history, and brand assets for this client.`)) {
+    return;
+  }
+  
+  try {
+    const res = await fetch(`/workspaces/${id}`, {
+      method: 'DELETE'
+    });
+    
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Failed to delete workspace');
+    }
+
+    toast(`Deleted client brand "${name}"`, 'info');
+    
+    // If the deleted workspace was the active workspace, switch to first available
+    if (id === currentWorkspaceId) {
+      currentWorkspaceId = null;
+      await loadWorkspaces(); // will auto-assign first available workspace
+    }
+    
+    loadClients();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
 // ── Members Panel ─────────────────────────────────────────────────────────────
@@ -2903,6 +3724,8 @@ async function loadUserSettings() {
     set('u-luma-key',       s.luma_key);
     set('u-runway-key',     s.runway_key);
     set('u-ollama-model',   s.ollama_model);
+    set('u-ollama-url',     s.ollama_url);
+    set('u-default-text-model', s.default_text_model);
     const toggle = document.getElementById('u-ollama-enabled');
     if (toggle) toggle.checked = !!s.ollama_enabled;
   } catch {}
@@ -2922,7 +3745,9 @@ async function saveUserApiSettings() {
         luma_key:       get('u-luma-key'),
         runway_key:     get('u-runway-key'),
         ollama_model:   get('u-ollama-model'),
+        ollama_url:     get('u-ollama-url'),
         ollama_enabled: document.getElementById('u-ollama-enabled')?.checked ? 1 : 0,
+        default_text_model: document.getElementById('u-default-text-model')?.value || 'ollama',
       }),
     });
     toast('✅ API keys saved to your account!', 'success');
@@ -3151,6 +3976,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   handleURLParams();
   loadWorkspaces();
+
+  // Handle local computer file import
+  const fileInput = document.getElementById('computer-file-input');
+  if (fileInput) {
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target.result;
+        const composeTextarea = document.getElementById('compose-content');
+        if (composeTextarea) {
+          composeTextarea.value = content;
+          updateComposeCharCount();
+          closeFileBrowserModal();
+          navigateTo('compose');
+          toast(`Successfully imported "${file.name}"!`, 'success');
+        }
+      };
+      reader.onerror = () => {
+        toast('Failed to read file from computer', 'error');
+      };
+      reader.readAsText(file);
+      fileInput.value = ''; // reset
+    });
+  }
 
   // Restore API key
   if (State.anthropicKey) {

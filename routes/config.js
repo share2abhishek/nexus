@@ -8,13 +8,26 @@ const db = require('../services/database');
 // ── Ollama endpoints ──────────────────────────────────────────────────────────
 
 router.get('/ollama/status', async (req, res) => {
-  const base = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+  const base = req.ollamaUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
   try {
     const r = await axios.get(`${base}/api/tags`, { timeout: 3000 });
     const models = (r.data.models || []).map(m => ({ name: m.name, size: m.size, modified: m.modified_at }));
-    res.json({ running: true, base, models, enabled: process.env.OLLAMA_ENABLED === 'true', current: process.env.OLLAMA_MODEL || 'llama3.2' });
-  } catch {
-    res.json({ running: false, base, models: [], enabled: process.env.OLLAMA_ENABLED === 'true', current: process.env.OLLAMA_MODEL || 'llama3.2' });
+    res.json({
+      running: true,
+      base,
+      models,
+      enabled: req.ollamaEnabled ?? (process.env.OLLAMA_ENABLED === 'true'),
+      current: req.ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2'
+    });
+  } catch (err) {
+    console.error('[Ollama status error]', err.message);
+    res.json({
+      running: false,
+      base,
+      models: [],
+      enabled: req.ollamaEnabled ?? (process.env.OLLAMA_ENABLED === 'true'),
+      current: req.ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2'
+    });
   }
 });
 
@@ -29,7 +42,7 @@ router.post('/ollama/enable', (req, res) => {
 router.post('/ollama/pull', async (req, res) => {
   const { model } = req.body;
   if (!model) return res.status(400).json({ error: 'model name required' });
-  const base = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+  const base = req.ollamaUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 
   // Stream pull progress back to client
   res.setHeader('Content-Type', 'text/event-stream');
@@ -282,9 +295,10 @@ router.post('/platforms/:platform', (req, res) => {
 // ── POST /api/config/ai-keys ──────────────────────────────────────────────────
 
 router.post('/ai-keys', (req, res) => {
-  const { GOOGLE_AI_KEY, ANTHROPIC_API_KEY } = req.body;
+  const { GOOGLE_AI_KEY, ANTHROPIC_API_KEY, DEFAULT_TEXT_MODEL } = req.body;
   if (GOOGLE_AI_KEY && !GOOGLE_AI_KEY.includes('••••'))  writeEnvValue('GOOGLE_AI_KEY', GOOGLE_AI_KEY);
   if (ANTHROPIC_API_KEY && !ANTHROPIC_API_KEY.includes('••••')) writeEnvValue('ANTHROPIC_API_KEY', ANTHROPIC_API_KEY);
+  if (DEFAULT_TEXT_MODEL) writeEnvValue('DEFAULT_TEXT_MODEL', DEFAULT_TEXT_MODEL);
   res.json({ success: true });
 });
 
@@ -330,6 +344,7 @@ router.get('/env-status', (req, res) => {
     facebook:  check('FACEBOOK_APP_ID'),
     pinterest: check('PINTEREST_APP_ID'),
     twitter:   check('TWITTER_API_KEY'),
+    default_text_model: env.DEFAULT_TEXT_MODEL || 'ollama',
   });
 });
 

@@ -101,6 +101,12 @@
         <span class="nav-label">Analytics</span>
       </a>
 
+      <div class="nav-section-label">Management</div>
+      <a class="nav-item" data-page="clients" id="nav-clients">
+        <span class="nav-icon">👥</span>
+        <span class="nav-label">Clients & Brands</span>
+      </a>
+
       <div class="nav-section-label">System</div>
       <a class="nav-item" data-page="admin" id="nav-admin" style="display:none">
         <span class="nav-icon">👑</span>
@@ -451,18 +457,59 @@
       <div class="section-header">
         <div>
           <div class="section-title">📅 Content Calendar</div>
-          <div class="section-desc">Visual view of all your scheduled content.</div>
+          <div class="section-desc">Visual unified content lifecycle planner and calendar.</div>
+        </div>
+        <button class="btn btn-primary" onclick="openNewContentModal()">✏️ New Content</button>
+      </div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-body" style="padding:16px 24px">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <!-- Navigation -->
+            <div style="display:flex;align-items:center;gap:12px">
+              <button class="btn btn-secondary btn-sm" onclick="navigateCalendar(-1)">← Prev</button>
+              <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;min-width:180px;text-align:center" id="calendar-date-label">Week View</div>
+              <button class="btn btn-secondary btn-sm" onclick="navigateCalendar(1)">Next →</button>
+            </div>
+            
+            <!-- View toggles -->
+            <div style="display:flex;gap:4px;background:var(--glass);padding:4px;border-radius:8px;border:1px solid var(--border)">
+              <button class="btn btn-secondary btn-sm active" id="view-btn-week" onclick="changeCalendarView('week')" style="padding:6px 12px;border:none;background:transparent">Week</button>
+              <button class="btn btn-secondary btn-sm" id="view-btn-month" onclick="changeCalendarView('month')" style="padding:6px 12px;border:none;background:transparent">Month</button>
+              <button class="btn btn-secondary btn-sm" id="view-btn-agenda" onclick="changeCalendarView('agenda')" style="padding:6px 12px;border:none;background:transparent">Agenda</button>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div style="display:flex;align-items:center;gap:12px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:600;color:var(--text-muted)">Filter status:</span>
+            <div style="display:flex;gap:12px;flex-wrap:wrap" id="calendar-filters">
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;color:var(--text-secondary)">
+                <input type="checkbox" checked value="draft" onchange="renderCalendarData()" style="cursor:pointer" /> Draft
+              </label>
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;color:var(--text-secondary)">
+                <input type="checkbox" checked value="in_review" onchange="renderCalendarData()" style="cursor:pointer" /> In Review
+              </label>
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;color:var(--text-secondary)">
+                <input type="checkbox" checked value="approved" onchange="renderCalendarData()" style="cursor:pointer" /> Approved
+              </label>
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;color:var(--text-secondary)">
+                <input type="checkbox" checked value="scheduled" onchange="renderCalendarData()" style="cursor:pointer" /> Scheduled
+              </label>
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;color:var(--text-secondary)">
+                <input type="checkbox" checked value="published" onchange="renderCalendarData()" style="cursor:pointer" /> Published
+              </label>
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;color:var(--text-secondary)">
+                <input type="checkbox" checked value="failed" onchange="renderCalendarData()" style="cursor:pointer" /> Failed
+              </label>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-body">
-          <div class="calendar-header">
-            <button class="btn btn-secondary btn-sm" onclick="changeMonth(-1)">← Prev</button>
-            <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700" id="calendar-month-label"></div>
-            <button class="btn btn-secondary btn-sm" onclick="changeMonth(1)">Next →</button>
-          </div>
-          <div class="calendar-grid" id="calendar-grid"></div>
+          <div class="calendar-grid week-view" id="calendar-grid"></div>
         </div>
       </div>
     </section>
@@ -738,6 +785,21 @@
       <div class="settings-panel" id="settings-panel-ai-keys" style="display:none">
         <div class="settings-section">
           <div class="settings-section-header"><div class="settings-section-title">🤖 AI Content Generation</div></div>
+
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-title">Default AI Model</div>
+              <div class="settings-row-desc">Select the default model to use for generating content.</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;min-width:320px">
+              <select class="form-select" id="setting-default-model" style="flex:1">
+                <option value="ollama">Ollama (Local Llama)</option>
+                <option value="gemini">Google Gemini 1.5 Flash</option>
+                <option value="claude">Anthropic Claude Opus</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="saveDefaultModelSetting()">Save</button>
+            </div>
+          </div>
 
           <div class="settings-row">
             <div class="settings-row-info">
@@ -1667,6 +1729,15 @@
       </div>
       <div class="settings-section">
         <div class="settings-section-header"><div class="settings-section-title">🤖 AI Text Generation</div></div>
+        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Default AI Model</div><div class="settings-row-desc">Select the default model for generating content.</div></div>
+          <div style="min-width:300px">
+            <select class="form-select" id="u-default-text-model" style="width:100%">
+              <option value="ollama">Ollama (Local Llama)</option>
+              <option value="gemini">Google Gemini 1.5 Flash</option>
+              <option value="claude">Anthropic Claude Opus</option>
+            </select>
+          </div>
+        </div>
         <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Google Gemini API Key <span class="badge badge-green" style="font-size:10px">FREE TIER</span></div><div class="settings-row-desc">Get free key at <a href="https://aistudio.google.com" target="_blank" style="color:#60a5fa">aistudio.google.com</a></div></div>
           <div style="display:flex;gap:8px;min-width:300px"><input type="password" class="form-input" id="u-google-key" placeholder="AIza… or AQ.Ab8R…" style="flex:1"/><button class="btn btn-primary btn-sm" onclick="saveUserApiSettings()">Save</button></div></div>
         <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Anthropic Claude Key <span class="badge badge-orange" style="font-size:10px">OPTIONAL</span></div><div class="settings-row-desc">Get at <a href="https://console.anthropic.com" target="_blank" style="color:#60a5fa">console.anthropic.com</a></div></div>
@@ -1692,6 +1763,8 @@
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="u-ollama-enabled" style="width:18px;height:18px"/> <span style="font-size:13px">Use Ollama as primary AI</span></label></div>
         <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Active Model</div></div>
           <input type="text" class="form-input" id="u-ollama-model" placeholder="llama3.2" style="width:200px"/></div>
+        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Server URL</div><div class="settings-row-desc">Change if Ollama runs on a different port or machine</div></div>
+          <input type="text" class="form-input" id="u-ollama-url" placeholder="http://localhost:11434" style="width:280px"/></div>
       </div>
     </section>
 
@@ -1703,7 +1776,67 @@
       <div id="tools-directory-content"></div>
     </section>
 
+    <!-- ── Clients & Brands Management ────────────────────────────────────────── -->
+    <section class="page" id="page-clients">
+      <div class="section-header">
+        <div>
+          <div class="section-title">👥 Clients & Brands</div>
+          <div class="section-desc">Manage separate client brand portfolios, connect respective social credentials, and isolate content.</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAddClientModal()">➕ Add Client Brand</button>
+      </div>
+
+      <div class="grid-3" id="clients-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:24px;margin-bottom:40px">
+        <!-- Client cards rendered dynamically -->
+      </div>
+    </section>
+
   </main>
+</div>
+
+<!-- ── Add Client Modal ──────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="add-client-modal" style="display:none" onclick="if(event.target===this)closeAddClientModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">👥 Add Client / Brand</div>
+      <button class="modal-close" onclick="closeAddClientModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Client Name *</label>
+        <input type="text" class="form-input" id="client-name-input" placeholder="Starbucks Digital" oninput="autoGenerateClientSlug()" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Slug * (Unique URL suffix)</label>
+        <input type="text" class="form-input" id="client-slug-input" placeholder="starbucks-digital" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Default Timezone</label>
+        <select class="form-select" id="client-timezone-select">
+          <option value="UTC">UTC</option>
+          <option value="America/New_York">Eastern Time (ET)</option>
+          <option value="America/Chicago">Central Time (CT)</option>
+          <option value="America/Denver">Mountain Time (MT)</option>
+          <option value="America/Los_Angeles">Pacific Time (PT)</option>
+          <option value="Europe/London">London (GMT/BST)</option>
+          <option value="Europe/Paris">Paris (CET/CEST)</option>
+          <option value="Asia/Kolkata" selected>India (IST)</option>
+          <option value="Asia/Tokyo">Tokyo (JST)</option>
+          <option value="Australia/Sydney">Sydney (AEST/AEDT)</option>
+        </select>
+      </div>
+      <div class="form-group" id="client-org-group">
+        <label class="form-label">Organization *</label>
+        <select class="form-select" id="client-org-select">
+          <!-- Populated dynamically -->
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeAddClientModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitCreateClient()">➕ Create Client</button>
+    </div>
+  </div>
 </div>
 
 <!-- ── Save Template Modal ────────────────────────────────────────────────────── -->
@@ -1739,12 +1872,117 @@
       <button class="modal-close" onclick="closeFileBrowserModal()">✕</button>
     </div>
     <div class="modal-body">
+      <button class="btn btn-secondary" onclick="document.getElementById('computer-file-input').click()" style="width:100%;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px">
+        💻 Choose from Computer
+      </button>
+      <input type="file" id="computer-file-input" style="display:none" accept=".txt,.md,.json,.js,.py,.html,.css,.xml" />
+      
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;text-align:center">Or Browse Server Directory</div>
       <div class="file-list" id="modal-file-list">
         <div class="empty-state" style="padding:20px 0">
           <div class="spinner lg"></div>
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ── Content Editor Modal ────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="content-editor-modal" style="display:none" onclick="if(event.target===this)closeContentEditorModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width: 600px">
+    <div class="modal-header">
+      <div class="modal-title" id="content-editor-modal-title">✏️ Compose New Content</div>
+      <button class="modal-close" onclick="closeContentEditorModal()">✕</button>
+    </div>
+    <div class="modal-body" style="max-height: 70vh; overflow-y: auto">
+      <input type="hidden" id="edit-content-id" />
+      <div class="form-group">
+        <label class="form-label">Title (optional)</label>
+        <input type="text" class="form-input" id="edit-content-title" placeholder="e.g. June Product Update" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Body *</label>
+        <textarea class="form-textarea" id="edit-content-body" placeholder="Write your post content here…" style="min-height:120px"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Image URL (optional)</label>
+        <input type="url" class="form-input" id="edit-content-image" placeholder="https://example.com/image.jpg" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Select Social Accounts *</label>
+        <div id="edit-content-accounts" style="display:flex;flex-direction:column;gap:8px;padding:8px 0">
+          <!-- Dynamically populated checkboxes for accounts -->
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeContentEditorModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveContentItem()" id="btn-save-content-item">Save Draft</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Slide-in Content Detail Panel ───────────────────────────────────────── -->
+<div class="detail-panel-backdrop" id="content-detail-backdrop" onclick="closeContentDetail()"></div>
+<div class="detail-panel" id="content-detail-panel">
+  <div class="detail-panel-header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="badge badge-purple" id="detail-status-badge">draft</span>
+      <h3 style="font-size:15px;font-weight:700;margin:0" id="detail-title-label">Content Details</h3>
+    </div>
+    <button class="modal-close" onclick="closeContentDetail()">✕</button>
+  </div>
+  
+  <div class="detail-panel-body">
+    <!-- Platforms & Accounts -->
+    <div id="detail-accounts-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
+    
+    <!-- Body Content -->
+    <div id="detail-body-container" style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:13.5px;line-height:1.7;white-space:pre-wrap;color:var(--text-primary);margin-bottom:16px"></div>
+    
+    <!-- Image Preview -->
+    <div id="detail-image-container" style="margin-bottom:16px;display:none;text-align:center">
+      <img id="detail-image-preview" src="" style="max-width:100%;border-radius:8px;box-shadow:var(--shadow-sm);max-height:220px;object-fit:cover" />
+    </div>
+
+    <!-- Error message (if status failed) -->
+    <div id="detail-error-container" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:12px;color:#f87171;font-size:12.5px;line-height:1.5;margin-bottom:16px;display:none"></div>
+    
+    <!-- Audit Logs -->
+    <div class="audit-logs" id="detail-audit-logs"></div>
+    
+    <!-- AI Assist Sub-panel (if state allows edit) -->
+    <div class="ai-assist-panel" id="detail-ai-assist-panel" style="display:none">
+      <div class="ai-assist-title">
+        <span>✨ AI Assist</span>
+        <span class="badge badge-purple" id="detail-ai-model-badge" style="font-size:9.5px;margin-left:auto">ollama</span>
+      </div>
+      <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">Enhance this post's text. Changes will be saved to this draft.</div>
+      <div class="ai-assist-actions">
+        <button class="btn btn-secondary btn-sm" onclick="runAiAssistDetail('generate')" id="btn-ai-detail-gen">✨ Generate</button>
+        <button class="btn btn-secondary btn-sm" onclick="runAiAssistDetail('rewrite')" id="btn-ai-detail-rewrite">✍️ Rewrite</button>
+        <button class="btn btn-secondary btn-sm" onclick="runAiAssistDetail('shorten')" id="btn-ai-detail-shorten">✂️ Shorten</button>
+        <button class="btn btn-secondary btn-sm" onclick="runAiAssistDetail('hashtags')" id="btn-ai-detail-tags">#️⃣ Hashtags</button>
+        <button class="btn btn-secondary btn-sm" onclick="runAiAssistDetail('platform_variants')" id="btn-ai-detail-variants">📱 Variants</button>
+      </div>
+      <div id="detail-ai-feedback" style="margin-top:10px;font-size:12px;display:none;background:var(--glass);padding:8px;border-radius:6px;border:1px solid var(--border)"></div>
+    </div>
+    
+    <!-- Comments Section -->
+    <div class="comments-section">
+      <h4 style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:12px">💬 Comments</h4>
+      <div class="comments-list" id="detail-comments-list">
+        <div style="color:var(--text-muted);font-size:12.5px;text-align:center;padding:12px 0">No comments yet.</div>
+      </div>
+      <div style="display:flex;gap:8px" id="comment-input-area">
+        <input type="text" class="form-input" id="detail-comment-input" placeholder="Type a comment…" style="font-size:13px;padding:8px 12px" />
+        <button class="btn btn-primary btn-sm" onclick="submitCommentDetail()">Send</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="detail-panel-footer" id="detail-panel-actions">
+    <!-- Dynamic action buttons -->
   </div>
 </div>
 

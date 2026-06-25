@@ -36,6 +36,7 @@ db.exec(`
     openai_key    TEXT,
     luma_key      TEXT,
     runway_key    TEXT,
+    default_text_model TEXT DEFAULT 'ollama',
     updated_at    INTEGER DEFAULT (strftime('%s','now')),
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
@@ -50,6 +51,7 @@ for (const t of userDataTables) {
 }
 try { db.exec(`ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'`); } catch {}
 try { db.exec(`ALTER TABLE users ADD COLUMN last_active INTEGER`); } catch {}
+try { db.exec(`ALTER TABLE user_settings ADD COLUMN default_text_model TEXT DEFAULT 'ollama'`); } catch {}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS tokens (

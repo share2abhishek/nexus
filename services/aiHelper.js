@@ -26,9 +26,9 @@ function _drainQueue() {
 
 // ── Ollama (local Llama) ───────────────────────────────────────────────────────
 
-async function ollamaGenerate(prompt, maxTokens = 1024) {
-  const base  = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-  const model = process.env.OLLAMA_MODEL    || 'llama3.2';
+async function ollamaGenerate(prompt, maxTokens = 1024, opts = {}) {
+  const base  = opts.base  || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+  const model = opts.model || process.env.OLLAMA_MODEL    || 'llama3.2';
 
   const res = await axios.post(`${base}/api/chat`, {
     model,
@@ -40,12 +40,12 @@ async function ollamaGenerate(prompt, maxTokens = 1024) {
   return { text: res.data.message?.content || res.data.response || '', model: `ollama:${model}` };
 }
 
-async function isOllamaRunning() {
+async function isOllamaRunning(opts = {}) {
   try {
-    const base = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    const base = opts.base || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
     const res = await axios.get(`${base}/api/tags`, { timeout: 3000 });
     // Also verify the configured model is downloaded
-    const model = process.env.OLLAMA_MODEL || 'llama3.2';
+    const model = opts.model || process.env.OLLAMA_MODEL || 'llama3.2';
     const models = res.data.models || [];
     const available = models.some(m => m.name === model || m.name.startsWith(model.split(':')[0]));
     if (!available) {
@@ -57,21 +57,24 @@ async function isOllamaRunning() {
   }
 }
 
-async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null) {
-  // Re-read env each call so UI changes take effect without restart
-  const ollamaEnabled = process.env.OLLAMA_ENABLED === 'true';
+async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null, options = {}) {
+  // Re-read env/options each call so UI/user changes take effect without restart
+  const googleKey = apiKey || options.googleKey || process.env.GOOGLE_AI_KEY;
+  const anthropicKey = options.anthropicKey || process.env.ANTHROPIC_API_KEY;
+  const ollamaEnabled = (options.ollamaEnabled !== undefined) ? options.ollamaEnabled : (process.env.OLLAMA_ENABLED === 'true');
+  const ollamaModel = options.ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2';
+  const ollamaBaseUrl = options.ollamaBaseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 
   // ── Explicit model override from UI ─────────────────────────────────────
   if (modelOverride) {
     if (modelOverride.startsWith('ollama:')) {
-      const ollamaModel = modelOverride.replace('ollama:', '');
-      const savedModel = process.env.OLLAMA_MODEL;
-      process.env.OLLAMA_MODEL = ollamaModel;
-      try { return await ollamaGenerate(prompt, maxTokens); }
-      finally { process.env.OLLAMA_MODEL = savedModel; }
+      const targetOllamaModel = modelOverride.replace('ollama:', '');
+      return await ollamaGenerate(prompt, maxTokens, { model: targetOllamaModel, base: ollamaBaseUrl });
     }
     if (modelOverride === 'gemini') {
-      const googleKey = apiKey || process.env.GOOGLE_AI_KEY;
+      if (!googleKey || googleKey.includes('your-key-here')) {
+        throw new Error('Google Gemini API key not configured.');
+      }
       const { GoogleGenerativeAI } = require('@google/generative-ai');
       const genAI = new GoogleGenerativeAI(googleKey);
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }, { apiVersion: 'v1beta' });
@@ -79,8 +82,11 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
       return { text: result.response.text(), model: 'gemini-1.5-flash' };
     }
     if (modelOverride === 'claude') {
+      if (!anthropicKey || anthropicKey.includes('your-key-here')) {
+        throw new Error('Anthropic API key not configured.');
+      }
       const Anthropic = require('@anthropic-ai/sdk');
-      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const client = new Anthropic({ apiKey: anthropicKey });
       const msg = await client.messages.create({ model: 'claude-opus-4-5', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] });
       return { text: msg.content[0].text, model: msg.model };
     }
@@ -88,18 +94,17 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
 
   // ── Priority 1: Ollama (local, free) ─────────────────────────────────────
   if (ollamaEnabled) {
-    const running = await isOllamaRunning();
+    const running = await isOllamaRunning({ base: ollamaBaseUrl, model: ollamaModel });
     if (running) {
-      console.log(`[AI] Using Ollama (${process.env.OLLAMA_MODEL || 'llama3.2'}) [queue: ${_ollamaQueue.length}]`);
-      return withOllamaQueue(() => ollamaGenerate(prompt, maxTokens));
+      console.log(`[AI] Using Ollama (${ollamaModel}) [queue: ${_ollamaQueue.length}]`);
+      return withOllamaQueue(() => ollamaGenerate(prompt, maxTokens, { model: ollamaModel, base: ollamaBaseUrl }));
     }
-    console.warn('[AI] Ollama enabled but not reachable at', process.env.OLLAMA_BASE_URL || 'http://localhost:11434');
+    console.warn('[AI] Ollama enabled but not reachable at', ollamaBaseUrl);
     console.warn('[AI] Start Ollama: open Ollama app or run "ollama serve" in terminal');
     console.warn('[AI] Falling back to cloud AI...');
   }
 
   // ── Priority 2: Google Gemini ─────────────────────────────────────────────
-  const googleKey = apiKey || process.env.GOOGLE_AI_KEY;
   if (googleKey && !googleKey.includes('your-key-here')) {
     const genAI = new GoogleGenerativeAI(googleKey);
     // Use v1beta — v1 does not support gemini-1.5-flash
@@ -113,7 +118,6 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
   }
 
   // ── Priority 3: Anthropic Claude ──────────────────────────────────────────
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (anthropicKey && anthropicKey.length > 10) {
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey: anthropicKey });

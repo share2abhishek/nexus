@@ -113,11 +113,12 @@ router.get('/settings', requireAuth, (req, res) => {
     ollama_enabled:   !!s.ollama_enabled,
     ollama_model:     s.ollama_model  || 'llama3.2',
     ollama_url:       s.ollama_url    || 'http://localhost:11434',
+    default_text_model: s.default_text_model || 'ollama',
   });
 });
 
 router.post('/settings', requireAuth, (req, res) => {
-  const allowed = ['google_ai_key','anthropic_key','stability_key','openai_key','luma_key','runway_key','ollama_enabled','ollama_model','ollama_url'];
+  const allowed = ['google_ai_key','anthropic_key','stability_key','openai_key','luma_key','runway_key','ollama_enabled','ollama_model','ollama_url','default_text_model'];
   const data = {};
   for (const [k, v] of Object.entries(req.body)) {
     if (!allowed.includes(k)) continue;

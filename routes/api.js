@@ -17,13 +17,25 @@ router.post('/generate', async (req, res) => {
 
   if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
-  const apiKey = req.headers['x-api-key'] || process.env.GOOGLE_AI_KEY;
+  const apiKey = req.headers['x-api-key'] || req.googleKey || process.env.GOOGLE_AI_KEY;
 
   try {
     const systemPrompt = buildSystemPrompt(type, tone, targetPlatforms);
     const fullPrompt   = `${systemPrompt}\n\nUser request: ${prompt}`;
 
-    const { text: responseText, model: modelName } = await aiGenerate(fullPrompt, apiKey, max_tokens, modelOverride);
+    const { text: responseText, model: modelName } = await aiGenerate(
+      fullPrompt,
+      apiKey,
+      max_tokens,
+      modelOverride,
+      {
+        googleKey: req.googleKey,
+        anthropicKey: req.anthropicKey,
+        ollamaEnabled: req.ollamaEnabled,
+        ollamaModel: req.ollamaModel,
+        ollamaBaseUrl: req.ollamaUrl
+      }
+    );
 
     db.saveHistory({ prompt, response: responseText, type, model: modelName, tokens_used: null });
     res.json({ content: responseText, model: modelName, tokens: { total: null } });
@@ -64,33 +76,47 @@ function isConfigured(key) {
 
 router.get('/models', async (req, res) => {
   const models = [];
+  const defaultModel = req.defaultTextModel || process.env.DEFAULT_TEXT_MODEL || 'ollama';
 
-  // Ollama — only if running AND enabled
-  if (process.env.OLLAMA_ENABLED === 'true') {
-    try {
-      const axios = require('axios');
-      const base = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-      const r = await axios.get(`${base}/api/tags`, { timeout: 2000 });
-      (r.data.models || []).forEach(m => {
-        const isActive = process.env.OLLAMA_MODEL === m.name.split(':')[0] || process.env.OLLAMA_MODEL === m.name;
-        models.push({ id: `ollama:${m.name}`, label: m.name, provider: 'ollama', size: m.size, active: isActive });
-      });
-    } catch {}
-  }
+  const ollamaEnabled = req.ollamaEnabled !== undefined ? req.ollamaEnabled : (process.env.OLLAMA_ENABLED === 'true');
+  const ollamaModel = req.ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2';
+  const ollamaBaseUrl = req.ollamaUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+
+  // Ollama — only if running
+  try {
+    const axios = require('axios');
+    const r = await axios.get(`${ollamaBaseUrl}/api/tags`, { timeout: 2000 });
+    (r.data.models || []).forEach(m => {
+      const isDefault = defaultModel === 'ollama' || defaultModel.startsWith('ollama:') || defaultModel === `ollama:${m.name}`;
+      const isActive = isDefault && (ollamaModel === m.name.split(':')[0] || ollamaModel === m.name);
+      models.push({ id: `ollama:${m.name}`, label: m.name, provider: 'ollama', size: m.size, active: isActive });
+    });
+  } catch {}
 
   // Cloud text models — only if key is configured
-  if (isConfigured(process.env.GOOGLE_AI_KEY))     models.push({ id: 'gemini', label: 'Gemini 1.5 Flash', provider: 'google',     active: false });
-  if (isConfigured(process.env.ANTHROPIC_API_KEY)) models.push({ id: 'claude', label: 'Claude Opus',       provider: 'anthropic', active: false });
+  const hasGemini = isConfigured(req.googleKey) || isConfigured(process.env.GOOGLE_AI_KEY);
+  if (hasGemini) {
+    models.push({ id: 'gemini', label: 'Gemini 1.5 Flash', provider: 'google', active: defaultModel === 'gemini' });
+  }
+
+  const hasClaude = isConfigured(req.anthropicKey) || isConfigured(process.env.ANTHROPIC_API_KEY);
+  if (hasClaude) {
+    models.push({ id: 'claude', label: 'Claude Opus', provider: 'anthropic', active: defaultModel === 'claude' });
+  }
 
   // Image models — only if key is configured
   const imageModels = [];
-  if (isConfigured(process.env.STABILITY_API_KEY)) imageModels.push({ id: 'stability-sdxl', label: 'Stable Diffusion XL', provider: 'stability' });
-  if (isConfigured(process.env.OPENAI_API_KEY))    imageModels.push({ id: 'dall-e-3',        label: 'DALL-E 3',            provider: 'openai' });
+  const hasStability = isConfigured(req.stabilityKey) || isConfigured(process.env.STABILITY_API_KEY);
+  if (hasStability) imageModels.push({ id: 'stability-sdxl', label: 'Stable Diffusion XL', provider: 'stability' });
+  const hasOpenAI = isConfigured(req.openaiKey) || isConfigured(process.env.OPENAI_API_KEY);
+  if (hasOpenAI)    imageModels.push({ id: 'dall-e-3',        label: 'DALL-E 3',            provider: 'openai' });
 
   // Video models — only if key is configured
   const videoModels = [];
-  if (isConfigured(process.env.LUMA_API_KEY))   videoModels.push({ id: 'luma',   label: 'Luma Dream Machine', provider: 'luma' });
-  if (isConfigured(process.env.RUNWAY_API_KEY)) videoModels.push({ id: 'runway', label: 'Runway Gen-3',        provider: 'runway' });
+  const hasLuma = isConfigured(req.lumaKey) || isConfigured(process.env.LUMA_API_KEY);
+  if (hasLuma)   videoModels.push({ id: 'luma',   label: 'Luma Dream Machine', provider: 'luma' });
+  const hasRunway = isConfigured(req.runwayKey) || isConfigured(process.env.RUNWAY_API_KEY);
+  if (hasRunway) videoModels.push({ id: 'runway', label: 'Runway Gen-3',        provider: 'runway' });
 
   res.json({ text: models, image: imageModels, video: videoModels });
 });

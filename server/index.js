@@ -77,7 +77,8 @@ app.use('/api/seo',    requireAuth, withWorkspace, injectUserKeys, seoRoutes);
 app.use('/api/email',  requireAuth, withWorkspace, injectUserKeys, emailRoutes);
 app.use('/api/tools',  requireAuth, withWorkspace, injectUserKeys, toolsRoutes);
 app.use('/api/media',  requireAuth, withWorkspace, injectUserKeys, mediaRoutes);
-app.use('/api/config', requireAuth, withWorkspace, configRoutes);
+app.use('/api/config', requireAuth, withWorkspace, injectUserKeys, configRoutes);
+app.use('/api/content', requireAuth, withWorkspace, injectUserKeys, require('../routes/content')(knex, requirePermission));
 
 // ── Tenancy Routes ────────────────────────────────────────────────────────────
 
@@ -95,6 +96,7 @@ app.post('/session/active-workspace', (req, res) => {
 app.get('/me/workspaces', async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'Not authenticated' });
   try {
+    await require('../services/workspaceHelper').ensureDefaultWorkspace(req.session.userId);
     res.json(await membershipsRepo.listForUser(req.session.userId));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

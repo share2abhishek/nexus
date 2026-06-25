@@ -1,6 +1,7 @@
 const express = require('express');
 const contentRepoFactory = require('../repos/contentRepo');
 const { can } = require('../services/rbac');
+const aiAssist = require('../services/aiAssist');
 
 const STATUSES = ['draft', 'in_review', 'approved', 'scheduled', 'published', 'failed'];
 const EDITABLE_STATUSES = ['draft', 'in_review', 'failed'];
@@ -128,10 +129,11 @@ module.exports = (knex, requirePermission) => {
       const fields = {};
       if (toStatus === 'scheduled') {
         const now = Math.floor(Date.now() / 1000);
-        if (!scheduled_at || scheduled_at <= now) {
+        const scheduledAtNum = Number(scheduled_at);
+        if (!scheduled_at || !Number.isFinite(scheduledAtNum) || scheduledAtNum <= now) {
           return res.status(400).json({ error: 'scheduled_at must be a future epoch timestamp' });
         }
-        fields.scheduled_at = scheduled_at;
+        fields.scheduled_at = scheduledAtNum;
       }
 
       const result = await contentRepo.transition(req.workspaceId, item.id, { toStatus, userId: req.session.userId, fields });
@@ -163,6 +165,23 @@ module.exports = (knex, requirePermission) => {
       res.status(201).json(comment);
     } catch (err) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.post('/:id/ai-assist', requirePermission('content.edit'), async (req, res) => {
+    const item = await contentRepo.getById(req.workspaceId, req.params.id);
+    if (!item) return res.status(404).json({ error: 'Not found' });
+
+    const { action, platform } = req.body;
+    if (!aiAssist.ACTIONS.includes(action)) {
+      return res.status(400).json({ error: `action must be one of: ${aiAssist.ACTIONS.join(', ')}` });
+    }
+
+    try {
+      const result = await aiAssist.assist({ action, text: item.body, platform, apiKey: req.googleKey });
+      res.json(result);
+    } catch (err) {
+      res.status(502).json({ error: err.message });
     }
   });
 

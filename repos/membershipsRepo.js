@@ -14,7 +14,7 @@ module.exports = (knex) => ({
     return knex('memberships as m')
       .join('workspaces as w', 'w.id', 'm.workspace_id')
       .where('m.user_id', userId)
-      .select('w.id as workspace_id', 'w.name', 'w.org_id', 'm.role');
+      .select('w.id as workspace_id', 'w.name as workspace_name', 'w.name', 'w.slug', 'w.org_id', 'm.role', 'm.status');
   },
   listMembers(workspaceId) {
     return knex('memberships').where({ workspace_id: workspaceId });

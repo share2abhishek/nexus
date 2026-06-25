@@ -1,0 +1,326 @@
+﻿diff --git a/public/app.js b/public/app.js
+index b2eeb7d..e562cbe 100644
+--- a/public/app.js
++++ b/public/app.js
+@@ -49,6 +49,7 @@ const PAGE_META = {
+   'tools-directory': { title: 'AI Tools Directory', subtitle: 'Top free and paid AI tools by category' },
+   admin:             { title: 'Admin Dashboard',     subtitle: 'Monitor users, access, and platform health' },
+   settings:          { title: 'Settings',            subtitle: 'Configure connections and preferences' },
++  clients:           { title: 'Clients & Brands',    subtitle: 'Manage client brand workspaces and isolated social media channels' },
+ };
+ 
+ // ── Platform Config ───────────────────────────────────────────────────────────
+@@ -99,6 +100,7 @@ function navigateTo(page) {
+     brand:            loadBrandKit,
+     seo:              loadTrackedKeywords,
+     settings:         loadSettings,
++    clients:          loadClients,
+     generate:         loadModels,
+     media:            loadModels,
+     'user-settings':   loadUserSettings,
+@@ -928,6 +930,13 @@ async function loadSettings() {
+     document.getElementById('platform-cards-container').innerHTML =
+       `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`;
+   }
++  try {
++    const envStatus = await api('GET', '/api/config/env-status');
++    const el = document.getElementById('setting-default-model');
++    if (el && envStatus.default_text_model) {
++      el.value = envStatus.default_text_model;
++    }
++  } catch {}
+   checkOllamaStatus();
+   loadContentFolderSetting();
+ }
+@@ -1139,6 +1148,16 @@ async function setPinterestBoard(id, name) {
+   } catch (err) { toast(err.message, 'error'); }
+ }
+ 
++async function saveDefaultModelSetting() {
++  const model = document.getElementById('setting-default-model').value;
++  try {
++    await api('POST', '/api/config/ai-keys', { DEFAULT_TEXT_MODEL: model });
++    toast('✅ Default AI model saved!', 'success');
++    loadSettings();
++    loadModels();
++  } catch (err) { toast(err.message, 'error'); }
++}
++
+ function saveApiKey() {
+   const key = document.getElementById('setting-anthropic-key').value.trim();
+   if (!key) return toast('Please enter a Google Gemini API key', 'warning');
+@@ -1560,8 +1579,15 @@ async function loadModels() {
+     renderModelChips('img-model-chips',  data.image, 'image', model => { ModelState.imageModel = model; });
+     renderModelChips('vid-model-chips',  data.video, 'video', model => { ModelState.videoModel = model; });
+ 
+-    // Auto-select first available
+-    if (!ModelState.textModel  && data.text?.length)  selectModel(data.text[0],  'text');
++    // Auto-select active or first available
++    if (data.text?.length) {
++      const activeModel = data.text.find(m => m.active);
++      const currentId = ModelState.textModel?.id;
++      const targetModel = activeModel || data.text[0];
++      if (!ModelState.textModel || (activeModel && activeModel.id !== currentId)) {
++        selectModel(targetModel, 'text');
++      }
++    }
+     if (!ModelState.imageModel && data.image?.length) selectModel(data.image[0], 'image');
+     if (!ModelState.videoModel && data.video?.length) selectModel(data.video[0], 'video');
+   } catch {}
+@@ -1574,12 +1600,16 @@ function renderModelChips(containerId, models, type, onSelect) {
+     container.innerHTML = `<span style="font-size:11px;color:var(--text-muted)">No ${type} models configured — add API keys in Settings</span>`;
+     return;
+   }
+-  container.innerHTML = models.map((m, i) => {
++  container.innerHTML = models.map((m) => {
+     const colorClass = PROVIDER_COLORS[m.provider] || 'badge-purple';
+     const icon = PROVIDER_ICONS[m.provider] || '🤖';
+     const sizeText = m.size ? ` · ${(m.size/1e9).toFixed(1)}GB` : '';
+-    return `<button class="model-chip ${i === 0 ? 'active' : ''}" data-model-id="${m.id}" onclick="selectModel(${JSON.stringify(m).replace(/"/g,'&quot;')}, '${type}')"
+-      style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:var(--glass);cursor:pointer;font-size:12px;font-weight:500;color:var(--text-secondary);transition:var(--transition)">
++    const isActive = m.active;
++    const bg = isActive ? 'rgba(124,58,237,0.2)' : 'var(--glass)';
++    const bc = isActive ? 'var(--accent-purple)' : 'var(--border)';
++    const color = isActive ? '#a78bfa' : 'var(--text-secondary)';
++    return `<button class="model-chip" data-model-id="${m.id}" onclick="selectModel(${JSON.stringify(m).replace(/"/g,'&quot;')}, '${type}')"
++      style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid ${bc};background:${bg};cursor:pointer;font-size:12px;font-weight:500;color:${color};transition:var(--transition)">
+       ${icon} ${escapeHtml(m.label)}${sizeText}
+     </button>`;
+   }).join('');
+@@ -2840,6 +2870,183 @@ async function switchWorkspace(wsId, wsName, closeDropdown = true) {
+   } catch {}
+ }
+ 
++// ── Client & Brand Management ──────────────────────────────────────────────────
++
++async function loadClients() {
++  const grid = document.getElementById('clients-grid');
++  if (!grid) return;
++  grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:40px; color:var(--text-muted)"><div class="spinner lg" style="margin: 0 auto 12px"></div>Loading client brands…</div>';
++
++  try {
++    const clients = await fetch('/workspaces').then(r => r.json());
++    if (!clients || clients.length === 0) {
++      grid.innerHTML = `
++        <div style="grid-column: 1/-1;" class="empty-state">
++          <div class="empty-icon">👥</div>
++          <div class="empty-title">No client brands found</div>
++          <div class="empty-desc">Get started by adding your first client brand portfolio.</div>
++          <button class="btn btn-primary" onclick="openAddClientModal()" style="margin-top:16px">➕ Add Client Brand</button>
++        </div>`;
++      return;
++    }
++
++    grid.innerHTML = clients.map(c => {
++      const activePlatforms = c.social_accounts && c.social_accounts.length > 0
++        ? c.social_accounts.map(acc => {
++            const p = PLATFORMS[acc.platform] || { icon: '🔗', label: acc.platform };
++            return `<span class="badge badge-purple" title="${escapeHtml(acc.account_label || p.label)}" style="display:inline-flex;align-items:center;gap:4px;margin:2px">
++              <span style="font-size:12px">${p.icon}</span> ${escapeHtml(p.label)}
++            </span>`;
++          }).join('')
++        : '<span style="color:var(--text-muted);font-size:12.5px;font-style:italic">No platforms connected</span>';
++
++      const isCurrent = (c.workspace_id === currentWorkspaceId);
++
++      return `
++        <div class="card" style="position:relative;display:flex;flex-direction:column;justify-content:between;transition:transform 0.2s, box-shadow 0.2s;${isCurrent ? 'border:1.5px solid var(--accent-purple);box-shadow: 0 0 15px rgba(124, 58, 237, 0.15)' : ''}">
++          ${isCurrent ? '<div style="position:absolute;top:12px;right:12px;background:var(--accent-purple);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;text-transform:uppercase">Active</div>' : ''}
++          <div class="card-body" style="padding:24px;flex-grow:1;display:flex;flex-direction:column;gap:12px">
++            <div>
++              <div style="font-size:18px;font-weight:700;color:var(--text-primary);margin-bottom:4px">${escapeHtml(c.name)}</div>
++              <div style="font-size:12px;color:var(--text-muted);font-family:monospace">slug: ${escapeHtml(c.slug)}</div>
++            </div>
++            
++            <div style="border-top:1px solid var(--border);padding-top:12px">
++              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Connected Channels</div>
++              <div style="display:flex;flex-wrap:wrap;gap:4px">${activePlatforms}</div>
++            </div>
++
++            <div style="display:flex;justify-content:between;align-items:center;font-size:13px;color:var(--text-muted);margin-top:auto;border-top:1px solid var(--border);padding-top:12px">
++              <span>👥 <strong>${c.member_count}</strong> Member${c.member_count !== 1 ? 's' : ''}</span>
++              <span style="font-size:12px">Role: <strong style="text-transform:capitalize">${c.role}</strong></span>
++            </div>
++          </div>
++          <div class="card-footer" style="padding:16px 24px;background:rgba(255,255,255,0.01);border-top:1px solid var(--border);display:flex;gap:8px">
++            <button class="btn ${isCurrent ? 'btn-secondary' : 'btn-primary'}" onclick="switchClientWorkspace(${c.workspace_id}, '${escapeHtml(c.name)}')" style="flex:1" ${isCurrent ? 'disabled' : ''}>
++              ${isCurrent ? '🟢 Managing Client' : '🔌 Manage Social Media'}
++            </button>
++            <button class="btn btn-secondary btn-sm" onclick="navigateTo('settings');setTimeout(()=>switchSettingsTab('members',document.querySelector('[data-tab=members]')),100)" title="Client Settings">⚙️</button>
++            <button class="btn btn-danger btn-sm" onclick="deleteClient(${c.workspace_id}, '${escapeHtml(c.name)}')" title="Delete Client Brand" ${c.role !== 'manager' ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}>🗑️</button>
++          </div>
++        </div>`;
++    }).join('');
++  } catch (err) {
++    grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:var(--text-danger)">⚠️ Error loading client brands: ${err.message}</div>`;
++  }
++}
++
++async function switchClientWorkspace(wsId, wsName) {
++  await switchWorkspace(wsId, wsName);
++  toast(`Switched workspace context to ${wsName}`, 'success');
++  loadClients(); // reload grid to update active status border/buttons
++}
++
++async function openAddClientModal() {
++  document.getElementById('client-name-input').value = '';
++  document.getElementById('client-slug-input').value = '';
++  document.getElementById('client-timezone-select').value = 'Asia/Kolkata';
++  
++  const orgSelect = document.getElementById('client-org-select');
++  orgSelect.innerHTML = '<option>Loading organizations…</option>';
++  
++  try {
++    const orgs = await fetch('/workspaces/organizations').then(r => r.json());
++    if (!orgs || orgs.length === 0) {
++      orgSelect.innerHTML = '<option value="">No Organization Found (Contact Admin)</option>';
++      document.getElementById('client-org-group').style.display = 'block';
++    } else {
++      orgSelect.innerHTML = orgs.map(o => `<option value="${o.id}">${escapeHtml(o.name)} (${o.role})</option>`).join('');
++      document.getElementById('client-org-group').style.display = orgs.length > 1 ? 'block' : 'none';
++      if (orgs.length === 1) {
++        orgSelect.value = orgs[0].id;
++      }
++    }
++  } catch (err) {
++    orgSelect.innerHTML = '<option value="">Error loading organizations</option>';
++  }
++
++  document.getElementById('add-client-modal').style.display = 'flex';
++}
++
++function closeAddClientModal() {
++  document.getElementById('add-client-modal').style.display = 'none';
++}
++
++function autoGenerateClientSlug() {
++  const name = document.getElementById('client-name-input').value;
++  const slug = name.toLowerCase().trim()
++    .replace(/[^a-z0-9\s-]/g, '')     // remove non-alphanumeric, spaces or dashes
++    .replace(/\s+/g, '-')             // replace spaces with single dashes
++    .replace(/-+/g, '-');             // replace multiple dashes with single dashes
++  document.getElementById('client-slug-input').value = slug;
++}
++
++async function submitCreateClient() {
++  const name = document.getElementById('client-name-input').value.trim();
++  const slug = document.getElementById('client-slug-input').value.trim();
++  const timezone = document.getElementById('client-timezone-select').value;
++  const orgId = parseInt(document.getElementById('client-org-select').value);
++
++  if (!name || !slug) {
++    return toast('Client name and slug are required', 'warning');
++  }
++  if (!orgId) {
++    return toast('A valid Organization must be selected', 'warning');
++  }
++
++  try {
++    const res = await fetch('/workspaces', {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON.stringify({ orgId, name, slug, timezone })
++    });
++    
++    if (!res.ok) {
++      const errData = await res.json().catch(() => ({}));
++      throw new Error(errData.error || 'Failed to create workspace');
++    }
++
++    toast('🎉 Client workspace created successfully!', 'success');
++    closeAddClientModal();
++    
++    // Switch to new client workspace immediately
++    const newWs = await res.json();
++    await switchWorkspace(newWs.id, newWs.name);
++    loadClients();
++  } catch (err) {
++    toast(err.message, 'error');
++  }
++}
++
++async function deleteClient(id, name) {
++  if (!confirm(`Are you absolutely sure you want to delete client "${name}"?\nThis will permanently delete all associated social media tokens, scheduled posts, history, and brand assets for this client.`)) {
++    return;
++  }
++  
++  try {
++    const res = await fetch(`/workspaces/${id}`, {
++      method: 'DELETE'
++    });
++    
++    if (!res.ok) {
++      const errData = await res.json().catch(() => ({}));
++      throw new Error(errData.error || 'Failed to delete workspace');
++    }
++
++    toast(`Deleted client brand "${name}"`, 'info');
++    
++    // If the deleted workspace was the active workspace, switch to first available
++    if (id === currentWorkspaceId) {
++      currentWorkspaceId = null;
++      await loadWorkspaces(); // will auto-assign first available workspace
++    }
++    
++    loadClients();
++  } catch (err) {
++    toast(err.message, 'error');
++  }
++}
++
+ // ── Members Panel ─────────────────────────────────────────────────────────────
+ 
+ async function loadMembers() {
+@@ -2903,6 +3110,8 @@ async function loadUserSettings() {
+     set('u-luma-key',       s.luma_key);
+     set('u-runway-key',     s.runway_key);
+     set('u-ollama-model',   s.ollama_model);
++    set('u-ollama-url',     s.ollama_url);
++    set('u-default-text-model', s.default_text_model);
+     const toggle = document.getElementById('u-ollama-enabled');
+     if (toggle) toggle.checked = !!s.ollama_enabled;
+   } catch {}
+@@ -2922,7 +3131,9 @@ async function saveUserApiSettings() {
+         luma_key:       get('u-luma-key'),
+         runway_key:     get('u-runway-key'),
+         ollama_model:   get('u-ollama-model'),
++        ollama_url:     get('u-ollama-url'),
+         ollama_enabled: document.getElementById('u-ollama-enabled')?.checked ? 1 : 0,
++        default_text_model: document.getElementById('u-default-text-model')?.value || 'ollama',
+       }),
+     });
+     toast('✅ API keys saved to your account!', 'success');
+@@ -3152,6 +3363,33 @@ document.addEventListener('DOMContentLoaded', async () => {
+   handleURLParams();
+   loadWorkspaces();
+ 
++  // Handle local computer file import
++  const fileInput = document.getElementById('computer-file-input');
++  if (fileInput) {
++    fileInput.addEventListener('change', (e) => {
++      const file = e.target.files[0];
++      if (!file) return;
++
++      const reader = new FileReader();
++      reader.onload = (event) => {
++        const content = event.target.result;
++        const composeTextarea = document.getElementById('compose-content');
++        if (composeTextarea) {
++          composeTextarea.value = content;
++          updateComposeCharCount();
++          closeFileBrowserModal();
++          navigateTo('compose');
++          toast(`Successfully imported "${file.name}"!`, 'success');
++        }
++      };
++      reader.onerror = () => {
++        toast('Failed to read file from computer', 'error');
++      };
++      reader.readAsText(file);
++      fileInput.value = ''; // reset
++    });
++  }
++
+   // Restore API key
+   if (State.anthropicKey) {
+     const keyInput = document.getElementById('setting-anthropic-key');

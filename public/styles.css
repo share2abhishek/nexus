@@ -1366,3 +1366,164 @@ video {
   .kw-row { flex-direction: column; align-items: flex-start; }
   #platform-cards-container { grid-template-columns: 1fr; }
 }
+
+/* ─── Unified Content lifecycle & Calendar Styles ───────────────────────────── */
+.calendar-grid.week-view {
+  grid-template-columns: repeat(7, 1fr);
+}
+.calendar-grid.month-view {
+  grid-template-columns: repeat(7, 1fr);
+}
+.calendar-grid.agenda-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.calendar-event-card {
+  font-size: 11.5px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border-left: 3px solid transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.calendar-event-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  filter: brightness(1.15);
+}
+.event-status-draft { background: rgba(148, 163, 184, 0.15) !important; color: #94a3b8 !important; border-left-color: #94a3b8 !important; }
+.event-status-in_review { background: rgba(245, 158, 11, 0.15) !important; color: #f59e0b !important; border-left-color: #f59e0b !important; }
+.event-status-approved { background: rgba(124, 58, 237, 0.15) !important; color: #a78bfa !important; border-left-color: #7c3aed !important; }
+.event-status-scheduled { background: rgba(16, 185, 129, 0.15) !important; color: #10b981 !important; border-left-color: #10b981 !important; }
+.event-status-published { background: rgba(16, 185, 129, 0.3) !important; color: #34d399 !important; border-left-color: #059669 !important; }
+.event-status-failed { background: rgba(239, 68, 68, 0.15) !important; color: #f87171 !important; border-left-color: #ef4444 !important; }
+
+/* Slide-in Detail Panel */
+.detail-panel {
+  position: fixed;
+  top: 0;
+  right: -550px;
+  width: 550px;
+  height: 100vh;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  z-index: 300;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(20px);
+}
+.detail-panel.open {
+  right: 0;
+}
+.detail-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  z-index: 290;
+  display: none;
+}
+.detail-panel-backdrop.open {
+  display: block;
+}
+.detail-panel-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.detail-panel-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+.detail-panel-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: rgba(0,0,0,0.2);
+}
+
+/* Comments thread */
+.comments-section {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.comment-item {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.comment-author {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.comment-body {
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+
+/* AI Assist Panel */
+.ai-assist-panel {
+  margin-top: 20px;
+  background: rgba(124, 58, 237, 0.05);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+.ai-assist-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #a78bfa;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ai-assist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Audit log logs */
+.audit-logs {
+  margin-top: 16px;
+  background: var(--glass);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
