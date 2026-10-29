@@ -1,27 +1,115 @@
 const express = require('express');
 const router = express.Router();
+const { requirePermission } = require('../middleware/tenancy');
+const { requirePublishLicense } = require('../middleware/license');
+// Publishing needs both the workspace permission and an active licence
+const canPublish = [requirePermission('content.publish'), requirePublishLicense];
 const fs = require('fs');
 const path = require('path');
-const db = require('../services/database');
 const { postToPlatform } = require('../services/social');
 const { aiGenerate } = require('../services/aiHelper');
+const aiAssist = require('../services/aiAssist');
+const { brandContext, shortestLimit } = require('../services/brandContext');
+const indianHolidays = require('../services/indianHolidays');
 const knexInstance = require('../services/knex');
-const postsRepo = require('../repos/postsRepo')(knexInstance);
+const postsRepo     = require('../repos/postsRepo')(knexInstance);
 const scheduledRepo = require('../repos/scheduledRepo')(knexInstance);
-const socialRepo = require('../repos/socialAccountsRepo')(knexInstance);
+const socialRepo    = require('../repos/socialAccountsRepo')(knexInstance);
+const historyRepo   = require('../repos/historyRepo')(knexInstance);
+const analyticsRepo = require('../repos/analyticsRepo')(knexInstance);
+
+// Social networks show Markdown literally ("**Sale**"), so strip it from AI output.
+function stripMarkdown(text) {
+  return String(text || '')
+    .replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .trim()
+    // small models often wrap the whole post in quote marks
+    .replace(/^["“]([^"“”]*)["”]$/, '$1');
+}
+
+// Multi-platform output comes back as "=== linkedin ===" sections; split it.
+function splitVariants(text, platforms) {
+  const variants = {};
+  const re = /^===\s*([a-z_]+)\s*===\s*$/gim;
+  const marks = [...text.matchAll(re)];
+  marks.forEach((m, i) => {
+    const key = m[1].toLowerCase();
+    const end = i + 1 < marks.length ? marks[i + 1].index : text.length;
+    if (platforms.includes(key)) variants[key] = stripMarkdown(text.slice(m.index + m[0].length, end));
+  });
+  return Object.keys(variants).length ? variants : null;
+}
+
+// ── AI Assist on text that isn't saved yet (Create Post: Improve / Shorter / Hashtags)
+const TEXT_ASSIST_ACTIONS = ['rewrite', 'shorten', 'hashtags'];
+router.post('/assist', async (req, res) => {
+  const { action, text, platform, model } = req.body || {};
+  if (!TEXT_ASSIST_ACTIONS.includes(action)) {
+    return res.status(400).json({ error: `action must be one of: ${TEXT_ASSIST_ACTIONS.join(', ')}` });
+  }
+  if (typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Write some text first' });
+  if (text.length > 10000) return res.status(400).json({ error: 'Text is too long for AI Assist (max 10,000 characters)' });
+  try {
+    const result = await aiAssist.assist({
+      action, text, platform: typeof platform === 'string' ? platform : undefined,
+      apiKey: req.googleKey, model: typeof model === 'string' && model ? model : null,
+      // Brand voice + "don't invent facts" for edits; hashtags need only the post
+      context: action === 'hashtags' ? '' : await brandContext(req.workspaceId),
+      options: {
+        googleKey: req.googleKey, anthropicKey: req.anthropicKey,
+        groqKey: req.groqKey, openrouterKey: req.openrouterKey, mistralKey: req.mistralKey,
+        ollamaEnabled: req.ollamaEnabled, ollamaModel: req.ollamaModel, ollamaBaseUrl: req.ollamaUrl,
+      },
+    });
+    res.json({ ...result, text: stripMarkdown(result.text) });
+  } catch (err) {
+    console.error('[API] Assist error:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
 
 // ── AI Generate ───────────────────────────────────────────────────────────────
 
 router.post('/generate', async (req, res) => {
-  const { prompt, max_tokens = 1024, type = 'social_post', tone, platforms: targetPlatforms, model: modelOverride } = req.body;
+  const { prompt, max_tokens = 1024, type = 'social_post', tone, platforms: targetPlatforms, model: modelOverride, language, holiday, single } = req.body;
 
   if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
-  const apiKey = req.headers['x-api-key'] || req.googleKey || process.env.GOOGLE_AI_KEY;
+  const apiKey = req.googleKey;
 
   try {
-    const systemPrompt = buildSystemPrompt(type, tone, targetPlatforms);
-    const fullPrompt   = `${systemPrompt}\n\nUser request: ${prompt}`;
+    let systemPrompt = buildSystemPrompt(type, tone, targetPlatforms, language);
+
+    // Use the Brand Kit so the AI writes in the brand's voice and doesn't invent facts
+    systemPrompt += `\n\n${await brandContext(req.workspaceId)}`;
+
+    // single: Create Post has one text box, so write one post that suits every chosen platform
+    const multi = !single && Array.isArray(targetPlatforms) && targetPlatforms.length > 1;
+    // Also with 0 or 1 platforms: the per-platform tips above otherwise make small
+    // models write a separate "LinkedIn: … Instagram: …" version for each one.
+    if (single) {
+      systemPrompt += (Array.isArray(targetPlatforms) && targetPlatforms.length > 1
+        ? '\n\nWrite ONE post that can be shared as-is on all of these platforms.'
+        : '\n\nWrite exactly ONE post.') +
+        ' Return only the post text: no platform names, labels, headings or alternative versions.';
+      const limit = shortestLimit(targetPlatforms);
+      if (limit && limit < 1000) systemPrompt += `\nKeep it under ${limit} characters (the limit of the shortest platform).`;
+    }
+    if (multi) {
+      systemPrompt += `\n\nWrite one separate post for EACH of these platforms: ${targetPlatforms.join(', ')}.` +
+        `\nStart each post with a line containing only === platform === using exactly these names, e.g. === ${targetPlatforms[0]} ===` +
+        '\nNothing before the first marker.';
+    }
+
+    // If a holiday is passed, prepend holiday context
+    let finalPrompt = prompt;
+    if (holiday) {
+      const h = indianHolidays.INDIAN_HOLIDAYS_2026.find(x => x.date === holiday || x.name === holiday);
+      if (h) systemPrompt += `\n\nThis content is for ${h.name} (${h.emoji}) celebrated on ${h.date}. Make it festive and relevant for Indian audiences.`;
+    }
+
+    const fullPrompt = `${systemPrompt}\n\nUser request: ${finalPrompt}`;
 
     const { text: responseText, model: modelName } = await aiGenerate(
       fullPrompt,
@@ -29,16 +117,23 @@ router.post('/generate', async (req, res) => {
       max_tokens,
       modelOverride,
       {
-        googleKey: req.googleKey,
+        googleKey:    req.googleKey,
         anthropicKey: req.anthropicKey,
+        groqKey:      req.groqKey,
+        openrouterKey: req.openrouterKey,
+        mistralKey:   req.mistralKey,
         ollamaEnabled: req.ollamaEnabled,
-        ollamaModel: req.ollamaModel,
-        ollamaBaseUrl: req.ollamaUrl
+        ollamaModel:  req.ollamaModel,
+        ollamaBaseUrl: req.ollamaUrl,
       }
     );
 
-    db.saveHistory({ prompt, response: responseText, type, model: modelName, tokens_used: null });
-    res.json({ content: responseText, model: modelName, tokens: { total: null } });
+    historyRepo.save(req.workspaceId, req.session?.userId, { prompt, response: responseText, type, model: modelName, tokens_used: null }).catch(() => {});
+    const variants = multi ? splitVariants(responseText, targetPlatforms) : null;
+    const content = variants
+      ? targetPlatforms.filter(p => variants[p]).map(p => `${p}:\n${variants[p]}`).join('\n\n')
+      : stripMarkdown(responseText);
+    res.json({ content, variants, model: modelName, tokens: { total: null } });
 
   } catch (err) {
     console.error('[API] Generate error:', err.message);
@@ -47,24 +142,38 @@ router.post('/generate', async (req, res) => {
 });
 
 
-function buildSystemPrompt(type, tone, platforms) {
+function buildSystemPrompt(type, tone, platforms, language) {
   const toneMap = {
-    professional: 'authoritative, formal, and trustworthy',
-    casual: 'friendly, conversational, and approachable',
-    witty: 'clever, humorous, and engaging',
+    professional:  'authoritative, formal, and trustworthy',
+    casual:        'friendly, conversational, and approachable',
+    witty:         'clever, humorous, and engaging',
     inspirational: 'motivating, uplifting, and thought-provoking',
-    educational: 'informative, clear, and instructive',
+    educational:   'informative, clear, and instructive',
   };
 
-  const toneStr = toneMap[tone] || 'engaging and authentic';
+  const toneStr    = toneMap[tone] || 'engaging and authentic';
   const platformStr = platforms?.length ? `optimized for ${platforms.join(', ')}` : 'suitable for all social platforms';
 
-  return `You are NEXUS, an expert social media content creator. 
+  const languageMap = {
+    hi: 'Hindi (Devanagari script)',
+    ta: 'Tamil',
+    te: 'Telugu',
+    mr: 'Marathi',
+    bn: 'Bengali',
+    pa: 'Punjabi (Gurmukhi script)',
+    kn: 'Kannada',
+    gu: 'Gujarati',
+    en: 'English',
+  };
+  const langStr = language && language !== 'en' ? `\nIMPORTANT: Write the post in ${languageMap[language] || language}. Do NOT translate to English.` : '';
+
+  return `You are Social-Nexus, an expert social media content creator for the Indian market.
 Generate ${platformStr} content that is ${toneStr}.
 Keep posts concise and impactful. Include relevant emojis where appropriate.
-If writing for LinkedIn, be professional. For Instagram/Pinterest, be visual and descriptive. 
-For Twitter, keep it under 280 characters. For Facebook, aim for engagement.
-Only output the post content itself — no explanations or meta-commentary.`;
+If writing for LinkedIn, be professional. For Instagram/Pinterest, be visual and descriptive.
+For Twitter/X, keep it under 280 characters. For Facebook, aim for engagement.
+For WhatsApp, make it warm and conversational.
+Only output the post content itself — no explanations or meta-commentary.${langStr}`;
 }
 
 // ── Available Models ─────────────────────────────────────────────────────────
@@ -78,52 +187,94 @@ router.get('/models', async (req, res) => {
   const models = [];
   const defaultModel = req.defaultTextModel || process.env.DEFAULT_TEXT_MODEL || 'ollama';
 
-  const ollamaEnabled = req.ollamaEnabled !== undefined ? req.ollamaEnabled : (process.env.OLLAMA_ENABLED === 'true');
-  const ollamaModel = req.ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2';
-  const ollamaBaseUrl = req.ollamaUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+  const ollamaEnabled = req.ollamaEnabled !== undefined ? req.ollamaEnabled : (process.env.OLLAMA_ENABLED !== 'false');
+  const ollamaModel   = req.ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2';
+  const ollamaBaseUrl = req.ollamaUrl   || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 
   // Ollama — only if running
   try {
     const axios = require('axios');
     const r = await axios.get(`${ollamaBaseUrl}/api/tags`, { timeout: 2000 });
     (r.data.models || []).forEach(m => {
+      // Coding and embedding models can't write social posts: don't offer them
+      if (/coder|codellama|starcoder|code-|embed|nomic|bge-|minilm/i.test(m.name)) return;
       const isDefault = defaultModel === 'ollama' || defaultModel.startsWith('ollama:') || defaultModel === `ollama:${m.name}`;
-      const isActive = isDefault && (ollamaModel === m.name.split(':')[0] || ollamaModel === m.name);
-      models.push({ id: `ollama:${m.name}`, label: m.name, provider: 'ollama', size: m.size, active: isActive });
+      const isActive  = isDefault && (ollamaModel === m.name.split(':')[0] || ollamaModel === m.name || m.name.startsWith('llama3.2'));
+      models.push({ id: `ollama:${m.name}`, label: `${m.name.replace(/:latest$/, '')} (on this PC)`, provider: 'ollama', free: true, local: true, size: m.size, active: isActive });
     });
+    models.sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0) || (a.size || 0) - (b.size || 0));
   } catch {}
 
-  // Cloud text models — only if key is configured
-  const hasGemini = isConfigured(req.googleKey) || isConfigured(process.env.GOOGLE_AI_KEY);
+  // Google Gemini — free tier
+  const hasGemini = isConfigured(req.googleKey);
   if (hasGemini) {
-    models.push({ id: 'gemini', label: 'Gemini 1.5 Flash', provider: 'google', active: defaultModel === 'gemini' });
+    models.push({ id: 'gemini', label: 'Gemini Flash', provider: 'google', free: true, active: defaultModel === 'gemini', description: 'Free tier available' });
   }
 
-  const hasClaude = isConfigured(req.anthropicKey) || isConfigured(process.env.ANTHROPIC_API_KEY);
+  // Groq — free tier (fastest)
+  const hasGroq = isConfigured(req.groqKey);
+  if (hasGroq) {
+    models.push({ id: 'groq',          label: 'Llama 3.3 70B (Groq)',        provider: 'groq',       free: true, active: defaultModel === 'groq',          description: 'Free: 14,400 req/day — Fastest' });
+    models.push({ id: 'groq:llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant (Groq)', provider: 'groq', free: true, active: false, description: 'Free: Ultra-fast responses' });
+  }
+
+  // OpenRouter — free models
+  const hasOpenRouter = isConfigured(req.openrouterKey);
+  if (hasOpenRouter) {
+    models.push({ id: 'openrouter', label: 'Llama 3.1 8B (OpenRouter)', provider: 'openrouter', free: true, active: defaultModel === 'openrouter', description: 'Free tier available' });
+  }
+
+  // Mistral — free tier
+  const hasMistral = isConfigured(req.mistralKey);
+  if (hasMistral) {
+    models.push({ id: 'mistral', label: 'Mistral Small', provider: 'mistral', free: true, active: defaultModel === 'mistral', description: 'Free tier: 1 req/sec' });
+  }
+
+  // Anthropic Claude — paid
+  const hasClaude = isConfigured(req.anthropicKey);
   if (hasClaude) {
-    models.push({ id: 'claude', label: 'Claude Opus', provider: 'anthropic', active: defaultModel === 'claude' });
+    models.push({ id: 'claude', label: 'Claude Opus 5.5', provider: 'anthropic', free: false, active: defaultModel === 'claude', description: 'Paid — Best quality' });
   }
 
-  // Image models — only if key is configured
+  // Image models
   const imageModels = [];
-  const hasStability = isConfigured(req.stabilityKey) || isConfigured(process.env.STABILITY_API_KEY);
-  if (hasStability) imageModels.push({ id: 'stability-sdxl', label: 'Stable Diffusion XL', provider: 'stability' });
-  const hasOpenAI = isConfigured(req.openaiKey) || isConfigured(process.env.OPENAI_API_KEY);
-  if (hasOpenAI)    imageModels.push({ id: 'dall-e-3',        label: 'DALL-E 3',            provider: 'openai' });
+  const hasStability = isConfigured(req.stabilityKey);
+  if (hasStability) imageModels.push({ id: 'stability-sdxl', label: 'Stable Diffusion XL', provider: 'stability', free: false });
+  const hasOpenAI = isConfigured(req.openaiKey);
+  if (hasOpenAI)    imageModels.push({ id: 'gpt-image-1',     label: 'GPT Image (OpenAI)',  provider: 'openai',    free: false });
+  if (hasGemini)    imageModels.push({ id: 'gemini-image',    label: 'Gemini Image',        provider: 'google',    free: false, description: 'Uses your Google key — needs billing enabled' });
 
-  // Video models — only if key is configured
+  // Video models
   const videoModels = [];
-  const hasLuma = isConfigured(req.lumaKey) || isConfigured(process.env.LUMA_API_KEY);
-  if (hasLuma)   videoModels.push({ id: 'luma',   label: 'Luma Dream Machine', provider: 'luma' });
-  const hasRunway = isConfigured(req.runwayKey) || isConfigured(process.env.RUNWAY_API_KEY);
-  if (hasRunway) videoModels.push({ id: 'runway', label: 'Runway Gen-3',        provider: 'runway' });
+  const hasLuma   = isConfigured(req.lumaKey);
+  if (hasLuma)   videoModels.push({ id: 'luma',   label: 'Luma Dream Machine', provider: 'luma',   free: false });
+  const hasRunway = isConfigured(req.runwayKey);
+  if (hasRunway) videoModels.push({ id: 'runway', label: 'Runway Gen-3',        provider: 'runway', free: false });
 
   res.json({ text: models, image: imageModels, video: videoModels });
 });
 
+// ── Indian Holidays ───────────────────────────────────────────────────────────
+
+router.get('/holidays', (req, res) => {
+  const { month, upcoming } = req.query;
+  if (upcoming) {
+    return res.json(indianHolidays.getUpcomingHolidays(parseInt(upcoming) || 14));
+  }
+  if (month) {
+    return res.json(indianHolidays.getHolidaysForMonth(month));
+  }
+  // Default: return today's holidays + upcoming 7 days
+  res.json({
+    today:    indianHolidays.getTodayHolidays(),
+    upcoming: indianHolidays.getUpcomingHolidays(7),
+    all:      indianHolidays.INDIAN_HOLIDAYS_2026,
+  });
+});
+
 // ── Post Now ──────────────────────────────────────────────────────────────────
 
-router.post('/post/now', async (req, res) => {
+router.post('/post/now', canPublish, async (req, res) => {
   const { content, platforms, image_url } = req.body;
 
   if (!content) return res.status(400).json({ error: 'content is required' });
@@ -141,30 +292,17 @@ router.post('/post/now', async (req, res) => {
 
       const result = await postToPlatform(platform, tokenData, content, image_url);
       results.push(result);
-
-      // Record analytics stub
-      db.saveAnalytics({
-        platform,
-        likes: 0, comments: 0, shares: 0,
-        impressions: Math.floor(Math.random() * 300) + 20,
-        clicks: Math.floor(Math.random() * 20),
-      });
     } catch (err) {
       console.error(`[API] Post error on ${platform}:`, err.message);
       results.push({ platform, success: false, error: err.message });
     }
   }
 
-  // Save to workspace-scoped post history
+  // Save to workspace-scoped post history. Analytics are no longer faked here —
+  // real metrics must come from the platform APIs.
   const postId = await postsRepo.save(req.workspaceId, req.session.userId, {
-    content, platforms, image_url, results, status: 'published',
-  });
-
-  // Update analytics with post_id
-  results.forEach(r => {
-    if (r.success) {
-      db.saveAnalytics({ post_id: postId, platform: r.platform, impressions: Math.floor(Math.random() * 300) + 20 });
-    }
+    content, platforms, image_url, results,
+    status: results.some(r => r.success) ? 'published' : 'failed',
   });
 
   res.json({ results, post_id: postId });
@@ -172,8 +310,8 @@ router.post('/post/now', async (req, res) => {
 
 // ── Schedule Post ─────────────────────────────────────────────────────────────
 
-router.post('/post/schedule', async (req, res) => {
-  const { content, platforms, scheduled_at, image_url } = req.body;
+router.post('/post/schedule', canPublish, async (req, res) => {
+  const { content, platforms, scheduled_at, image_url, repeat } = req.body;
 
   if (!content) return res.status(400).json({ error: 'content is required' });
   if (!platforms?.length) return res.status(400).json({ error: 'platforms array is required' });
@@ -188,6 +326,17 @@ router.post('/post/schedule', async (req, res) => {
   }
 
   try {
+    // Repeating: { every: 'daily'|'weekly'|'monthly', count: n } or { every, until: 'YYYY-MM-DD' }
+    if (repeat && repeat.every && repeat.every !== 'none') {
+      const { occurrences } = require('../services/recurrence');
+      const r = occurrences(new Date(ts * 1000), { every: repeat.every, count: repeat.until ? undefined : repeat.count, until: repeat.until });
+      if (r.error) return res.status(400).json({ error: r.error });
+      const seriesId = await scheduledRepo.saveSeries(req.workspaceId, req.session.userId, { content, platforms, image_url }, r.dates, repeat.every);
+      return res.json({
+        success: true, series_id: seriesId, count: r.dates.length, every: repeat.every,
+        scheduled_at: r.dates[0].toISOString(), last_at: r.dates[r.dates.length - 1].toISOString(),
+      });
+    }
     const id = await scheduledRepo.save(req.workspaceId, req.session.userId, { content, platforms, image_url, scheduled_at: ts });
     res.json({ success: true, id, scheduled_at: new Date(ts * 1000).toISOString() });
   } catch (err) {
@@ -204,6 +353,35 @@ router.get('/posts/scheduled', async (req, res) => {
     res.json(posts);
   } catch (err) {
     console.error('[API] Get scheduled error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/posts/scheduled/failed', async (req, res) => {
+  try {
+    res.json(await scheduledRepo.listRecentFailed(req.workspaceId));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Retry a failed scheduled post: back to pending, due in one minute
+router.post('/posts/scheduled/:id/retry', canPublish, async (req, res) => {
+  try {
+    const n = await scheduledRepo.retry(req.workspaceId, parseInt(req.params.id), Math.floor(Date.now() / 1000) + 60);
+    if (!n) return res.status(404).json({ error: 'Failed post not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Stop a repeating schedule: removes its posts that haven't gone out yet
+router.delete('/posts/series/:seriesId', requirePermission('content.publish'), async (req, res) => {
+  try {
+    const removed = await scheduledRepo.stopSeries(req.workspaceId, String(req.params.seriesId));
+    res.json({ success: true, removed });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -232,35 +410,44 @@ router.get('/posts/history', async (req, res) => {
 
 // ── AI History ────────────────────────────────────────────────────────────────
 
-router.get('/history', (req, res) => {
+router.get('/history', async (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
-  res.json(db.getHistory(limit));
+  try {
+    res.json(await historyRepo.list(req.workspaceId, limit));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 
-router.get('/analytics', (req, res) => {
-  const summary = db.getAnalyticsSummary();
-  const recent = db.getAnalytics().slice(0, 20);
-  res.json({ summary, recent });
+router.get('/analytics', async (req, res) => {
+  try {
+    const [summary, recent] = await Promise.all([
+      analyticsRepo.summary(req.workspaceId),
+      analyticsRepo.list(req.workspaceId).then(r => r.slice(0, 20)),
+    ]);
+    res.json({ summary, recent });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── Simulate Analytics (for demo) ───────────────────────────────────────────
 
 router.post('/analytics/simulate', async (req, res) => {
-  const platforms = ['linkedin', 'facebook', 'instagram', 'pinterest', 'twitter'];
   const posts = await postsRepo.history(req.workspaceId, 10);
 
   for (const post of posts) {
     for (const platform of post.platforms) {
-      db.saveAnalytics({
-        post_id: post.id,
+      await analyticsRepo.save(req.workspaceId, {
+        post_id:     post.id,
         platform,
-        likes: Math.floor(Math.random() * 200),
-        comments: Math.floor(Math.random() * 50),
-        shares: Math.floor(Math.random() * 80),
+        likes:       Math.floor(Math.random() * 200),
+        comments:    Math.floor(Math.random() * 50),
+        shares:      Math.floor(Math.random() * 80),
         impressions: Math.floor(Math.random() * 5000) + 100,
-        clicks: Math.floor(Math.random() * 200),
+        clicks:      Math.floor(Math.random() * 200),
       });
     }
   }
@@ -318,7 +505,7 @@ router.get('/local/read', (req, res) => {
 
 // ── CSV Bulk Import ───────────────────────────────────────────────────────────
 
-router.post('/local/import-csv', async (req, res) => {
+router.post('/local/import-csv', canPublish, async (req, res) => {
   const csvPath = path.join(process.env.CONTENT_FOLDER || '.', req.query.file || 'schedule.csv');
 
   if (!fs.existsSync(csvPath)) {

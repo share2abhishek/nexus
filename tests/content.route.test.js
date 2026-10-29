@@ -3,6 +3,14 @@ const express = require('express');
 const { makeTestKnex } = require('./helpers/db');
 const { requirePermission } = require('../middleware/tenancy');
 
+// Licensed by default; individual tests can switch it off
+global.__licensed = true;
+jest.mock('../services/license', () => ({
+  status: () => (global.__licensed
+    ? { state: 'active', can_publish: true, limits: { workspaces: -1, users: -1 } }
+    : { state: 'unlicensed', can_publish: false, limits: {} }),
+}));
+
 // Mirrors tests/social-accounts.route.test.js's makeApp, but mounts the plain
 // `apiRoutes`-style factory at /api/content (no mergeParams, no withWorkspace
 // inside the router — req.workspaceId/req.role/req.session are set up-front,
@@ -60,6 +68,17 @@ describe('content routes — create, list, detail, calendar', () => {
       const app = makeApp(knex, workspaceId, 'creator');
       const res = await request(app).post('/api/content').send({ body: '   ', platforms: [] });
       expect(res.status).toBe(400);
+    });
+
+    test('a suggested time (Send for review) is stored with the draft; a past time is refused', async () => {
+      const app = makeApp(knex, workspaceId, 'creator');
+      const future = Math.floor(Date.now() / 1000) + 7200;
+      const ok = await request(app).post('/api/content').send({ body: 'For review', platforms: ['linkedin'], scheduled_at: future });
+      expect(ok.status).toBe(201);
+      expect(ok.body).toMatchObject({ status: 'draft', scheduled_at: future });
+      const past = await request(app).post('/api/content').send({ body: 'Too late', platforms: ['linkedin'], scheduled_at: Math.floor(Date.now() / 1000) - 60 });
+      expect(past.status).toBe(400);
+      expect(past.body.error).toMatch(/future/);
     });
   });
 
@@ -183,6 +202,68 @@ describe('content routes — edit and delete', () => {
       const res = await request(reviewerApp).patch(`/api/content/${id}`).send({ body: 'Hijack' });
       expect(res.status).toBe(403);
       expect(res.body.requiredPermission).toBe('content.edit');
+    });
+
+    test('removing a platform drops the chosen account for it (post can no longer go there)', async () => {
+      const app = makeApp(knex, workspaceId, 'creator');
+      const ids = [];
+      for (const [platform, ext] of [['linkedin', 'li-edit'], ['facebook', 'fb-edit']]) {
+        const rows = await knex('social_accounts').insert({ workspace_id: workspaceId, platform, external_id: ext, access_token: 't' }).returning('id');
+        ids.push(rows[0]?.id ?? rows[0]);
+      }
+      const created = await request(app).post('/api/content')
+        .send({ body: 'Two places', platforms: ['linkedin', 'facebook'], social_account_ids: ids });
+
+      const res = await request(app).patch(`/api/content/${created.body.id}`).send({ body: 'One place', platforms: ['linkedin'] });
+      expect(res.status).toBe(200);
+      expect(res.body.social_account_ids).toEqual([ids[0]]);
+
+      // Body-only edits leave the accounts alone
+      const again = await request(app).patch(`/api/content/${created.body.id}`).send({ body: 'Still one place' });
+      expect(again.body.social_account_ids).toEqual([ids[0]]);
+
+      // Accounts sent together with platforms are taken as given
+      const explicit = await request(app).patch(`/api/content/${created.body.id}`)
+        .send({ platforms: ['linkedin', 'facebook'], social_account_ids: ids });
+      expect(explicit.body.social_account_ids).toEqual(ids);
+      // Same platforms again: nothing is dropped
+      const same = await request(app).patch(`/api/content/${created.body.id}`).send({ platforms: ['facebook', 'linkedin'] });
+      expect(same.body.social_account_ids).toEqual(ids);
+    });
+
+    test('refuses a save based on an older version (someone saved it since)', async () => {
+      const app = makeApp(knex, workspaceId, 'creator');
+      const created = await request(app).post('/api/content').send({ body: 'v1', platforms: ['linkedin'] });
+      expect(created.body.updated_at).toBeDefined();
+      await knex('content_items').where({ id: created.body.id }).update({ body: 'v2 by someone else', updated_at: created.body.updated_at + 5 });
+
+      const stale = await request(app).patch(`/api/content/${created.body.id}`).send({ body: 'mine', expected_updated_at: created.body.updated_at });
+      expect(stale.status).toBe(409);
+      expect(stale.body.code).toBe('STALE');
+      const fresh = await request(app).patch(`/api/content/${created.body.id}`).send({ body: 'mine', expected_updated_at: created.body.updated_at + 5 });
+      expect(fresh.status).toBe(200);
+      expect(fresh.body.body).toBe('mine');
+    });
+
+    test('editing a post of a repeating series makes it a separate post', async () => {
+      const app = makeApp(knex, workspaceId, 'creator');
+      const created = await request(app).post('/api/content').send({ body: 'Weekly', platforms: ['linkedin'] });
+      await knex('content_items').where({ id: created.body.id })
+        .update({ status: 'failed', series_id: 'abc', series_index: 2, series_total: 4, series_every: 'weekly' });
+      const res = await request(app).patch(`/api/content/${created.body.id}`).send({ body: 'Weekly, fixed' });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('draft');
+      expect(res.body.series_id).toBeNull();
+    });
+
+    test('editing the text of a post in review leaves a note for the reviewer', async () => {
+      const app = makeApp(knex, workspaceId, 'creator');
+      const created = await request(app).post('/api/content').send({ body: 'For review', platforms: ['linkedin'] });
+      await request(app).patch(`/api/content/${created.body.id}/status`).send({ toStatus: 'in_review' });
+      const res = await request(app).patch(`/api/content/${created.body.id}`).send({ body: 'For review, improved' });
+      expect(res.body.status).toBe('in_review');
+      const notes = await knex('content_item_comments').where({ content_item_id: created.body.id });
+      expect(notes.map(n => n.body)).toEqual(['✏️ Edited the post after sending it for review.']);
     });
 
     test('returns 404 for an unknown id', async () => {
@@ -315,6 +396,17 @@ describe('content routes — status transitions and comments', () => {
       const res = await request(creatorApp).patch(`/api/content/${id}/status`).send({ toStatus: 'scheduled', scheduled_at: futureEpoch });
       expect(res.status).toBe(403);
       expect(res.body.requiredPermission).toBe('content.schedule');
+    });
+
+    test('scheduling needs an active licence', async () => {
+      const creatorApp = makeApp(knex, workspaceId, 'creator');
+      const id = await createAndSubmit(creatorApp);
+      await request(makeApp(knex, workspaceId, 'reviewer', 9)).patch(`/api/content/${id}/status`).send({ toStatus: 'approved' });
+      global.__licensed = false;
+      const res = await request(makeApp(knex, workspaceId, 'manager', 5)).patch(`/api/content/${id}/status`).send({ toStatus: 'scheduled', scheduled_at: Math.floor(Date.now() / 1000) + 3600 });
+      global.__licensed = true;
+      expect(res.status).toBe(402);
+      expect(res.body.code).toBe('LICENSE_REQUIRED');
     });
 
     test('rejects scheduling without a future scheduled_at', async () => {

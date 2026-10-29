@@ -1,9 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
+const crypto = require('crypto');
 
 const knexInstance = require('../services/knex');
 const socialAccountsRepo = require('../repos/socialAccountsRepo')(knexInstance);
+const membershipsRepo = require('../repos/membershipsRepo')(knexInstance);
+const { can } = require('../services/rbac');
+const { callbackUrl } = require('../services/platforms/callback');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -13,8 +17,65 @@ function buildOAuthUrl(base, params) {
   return url.toString();
 }
 
-function workspaceId(req) {
-  return req.session?.activeWorkspaceId ?? null;
+// OAuth CSRF protection: a random, single-use state per platform, kept in the session
+// for 10 minutes. The callback must present the same value or it is rejected.
+const STATE_TTL_MS = 10 * 60 * 1000;
+
+// The state also remembers WHICH workspace started the sign-in, so switching
+// workspace in another tab can't attach the account to the wrong client.
+// `extra`: anything the callback needs to know about how sign-in started
+function issueState(req, platform, wsId, extra = {}) {
+  const state = crypto.randomBytes(24).toString('hex');
+  if (req.session) {
+    req.session.oauthStates = req.session.oauthStates || {};
+    req.session.oauthStates[platform] = { ...extra, state, wsId, expires: Date.now() + STATE_TTL_MS };
+  }
+  return state;
+}
+
+// Where each platform's Connect button starts sign-in (Instagram signs in through
+// Facebook; YouTube and Google Business through Google). Same as routes/config.js.
+const OAUTH_URL = {
+  instagram: '/auth/facebook?instagram=1',
+  youtube: '/auth/google',
+  google_business: '/auth/google',
+};
+const oauthUrl = (platform) => OAUTH_URL[platform] || `/auth/${platform}`;
+
+// Returns the saved record ({ wsId, ... }) when the state is valid, otherwise null
+function consumeState(req, platform) {
+  const saved = req.session?.oauthStates?.[platform];
+  if (saved) delete req.session.oauthStates[platform];
+  const given = String(req.query.state || '');
+  if (!saved || !given || saved.expires < Date.now()) return null;
+  const a = Buffer.from(saved.state);
+  const b = Buffer.from(given);
+  return a.length === b.length && crypto.timingSafeEqual(a, b) ? saved : null;
+}
+
+// The workspace this request acts on — only if the user is a member with the
+// needed permission. `preferred` (e.g. from the OAuth state) must also pass.
+async function workspaceId(req, permission = 'social.manage', preferred = null) {
+  const userId = req.session?.userId;
+  if (!userId) return null;
+  try {
+    let wsId = preferred || req.session?.activeWorkspaceId || null;
+    if (!wsId) {
+      const workspaceHelper = require('../services/workspaceHelper');
+      wsId = await workspaceHelper.ensureDefaultWorkspace(userId);
+      if (wsId && req.session) req.session.activeWorkspaceId = wsId;
+    }
+    const role = wsId ? await membershipsRepo.roleFor(userId, wsId) : null;
+    if (!role) {
+      // Stale or forged session value: forget it
+      if (req.session && req.session.activeWorkspaceId === wsId) delete req.session.activeWorkspaceId;
+      return null;
+    }
+    return can(role, permission) ? wsId : null;
+  } catch (err) {
+    console.error('[Auth] Failed to resolve workspaceId:', err.message);
+    return null;
+  }
 }
 
 function emptyStatus() {
@@ -28,7 +89,7 @@ function emptyStatus() {
 
 router.get('/status', async (req, res) => {
   try {
-    const wsId = workspaceId(req);
+    const wsId = await workspaceId(req, 'content.view');
     if (!wsId) return res.json(emptyStatus());
 
     const connected = await socialAccountsRepo.list(wsId);
@@ -36,10 +97,10 @@ router.get('/status', async (req, res) => {
     const status = {};
 
     for (const p of platforms) {
-      const token = connected.find(t => t.platform === p);
+      const token = connected.find(t => t.platform === p && t.usable);
       status[p] = token
         ? { connected: true, profile: token.profile, since: token.created_at, page_id: token.page_id, board_id: token.board_id, ig_account_id: token.ig_account_id }
-        : { connected: false };
+        : { connected: false, ...(connected.some(t => t.platform === p) ? { needs_reconnect: true } : {}) };
     }
 
     res.json(status);
@@ -51,16 +112,19 @@ router.get('/status', async (req, res) => {
 
 // ── LinkedIn OAuth ────────────────────────────────────────────────────────────
 
-router.get('/linkedin', (req, res) => {
+router.get('/linkedin', async (req, res) => {
+  const startWs = await workspaceId(req);
+  if (!startWs) return res.redirect('/?error=not_allowed');
   if (!process.env.LINKEDIN_CLIENT_ID) {
-    return res.status(400).json({ error: 'LINKEDIN_CLIENT_ID not configured in .env' });
+    // Browser navigation, not an API call: send the user back with a readable message
+    return res.redirect('/?error=not_configured&platform=linkedin');
   }
   const url = buildOAuthUrl('https://www.linkedin.com/oauth/v2/authorization', {
     response_type: 'code',
     client_id: process.env.LINKEDIN_CLIENT_ID,
-    redirect_uri: process.env.LINKEDIN_CALLBACK_URL,
-    scope: 'r_liteprofile r_emailaddress w_member_social',
-    state: 'nexus-linkedin',
+    redirect_uri: callbackUrl('linkedin'),
+    scope: 'openid profile w_member_social',
+    state: issueState(req, 'linkedin', startWs),
   });
   res.redirect(url);
 });
@@ -68,40 +132,35 @@ router.get('/linkedin', (req, res) => {
 router.get('/linkedin/callback', async (req, res) => {
   const { code, error } = req.query;
   if (error || !code) return res.redirect('/?error=linkedin_denied');
+  const savedState = consumeState(req, 'linkedin');
+  if (!savedState) return res.redirect('/?error=oauth_state_invalid');
 
-  const wsId = workspaceId(req);
-  if (!wsId) return res.redirect('/?error=no_active_workspace');
+  const wsId = await workspaceId(req, 'social.manage', savedState.wsId);
+  if (!wsId) return res.redirect('/?error=not_allowed');
 
   try {
     const tokenRes = await axios.post('https://www.linkedin.com/oauth/v2/accessToken', null, {
       params: {
         grant_type: 'authorization_code',
         code,
-        redirect_uri: process.env.LINKEDIN_CALLBACK_URL,
+        redirect_uri: callbackUrl('linkedin'),
         client_id: process.env.LINKEDIN_CLIENT_ID,
         client_secret: process.env.LINKEDIN_CLIENT_SECRET,
       },
     });
 
     const { access_token, expires_in } = tokenRes.data;
-    const profileRes = await axios.get('https://api.linkedin.com/v2/me', {
+    // OpenID Connect profile: "sub" is the member id used to post (urn:li:person:<sub>)
+    const me = (await axios.get('https://api.linkedin.com/v2/userinfo', {
       headers: { Authorization: `Bearer ${access_token}` },
-    });
-
-    const nameRes = await axios.get(
-      'https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName,profilePicture(displayImage~:playableStreams))',
-      { headers: { Authorization: `Bearer ${access_token}` } }
-    );
+    })).data;
 
     await socialAccountsRepo.add(wsId, {
       platform: 'linkedin',
-      external_id: profileRes.data.id,
+      external_id: me.sub,
       access_token,
       expires_at: Math.floor(Date.now() / 1000) + expires_in,
-      profile: {
-        id: profileRes.data.id,
-        name: `${nameRes.data.localizedFirstName} ${nameRes.data.localizedLastName}`,
-      },
+      profile: { id: me.sub, name: me.name || [me.given_name, me.family_name].filter(Boolean).join(' '), picture: me.picture || null },
     });
 
     res.redirect('/?connected=linkedin');
@@ -113,15 +172,22 @@ router.get('/linkedin/callback', async (req, res) => {
 
 // ── Facebook + Instagram OAuth ────────────────────────────────────────────────
 
-router.get('/facebook', (req, res) => {
+router.get('/facebook', async (req, res) => {
+  const startWs = await workspaceId(req);
+  if (!startWs) return res.redirect('/?error=not_allowed');
   if (!process.env.FACEBOOK_APP_ID) {
-    return res.status(400).json({ error: 'FACEBOOK_APP_ID not configured in .env' });
+    // Browser navigation, not an API call: send the user back with a readable message
+    return res.redirect('/?error=not_configured&platform=facebook');
   }
   const url = buildOAuthUrl('https://www.facebook.com/v18.0/dialog/oauth', {
     client_id: process.env.FACEBOOK_APP_ID,
-    redirect_uri: process.env.FACEBOOK_CALLBACK_URL,
-    scope: 'public_profile,email,pages_show_list,pages_read_engagement,pages_manage_posts,instagram_content_publish',
-    state: 'nexus-facebook',
+    redirect_uri: callbackUrl('facebook'),
+    // Instagram permissions only when connecting Instagram (?instagram=1): Facebook
+    // rejects the whole sign-in ("Invalid Scopes") if the Facebook app has no
+    // Instagram product, which would also block plain Facebook Page posting.
+    scope: 'public_profile,email,pages_show_list,pages_read_engagement,pages_manage_posts,business_management' +
+      (req.query.instagram === '1' ? ',instagram_basic,instagram_content_publish' : ''),
+    state: issueState(req, 'facebook', startWs, { instagram: req.query.instagram === '1' }),
   });
   res.redirect(url);
 });
@@ -129,16 +195,18 @@ router.get('/facebook', (req, res) => {
 router.get('/facebook/callback', async (req, res) => {
   const { code, error } = req.query;
   if (error || !code) return res.redirect('/?error=facebook_denied');
+  const savedState = consumeState(req, 'facebook');
+  if (!savedState) return res.redirect('/?error=oauth_state_invalid');
 
-  const wsId = workspaceId(req);
-  if (!wsId) return res.redirect('/?error=no_active_workspace');
+  const wsId = await workspaceId(req, 'social.manage', savedState.wsId);
+  if (!wsId) return res.redirect('/?error=not_allowed');
 
   try {
     const tokenRes = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
       params: {
         client_id: process.env.FACEBOOK_APP_ID,
         client_secret: process.env.FACEBOOK_APP_SECRET,
-        redirect_uri: process.env.FACEBOOK_CALLBACK_URL,
+        redirect_uri: callbackUrl('facebook'),
         code,
       },
     });
@@ -154,14 +222,19 @@ router.get('/facebook/callback', async (req, res) => {
       params: { access_token },
     });
 
+    // Auto-select only when there is exactly one page. With several pages keep the
+    // page chosen before (signing in again must not lose it); otherwise the user
+    // chooses in Settings → Facebook → Select page (no silent pages[0] pick).
     const pages = pagesRes.data.data || [];
-    const firstPage = pages[0];
+    const previous = await socialAccountsRepo.getByPlatform(wsId, 'facebook');
+    const page = pages.length === 1 ? pages[0]
+      : (previous?.page_id && pages.find(p => String(p.id) === String(previous.page_id))) || null;
 
     let igAccountId = null;
-    if (firstPage) {
+    if (page) {
       try {
-        const igRes = await axios.get(`https://graph.facebook.com/v18.0/${firstPage.id}`, {
-          params: { fields: 'instagram_business_account', access_token: firstPage.access_token },
+        const igRes = await axios.get(`https://graph.facebook.com/v18.0/${page.id}`, {
+          params: { fields: 'instagram_business_account', access_token: page.access_token },
         });
         igAccountId = igRes.data.instagram_business_account?.id || null;
       } catch {}
@@ -171,23 +244,27 @@ router.get('/facebook/callback', async (req, res) => {
       platform: 'facebook',
       external_id: profileRes.data.id,
       access_token,
-      page_id: firstPage?.id || null,
-      page_token: firstPage?.access_token || null,
-      profile: { id: profileRes.data.id, name: profileRes.data.name },
+      page_id: page?.id || null,
+      page_token: page?.access_token || null,
+      profile: { id: profileRes.data.id, name: profileRes.data.name, page_name: page?.name },
     });
 
-    if (igAccountId) {
+    // Only when this sign-in asked for Instagram permissions: a Facebook-only
+    // reconnect must not replace a working Instagram login with one that can't post
+    if (igAccountId && savedState.instagram) {
       await socialAccountsRepo.add(wsId, {
         platform: 'instagram',
         external_id: igAccountId,
         access_token,
-        page_token: firstPage?.access_token,
+        page_token: page.access_token,
         ig_account_id: igAccountId,
         profile: { id: igAccountId, name: `${profileRes.data.name} (Instagram)` },
       });
     }
 
-    res.redirect('/?connected=facebook');
+    if (!page && pages.length > 1) return res.redirect(`/?connected=facebook&select_page=1${savedState.instagram ? '&instagram=1' : ''}`);
+    if (savedState.instagram && !igAccountId) return res.redirect('/?connected=facebook&error=instagram_not_found');
+    res.redirect(savedState.instagram ? '/?connected=instagram' : '/?connected=facebook');
   } catch (err) {
     console.error('[Auth] Facebook error:', err.response?.data || err.message);
     res.redirect('/?error=facebook_failed');
@@ -196,16 +273,19 @@ router.get('/facebook/callback', async (req, res) => {
 
 // ── Pinterest OAuth ───────────────────────────────────────────────────────────
 
-router.get('/pinterest', (req, res) => {
+router.get('/pinterest', async (req, res) => {
+  const startWs = await workspaceId(req);
+  if (!startWs) return res.redirect('/?error=not_allowed');
   if (!process.env.PINTEREST_APP_ID) {
-    return res.status(400).json({ error: 'PINTEREST_APP_ID not configured in .env' });
+    // Browser navigation, not an API call: send the user back with a readable message
+    return res.redirect('/?error=not_configured&platform=pinterest');
   }
   const url = buildOAuthUrl('https://www.pinterest.com/oauth/', {
     client_id: process.env.PINTEREST_APP_ID,
-    redirect_uri: process.env.PINTEREST_CALLBACK_URL,
+    redirect_uri: callbackUrl('pinterest'),
     response_type: 'code',
     scope: 'boards:read,pins:write,user_accounts:read',
-    state: 'nexus-pinterest',
+    state: issueState(req, 'pinterest', startWs),
   });
   res.redirect(url);
 });
@@ -213,13 +293,15 @@ router.get('/pinterest', (req, res) => {
 router.get('/pinterest/callback', async (req, res) => {
   const { code, error } = req.query;
   if (error || !code) return res.redirect('/?error=pinterest_denied');
+  const savedState = consumeState(req, 'pinterest');
+  if (!savedState) return res.redirect('/?error=oauth_state_invalid');
 
-  const wsId = workspaceId(req);
-  if (!wsId) return res.redirect('/?error=no_active_workspace');
+  const wsId = await workspaceId(req, 'social.manage', savedState.wsId);
+  if (!wsId) return res.redirect('/?error=not_allowed');
 
   try {
     const tokenRes = await axios.post('https://api.pinterest.com/v5/oauth/token',
-      new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: process.env.PINTEREST_CALLBACK_URL }),
+      new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: callbackUrl('pinterest') }),
       {
         auth: { username: process.env.PINTEREST_APP_ID, password: process.env.PINTEREST_APP_SECRET },
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -256,9 +338,11 @@ router.get('/pinterest/callback', async (req, res) => {
 
 // ── Twitter / X OAuth ─────────────────────────────────────────────────────────
 
-router.get('/twitter', (req, res) => {
+router.get('/twitter', async (req, res) => {
+  if (!(await workspaceId(req))) return res.redirect('/?error=not_allowed');
   if (!process.env.TWITTER_API_KEY) {
-    return res.status(400).json({ error: 'TWITTER_API_KEY not configured in .env' });
+    // Browser navigation, not an API call: send the user back with a readable message
+    return res.redirect('/?error=not_configured&platform=twitter');
   }
   // Using OAuth 1.0a flow
   const OAuth = require('oauth').OAuth;
@@ -268,7 +352,7 @@ router.get('/twitter', (req, res) => {
     process.env.TWITTER_API_KEY,
     process.env.TWITTER_API_SECRET,
     '1.0A',
-    process.env.TWITTER_CALLBACK_URL,
+    callbackUrl('twitter'),
     'HMAC-SHA1'
   );
 
@@ -286,7 +370,7 @@ router.get('/twitter/callback', async (req, res) => {
   const { oauth_token, oauth_verifier, denied } = req.query;
   if (denied || !oauth_token) return res.redirect('/?error=twitter_denied');
 
-  const wsId = workspaceId(req);
+  const wsId = await workspaceId(req);
   if (!wsId) return res.redirect('/?error=no_active_workspace');
 
   try {
@@ -297,7 +381,7 @@ router.get('/twitter/callback', async (req, res) => {
       process.env.TWITTER_API_KEY,
       process.env.TWITTER_API_SECRET,
       '1.0A',
-      process.env.TWITTER_CALLBACK_URL,
+      callbackUrl('twitter'),
       'HMAC-SHA1'
     );
 
@@ -334,9 +418,12 @@ router.get('/twitter/callback', async (req, res) => {
 
 // ── Google OAuth (YouTube + Google Business Profile) ─────────────────────────
 
-router.get('/google', (req, res) => {
+router.get('/google', async (req, res) => {
+  const startWs = await workspaceId(req);
+  if (!startWs) return res.redirect('/?error=not_allowed');
   if (!process.env.GOOGLE_OAUTH_CLIENT_ID) {
-    return res.status(400).json({ error: 'GOOGLE_OAUTH_CLIENT_ID not configured in .env' });
+    // Browser navigation, not an API call: send the user back with a readable message
+    return res.redirect('/?error=not_configured&platform=google');
   }
   const scopes = [
     'https://www.googleapis.com/auth/userinfo.profile',
@@ -348,12 +435,12 @@ router.get('/google', (req, res) => {
 
   const url = buildOAuthUrl('https://accounts.google.com/o/oauth2/v2/auth', {
     client_id: process.env.GOOGLE_OAUTH_CLIENT_ID,
-    redirect_uri: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/auth/google/callback',
+    redirect_uri: callbackUrl('google'),
     response_type: 'code',
     scope: scopes,
     access_type: 'offline',
     prompt: 'consent',
-    state: 'nexus-google',
+    state: issueState(req, 'google', startWs),
   });
   res.redirect(url);
 });
@@ -361,16 +448,18 @@ router.get('/google', (req, res) => {
 router.get('/google/callback', async (req, res) => {
   const { code, error } = req.query;
   if (error || !code) return res.redirect('/?error=google_denied');
+  const savedState = consumeState(req, 'google');
+  if (!savedState) return res.redirect('/?error=oauth_state_invalid');
 
-  const wsId = workspaceId(req);
-  if (!wsId) return res.redirect('/?error=no_active_workspace');
+  const wsId = await workspaceId(req, 'social.manage', savedState.wsId);
+  if (!wsId) return res.redirect('/?error=not_allowed');
 
   try {
     const tokenRes = await axios.post('https://oauth2.googleapis.com/token', {
       code,
       client_id: process.env.GOOGLE_OAUTH_CLIENT_ID,
       client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
-      redirect_uri: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/auth/google/callback',
+      redirect_uri: callbackUrl('google'),
       grant_type: 'authorization_code',
     });
 
@@ -448,16 +537,19 @@ router.get('/google/callback', async (req, res) => {
 
 // ── TikTok OAuth ──────────────────────────────────────────────────────────────
 
-router.get('/tiktok', (req, res) => {
+router.get('/tiktok', async (req, res) => {
+  const startWs = await workspaceId(req);
+  if (!startWs) return res.redirect('/?error=not_allowed');
   if (!process.env.TIKTOK_CLIENT_KEY) {
-    return res.status(400).json({ error: 'TIKTOK_CLIENT_KEY not configured in .env' });
+    // Browser navigation, not an API call: send the user back with a readable message
+    return res.redirect('/?error=not_configured&platform=tiktok');
   }
   const url = buildOAuthUrl('https://www.tiktok.com/v2/auth/authorize/', {
     client_key: process.env.TIKTOK_CLIENT_KEY,
     response_type: 'code',
     scope: 'user.info.basic,video.publish,video.upload',
-    redirect_uri: process.env.TIKTOK_CALLBACK_URL || 'http://localhost:3000/auth/tiktok/callback',
-    state: 'nexus-tiktok',
+    redirect_uri: callbackUrl('tiktok'),
+    state: issueState(req, 'tiktok', startWs),
   });
   res.redirect(url);
 });
@@ -465,9 +557,11 @@ router.get('/tiktok', (req, res) => {
 router.get('/tiktok/callback', async (req, res) => {
   const { code, error } = req.query;
   if (error || !code) return res.redirect('/?error=tiktok_denied');
+  const savedState = consumeState(req, 'tiktok');
+  if (!savedState) return res.redirect('/?error=oauth_state_invalid');
 
-  const wsId = workspaceId(req);
-  if (!wsId) return res.redirect('/?error=no_active_workspace');
+  const wsId = await workspaceId(req, 'social.manage', savedState.wsId);
+  if (!wsId) return res.redirect('/?error=not_allowed');
 
   try {
     const tokenRes = await axios.post('https://open.tiktokapis.com/v2/oauth/token/', new URLSearchParams({
@@ -475,7 +569,7 @@ router.get('/tiktok/callback', async (req, res) => {
       client_secret: process.env.TIKTOK_CLIENT_SECRET,
       code,
       grant_type: 'authorization_code',
-      redirect_uri: process.env.TIKTOK_CALLBACK_URL || 'http://localhost:3000/auth/tiktok/callback',
+      redirect_uri: callbackUrl('tiktok'),
     }), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
 
     const { access_token, refresh_token, expires_in, open_id } = tokenRes.data;
@@ -502,12 +596,100 @@ router.get('/tiktok/callback', async (req, res) => {
   }
 });
 
+// ── Refresh & Trigger Connection ──────────────────────────────────────────────
+
+router.post('/refresh/:platform', async (req, res) => {
+  const { platform } = req.params;
+  const wsId = await workspaceId(req);
+  if (!wsId) return res.status(403).json({ error: 'You do not have permission to manage social accounts in this workspace.' });
+
+  try {
+    const token = await socialAccountsRepo.getByPlatform(wsId, platform);
+
+    if (!token || !token.access_token) {
+      return res.json({ connected: false, message: `${platform} is not connected. Starting authorization...`, oauth_url: oauthUrl(platform) });
+    }
+
+    // Live verification & auto-healing per platform
+    if (platform === 'facebook') {
+      const meRes = await axios.get('https://graph.facebook.com/v18.0/me', {
+        params: { fields: 'id,name', access_token: token.access_token },
+      });
+      const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
+        params: { access_token: token.access_token },
+      });
+
+      const pages = pagesRes.data.data || [];
+      // Only keep the page the user chose; never silently switch to another page
+      const selectedPage = pages.find(p => p.id === token.page_id);
+
+      let igAccountId = token.ig_account_id || null;
+      if (selectedPage) {
+        try {
+          const igRes = await axios.get(`https://graph.facebook.com/v18.0/${selectedPage.id}`, {
+            params: { fields: 'instagram_business_account', access_token: selectedPage.access_token },
+          });
+          igAccountId = igRes.data.instagram_business_account?.id || igAccountId;
+        } catch {}
+      }
+
+      let profile = token.profile;
+      if (!profile && token.profile_json) {
+        try { profile = JSON.parse(token.profile_json); } catch {}
+      }
+
+      await socialAccountsRepo.add(wsId, {
+        platform: 'facebook',
+        external_id: meRes.data.id || token.external_id,
+        access_token: token.access_token,
+        page_id: selectedPage?.id || token.page_id || null,
+        page_token: selectedPage?.access_token || token.page_token || null,
+        profile: { ...profile, name: meRes.data.name || profile?.name, page_name: selectedPage?.name || profile?.page_name },
+      });
+
+      if (igAccountId) {
+        await socialAccountsRepo.add(wsId, {
+          platform: 'instagram',
+          external_id: igAccountId,
+          access_token: token.access_token,
+          page_token: selectedPage?.access_token || token.page_token,
+          ig_account_id: igAccountId,
+          profile: { id: igAccountId, name: `${meRes.data.name || 'Facebook'} (Instagram)` },
+        });
+      }
+
+      return res.json({ success: true, connected: true, platform, page_id: selectedPage?.id, ig_account_id: igAccountId });
+    }
+
+    if (platform === 'linkedin') {
+      const me = (await axios.get('https://api.linkedin.com/v2/userinfo', {
+        headers: { Authorization: `Bearer ${token.access_token}` },
+      })).data;
+      return res.json({ success: true, connected: true, platform, profile_id: me.sub });
+    }
+
+    if (platform === 'pinterest') {
+      const pRes = await axios.get('https://api.pinterest.com/v5/user_account', {
+        headers: { Authorization: `Bearer ${token.access_token}` },
+      });
+      return res.json({ success: true, connected: true, platform, username: pRes.data.username });
+    }
+
+    // Default return for other platforms
+    return res.json({ success: true, connected: true, platform });
+
+  } catch (err) {
+    console.error(`[Auth] Refresh ${platform} error:`, err.response?.data || err.message);
+    res.status(400).json({ error: `Connection expired or invalid: ${err.response?.data?.error?.message || err.message}. Please reconnect.`, oauth_url: oauthUrl(platform) });
+  }
+});
+
 // ── Disconnect ────────────────────────────────────────────────────────────────
 
 router.post('/disconnect/:platform', async (req, res) => {
   const { platform } = req.params;
-  const wsId = workspaceId(req);
-  if (!wsId) return res.status(401).json({ error: 'No active workspace' });
+  const wsId = await workspaceId(req);
+  if (!wsId) return res.status(403).json({ error: 'You do not have permission to manage social accounts in this workspace.' });
 
   try {
     await knexInstance('social_accounts').where({ workspace_id: wsId, platform }).del();
@@ -532,8 +714,8 @@ router.post('/manual-token/:platform', async (req, res) => {
   const { access_token, page_id, page_token } = req.body;
   if (!access_token) return res.status(400).json({ error: 'access_token is required' });
 
-  const wsId = workspaceId(req);
-  if (!wsId) return res.status(401).json({ error: 'No active workspace' });
+  const wsId = await workspaceId(req);
+  if (!wsId) return res.status(403).json({ error: 'You do not have permission to manage social accounts in this workspace.' });
 
   try {
     let profile = { id: 'manual', name: 'Manual Token' };
@@ -613,51 +795,6 @@ router.post('/manual-token/:platform', async (req, res) => {
 
 // ── Facebook Pages ────────────────────────────────────────────────────────────
 
-router.get('/facebook/pages', async (req, res) => {
-  const wsId = workspaceId(req);
-  if (!wsId) return res.status(401).json({ error: 'No active workspace' });
-
-  const token = await socialAccountsRepo.getByPlatform(wsId, 'facebook');
-  if (!token) return res.status(401).json({ error: 'Facebook not connected' });
-
-  try {
-    const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
-      params: { access_token: token.access_token },
-    });
-    res.json(pagesRes.data.data || []);
-  } catch (err) {
-    res.status(500).json({ error: err.response?.data || err.message });
-  }
-});
-
-router.post('/facebook/set-page', async (req, res) => {
-  const { page_id, page_token } = req.body;
-  const wsId = workspaceId(req);
-  if (!wsId) return res.status(401).json({ error: 'No active workspace' });
-
-  const token = await socialAccountsRepo.getByPlatform(wsId, 'facebook');
-  if (!token) return res.status(401).json({ error: 'Facebook not connected' });
-
-  try {
-    // Parse profile_json so add() can re-serialize it correctly
-    let profile = null;
-    if (token.profile_json) {
-      try { profile = JSON.parse(token.profile_json); } catch {}
-    }
-    await socialAccountsRepo.add(wsId, {
-      platform: token.platform,
-      external_id: token.external_id,
-      access_token: token.access_token,
-      refresh_token: token.refresh_token,
-      expires_at: token.expires_at,
-      profile,
-      page_id,
-      page_token,
-    });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Facebook page listing / selection lives in routes/config.js (/api/config/facebook/*)
 
 module.exports = router;

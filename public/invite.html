@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Accept Workspace Invitation — NEXUS</title>
+  <title>Accept Workspace Invitation — Social-Nexus</title>
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -11,7 +11,7 @@
 <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px">
   <div class="card" style="max-width:440px;width:100%;text-align:center">
     <div style="padding:32px 24px 16px">
-      <img src="icon.svg" alt="NEXUS" style="width:56px;height:56px;border-radius:14px;margin-bottom:16px" />
+      <img src="icon.svg" alt="Social-Nexus" style="width:56px;height:56px;border-radius:14px;margin-bottom:16px" />
       <div style="font-size:22px;font-weight:700;margin-bottom:8px">Workspace Invitation</div>
       <div id="invite-status" style="font-size:14px;color:var(--text-muted)">Loading invitation…</div>
     </div>
@@ -30,6 +30,25 @@
     return;
   }
 
+  // Not signed in → sign in (or create an account) first, then come back here
+  const me = await fetch('/users/me').then(r => r.json()).catch(() => ({}));
+  if (!me.authenticated) {
+    const next = encodeURIComponent(location.pathname + location.search);
+    statusEl.textContent = 'Sign in to accept this invitation';
+    bodyEl.innerHTML = `
+      <div style="margin-bottom:20px;font-size:14px;color:var(--text-secondary)">Use the account for the email address the invitation was sent to.</div>
+      <a href="/login.html?next=${next}" class="btn btn-primary" style="display:inline-flex">Sign in or create account</a>`;
+    return;
+  }
+
+  // Ask before joining — opening a link shouldn't silently add you to a workspace
+  statusEl.textContent = 'You have been invited to a workspace';
+  bodyEl.innerHTML = `
+    <div style="margin-bottom:20px;font-size:14px;color:var(--text-secondary)">Signed in as <strong>${escapeHtml(me.user?.email || '')}</strong>.</div>
+    <button id="btn-accept" class="btn btn-primary" style="display:inline-flex">Join workspace</button>`;
+  await new Promise(resolve => document.getElementById('btn-accept').addEventListener('click', resolve, { once: true }));
+  statusEl.textContent = 'Joining…';
+
   try {
     const r = await fetch(`/invitations/${encodeURIComponent(token)}/accept`, { method: 'POST' });
     const data = await r.json();
@@ -40,11 +59,11 @@
       <div style="margin-bottom:20px;font-size:14px;color:var(--text-secondary)">
         You are now a member of <strong>${escapeHtml(data.workspace_name || 'the workspace')}</strong> as <strong>${escapeHtml(data.role || '')}</strong>.
       </div>
-      <a href="/app" class="btn btn-primary" style="display:inline-flex">🚀 Open NEXUS</a>`;
+      <a href="/" class="btn btn-primary" style="display:inline-flex">🚀 Open Social-Nexus</a>`;
   } catch (err) {
     statusEl.textContent = err.message;
     statusEl.style.color = '#ef4444';
-    bodyEl.innerHTML = `<a href="/app" class="btn btn-secondary" style="display:inline-flex">← Back to NEXUS</a>`;
+    bodyEl.innerHTML = `<a href="/" class="btn btn-secondary" style="display:inline-flex">← Back to Social-Nexus</a>`;
   }
 })();
 

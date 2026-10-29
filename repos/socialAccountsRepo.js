@@ -21,6 +21,9 @@ module.exports = (knex) => ({
       if (r.profile_json) {
         try { r.profile = JSON.parse(r.profile_json); } catch {}
       }
+      // A row without a login token can't post (the publisher skips it), e.g. one
+      // copied from an old version without its token: show it as "sign in again".
+      r.usable = !!r.access_token;
       return r;
     });
   },

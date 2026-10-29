@@ -13,6 +13,8 @@ function deserialize(row) {
 const TRANSITIONS = {
   draft: {
     in_review: () => ({ reviewed_by: null }),
+    // One step for people who may approve their own work (solo users, managers)
+    scheduled: (userId, fields) => ({ approved_by: userId, scheduled_at: fields.scheduled_at }),
   },
   in_review: {
     draft: () => ({ reviewed_by: null, approved_by: null }),
@@ -24,6 +26,10 @@ const TRANSITIONS = {
   },
   scheduled: {
     approved: () => ({ scheduled_at: null }),
+  },
+  // Retry a failed or missed post: back in the queue, error cleared
+  failed: {
+    scheduled: (_userId, fields) => ({ scheduled_at: fields.scheduled_at, error_message: null }),
   },
 };
 
@@ -37,6 +43,7 @@ module.exports = (knex) => ({
       image_url: data.image_url || null,
       social_account_ids: JSON.stringify(data.social_account_ids || []),
       status: 'draft',
+      scheduled_at: data.scheduled_at || null,
       submitted_by: userId,
     }).returning('id');
     return rows[0]?.id ?? rows[0];
@@ -103,6 +110,14 @@ module.exports = (knex) => ({
   async getDueForPublish(now) {
     const rows = await knex('content_items').where({ status: 'scheduled' }).where('scheduled_at', '<=', now);
     return rows.map(deserialize);
+  },
+
+  // scheduled -> publishing, atomically. Only the caller that wins may publish,
+  // so a restart mid-run or a second app instance can't post the same item twice.
+  async claimForPublish(id) {
+    const n = await knex('content_items').where({ id, status: 'scheduled' })
+      .update({ status: 'publishing', updated_at: nowEpoch() });
+    return n > 0;
   },
 
   markPublished(id) {

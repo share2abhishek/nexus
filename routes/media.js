@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const db = require('../services/database');
-const { aiGenerate, aiJSON } = require('../services/aiHelper');
+const knexInstance = require('../services/knex');
+const historyRepo  = require('../repos/historyRepo')(knexInstance);
+const { aiGenerate, aiJSON, aiArgsFromReq } = require('../services/aiHelper');
 
-function apiKey(req) {
-  return req.headers['x-api-key'] || process.env.GOOGLE_AI_KEY;
-}
+// The user's own AI keys / Ollama / chosen model (not just the shared .env key)
+function ai(req) { return aiArgsFromReq(req); }
 
 // ── AI Image Generation ───────────────────────────────────────────────────────
 // Supports: Stability AI (STABILITY_API_KEY) or Google Imagen (GOOGLE_AI_KEY)
@@ -15,14 +15,14 @@ router.post('/generate-image', async (req, res) => {
   const { prompt, style = 'photorealistic', width = 1024, height = 1024, negative_prompt, preferred_provider } = req.body;
   if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
-  const stabilityKey = process.env.STABILITY_API_KEY;
-  const openaiKey    = process.env.OPENAI_API_KEY;
+  // The user's own keys first (My API Keys), then the shared .env ones
+  const stabilityKey = req.stabilityKey;
+  const openaiKey    = req.openaiKey;
+  const googleKey    = req.googleKey;
 
-  // Respect user's model selection — swap priority if they chose DALL-E
-  if (preferred_provider === 'openai' && openaiKey && stabilityKey) {
-    // User chose DALL-E — skip Stability AI and go straight to OpenAI
-    req.body._skip_stability = true;
-  }
+  // If the user picked a provider in the UI, use only that one
+  const only = preferred_provider || null;
+  if (only && only !== 'stability') req.body._skip_stability = true;
 
   try {
     // ── Stability AI (preferred unless user chose DALL-E) ─────────────────
@@ -58,46 +58,50 @@ router.post('/generate-image', async (req, res) => {
       );
 
       const imageBase64 = response.data.artifacts[0].base64;
-      db.saveHistory({ prompt: `Image: ${prompt}`, response: `[Stability AI image generated]`, type: 'image_generation', model: 'stable-diffusion-xl' });
+      historyRepo.save(req.workspaceId, req.session?.userId, { prompt: `Image: ${prompt}`, response: `[Stability AI image generated]`, type: 'image_generation', model: 'stable-diffusion-xl' }).catch(() => {});
       return res.json({ success: true, provider: 'stability', image_base64: imageBase64, format: 'png' });
     }
 
-    // ── OpenAI DALL-E (fallback) ──────────────────────────────────────────
-    if (openaiKey) {
-      // Try DALL-E 3 first, fall back to DALL-E 2 if not available
-      // Style is embedded in prompt to avoid API version conflicts
-      const styledPrompt = `${prompt}. Art style: ${style}.`;
+    // ── OpenAI image model ────────────────────────────────────────────────
+    // gpt-image-1 by default (DALL-E 2/3 are retired); override with OPENAI_IMAGE_MODEL.
+    // No silent fallback to another model — that used to hide the real error.
+    if (openaiKey && (!only || only === 'openai')) {
+      const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
+      const r = await axios.post(
+        'https://api.openai.com/v1/images/generations',
+        { model, prompt: `${prompt}. Art style: ${style}.`, n: 1, size: '1024x1024' },
+        { headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' }, timeout: 120000 }
+      );
+      const img = r.data.data[0];
+      historyRepo.save(req.workspaceId, req.session?.userId, { prompt: `Image: ${prompt}`, response: `[${model} image]`, type: 'image_generation', model }).catch(() => {});
+      return img.b64_json
+        ? res.json({ success: true, provider: model, image_base64: img.b64_json, format: 'png' })
+        : res.json({ success: true, provider: model, image_url: img.url, format: 'url' });
+    }
 
-      let imageUrl, usedModel;
+    // ── Google Gemini image model (uses the same key as Gemini text) ──────
+    if (googleKey && (!only || only === 'google')) {
+      const model = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
       try {
-        // Try DALL-E 3 — minimal params to avoid version conflicts
-        const r3 = await axios.post(
-          'https://api.openai.com/v1/images/generations',
-          { model: 'dall-e-3', prompt: styledPrompt, n: 1, size: '1024x1024' },
-          { headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' } }
+        const r = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          { contents: [{ parts: [{ text: `${prompt}. Art style: ${style}.` }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } },
+          { params: { key: googleKey }, timeout: 120000 }
         );
-        imageUrl = r3.data.data[0].url;
-        usedModel = 'dall-e-3';
-      } catch {
-        // Fall back to DALL-E 2
-        const r2 = await axios.post(
-          'https://api.openai.com/v1/images/generations',
-          { model: 'dall-e-2', prompt: styledPrompt.substring(0, 1000), n: 1, size: '1024x1024' },
-          { headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' } }
-        );
-        imageUrl = r2.data.data[0].url;
-        usedModel = 'dall-e-2';
+        const part = (r.data.candidates?.[0]?.content?.parts || []).find(p => p.inlineData);
+        if (!part) return res.status(502).json({ error: 'Gemini did not return an image — try rephrasing the prompt.' });
+        historyRepo.save(req.workspaceId, req.session?.userId, { prompt: `Image: ${prompt}`, response: `[${model} image]`, type: 'image_generation', model }).catch(() => {});
+        return res.json({ success: true, provider: model, image_base64: part.inlineData.data, format: 'png' });
+      } catch (err) {
+        if (err.response?.status === 429) {
+          return res.status(402).json({ error: 'Gemini image generation is not included in your Google key’s free quota. Enable billing at aistudio.google.com, or add a Stability/OpenAI key in My API Keys.' });
+        }
+        throw err;
       }
-      db.saveHistory({ prompt: `Image: ${prompt}`, response: imageUrl, type: 'image_generation', model: usedModel });
-      return res.json({ success: true, provider: usedModel, image_url: imageUrl, format: 'url' });
     }
 
     return res.status(400).json({
-      error: 'No image generation API configured. Add STABILITY_API_KEY or OPENAI_API_KEY to .env',
-      setup: {
-        stability: 'Get free credits at https://stability.ai — add STABILITY_API_KEY to .env',
-        openai: 'Get key at https://platform.openai.com — add OPENAI_API_KEY to .env',
-      }
+      error: 'No image generator set up. Add a Stability AI or OpenAI key in My API Keys (or use a Google key with billing enabled).',
     });
 
   } catch (err) {
@@ -113,8 +117,8 @@ router.post('/generate-video', async (req, res) => {
   const { prompt, image_url, duration = 4, aspect_ratio = '16:9' } = req.body;
   if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
-  const runwayKey = process.env.RUNWAY_API_KEY;
-  const lumaKey   = process.env.LUMA_API_KEY;
+  const runwayKey = req.runwayKey;
+  const lumaKey   = req.lumaKey;
 
   try {
     // ── Luma Dream Machine ────────────────────────────────────────────────
@@ -128,7 +132,7 @@ router.post('/generate-video', async (req, res) => {
         headers: { Authorization: `Bearer ${lumaKey}`, 'Content-Type': 'application/json' },
       });
       const jobId = response.data.id;
-      db.saveHistory({ prompt: `Video: ${prompt}`, response: `job:${jobId}`, type: 'video_generation', model: 'luma' });
+      historyRepo.save(req.workspaceId, req.session?.userId, { prompt: `Video: ${prompt}`, response: `job:${jobId}`, type: 'video_generation', model: 'luma' }).catch(() => {});
       return res.json({ success: true, provider: 'luma', job_id: jobId, status: 'processing',
         poll_url: `/api/media/video-status/luma/${jobId}`,
         message: 'Video generation started. Poll the status URL every 5-10s for completion.' });
@@ -147,7 +151,7 @@ router.post('/generate-video', async (req, res) => {
         headers: { Authorization: `Bearer ${runwayKey}`, 'Content-Type': 'application/json', 'X-Runway-Version': '2024-11-06' },
       });
       const jobId = response.data.id;
-      db.saveHistory({ prompt: `Video: ${prompt}`, response: `job:${jobId}`, type: 'video_generation', model: 'runway-gen3' });
+      historyRepo.save(req.workspaceId, req.session?.userId, { prompt: `Video: ${prompt}`, response: `job:${jobId}`, type: 'video_generation', model: 'runway-gen3' }).catch(() => {});
       return res.json({ success: true, provider: 'runway', job_id: jobId, status: 'processing',
         poll_url: `/api/media/video-status/runway/${jobId}`,
         message: 'Video generation started. Poll the status URL every 10s.' });
@@ -175,7 +179,7 @@ router.get('/video-status/:provider/:jobId', async (req, res) => {
   try {
     if (provider === 'luma') {
       const response = await axios.get(`https://api.lumalabs.ai/dream-machine/v1/generations/${jobId}`, {
-        headers: { Authorization: `Bearer ${process.env.LUMA_API_KEY}` },
+        headers: { Authorization: `Bearer ${req.lumaKey}` },
       });
       const { state, assets } = response.data;
       return res.json({
@@ -187,7 +191,7 @@ router.get('/video-status/:provider/:jobId', async (req, res) => {
 
     if (provider === 'runway') {
       const response = await axios.get(`https://api.runwayml.com/v1/tasks/${jobId}`, {
-        headers: { Authorization: `Bearer ${process.env.RUNWAY_API_KEY}`, 'X-Runway-Version': '2024-11-06' },
+        headers: { Authorization: `Bearer ${req.runwayKey}`, 'X-Runway-Version': '2024-11-06' },
       });
       const { status, output } = response.data;
       return res.json({
@@ -210,7 +214,7 @@ router.post('/generate-animation', async (req, res) => {
   const { image_base64, motion_bucket_id = 127, fps = 7, frames = 14 } = req.body;
   if (!image_base64) return res.status(400).json({ error: 'image_base64 is required. First generate an image, then animate it.' });
 
-  const stabilityKey = process.env.STABILITY_API_KEY;
+  const stabilityKey = req.stabilityKey;
   if (!stabilityKey) {
     return res.status(400).json({
       error: 'STABILITY_API_KEY required for animation generation.',
@@ -248,7 +252,7 @@ router.post('/generate-animation', async (req, res) => {
 });
 
 router.get('/animation-status/:jobId', async (req, res) => {
-  const stabilityKey = process.env.STABILITY_API_KEY;
+  const stabilityKey = req.stabilityKey;
   if (!stabilityKey) return res.status(400).json({ error: 'STABILITY_API_KEY not configured' });
 
   try {
@@ -290,7 +294,7 @@ Return ONLY valid JSON (no markdown):
 }`;
 
   try {
-    const { data } = await aiJSON(prompt, apiKey(req));
+    const { data } = await aiJSON(prompt, ai(req).apiKey, 1024, ai(req).options, ai(req).model);
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -317,7 +321,7 @@ Return ONLY valid JSON (no markdown):
 }`;
 
   try {
-    const { data } = await aiJSON(systemPrompt, apiKey(req));
+    const { data } = await aiJSON(systemPrompt, ai(req).apiKey, 1024, ai(req).options, ai(req).model);
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });

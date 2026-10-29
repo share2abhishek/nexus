@@ -1,7 +1,7 @@
 {
   "name": "nexus",
-  "version": "2.0.0",
-  "description": "NEXUS — AI Digital Marketing Platform by Radixile Technology Solutions LLP",
+  "version": "2.1.0",
+  "description": "Social-Nexus by Radixile Technology Solutions — AI social media marketing for individuals and agencies",
   "author": {
     "name": "Radixile Technology Solutions LLP",
     "email": "support@radixile.com",
@@ -12,13 +12,12 @@
     "start": "node server/index.js",
     "dev": "nodemon server/index.js",
     "electron": "electron .",
-    "electron:dev": "NODE_ENV=development electron .",
+    "electron:dev": "set NODE_ENV=development&& electron .",
     "icons": "node build/create-icons.js",
-    "rebuild": "npx @electron/rebuild",
+    "rebuild": "npm rebuild better-sqlite3 sqlite3",
     "dist": "npm run icons && electron-builder --win --x64",
     "dist:dir": "npm run icons && electron-builder --win --x64 --dir",
     "dist:all": "npm run icons && electron-builder --win --mac --linux --x64",
-    "postinstall": "electron-builder install-app-deps",
     "test": "jest --runInBand",
     "migrate": "knex migrate:latest",
     "migrate:make": "knex migrate:make"
@@ -29,12 +28,14 @@
     "axios": "^1.7.2",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^11.3.0",
+    "bytenode": "^1.7.0",
     "connect-pg-simple": "^10.0.0",
     "connect-sqlite3": "^0.9.15",
     "cors": "^2.8.5",
     "csv-parse": "^5.5.6",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-async-errors": "^3.1.1",
     "express-session": "^1.18.0",
     "form-data": "^4.0.0",
     "knex": "^3.1.0",
@@ -62,7 +63,7 @@
   },
   "build": {
     "appId": "com.radixile.nexus",
-    "productName": "NEXUS",
+    "productName": "Social-Nexus",
     "copyright": "© 2026 Radixile Technology Solutions LLP (India). All rights reserved.",
     "directories": {
       "output": "dist-app",
@@ -76,14 +77,14 @@
           "icon.png",
           "icon.ico"
         ]
+      },
+      {
+        "from": "resources/node",
+        "to": "node",
+        "filter": [
+          "node.exe"
+        ]
       }
-    ],
-    "asarUnpack": [
-      "node_modules/better-sqlite3/**",
-      "node_modules/connect-sqlite3/**",
-      "node_modules/sqlite3/**",
-      "node_modules/bindings/**",
-      "node_modules/file-uri-to-path/**"
     ],
     "files": [
       "electron/**/*",
@@ -92,6 +93,9 @@
       "services/**/*",
       "middleware/**/*",
       "config/**/*",
+      "knexfile.js",
+      "db/**/*",
+      "repos/**/*",
       "public/**/*",
       "install/**/*",
       ".env.example",
@@ -99,7 +103,8 @@
       "node_modules/**/*",
       "!node_modules/.cache",
       "!dist-app/**/*",
-      "!**/*.log"
+      "!**/*.log",
+      "!services/database.js"
     ],
     "win": {
       "target": [
@@ -117,7 +122,8 @@
         }
       ],
       "icon": "build/icon.ico",
-      "requestedExecutionLevel": "asInvoker"
+      "requestedExecutionLevel": "asInvoker",
+      "publisherName": "Radixile Technology Solutions LLP"
     },
     "nsis": {
       "oneClick": false,
@@ -128,17 +134,17 @@
       "installerHeaderIcon": "build/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "NEXUS Marketing",
+      "shortcutName": "Social-Nexus",
       "runAfterFinish": true,
       "installerLanguages": [
         "en_US"
       ],
       "license": "LICENSE.txt",
-      "artifactName": "NEXUS-Setup-${version}.exe",
+      "artifactName": "Social-Nexus-Setup-${version}.exe",
       "include": "build/installer.nsh"
     },
     "portable": {
-      "artifactName": "NEXUS-Portable-${version}.exe"
+      "artifactName": "Social-Nexus-Portable-${version}.exe"
     },
     "mac": {
       "target": "dmg",
@@ -155,7 +161,9 @@
     },
     "publish": null,
     "npmRebuild": false,
-    "buildDependenciesFromSource": false
+    "buildDependenciesFromSource": false,
+    "asar": false,
+    "afterSign": "scripts/release/after-sign.js"
   },
   "engines": {
     "node": ">=18.0.0"

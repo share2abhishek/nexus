@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NEXUS — AI Digital Marketing Platform</title>
-  <meta name="description" content="NEXUS is an AI-powered one-stop digital marketing platform." />
+  <title>Social-Nexus by Radixile Technology Solutions</title>
+  <meta name="description" content="Social-Nexus is an AI-powered one-stop digital marketing platform." />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preload" href="fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 </head>
@@ -17,113 +17,118 @@
   <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <img src="icon.svg" alt="NEXUS" style="width:42px;height:42px;border-radius:10px;flex-shrink:0" />
-      <div>
-        <div class="logo-text">NEXUS</div>
-        <div class="logo-badge">v2.0 — FULL SUITE</div>
+      <img src="icon.svg" alt="" class="logo-img" />
+      <div class="logo-words">
+        <div class="logo-text">Social-Nexus</div>
+        <div class="logo-sub">by Radixile Technology Solutions</div>
       </div>
     </div>
 
-    <nav class="sidebar-nav">
-      <div class="nav-section-label">Main</div>
+    <nav class="sidebar-nav" aria-label="Main menu">
       <a class="nav-item active" data-page="dashboard" id="nav-dashboard">
-        <span class="nav-icon">🏠</span>
-        <span class="nav-label">Dashboard</span>
-      </a>
-      <a class="nav-item" data-page="generate" id="nav-generate">
-        <span class="nav-icon">✨</span>
-        <span class="nav-label">AI Generate</span>
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-house"/></svg>
+        <span class="nav-label">Home</span>
       </a>
       <a class="nav-item" data-page="compose" id="nav-compose">
-        <span class="nav-icon">✏️</span>
-        <span class="nav-label">Compose & Post</span>
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-square-pen"/></svg>
+        <span class="nav-label">Create Post</span>
       </a>
-
-      <div class="nav-section-label">Content</div>
       <a class="nav-item" data-page="calendar" id="nav-calendar">
-        <span class="nav-icon">📅</span>
-        <span class="nav-label">Content Calendar</span>
-      </a>
-      <a class="nav-item" data-page="history" id="nav-history">
-        <span class="nav-icon">📋</span>
-        <span class="nav-label">Post History</span>
-      </a>
-      <a class="nav-item" data-page="templates" id="nav-templates">
-        <span class="nav-icon">🗂️</span>
-        <span class="nav-label">Templates</span>
-      </a>
-      <a class="nav-item" data-page="files" id="nav-files">
-        <span class="nav-icon">📁</span>
-        <span class="nav-label">Local Files</span>
-      </a>
-
-      <div class="nav-section-label">Marketing</div>
-      <a class="nav-item" data-page="seo" id="nav-seo">
-        <span class="nav-icon">🔍</span>
-        <span class="nav-label">SEO Tools</span>
-      </a>
-      <a class="nav-item" data-page="aso" id="nav-aso">
-        <span class="nav-icon">📱</span>
-        <span class="nav-label">App Store (ASO)</span>
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-calendar-days"/></svg>
+        <span class="nav-label">Calendar</span>
       </a>
       <a class="nav-item" data-page="email" id="nav-email">
-        <span class="nav-icon">📧</span>
-        <span class="nav-label">Email Marketing</span>
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-mail"/></svg>
+        <span class="nav-label">Email</span>
       </a>
-      <a class="nav-item" data-page="adcopy" id="nav-adcopy">
-        <span class="nav-icon">📣</span>
-        <span class="nav-label">Ad Copy & PR</span>
-      </a>
-
-      <div class="nav-section-label">Media AI</div>
-      <a class="nav-item" data-page="media" id="nav-media">
-        <span class="nav-icon">🎨</span>
-        <span class="nav-label">AI Media Creator</span>
-      </a>
-
-      <div class="nav-section-label">Tools</div>
-      <a class="nav-item" data-page="hashtags" id="nav-hashtags">
-        <span class="nav-icon">#️⃣</span>
-        <span class="nav-label">Hashtag Research</span>
-      </a>
-      <a class="nav-item" data-page="utm" id="nav-utm">
-        <span class="nav-icon">🔗</span>
-        <span class="nav-label">UTM Builder</span>
-      </a>
-      <a class="nav-item" data-page="brand" id="nav-brand">
-        <span class="nav-icon">🎯</span>
-        <span class="nav-label">Brand Kit</span>
-      </a>
-
-      <div class="nav-section-label">Insights</div>
       <a class="nav-item" data-page="analytics" id="nav-analytics">
-        <span class="nav-icon">📊</span>
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-chart-column"/></svg>
         <span class="nav-label">Analytics</span>
       </a>
 
-      <div class="nav-section-label">Management</div>
+      <div class="nav-group agency-only">
+        <div class="nav-section-label">Agency</div>
       <a class="nav-item" data-page="clients" id="nav-clients">
-        <span class="nav-icon">👥</span>
-        <span class="nav-label">Clients & Brands</span>
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-briefcase-business"/></svg>
+        <span class="nav-label">Clients &amp; Brands</span>
       </a>
+      </div>
 
-      <div class="nav-section-label">System</div>
-      <a class="nav-item" data-page="admin" id="nav-admin" style="display:none">
-        <span class="nav-icon">👑</span>
-        <span class="nav-label">Admin Dashboard</span>
-        <span class="nav-badge" id="admin-users-badge">0</span>
+      <button class="nav-section-label nav-toggle" id="nav-more-toggle" onclick="toggleMoreTools()" aria-expanded="false" aria-controls="nav-more">
+        <span>More tools</span>
+        <svg class="nav-chevron" aria-hidden="true"><use href="icons/sprite.svg#i-chevron-down"/></svg>
+      </button>
+      <div class="nav-more" id="nav-more">
+      <a class="nav-item" data-page="generate" id="nav-generate">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-sparkles"/></svg>
+        <span class="nav-label">AI Writer</span>
+      </a>
+      <a class="nav-item" data-page="history" id="nav-history">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-history"/></svg>
+        <span class="nav-label">Post History</span>
+      </a>
+      <a class="nav-item" data-page="templates" id="nav-templates">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layout-template"/></svg>
+        <span class="nav-label">Templates</span>
+      </a>
+      <a class="nav-item" data-page="brand" id="nav-brand">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-palette"/></svg>
+        <span class="nav-label">Brand Kit</span>
+      </a>
+      <a class="nav-item" data-page="hashtags" id="nav-hashtags">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-hash"/></svg>
+        <span class="nav-label">Hashtags</span>
+      </a>
+      <a class="nav-item" data-page="seo" id="nav-seo">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-search"/></svg>
+        <span class="nav-label">SEO Tools</span>
+      </a>
+      <a class="nav-item" data-page="aso" id="nav-aso">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-smartphone"/></svg>
+        <span class="nav-label">App Store (ASO)</span>
+      </a>
+      <a class="nav-item" data-page="adcopy" id="nav-adcopy">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-megaphone"/></svg>
+        <span class="nav-label">Ad Copy &amp; PR</span>
+      </a>
+      <a class="nav-item" data-page="media" id="nav-media">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-image"/></svg>
+        <span class="nav-label">AI Media</span>
+      </a>
+      <a class="nav-item" data-page="utm" id="nav-utm">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-link"/></svg>
+        <span class="nav-label">UTM Builder</span>
+      </a>
+      <a class="nav-item" data-page="files" id="nav-files">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-folder-open"/></svg>
+        <span class="nav-label">Local Files</span>
       </a>
       <a class="nav-item" data-page="tools-directory" id="nav-tools-directory">
-        <span class="nav-icon">🛠️</span>
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-blocks"/></svg>
         <span class="nav-label">AI Tools Directory</span>
       </a>
-      <a class="nav-item" data-page="settings" id="nav-settings">
-        <span class="nav-icon">⚙️</span>
-        <span class="nav-label">Settings</span>
-      </a>
+      </div>
     </nav>
 
-    <div class="sidebar-footer">
+    <div class="sidebar-bottom">
+      <a class="nav-item" data-page="admin" id="nav-admin" style="display:none">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-shield-check"/></svg>
+        <span class="nav-label">Admin</span>
+        <span class="nav-badge" id="admin-users-badge"></span>
+      </a>
+      <a class="nav-item" data-page="settings" id="nav-settings">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-settings"/></svg>
+        <span class="nav-label">Settings</span>
+      </a>
+      <a class="nav-item" href="/help.html" onclick="openHelp(); return false;" id="nav-help">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-circle-help"/></svg>
+        <span class="nav-label">Help &amp; User Guide</span>
+      </a>
+      <label class="mode-switch" title="Agency mode adds clients, team review and the workspace switcher">
+        <input type="checkbox" id="mode-switch" onchange="setUiMode(this.checked ? 'agency' : 'simple')" />
+        <span class="mode-track" aria-hidden="true"></span>
+        <span class="mode-text">Agency mode</span>
+      </label>
       <div class="sidebar-status">
         <div class="status-dot" id="server-status-dot"></div>
         <span id="server-status-text">Server running</span>
@@ -136,13 +141,14 @@
     <header class="header">
       <div>
         <div class="header-title" id="header-title">Dashboard</div>
-        <div class="header-subtitle" id="header-subtitle">Overview of your NEXUS platform</div>
+        <div class="header-subtitle" id="header-subtitle">Overview of your Social-Nexus platform</div>
       </div>
       <div class="header-actions">
-        <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" id="btn-theme" title="Toggle light/dark mode">🌙</button>
-        <button class="btn btn-secondary btn-sm" onclick="refreshStatus()" id="btn-refresh">🔄 Refresh</button>
+        <button class="btn btn-secondary btn-sm" onclick="openHelp(helpTopicForPage())" id="btn-help" title="Help for this page (F1)" aria-label="Help for this page"><svg class="ico" aria-hidden="true"><use href="icons/sprite.svg#i-circle-help"/></svg></button>
+        <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" id="btn-theme" title="Toggle light/dark mode" aria-label="Toggle light/dark mode"><svg class="ico" id="theme-icon" aria-hidden="true"><use href="icons/sprite.svg#i-moon"/></svg></button>
+        <button class="btn btn-secondary btn-sm" onclick="refreshStatus()" id="btn-refresh" title="Refresh" aria-label="Refresh"><svg class="ico" aria-hidden="true"><use href="icons/sprite.svg#i-refresh-cw"/></svg><span class="btn-label">Refresh</span></button>
         <!-- Workspace Switcher -->
-        <div style="position:relative" id="workspace-switcher-wrap">
+        <div style="position:relative" id="workspace-switcher-wrap" class="agency-only">
           <button class="btn btn-secondary btn-sm" onclick="toggleWorkspaceSwitcher()" id="btn-workspace" style="display:flex;align-items:center;gap:6px;max-width:180px">
             <span style="font-size:14px">🏢</span>
             <span id="workspace-name-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">Loading…</span>
@@ -169,9 +175,15 @@
             <button class="btn btn-danger" onclick="doLogout()" style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 16px;font-size:13px">🚪 Sign Out</button>
           </div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="navigateTo('compose')" id="btn-new-post">✏️ New Post</button>
+        <button class="btn btn-primary btn-sm" onclick="navigateTo('compose')" id="btn-new-post"><svg class="ico" aria-hidden="true"><use href="icons/sprite.svg#i-plus"/></svg><span>New Post</span></button>
       </div>
     </header>
+
+    <!-- Licence banner (shown when not licensed / needs attention) -->
+    <div id="license-banner" role="status" style="display:none;margin:0 24px 12px;padding:10px 14px;border-radius:10px;border:1px solid rgba(245,158,11,.45);background:rgba(245,158,11,.1);font-size:13px;align-items:center;gap:12px;flex-wrap:wrap">
+      <span id="license-banner-text" style="flex:1;min-width:200px"></span>
+      <button class="btn btn-primary btn-sm" id="license-banner-btn">Activate</button>
+    </div>
 
     <!-- ── Dashboard ────────────────────────────────────────────────────── -->
     <section class="page active" id="page-dashboard">
@@ -199,12 +211,32 @@
         </div>
       </div>
 
+      <!-- Indian Holiday Banner -->
+      <div id="india-holiday-banner" style="display:none;margin-bottom:20px">
+        <div style="background:linear-gradient(135deg,rgba(255,153,0,0.15),rgba(19,136,8,0.12));border:1px solid rgba(255,153,0,0.35);border-radius:14px;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px">
+          <div style="display:flex;align-items:center;gap:14px">
+            <span id="holiday-banner-emoji" style="font-size:32px">🎉</span>
+            <div>
+              <div style="font-size:15px;font-weight:700;color:#ff9900" id="holiday-banner-name">Today's Festival</div>
+              <div style="font-size:12px;color:var(--text-secondary)">Create a special post to celebrate with your audience</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-sm" style="background:rgba(255,153,0,0.2);color:#ff9900;border:1px solid rgba(255,153,0,0.4)" onclick="generateHolidayContentFromDashboard()">✨ Generate Post</button>
+            <button class="btn btn-sm btn-secondary" onclick="document.getElementById('india-holiday-banner').style.display='none'" aria-label="Close">✕</button>
+          </div>
+        </div>
+      </div>
+
       <div class="grid-2" style="margin-bottom:20px">
         <!-- Platform Connections -->
         <div class="card">
           <div class="card-header">
             <div class="card-title">🔗 Platform Connections</div>
-            <button class="btn btn-secondary btn-sm" onclick="navigateTo('settings')">Manage</button>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-secondary btn-sm" onclick="refreshStatus(); toast('Connection status refreshed! 🔄', 'info');" title="Refresh connection status">🔄 Refresh</button>
+              <button class="btn btn-secondary btn-sm" onclick="navigateTo('settings')">Manage</button>
+            </div>
           </div>
           <div class="card-body">
             <div class="platform-grid" id="dashboard-platforms"></div>
@@ -229,7 +261,7 @@
               </div>
             </div>
             <button class="btn btn-primary" onclick="quickGenerate()" id="btn-quick-generate" style="width:100%">
-              ✨ Generate & Compose
+              ✨ Write post
             </button>
           </div>
         </div>
@@ -296,6 +328,7 @@
                   <label class="platform-toggle youtube" data-platform="youtube">▶️ YouTube</label>
                   <label class="platform-toggle google_business" data-platform="google_business">🏢 Google Biz</label>
                   <label class="platform-toggle tiktok" data-platform="tiktok">🎵 TikTok</label>
+                  <label class="platform-toggle whatsapp" data-platform="whatsapp" style="background:rgba(37,211,102,0.12);border-color:rgba(37,211,102,0.3);color:#25d366">💬 WhatsApp</label>
                 </div>
               </div>
 
@@ -307,6 +340,29 @@
                   <button class="tone-btn" data-tone="witty" onclick="selectTone(this)">😄 Witty</button>
                   <button class="tone-btn" data-tone="inspirational" onclick="selectTone(this)">🌟 Inspirational</button>
                   <button class="tone-btn" data-tone="educational" onclick="selectTone(this)">📚 Educational</button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Language 🇮🇳</label>
+                <select class="form-select" id="gen-language" style="width:100%">
+                  <option value="en">🇬🇧 English</option>
+                  <option value="hi">🇮🇳 हिंदी (Hindi)</option>
+                  <option value="ta">🇮🇳 தமிழ் (Tamil)</option>
+                  <option value="te">🇮🇳 తెలుగు (Telugu)</option>
+                  <option value="mr">🇮🇳 मराठी (Marathi)</option>
+                  <option value="bn">🇮🇳 বাংলা (Bengali)</option>
+                  <option value="pa">🇮🇳 ਪੰਜਾਬੀ (Punjabi)</option>
+                  <option value="kn">🇮🇳 ಕನ್ನಡ (Kannada)</option>
+                  <option value="gu">🇮🇳 ગુજરાતી (Gujarati)</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="gen-holiday-bar" style="display:none">
+                <label class="form-label">🎉 Today's Festival</label>
+                <div id="gen-holiday-badge" style="padding:10px 14px;background:linear-gradient(135deg,rgba(251,191,36,0.15),rgba(239,68,68,0.1));border:1px solid rgba(251,191,36,0.3);border-radius:8px;display:flex;align-items:center;justify-content:space-between">
+                  <span id="gen-holiday-name" style="font-size:13px;font-weight:600;color:#fbbf24"></span>
+                  <button class="btn btn-sm" style="background:rgba(251,191,36,0.2);color:#fbbf24;border:1px solid rgba(251,191,36,0.3)" onclick="generateHolidayContent()">✨ Generate Festival Post</button>
                 </div>
               </div>
 
@@ -355,7 +411,7 @@
           <div class="card" id="ai-history-card" style="display:none">
             <div class="card-header">
               <div class="card-title">📋 Recent Generations</div>
-              <button class="btn btn-secondary btn-sm" onclick="closeAIHistory()">✕</button>
+              <button class="btn btn-secondary btn-sm" onclick="closeAIHistory()" aria-label="Close">✕</button>
             </div>
             <div class="card-body" style="max-height:300px;overflow-y:auto;padding:0 24px">
               <div class="activity-feed" id="ai-history-list"></div>
@@ -369,10 +425,16 @@
     <section class="page" id="page-compose">
       <div class="section-header">
         <div>
-          <div class="section-title">✏️ Compose & Post</div>
+          <div class="section-title">Create Post</div>
           <div class="section-desc">Write or paste content and publish to your connected platforms.</div>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="openFileBrowser()">📁 Import from Files</button>
+      </div>
+
+      <!-- Shown while a post from the Calendar is open here for editing -->
+      <div class="compose-editing" id="compose-editing" role="status" hidden>
+        <span id="compose-editing-text">✏️ Editing a saved post</span>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="leaveEditCompose()">Start a new post instead</button>
       </div>
 
       <div class="grid-2">
@@ -382,14 +444,38 @@
               <div class="card-title">📝 Content</div>
             </div>
             <div class="card-body">
+              <!-- AI writes into the box below; nothing is posted until you choose in the next step -->
+              <div class="compose-ai">
+                <label class="form-label" for="compose-ai-prompt">✨ Write with AI <span class="form-hint" style="display:inline;margin:0">(optional)</span></label>
+                <div class="compose-ai-row">
+                  <input type="text" class="form-input" id="compose-ai-prompt" maxlength="2000"
+                    placeholder="What should the post say? e.g. Diwali offer: 20% off all cakes this week"
+                    onkeydown="if(event.key==='Enter'){event.preventDefault();composeAiWrite()}" />
+                  <select class="form-select" id="compose-ai-tone" aria-label="Tone">
+                    <option value="professional">💼 Professional</option>
+                    <option value="casual">😊 Friendly</option>
+                    <option value="witty">😄 Witty</option>
+                    <option value="inspirational">🌟 Inspiring</option>
+                    <option value="educational">📚 Informative</option>
+                  </select>
+                  <button class="btn btn-primary" id="btn-compose-ai-write" onclick="composeAiWrite()">✨ Write</button>
+                </div>
+              </div>
               <div class="form-group">
-                <textarea class="form-textarea" id="compose-content" placeholder="Write your post content here…" style="min-height:160px" oninput="updateComposeCharCount()"></textarea>
+                <textarea class="form-textarea" id="compose-content" placeholder="Write your post here, or let the AI write it above…" style="min-height:160px" oninput="updateComposeCharCount()"></textarea>
+                <div class="compose-ai-tools" id="compose-ai-tools">
+                  <button class="btn btn-secondary btn-sm" data-ai-action="rewrite" disabled onclick="composeAiAssist('rewrite')" title="Make it clearer and more engaging">✨ Improve</button>
+                  <button class="btn btn-secondary btn-sm" data-ai-action="shorten" disabled onclick="composeAiAssist('shorten')" title="Make it shorter">✂️ Shorter</button>
+                  <button class="btn btn-secondary btn-sm" data-ai-action="hashtags" disabled onclick="composeAiAssist('hashtags')" title="Add hashtags at the end">#️⃣ Add hashtags</button>
+                  <button class="btn btn-secondary btn-sm" id="btn-compose-ai-undo" onclick="composeAiUndo()" style="display:none">↩ Undo AI change</button>
+                  <span class="compose-ai-status" id="compose-ai-status" role="status" aria-live="polite"></span>
+                </div>
                 <div class="char-count" id="compose-char-count"></div>
               </div>
 
               <div class="form-group">
                 <label class="form-label">Image URL (optional)</label>
-                <input type="url" class="form-input" id="compose-image" placeholder="https://example.com/image.jpg" />
+                <input type="url" class="form-input" id="compose-image" placeholder="https://example.com/image.jpg" oninput="updateComposeCharCount()" />
               </div>
 
               <div class="form-group">
@@ -408,32 +494,69 @@
             </div>
           </div>
 
-          <!-- Schedule Options -->
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">⏰ When to Post</div>
-            </div>
-            <div class="card-body">
-              <div class="form-group">
-                <div style="display:flex;gap:8px;margin-bottom:12px">
-                  <button class="btn btn-secondary btn-sm" id="post-mode-now" onclick="setPostMode('now')" style="flex:1">📤 Post Now</button>
-                  <button class="btn btn-primary btn-sm" id="post-mode-schedule" onclick="setPostMode('schedule')" style="flex:1">📅 Schedule</button>
-                </div>
-                <div id="schedule-picker" style="display:none">
-                  <input type="datetime-local" class="form-input" id="compose-schedule-at" />
-                  <div class="form-hint">Post will be sent at the scheduled time.</div>
-                </div>
-              </div>
+          <!-- Step 1 ends here: save, then choose what happens (step 2 dialog) -->
+          <div class="compose-actions">
+            <button class="btn btn-primary btn-lg" onclick="savePostAndContinue()" id="btn-save-post">Save &amp; continue →</button>
+            <div class="form-hint" style="margin:0">Next you choose: publish now, schedule, send for review, or keep it as a draft.</div>
+          </div>
+        </div>
 
-              <div style="display:flex;gap:8px">
-                <button class="btn btn-primary btn-lg" onclick="submitPost()" id="btn-submit-post" style="flex:1">📤 Post Now</button>
+        <!-- Step 2: what to do with the saved post -->
+        <div class="modal-overlay" id="post-next-modal" style="display:none" onclick="if(event.target===this)closePostNext()">
+          <div class="modal next-step-modal" role="dialog" aria-modal="true" aria-labelledby="post-next-title" onclick="event.stopPropagation()">
+            <div class="modal-header">
+              <div class="modal-title" id="post-next-title">Your post is saved. What next?</div>
+              <button class="modal-close" onclick="closePostNext()" aria-label="Close">✕</button>
+            </div>
+            <div class="modal-body">
+              <div class="next-preview" id="post-next-preview"></div>
+              <div class="segmented" role="radiogroup" aria-label="What to do with this post">
+                <button type="button" role="radio" class="seg" id="post-mode-now" onclick="setPostMode('now')">Publish now</button>
+                <button type="button" role="radio" class="seg" id="post-mode-schedule" onclick="setPostMode('schedule')">Schedule</button>
+                <button type="button" role="radio" class="seg" id="post-mode-review" onclick="setPostMode('review')">Send for review</button>
+                <button type="button" role="radio" class="seg" id="post-mode-draft" onclick="setPostMode('draft')">Keep as draft</button>
               </div>
+              <div class="mode-hint" id="post-mode-hint"></div>
+                <div id="schedule-picker">
+                  <label class="form-label" for="compose-schedule-at" id="schedule-label">First post</label>
+                  <input type="datetime-local" class="form-input" id="compose-schedule-at" oninput="updateRepeatSummary()" />
+
+                  <div class="repeat-box" id="repeat-box">
+                    <div class="form-group" style="margin:12px 0 0">
+                      <label class="form-label" for="compose-repeat">Repeat</label>
+                      <select class="form-select" id="compose-repeat" onchange="updateRepeatSummary()">
+                        <option value="none">Does not repeat</option>
+                        <option value="daily">Every day</option>
+                        <option value="weekly">Every week</option>
+                        <option value="monthly">Every month</option>
+                      </select>
+                    </div>
+                    <div id="repeat-end" style="display:none;margin-top:12px">
+                      <div class="form-label">Ends</div>
+                      <div class="repeat-end-row">
+                        <label class="repeat-radio"><input type="radio" name="repeat-end" value="count" checked onchange="updateRepeatSummary()" /> After</label>
+                        <input type="number" class="form-input repeat-num" id="compose-repeat-count" min="2" max="365" value="5" oninput="updateRepeatSummary()" aria-label="Number of posts" />
+                        <span class="repeat-unit">posts</span>
+                      </div>
+                      <div class="repeat-end-row">
+                        <label class="repeat-radio"><input type="radio" name="repeat-end" value="until" onchange="updateRepeatSummary()" /> On</label>
+                        <input type="date" class="form-input repeat-date" id="compose-repeat-until" oninput="updateRepeatSummary()" aria-label="End date" />
+                      </div>
+                    </div>
+                    <div class="repeat-summary" id="repeat-summary" role="status"></div>
+                  </div>
+                  <div class="form-hint">Your computer's time. Keep Social-Nexus running (it can sit in the system tray) so it can post at this time.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="closePostNext()">← Back to editing</button>
+              <button class="btn btn-primary" onclick="submitPost()" id="btn-submit-post">📅 Schedule post</button>
             </div>
           </div>
         </div>
 
-        <!-- Scheduled Posts Panel -->
         <div>
+        <!-- Scheduled Posts Panel -->
           <div class="card">
             <div class="card-header">
               <div class="card-title">📅 Scheduled Queue</div>
@@ -456,10 +579,10 @@
     <section class="page" id="page-calendar">
       <div class="section-header">
         <div>
-          <div class="section-title">📅 Content Calendar</div>
-          <div class="section-desc">Visual unified content lifecycle planner and calendar.</div>
+          <div class="section-title">Calendar</div>
+          <div class="section-desc">Plan, review and schedule your posts by date.</div>
         </div>
-        <button class="btn btn-primary" onclick="openNewContentModal()">✏️ New Content</button>
+        <button class="btn btn-primary" onclick="openNewContentModal()">✏️ New Post</button>
       </div>
 
       <div class="card" style="margin-bottom:20px">
@@ -603,7 +726,7 @@
           <div class="section-title">📊 Analytics</div>
           <div class="section-desc">Track your content performance across all platforms.</div>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="simulateAnalytics()">🎲 Simulate Data</button>
+        <button class="btn btn-secondary btn-sm" onclick="simulateAnalytics()" title="Fills the charts with made-up numbers so you can see how they look">🎲 Show sample data (demo)</button>
       </div>
 
       <div class="stats-grid" id="analytics-stats">
@@ -683,13 +806,20 @@
 
       <!-- Settings tabs -->
       <div style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm settings-tab-btn active" onclick="switchSettingsTab('platforms',this)">🔗 Social Platforms</button>
-        <button class="btn btn-secondary btn-sm settings-tab-btn" onclick="switchSettingsTab('ollama',this)">🦙 Local AI (Ollama)</button>
-        <button class="btn btn-secondary btn-sm settings-tab-btn" onclick="switchSettingsTab('ai-keys',this)">🤖 AI Keys</button>
-        <button class="btn btn-secondary btn-sm settings-tab-btn" onclick="switchSettingsTab('media-keys',this)">🎨 Media AI</button>
+        <button class="btn btn-primary btn-sm settings-tab-btn active" data-tab="platforms" onclick="switchSettingsTab('platforms',this)">🔗 Social Platforms</button>
+        <button class="btn btn-secondary btn-sm settings-tab-btn" data-tab="license" onclick="switchSettingsTab('license',this)">🔑 Licence</button>
+        <button class="btn btn-secondary btn-sm settings-tab-btn" data-tab="ai" onclick="switchSettingsTab('ai',this)">🤖 AI</button>
         <button class="btn btn-secondary btn-sm settings-tab-btn" onclick="switchSettingsTab('smtp',this)">📧 Email / SMTP</button>
         <button class="btn btn-secondary btn-sm settings-tab-btn" onclick="switchSettingsTab('about',this)">ℹ️ About</button>
-        <button class="btn btn-secondary btn-sm settings-tab-btn" data-tab="members" onclick="switchSettingsTab('members',this)">👥 Members</button>
+        <button class="btn btn-secondary btn-sm settings-tab-btn agency-only" data-tab="members" onclick="switchSettingsTab('members',this)">👥 Members</button>
+      </div>
+
+      <!-- ── Licence Panel ───────────────────────────────────────────────────── -->
+      <div class="settings-panel" id="settings-panel-license" style="display:none">
+        <div class="settings-section">
+          <div class="settings-section-header"><div class="settings-section-title">🔑 Licence</div></div>
+          <div id="license-panel" style="padding:16px"><span class="spinner"></span></div>
+        </div>
       </div>
 
       <!-- ── Social Platforms Panel ────────────────────────────────────────── -->
@@ -700,8 +830,20 @@
       </div>
 
       <!-- ── Ollama / Local AI Panel ──────────────────────────────────────── -->
-      <div class="settings-panel" id="settings-panel-ollama" style="display:none">
-        <div class="settings-section">
+      <div class="settings-panel" id="settings-panel-ai" style="display:none">
+        <div class="ai-settings-intro">
+          <div>
+            <div class="ai-settings-intro-title">How Social-Nexus writes for you</div>
+            <div class="ai-settings-intro-desc"><b>Local AI</b> runs on this PC for free — your text never leaves your computer. <b>Online AI</b> (Gemini, Claude…) needs an API key and sends the text you ask about to that company. If Local AI is switched on but not running, an online service you have a key for is used instead. Create Post always tells you which one wrote the text. Local AI and the default model are shared by everyone on this PC; API keys are saved to your own account only.</div>
+          </div>
+          <button class="btn btn-secondary btn-sm admin-note-exempt" onclick="navigateTo('user-settings')">🔑 My own API keys</button>
+        </div>
+        <div class="ai-settings-jump">
+          <a href="#ai-sec-local" onclick="event.preventDefault();document.getElementById('ai-sec-local').scrollIntoView({behavior:'smooth'})">🦙 Local AI</a>
+          <a href="#ai-sec-online" onclick="event.preventDefault();document.getElementById('ai-sec-online').scrollIntoView({behavior:'smooth'})">🤖 Online AI for text</a>
+          <a href="#ai-sec-media" onclick="event.preventDefault();document.getElementById('ai-sec-media').scrollIntoView({behavior:'smooth'})">🎨 Images &amp; video</a>
+        </div>
+        <div class="settings-section" id="ai-sec-local">
           <div class="settings-section-header">
             <div class="settings-section-title">🦙 Local AI with Ollama (Free, No API Key Needed)</div>
           </div>
@@ -768,7 +910,7 @@
             <div style="display:flex;align-items:center;gap:16px;padding:14px;background:var(--glass);border-radius:10px;border:1px solid var(--border)">
               <div style="flex:1">
                 <div style="font-size:14px;font-weight:600;color:var(--text-primary)">Use Ollama as Primary AI</div>
-                <div style="font-size:12px;color:var(--text-muted);margin-top:2px">When enabled, NEXUS uses your local Llama model instead of Gemini/Claude. Falls back to cloud AI if Ollama is offline.</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px">When enabled, Social-Nexus uses your local Llama model instead of Gemini/Claude. Falls back to cloud AI if Ollama is offline.</div>
               </div>
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
                 <input type="checkbox" id="ollama-enabled-toggle" onchange="saveOllamaSettings()" style="width:18px;height:18px;cursor:pointer" />
@@ -779,12 +921,10 @@
             <button class="btn btn-primary" onclick="saveOllamaSettings()" style="width:100%;margin-top:12px">💾 Save Ollama Settings</button>
           </div>
         </div>
-      </div>
 
-      <!-- ── AI Keys Panel ─────────────────────────────────────────────────── -->
-      <div class="settings-panel" id="settings-panel-ai-keys" style="display:none">
-        <div class="settings-section">
-          <div class="settings-section-header"><div class="settings-section-title">🤖 AI Content Generation</div></div>
+        <!-- Online AI for text -->
+        <div class="settings-section" id="ai-sec-online">
+          <div class="settings-section-header"><div class="settings-section-title">🤖 Online AI for text (needs an API key)</div></div>
 
           <div class="settings-row">
             <div class="settings-row-info">
@@ -794,14 +934,14 @@
             <div style="display:flex;gap:8px;align-items:center;min-width:320px">
               <select class="form-select" id="setting-default-model" style="flex:1">
                 <option value="ollama">Ollama (Local Llama)</option>
-                <option value="gemini">Google Gemini 1.5 Flash</option>
+                <option value="gemini">Google Gemini Flash</option>
                 <option value="claude">Anthropic Claude Opus</option>
               </select>
               <button class="btn btn-primary btn-sm" onclick="saveDefaultModelSetting()">Save</button>
             </div>
           </div>
 
-          <div class="settings-row">
+          <div class="settings-row user-scoped">
             <div class="settings-row-info">
               <div class="settings-row-title">Google Gemini API Key <span class="badge badge-green" style="font-size:10px">FREE TIER</span></div>
               <div class="settings-row-desc">Primary AI engine for content generation. Get free key at <a href="https://aistudio.google.com" target="_blank" style="color:#60a5fa">aistudio.google.com</a></div>
@@ -812,7 +952,7 @@
             </div>
           </div>
 
-          <div class="settings-row">
+          <div class="settings-row user-scoped">
             <div class="settings-row-info">
               <div class="settings-row-title">Anthropic Claude API Key <span class="badge badge-orange" style="font-size:10px">OPTIONAL FALLBACK</span></div>
               <div class="settings-row-desc">Used if Gemini key is not set. Get at <a href="https://console.anthropic.com" target="_blank" style="color:#60a5fa">console.anthropic.com</a></div>
@@ -823,12 +963,10 @@
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- ── Media AI Panel ────────────────────────────────────────────────── -->
-      <div class="settings-panel" id="settings-panel-media-keys" style="display:none">
-        <div class="settings-section">
-          <div class="settings-section-header"><div class="settings-section-title">🎨 AI Image & Video Generation</div></div>
+        <!-- Images & video -->
+        <div class="settings-section user-scoped" id="ai-sec-media">
+          <div class="settings-section-header"><div class="settings-section-title">🎨 Images &amp; video (optional — saved to your account)</div></div>
 
           <div class="settings-row">
             <div class="settings-row-info">
@@ -843,8 +981,8 @@
 
           <div class="settings-row">
             <div class="settings-row-info">
-              <div class="settings-row-title">OpenAI API Key <span class="badge badge-blue" style="font-size:10px">DALL-E 3 FALLBACK</span></div>
-              <div class="settings-row-desc">DALL-E 3 image generation fallback. <a href="https://platform.openai.com" target="_blank" style="color:#60a5fa">platform.openai.com</a></div>
+              <div class="settings-row-title">OpenAI API Key <span class="badge badge-blue" style="font-size:10px">IMAGES</span></div>
+              <div class="settings-row-desc">Image generation (GPT Image). <a href="https://platform.openai.com" target="_blank" style="color:#60a5fa">platform.openai.com</a></div>
             </div>
             <div style="display:flex;gap:8px;align-items:center;min-width:320px">
               <input type="password" class="form-input" id="setting-openai-key" placeholder="sk-proj-…" style="flex:1" />
@@ -902,16 +1040,16 @@
       <!-- ── About Panel ────────────────────────────────────────────────────── -->
       <div class="settings-panel" id="settings-panel-about" style="display:none">
         <div class="settings-section">
-          <div class="settings-section-header"><div class="settings-section-title">ℹ️ About NEXUS</div></div>
+          <div class="settings-section-header"><div class="settings-section-title">ℹ️ About Social-Nexus</div></div>
           <div class="settings-row">
-            <div class="settings-row-info"><div class="settings-row-title">Version</div><div class="settings-row-desc">NEXUS — One-Stop Digital Marketing Platform</div></div>
+            <div class="settings-row-info"><div class="settings-row-title">Version</div><div class="settings-row-desc">Social-Nexus — One-Stop Digital Marketing Platform</div></div>
             <span class="badge badge-purple">v2.0.0</span>
           </div>
           <div class="settings-row">
             <div class="settings-row-info"><div class="settings-row-title">Platforms Supported</div><div class="settings-row-desc">LinkedIn · Facebook · Instagram · Pinterest · Twitter/X · YouTube · Google Business · TikTok</div></div>
           </div>
           <div class="settings-row">
-            <div class="settings-row-info"><div class="settings-row-title">AI Engines</div><div class="settings-row-desc">Google Gemini · Anthropic Claude · Stability AI · DALL-E 3 · Luma · Runway</div></div>
+            <div class="settings-row-info"><div class="settings-row-title">AI Engines</div><div class="settings-row-desc">Google Gemini · Anthropic Claude · Stability AI · OpenAI GPT Image · Luma · Runway</div></div>
           </div>
           <div class="settings-row">
             <div class="settings-row-info"><div class="settings-row-title">Tech Stack</div><div class="settings-row-desc">Node.js · Express · SQLite · Vanilla JS</div></div>
@@ -1093,7 +1231,7 @@
             <div class="card-body">
               <div class="form-group"><label class="form-label">Campaign Name</label><input type="text" class="form-input" id="camp-name" placeholder="e.g. July Newsletter" /></div>
               <div class="form-group"><label class="form-label">Subject Line</label><input type="text" class="form-input" id="camp-subject" placeholder="Your compelling subject line…" /></div>
-              <div class="form-group"><label class="form-label">Email Body (HTML)</label><textarea class="form-textarea" id="camp-body" placeholder="Paste HTML email content here, or use AI Generate to create it…" style="min-height:200px"></textarea></div>
+              <div class="form-group"><label class="form-label">Email message</label><textarea class="form-textarea" id="camp-body" placeholder="Write your email here, or use AI Generate to write it for you. (HTML is allowed.)" style="min-height:200px"></textarea></div>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-primary" onclick="saveCampaign()" id="btn-save-camp" style="flex:1">💾 Save Campaign</button>
                 <button class="btn btn-success" onclick="sendCampaign()" id="btn-send-camp" style="flex:1">📤 Send Now</button>
@@ -1677,7 +1815,7 @@
               <div id="new-invite-result" style="margin-top:12px;display:none"></div>
             </div>
           </div>
-          <div class="card"><div class="card-header"><div class="card-title">📋 Active Invite Codes</div><button class="btn btn-secondary btn-sm" onclick="loadInviteCodes()">🔄</button></div>
+          <div class="card"><div class="card-header"><div class="card-title">📋 Active Invite Codes</div><button class="btn btn-secondary btn-sm" onclick="loadInviteCodes()" aria-label="Refresh">🔄</button></div>
             <div class="card-body" style="padding:0;max-height:400px;overflow-y:auto" id="invite-codes-list">
               <div class="empty-state" style="padding:30px"><div class="empty-icon">🎟️</div><div class="empty-title">No codes yet</div></div>
             </div>
@@ -1701,7 +1839,7 @@
           <div class="settings-row">
             <div class="settings-row-info">
               <div class="settings-row-title">Registration Mode</div>
-              <div class="settings-row-desc">Control who can create new accounts on this NEXUS instance</div>
+              <div class="settings-row-desc">Control who can create new accounts on this Social-Nexus instance</div>
             </div>
             <select class="form-select" id="admin-reg-mode" style="width:200px">
               <option value="open">🌐 Open — Anyone can register</option>
@@ -1714,7 +1852,7 @@
               <div class="settings-row-title">App / Platform Name</div>
               <div class="settings-row-desc">Shown on login page and emails</div>
             </div>
-            <input type="text" class="form-input" id="admin-app-name" placeholder="NEXUS" style="width:200px" />
+            <input type="text" class="form-input" id="admin-app-name" placeholder="Social-Nexus" style="width:200px" />
           </div>
         </div>
         <button class="btn btn-primary" onclick="saveAdminConfig()" style="margin-top:8px">💾 Save Configuration</button>
@@ -1732,14 +1870,23 @@
         <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Default AI Model</div><div class="settings-row-desc">Select the default model for generating content.</div></div>
           <div style="min-width:300px">
             <select class="form-select" id="u-default-text-model" style="width:100%">
-              <option value="ollama">Ollama (Local Llama)</option>
-              <option value="gemini">Google Gemini 1.5 Flash</option>
-              <option value="claude">Anthropic Claude Opus</option>
+              <option value="ollama">🦙 Ollama (Local — Free, Private)</option>
+              <option value="gemini">🟣 Google Gemini Flash (Free tier)</option>
+              <option value="groq">⚡ Groq — Llama 3.3 70B (Free, Fastest)</option>
+              <option value="openrouter">🌐 OpenRouter — Llama 3.1 8B (Free)</option>
+              <option value="mistral">🌊 Mistral Small (Free tier)</option>
+              <option value="claude">🟠 Anthropic Claude 3.5 (Paid)</option>
             </select>
           </div>
         </div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Google Gemini API Key <span class="badge badge-green" style="font-size:10px">FREE TIER</span></div><div class="settings-row-desc">Get free key at <a href="https://aistudio.google.com" target="_blank" style="color:#60a5fa">aistudio.google.com</a></div></div>
+        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Google Gemini API Key <span class="badge badge-green" style="font-size:10px">FREE TIER</span></div><div class="settings-row-desc">Get free key at <a href="https://aistudio.google.com" target="_blank" style="color:#60a5fa">aistudio.google.com</a> — 1M tokens/month free</div></div>
           <div style="display:flex;gap:8px;min-width:300px"><input type="password" class="form-input" id="u-google-key" placeholder="AIza… or AQ.Ab8R…" style="flex:1"/><button class="btn btn-primary btn-sm" onclick="saveUserApiSettings()">Save</button></div></div>
+        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Groq API Key <span class="badge badge-green" style="font-size:10px">FREE — FASTEST</span></div><div class="settings-row-desc">Get free key at <a href="https://console.groq.com" target="_blank" style="color:#60a5fa">console.groq.com</a> — 14,400 req/day free · Llama 3.3 70B</div></div>
+          <div style="display:flex;gap:8px;min-width:300px"><input type="password" class="form-input" id="u-groq-key" placeholder="gsk_…" style="flex:1"/><button class="btn btn-primary btn-sm" onclick="saveUserApiSettings()">Save</button></div></div>
+        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">OpenRouter API Key <span class="badge badge-green" style="font-size:10px">FREE MODELS</span></div><div class="settings-row-desc">Get free key at <a href="https://openrouter.ai" target="_blank" style="color:#60a5fa">openrouter.ai</a> — access to 200+ free models</div></div>
+          <div style="display:flex;gap:8px;min-width:300px"><input type="password" class="form-input" id="u-openrouter-key" placeholder="sk-or-v1-…" style="flex:1"/></div></div>
+        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Mistral AI Key <span class="badge badge-green" style="font-size:10px">FREE TIER</span></div><div class="settings-row-desc">Get free key at <a href="https://console.mistral.ai" target="_blank" style="color:#60a5fa">console.mistral.ai</a> — free tier available</div></div>
+          <div style="display:flex;gap:8px;min-width:300px"><input type="password" class="form-input" id="u-mistral-key" placeholder="…" style="flex:1"/></div></div>
         <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Anthropic Claude Key <span class="badge badge-orange" style="font-size:10px">OPTIONAL</span></div><div class="settings-row-desc">Get at <a href="https://console.anthropic.com" target="_blank" style="color:#60a5fa">console.anthropic.com</a></div></div>
           <div style="display:flex;gap:8px;min-width:300px"><input type="password" class="form-input" id="u-anthropic-key" placeholder="sk-ant-…" style="flex:1"/></div></div>
       </div>
@@ -1747,7 +1894,7 @@
         <div class="settings-section-header"><div class="settings-section-title">🎨 Image Generation</div></div>
         <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Stability AI Key</div><div class="settings-row-desc"><a href="https://stability.ai" target="_blank" style="color:#60a5fa">stability.ai</a> — free credits on signup</div></div>
           <div style="min-width:300px"><input type="password" class="form-input" id="u-stability-key" placeholder="sk-…"/></div></div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">OpenAI Key (DALL-E)</div><div class="settings-row-desc"><a href="https://platform.openai.com" target="_blank" style="color:#60a5fa">platform.openai.com</a></div></div>
+        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">OpenAI Key (images)</div><div class="settings-row-desc"><a href="https://platform.openai.com" target="_blank" style="color:#60a5fa">platform.openai.com</a></div></div>
           <div style="min-width:300px"><input type="password" class="form-input" id="u-openai-key" placeholder="sk-proj-…"/></div></div>
       </div>
       <div class="settings-section">
@@ -1799,7 +1946,7 @@
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
       <div class="modal-title">👥 Add Client / Brand</div>
-      <button class="modal-close" onclick="closeAddClientModal()">✕</button>
+      <button class="modal-close" onclick="closeAddClientModal()" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
       <div class="form-group">
@@ -1807,7 +1954,7 @@
         <input type="text" class="form-input" id="client-name-input" placeholder="Starbucks Digital" oninput="autoGenerateClientSlug()" />
       </div>
       <div class="form-group">
-        <label class="form-label">Slug * (Unique URL suffix)</label>
+        <label class="form-label">Short name (optional — filled in automatically)</label>
         <input type="text" class="form-input" id="client-slug-input" placeholder="starbucks-digital" />
       </div>
       <div class="form-group">
@@ -1844,7 +1991,7 @@
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
       <div class="modal-title">💾 Save as Template</div>
-      <button class="modal-close" onclick="document.getElementById('save-template-modal').style.display='none'">✕</button>
+      <button class="modal-close" onclick="document.getElementById('save-template-modal').style.display='none'" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
       <div class="form-group"><label class="form-label">Template Name *</label><input type="text" class="form-input" id="tmpl-save-name" placeholder="e.g. Product Launch Post" /></div>
@@ -1869,7 +2016,7 @@
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
       <div class="modal-title">📁 Import from Local Files</div>
-      <button class="modal-close" onclick="closeFileBrowserModal()">✕</button>
+      <button class="modal-close" onclick="closeFileBrowserModal()" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
       <button class="btn btn-secondary" onclick="document.getElementById('computer-file-input').click()" style="width:100%;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px">
@@ -1887,41 +2034,6 @@
   </div>
 </div>
 
-<!-- ── Content Editor Modal ────────────────────────────────────────────────── -->
-<div class="modal-overlay" id="content-editor-modal" style="display:none" onclick="if(event.target===this)closeContentEditorModal()">
-  <div class="modal" onclick="event.stopPropagation()" style="max-width: 600px">
-    <div class="modal-header">
-      <div class="modal-title" id="content-editor-modal-title">✏️ Compose New Content</div>
-      <button class="modal-close" onclick="closeContentEditorModal()">✕</button>
-    </div>
-    <div class="modal-body" style="max-height: 70vh; overflow-y: auto">
-      <input type="hidden" id="edit-content-id" />
-      <div class="form-group">
-        <label class="form-label">Title (optional)</label>
-        <input type="text" class="form-input" id="edit-content-title" placeholder="e.g. June Product Update" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Body *</label>
-        <textarea class="form-textarea" id="edit-content-body" placeholder="Write your post content here…" style="min-height:120px"></textarea>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Image URL (optional)</label>
-        <input type="url" class="form-input" id="edit-content-image" placeholder="https://example.com/image.jpg" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Select Social Accounts *</label>
-        <div id="edit-content-accounts" style="display:flex;flex-direction:column;gap:8px;padding:8px 0">
-          <!-- Dynamically populated checkboxes for accounts -->
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeContentEditorModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveContentItem()" id="btn-save-content-item">Save Draft</button>
-    </div>
-  </div>
-</div>
-
 <!-- ── Slide-in Content Detail Panel ───────────────────────────────────────── -->
 <div class="detail-panel-backdrop" id="content-detail-backdrop" onclick="closeContentDetail()"></div>
 <div class="detail-panel" id="content-detail-panel">
@@ -1930,7 +2042,7 @@
       <span class="badge badge-purple" id="detail-status-badge">draft</span>
       <h3 style="font-size:15px;font-weight:700;margin:0" id="detail-title-label">Content Details</h3>
     </div>
-    <button class="modal-close" onclick="closeContentDetail()">✕</button>
+    <button class="modal-close" onclick="closeContentDetail()" aria-label="Close">✕</button>
   </div>
   
   <div class="detail-panel-body">
@@ -1950,23 +2062,6 @@
     
     <!-- Audit Logs -->
     <div class="audit-logs" id="detail-audit-logs"></div>
-    
-    <!-- AI Assist Sub-panel (if state allows edit) -->
-    <div class="ai-assist-panel" id="detail-ai-assist-panel" style="display:none">
-      <div class="ai-assist-title">
-        <span>✨ AI Assist</span>
-        <span class="badge badge-purple" id="detail-ai-model-badge" style="font-size:9.5px;margin-left:auto">ollama</span>
-      </div>
-      <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">Enhance this post's text. Changes will be saved to this draft.</div>
-      <div class="ai-assist-actions">
-        <button class="btn btn-secondary btn-sm" onclick="runAiAssistDetail('generate')" id="btn-ai-detail-gen">✨ Generate</button>
-        <button class="btn btn-secondary btn-sm" onclick="runAiAssistDetail('rewrite')" id="btn-ai-detail-rewrite">✍️ Rewrite</button>
-        <button class="btn btn-secondary btn-sm" onclick="runAiAssistDetail('shorten')" id="btn-ai-detail-shorten">✂️ Shorten</button>
-        <button class="btn btn-secondary btn-sm" onclick="runAiAssistDetail('hashtags')" id="btn-ai-detail-tags">#️⃣ Hashtags</button>
-        <button class="btn btn-secondary btn-sm" onclick="runAiAssistDetail('platform_variants')" id="btn-ai-detail-variants">📱 Variants</button>
-      </div>
-      <div id="detail-ai-feedback" style="margin-top:10px;font-size:12px;display:none;background:var(--glass);padding:8px;border-radius:6px;border:1px solid var(--border)"></div>
-    </div>
     
     <!-- Comments Section -->
     <div class="comments-section">
@@ -1989,6 +2084,145 @@
 <!-- ── Toast Container ───────────────────────────────────────────────────────── -->
 <div id="toast-container"></div>
 
+<!-- ── Onboarding Wizard ─────────────────────────────────────────────────────── -->
+<div id="onboarding-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:9999">
+  <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:20px;width:560px;max-width:96vw;overflow:hidden;box-shadow:var(--shadow-lg)">
+    <div style="background:var(--gradient-primary);padding:24px 28px;position:relative">
+      <div style="font-size:24px;font-weight:800;color:#fff;font-family:'Space Grotesk',sans-serif">Welcome to Social-Nexus 🚀</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.8);margin-top:4px">India's most powerful AI social media platform — let's get you started!</div>
+      <button onclick="closeOnboarding()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px" aria-label="Close">✕</button>
+    </div>
+
+    <!-- Step indicators -->
+    <div style="display:flex;gap:0;padding:20px 28px 0">
+      <div class="onboard-step active" data-step="1" style="flex:1;text-align:center;padding-bottom:12px;border-bottom:2px solid var(--accent-purple);cursor:pointer;font-size:12px;font-weight:600;color:var(--accent-purple)" onclick="goOnboardStep(1)">1 Connect</div>
+      <div class="onboard-step" data-step="2" style="flex:1;text-align:center;padding-bottom:12px;border-bottom:2px solid var(--border);cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted)" onclick="goOnboardStep(2)">2 Setup AI</div>
+      <div class="onboard-step" data-step="3" style="flex:1;text-align:center;padding-bottom:12px;border-bottom:2px solid var(--border);cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted)" onclick="goOnboardStep(3)">3 Generate</div>
+      <div class="onboard-step" data-step="4" style="flex:1;text-align:center;padding-bottom:12px;border-bottom:2px solid var(--border);cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted)" onclick="goOnboardStep(4)">4 Publish</div>
+    </div>
+
+    <div style="padding:28px">
+      <!-- Step 1: Connect Platform -->
+      <div id="onboard-panel-1" class="onboard-panel">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:48px;margin-bottom:12px">🔗</div>
+          <div style="font-size:18px;font-weight:700;color:var(--text-primary)">Connect a Social Platform</div>
+          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px">Link at least one platform to start posting</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+          <button onclick="closeOnboarding();openPlatformSettings()" style="padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--glass);cursor:pointer;color:var(--text-primary);display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600">📘 Facebook + Instagram</button>
+          <button onclick="closeOnboarding();openPlatformSettings()" style="padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--glass);cursor:pointer;color:var(--text-primary);display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600">🔵 LinkedIn</button>
+          <button onclick="closeOnboarding();openPlatformSettings()" style="padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--glass);cursor:pointer;color:var(--text-primary);display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600">🐦 Twitter / X</button>
+          <button onclick="closeOnboarding();openPlatformSettings()" style="padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--glass);cursor:pointer;color:var(--text-primary);display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600">📌 Pinterest</button>
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="closeOnboarding();openPlatformSettings()">Go to Settings → Connect Platforms</button>
+        <div style="text-align:center;margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="goOnboardStep(2)">Skip →</button></div>
+      </div>
+
+      <!-- Step 2: Setup AI -->
+      <div id="onboard-panel-2" class="onboard-panel" style="display:none">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:48px;margin-bottom:12px">🤖</div>
+          <div style="font-size:18px;font-weight:700;color:var(--text-primary)">Set Up Your AI</div>
+          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px">All options below are free — choose what works for you</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+          <div style="padding:14px 16px;border:1px solid rgba(16,185,129,0.4);border-radius:10px;background:rgba(16,185,129,0.06)">
+            <div style="font-size:13px;font-weight:700;color:#10b981">🦙 Ollama — 100% Free & Private (Recommended)</div>
+            <div id="onboard-ollama-status" style="font-size:12px;color:var(--text-secondary);margin-top:4px">Download from <a href="https://ollama.com" target="_blank" style="color:#60a5fa">ollama.com</a> → runs on your computer</div>
+          </div>
+          <div style="padding:14px 16px;border:1px solid rgba(124,58,237,0.3);border-radius:10px;background:rgba(124,58,237,0.06)">
+            <div style="font-size:13px;font-weight:700;color:#a78bfa">⚡ Groq — Fastest Free Cloud AI</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Free key at <a href="https://console.groq.com" target="_blank" style="color:#60a5fa">console.groq.com</a> → 14,400 requests/day free</div>
+          </div>
+          <div style="padding:14px 16px;border:1px solid rgba(59,130,246,0.3);border-radius:10px;background:rgba(59,130,246,0.06)">
+            <div style="font-size:13px;font-weight:700;color:#60a5fa">🟣 Google Gemini — 1M Tokens/Month Free</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Free key at <a href="https://aistudio.google.com" target="_blank" style="color:#60a5fa">aistudio.google.com</a></div>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="width:100%" id="onboard-ai-btn" onclick="closeOnboarding();navigateTo('user-settings')">Add API Keys →</button>
+        <div style="text-align:center;margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="goOnboardStep(3)">Skip →</button></div>
+      </div>
+
+      <!-- Step 3: Generate -->
+      <div id="onboard-panel-3" class="onboard-panel" style="display:none">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:48px;margin-bottom:12px">✨</div>
+          <div style="font-size:18px;font-weight:700;color:var(--text-primary)">Generate Your First Post</div>
+          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px">Tell Social-Nexus what to write — it creates posts for every platform</div>
+        </div>
+        <div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:20px">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Try prompts like:</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:13px;padding:8px 12px;background:rgba(124,58,237,0.1);border-radius:6px;cursor:pointer" onclick="closeOnboarding();navigateTo('generate');document.getElementById('gen-prompt').value='Announce our new product launch with excitement'">"Announce our new product launch"</div>
+            <div style="font-size:13px;padding:8px 12px;background:rgba(124,58,237,0.1);border-radius:6px;cursor:pointer" onclick="closeOnboarding();navigateTo('generate');document.getElementById('gen-prompt').value='Share a Diwali greeting for our business'">"Share a Diwali greeting for our business" 🪔</div>
+            <div style="font-size:13px;padding:8px 12px;background:rgba(124,58,237,0.1);border-radius:6px;cursor:pointer" onclick="closeOnboarding();navigateTo('generate');document.getElementById('gen-prompt').value='Why customers love our service - write 5 tips'">"5 reasons customers love our service"</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="closeOnboarding();navigateTo('generate')">✨ Open AI Generator</button>
+        <div style="text-align:center;margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="goOnboardStep(4)">Skip →</button></div>
+      </div>
+
+      <!-- Step 4: Schedule -->
+      <div id="onboard-panel-4" class="onboard-panel" style="display:none">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:48px;margin-bottom:12px">📅</div>
+          <div style="font-size:18px;font-weight:700;color:var(--text-primary)">Schedule & Publish</div>
+          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px">Post now or schedule for the perfect time</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+          <div style="padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--glass);text-align:center">
+            <div style="font-size:24px;margin-bottom:8px">⚡</div>
+            <div style="font-size:13px;font-weight:600">Post Now</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Publish instantly to all connected platforms</div>
+          </div>
+          <div style="padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--glass);text-align:center">
+            <div style="font-size:24px;margin-bottom:8px">⏰</div>
+            <div style="font-size:13px;font-weight:600">Schedule</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Pick a date & time, Social-Nexus posts automatically</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="closeOnboarding();navigateTo('compose')">✏️ Open Compose Page</button>
+        <div style="text-align:center;margin-top:16px">
+          <button class="btn btn-success" onclick="closeOnboarding()">🎉 You're all set — Start using Social-Nexus!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit & Repost Modal ────────────────────────────────────────────────────── -->
+<div id="repost-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:9998;display:none;align-items:center;justify-content:center">
+  <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:16px;width:600px;max-width:95vw;overflow:hidden;box-shadow:var(--shadow-lg)">
+    <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:16px;font-weight:700">✏️ Edit & Repost</div>
+      <button onclick="closeRepostModal()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer" aria-label="Close">✕</button>
+    </div>
+    <div style="padding:24px">
+      <div class="form-group">
+        <label class="form-label">Edit Content</label>
+        <textarea class="form-textarea" id="repost-content" style="min-height:140px"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Platforms</label>
+        <div class="platform-selector" id="repost-platforms">
+          <label class="platform-toggle linkedin" data-platform="linkedin">🔵 LinkedIn</label>
+          <label class="platform-toggle facebook" data-platform="facebook">📘 Facebook</label>
+          <label class="platform-toggle instagram" data-platform="instagram">📸 Instagram</label>
+          <label class="platform-toggle twitter" data-platform="twitter">🐦 Twitter/X</label>
+          <label class="platform-toggle whatsapp" data-platform="whatsapp" style="background:rgba(37,211,102,0.12);border-color:rgba(37,211,102,0.3);color:#25d366">💬 WhatsApp</label>
+        </div>
+      </div>
+    </div>
+    <div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="shareViaWhatsApp(document.getElementById('repost-content').value)">💬 Share on WhatsApp</button>
+      <button class="btn btn-secondary" onclick="sendRepostToCompose()">✏️ Edit in Compose</button>
+      <button class="btn btn-primary" onclick="publishRepost()">📤 Post Now</button>
+    </div>
+  </div>
+</div>
+
 <script src="app.js"></script>
+
 </body>
 </html>

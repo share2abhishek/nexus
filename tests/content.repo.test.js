@@ -128,6 +128,17 @@ describe('contentRepo.transition', () => {
 
   afterAll(async () => { await knex.destroy(); });
 
+  test('failed -> scheduled (Retry) re-queues the item and clears the error', async () => {
+    const id = await contentRepo.create(workspaceId, 1, { body: 'Missed post' });
+    await knex('content_items').where({ id }).update({ status: 'failed', error_message: 'Missed: it was due earlier' });
+    const at = Math.floor(Date.now() / 1000) + 60;
+    const result = await contentRepo.transition(workspaceId, id, { toStatus: 'scheduled', userId: 1, fields: { scheduled_at: at } });
+    expect(result.ok).toBe(true);
+    expect(result.item.status).toBe('scheduled');
+    expect(result.item.scheduled_at).toBe(at);
+    expect(result.item.error_message).toBeNull();
+  });
+
   test('draft -> in_review is valid and clears reviewed_by', async () => {
     const id = await contentRepo.create(workspaceId, 1, { body: 'Submit me', platforms: [] });
     const result = await contentRepo.transition(workspaceId, id, { toStatus: 'in_review', userId: 1 });

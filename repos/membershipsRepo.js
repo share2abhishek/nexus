@@ -16,8 +16,12 @@ module.exports = (knex) => ({
       .where('m.user_id', userId)
       .select('w.id as workspace_id', 'w.name as workspace_name', 'w.name', 'w.slug', 'w.org_id', 'm.role', 'm.status');
   },
+  // Include the person's name and email so the UI can show who they are
   listMembers(workspaceId) {
-    return knex('memberships').where({ workspace_id: workspaceId });
+    return knex('memberships as m')
+      .leftJoin('users as u', 'u.id', 'm.user_id')
+      .where({ 'm.workspace_id': workspaceId })
+      .select('m.*', 'u.email', 'u.name');
   },
   remove(userId, workspaceId) {
     return knex('memberships').where({ user_id: userId, workspace_id: workspaceId }).del();

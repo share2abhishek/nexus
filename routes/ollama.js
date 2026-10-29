@@ -1,5 +1,5 @@
 /**
- * NEXUS — Ollama Guided Setup routes (public, no auth)
+ * Social-Nexus — Ollama Guided Setup routes (public, no auth)
  *
  * Powers the first-run setup wizard: live status detection, hardware-based
  * model recommendation, and a streamed model download that flips Ollama on as
@@ -19,7 +19,13 @@ const DOWNLOAD_URL = 'https://ollama.com/download';
 
 // ── .env writer (writable copy; mirrors routes/config.js behaviour) ───────────
 
+// Model names look like "llama3.2", "llama3.1:8b", "hf.co/org/model:Q4" — nothing else
+const MODEL_RE = /^[\w.:\/-]{1,100}$/;
+
 function setEnvValues(updates) {
+  for (const [k, v] of Object.entries(updates)) {
+    if (/[\r\n]/.test(String(v)) || !/^[A-Z0-9_]+$/.test(k)) throw new Error('Invalid setting value');
+  }
   let lines = [];
   try { lines = fs.readFileSync(ENV_PATH, 'utf8').split(/\r?\n/); } catch { lines = []; }
   for (const [key, value] of Object.entries(updates)) {
@@ -88,6 +94,7 @@ router.get('/status', async (req, res) => {
 router.post('/select', async (req, res) => {
   const model = (req.body && req.body.model) || process.env.OLLAMA_MODEL;
   if (!model) return res.status(400).json({ error: 'No model specified' });
+  if (!MODEL_RE.test(model)) return res.status(400).json({ error: 'That does not look like an Ollama model name.' });
   setEnvValues({ OLLAMA_ENABLED: 'true', OLLAMA_MODEL: model });
   res.json({ ok: true, model, enabled: true });
 });
@@ -96,6 +103,7 @@ router.post('/select', async (req, res) => {
 
 router.post('/pull', async (req, res) => {
   const model = (req.body && req.body.model) || recommendModel().model;
+  if (!MODEL_RE.test(model)) return res.status(400).json({ error: 'That does not look like an Ollama model name.' });
 
   res.set({
     'Content-Type':  'text/event-stream',

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NEXUS — Sign In</title>
+  <title>Social-Nexus — Sign In</title>
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="stylesheet" href="styles.css" />
@@ -164,8 +164,8 @@
 <div class="auth-container">
   <!-- Logo -->
   <div class="auth-logo">
-    <img src="icon.svg" alt="NEXUS" />
-    <div class="auth-logo-title">NEXUS</div>
+    <img src="icon.svg" alt="Social-Nexus" />
+    <div class="auth-logo-title">Social-Nexus</div>
     <div class="auth-logo-sub">AI Digital Marketing Platform</div>
   </div>
 
@@ -264,11 +264,11 @@
     </div>
 
     <div class="auth-footer">
-      NEXUS v2.0 · Your data stays on your machine · 100% private
+      Social-Nexus by Radixile Technology Solutions · Your data stays on your machine
       <br style="margin-bottom:6px">
       <a href="/help.html" target="_blank" style="color:#60a5fa;text-decoration:none;font-size:12px">📖 Documentation & Help</a>
       &nbsp;·&nbsp;
-      <a href="/landing.html" style="color:#60a5fa;text-decoration:none;font-size:12px">🏠 About NEXUS</a>
+      <a href="/landing.html" style="color:#60a5fa;text-decoration:none;font-size:12px">🏠 About Social-Nexus</a>
     </div>
   </div>
 </div>
@@ -279,7 +279,7 @@
     fetch('/users/me').then(r => r.json()),
     fetch('/users/registration-info').then(r => r.json()),
   ]).then(([me, regInfo]) => {
-    if (me.authenticated) { window.location.href = '/'; return; }
+    if (me.authenticated) { window.location.href = safeNext(); return; }
 
     // Show first-user message
     if (regInfo.is_first_user) {
@@ -334,9 +334,16 @@
       const data = await r.json();
       if (!r.ok) return showError('login-error', data.error);
       showSuccess('login-success', `Welcome back, ${data.user.name}!`);
-      setTimeout(() => window.location.href = '/', 600);
+      setTimeout(() => window.location.href = safeNext(), 600);
     } catch { showError('login-error', 'Connection error — is the server running?'); }
     finally { btn.disabled = false; btn.textContent = 'Sign In →'; }
+  }
+
+  // After signing in, go back to where the user came from (e.g. an invite link).
+  // Only same-app paths are allowed, never another website.
+  function safeNext() {
+    const next = new URLSearchParams(location.search).get('next') || '/';
+    return /^\/(?!\/)[\w\-./?=&%]*$/.test(next) ? next : '/';
   }
 
   async function doRegister() {
@@ -353,7 +360,7 @@
       const data = await r.json();
       if (!r.ok) { showError('reg-error', data.error); if (data.needs_invite) document.getElementById('invite-code-row').style.display = 'block'; return; }
       showSuccess('reg-success', `Account created! ${data.user.role === 'admin' ? '👑 You are the Super Admin!' : 'Redirecting…'}`);
-      setTimeout(() => window.location.href = '/', 800);
+      setTimeout(() => window.location.href = safeNext(), 800);
     } catch { showError('reg-error', 'Connection error'); }
     finally { btn.disabled = false; btn.textContent = 'Create Account →'; }
   }

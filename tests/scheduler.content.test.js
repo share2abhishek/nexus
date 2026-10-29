@@ -53,6 +53,50 @@ describe('scheduler — processDueContent', () => {
     expect(postToPlatform).toHaveBeenCalledWith('linkedin', expect.objectContaining({ access_token: 'token' }), 'Go live', null);
   });
 
+  test('does not post an item that is more than 6 hours overdue (marks it missed)', async () => {
+    const accountId = await makeAccount('linkedin');
+    const id = await contentRepo.create(workspaceId, 1, { body: 'Happy Diwali', platforms: ['linkedin'], social_account_ids: [accountId] });
+    await knex('content_items').where({ id }).update({ status: 'scheduled', scheduled_at: Math.floor(Date.now() / 1000) - 3 * 86400 });
+
+    await processDueContent(knex, contentRepo);
+
+    const item = await contentRepo.getById(workspaceId, id);
+    expect(item.status).toBe('failed');
+    expect(item.error_message).toMatch(/^Missed/);
+    expect(postToPlatform).not.toHaveBeenCalled();
+  });
+
+  test('a post scheduled from Compose (platform only) publishes via the connected account, shows on the calendar and in history', async () => {
+    await makeAccount('linkedin');
+    const scheduledRepo = require('../repos/scheduledRepo')(knex);
+    const now = Math.floor(Date.now() / 1000);
+    const id = await scheduledRepo.save(workspaceId, 1, { content: 'From Compose', platforms: ['linkedin'], scheduled_at: now + 3600 });
+
+    // same data as the calendar
+    const onCalendar = await contentRepo.list(workspaceId, { from: now, to: now + 7200 });
+    expect(onCalendar.map(i => i.id)).toContain(id);
+    expect((await scheduledRepo.listPending(workspaceId))[0]).toMatchObject({ id, content: 'From Compose', status: 'pending' });
+
+    await knex('content_items').where({ id }).update({ scheduled_at: now - 5 });
+    postToPlatform.mockResolvedValue({ success: true });
+    await processDueContent(knex, contentRepo);
+
+    expect((await contentRepo.getById(workspaceId, id)).status).toBe('published');
+    expect(postToPlatform).toHaveBeenCalledWith('linkedin', expect.objectContaining({ access_token: 'token' }), 'From Compose', null);
+    const history = await knex('posts').where({ workspace_id: workspaceId, content: 'From Compose' });
+    expect(history).toHaveLength(1);
+  });
+
+  test('a platform that is not connected gives a clear message', async () => {
+    const scheduledRepo = require('../repos/scheduledRepo')(knex);
+    const id = await scheduledRepo.save(workspaceId, 1, { content: 'No account', platforms: ['pinterest'], scheduled_at: Math.floor(Date.now() / 1000) - 5 });
+    await processDueContent(knex, contentRepo);
+    const item = await contentRepo.getById(workspaceId, id);
+    expect(item.status).toBe('failed');
+    expect(item.error_message).toMatch(/pinterest isn't connected/);
+    expect((await scheduledRepo.listRecentFailed(workspaceId))[0]).toMatchObject({ id, status: 'failed' });
+  });
+
   test('marks an item failed when every platform fails', async () => {
     const accountId = await makeAccount('twitter');
     const id = await contentRepo.create(workspaceId, 1, { body: 'Will not post', platforms: ['twitter'], social_account_ids: [accountId] });
@@ -89,7 +133,7 @@ describe('scheduler — processDueContent', () => {
 
     const item = await contentRepo.getById(workspaceId, id);
     expect(item.status).toBe('failed');
-    expect(item.error_message).toEqual(expect.stringContaining('Account not found'));
+    expect(item.error_message).toMatch(/isn't connected|disconnected/);
     expect(postToPlatform).not.toHaveBeenCalled();
   });
 

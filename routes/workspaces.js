@@ -60,6 +60,13 @@ module.exports = (knex) => {
       if (!(await isOrgOwnerOrAdmin(req.session.userId, orgId))) {
         return res.status(403).json({ error: 'Forbidden' });
       }
+      // Edition limit on brand/client workspaces
+      const { withinLimit, limitMessage } = require('../middleware/license');
+      // Counted for the whole installation: one licence covers this PC
+      const [{ c }] = await knex('workspaces').count('id as c');
+      if (!withinLimit('workspaces', parseInt(c, 10))) {
+        return res.status(402).json({ error: limitMessage('workspaces'), code: 'LICENSE_LIMIT' });
+      }
       const w = await ws.create({ orgId, name, slug });
       await members.add({ userId: req.session.userId, workspaceId: w.id, role: 'manager' });
       res.status(201).json(w);

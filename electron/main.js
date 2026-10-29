@@ -1,5 +1,5 @@
 /**
- * NEXUS — Electron Main Process
+ * Social-Nexus — Electron Main Process
  * Company: Radixile Technology Solutions LLP (India)
  *
  * Bundles Node.js, manages the Express server as a child process,
@@ -20,7 +20,8 @@ const os     = require('os');
 // ── Company & App Info ────────────────────────────────────────────────────────
 
 const COMPANY   = 'Radixile Technology Solutions LLP';
-const APP_NAME  = 'NEXUS';
+const APP_NAME  = 'Social-Nexus';
+const APP_FULL  = 'Social-Nexus by Radixile Technology Solutions';
 const APP_VER   = app.getVersion();
 const PORT      = parseInt(process.env.PORT || '3000');
 const APP_URL   = `http://localhost:${PORT}`;
@@ -30,7 +31,7 @@ const IS_DEV    = process.env.NODE_ENV === 'development';
 let APP_ROOT, BUNDLED_NODE, ICON_PATH;
 
 function resolvePaths() {
-  const exeDir = path.dirname(app.getPath('exe')); // e.g. D:\Radixile\social\NEXUS
+  const exeDir = path.dirname(app.getPath('exe')); // e.g. D:\Radixile\social\Social-Nexus
 
   if (IS_DEV) {
     APP_ROOT     = path.join(__dirname, '..');
@@ -59,7 +60,69 @@ function resolvePaths() {
   console.log('[Paths] ICON_PATH:    ', ICON_PATH);
 }
 
-const DATA_DIR  = path.join(app.getPath('userData'));
+// Data lives in %APPDATA%\Social-Nexus. Set explicitly so it never depends on the
+// package name, and carry over data from the old "NEXUS" folder on first start.
+app.setName(APP_NAME);
+app.setPath('userData', path.join(app.getPath('appData'), APP_NAME));
+const DATA_DIR  = app.getPath('userData');
+const LEGACY_DIR = path.join(app.getPath('appData'), 'NEXUS');
+
+// Runs once, after the single-instance lock (so two quick launches can't both copy).
+// Copies the old NEXUS data, repoints absolute paths in .env, then renames the old
+// folder so its plain-text secrets aren't left in a "live" location. Returns the
+// backup folder path when a migration happened (the user is offered to delete it).
+function migrateLegacyDataDir() {
+  try {
+    if (!fs.existsSync(LEGACY_DIR)) return null;
+    if (fs.existsSync(path.join(DATA_DIR, 'nexus.db'))) return null; // already migrated / new data
+    // The old app may still be running (WAL touched in the last 10 s) — try next start
+    const wal = path.join(LEGACY_DIR, 'nexus.db-wal');
+    if (fs.existsSync(wal) && Date.now() - fs.statSync(wal).mtimeMs < 10000) return null;
+
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.cpSync(LEGACY_DIR, DATA_DIR, { recursive: true, errorOnExist: false, force: false });
+
+    // .env holds absolute paths (e.g. CONTENT_FOLDER) that still point at the old folder
+    const envFile = path.join(DATA_DIR, '.env');
+    if (fs.existsSync(envFile)) {
+      const legacyFwd = LEGACY_DIR.split(path.sep).join('/');
+      const newFwd = DATA_DIR.split(path.sep).join('/');
+      const text = fs.readFileSync(envFile, 'utf8')
+        .split(LEGACY_DIR).join(DATA_DIR)
+        .split(legacyFwd).join(newFwd);
+      fs.writeFileSync(envFile, text, 'utf8');
+    }
+
+    fs.writeFileSync(path.join(DATA_DIR, '.migrated_from_nexus'), new Date().toISOString());
+    const backup = `${LEGACY_DIR}.migrated-${new Date().toISOString().slice(0, 10)}`;
+    fs.renameSync(LEGACY_DIR, backup);
+    console.log('[Data] Moved NEXUS data to', DATA_DIR, '— old copy kept at', backup);
+    return backup;
+  } catch (err) {
+    console.error('[Data] Could not migrate old NEXUS data:', err.message);
+    return null;
+  }
+}
+
+// Offer to delete the old copy (it contains the same posts, keys and logins)
+function offerLegacyBackupDeletion(backup) {
+  if (!backup || !fs.existsSync(backup)) return;
+  const choice = dialog.showMessageBoxSync({
+    type: 'question',
+    title: `${APP_NAME} — Data moved`,
+    message: 'Your NEXUS data was moved to Social-Nexus.',
+    detail: `An old copy is still at:
+${backup}
+
+It contains your posts, API keys and social logins. Delete it now? (Recommended once you have checked everything works.)`,
+    buttons: ['Delete old copy', 'Keep for now'],
+    defaultId: 1,
+    cancelId: 1,
+  });
+  if (choice === 0) {
+    try { fs.rmSync(backup, { recursive: true, force: true }); } catch (err) { console.error('[Data] Could not delete', backup, err.message); }
+  }
+}
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -111,16 +174,14 @@ function checkWindowsCompatibility() {
     issues.push(`Low available memory (${freeRamGB.toFixed(1)} GB free).\nNEXUS may run slowly. Close other applications for better performance.`);
   }
 
-  // Disk space check — warn if less than 500MB free on system drive
+  // Disk space check — warn if less than 500MB free where the data lives
+  // (wmic is removed from recent Windows 11 builds; statfs is instant)
   try {
-    const { execSync } = require('child_process');
-    const diskInfo = execSync('wmic logicaldisk where "DeviceID=\'C:\'" get FreeSpace /value', { timeout: 3000 }).toString();
-    const match    = diskInfo.match(/FreeSpace=(\d+)/);
-    if (match) {
-      const freeGB = parseInt(match[1]) / (1024 ** 3);
-      if (freeGB < 0.5) {
-        issues.push(`Low disk space on C: drive (${freeGB.toFixed(1)} GB free).\nNEXUS needs at least 500MB to operate.`);
-      }
+    const st = fs.statfsSync(app.getPath('appData'));
+    const freeGB = (st.bavail * st.bsize) / (1024 ** 3);
+    if (freeGB < 0.5) {
+      issues.push(`Low disk space (${freeGB.toFixed(1)} GB free).
+Social-Nexus needs at least 500MB to operate.`);
     }
   } catch {}
 
@@ -133,6 +194,11 @@ function findNodeExe() {
   // 1. Bundled node.exe (highest priority — fully self-contained)
   try { if (BUNDLED_NODE && fs.existsSync(BUNDLED_NODE)) return BUNDLED_NODE; } catch {}
   console.warn('[Node] Bundled node.exe not found at:', BUNDLED_NODE);
+
+  // Installed app: only the bundled runtime. A system Node of another version can't
+  // load the native database modules, and swapping the runtime would bypass the
+  // app's integrity checks. The searches below are for development only.
+  if (app.isPackaged) return null;
 
   // 2. System PATH
   try {
@@ -195,11 +261,39 @@ function prepareDataDir() {
 
 // ── Start Express Server ──────────────────────────────────────────────────────
 
+// Server output goes to DATA_DIR\logs\server.log (rotated at 2 MB, 3 files kept)
+// so support can see what happened. Logs stay on this PC.
+const LOG_DIR = path.join(DATA_DIR, 'logs');
+let logStream = null;
+function serverLog(line) {
+  try {
+    if (!logStream) {
+      fs.mkdirSync(LOG_DIR, { recursive: true });
+      const file = path.join(LOG_DIR, 'server.log');
+      if (fs.existsSync(file) && fs.statSync(file).size > 2 * 1024 * 1024) {
+        for (let i = 2; i >= 1; i--) {
+          const from = path.join(LOG_DIR, i === 1 ? 'server.log' : `server.${i - 1}.log`);
+          if (fs.existsSync(from)) fs.renameSync(from, path.join(LOG_DIR, `server.${i}.log`));
+        }
+      }
+      logStream = fs.createWriteStream(file, { flags: 'a' });
+    }
+    logStream.write(`${new Date().toISOString()} ${line}
+`);
+  } catch {}
+}
+
+let serverStartArgs = null;
+let serverRestarts = 0;
+let serverReady = false;
+let serverExited = false;
+const lastServerErr = []; // last few error lines, shown if startup fails
+
 function startServer(nodeExe, envFile) {
+  serverStartArgs = { nodeExe, envFile };
   const serverFile = path.join(APP_ROOT, 'server', 'index.js');
 
-  const env = {
-    ...process.env,
+  const ownEnv = {
     PORT:               String(PORT),
     NEXUS_DATA_DIR:     DATA_DIR,
     DOTENV_CONFIG_PATH: envFile,
@@ -208,37 +302,84 @@ function startServer(nodeExe, envFile) {
     // Disable auto-open browser (Electron manages the window)
     NEXUS_NO_BROWSER:   'true',
   };
+  const env = { ...process.env, ...ownEnv };
+  // Packaged server: pass on only the variables Windows and networking need.
+  // Others (NODE_OPTIONS, NODE_PATH, OPENSSL_CONF, UV_*, LICENSE_*…) could load
+  // code into the server or change licensing, so they are dropped.
+  if (app.isPackaged) {
+    const KEEP = /^(SYSTEMROOT|WINDIR|SYSTEMDRIVE|TEMP|TMP|USERPROFILE|USERNAME|USERDOMAIN|COMPUTERNAME|APPDATA|LOCALAPPDATA|PROGRAMDATA|HOMEDRIVE|HOMEPATH|PATHEXT|COMSPEC|NUMBER_OF_PROCESSORS|PROCESSOR_ARCHITECTURE|OS|LANG|TZ|HTTPS?_PROXY|NO_PROXY)$/i;
+    for (const k of Object.keys(env)) if (!KEEP.test(k) && !(k in ownEnv)) delete env[k];
+    env.PATH = [path.join(env.SystemRoot || env.SYSTEMROOT || 'C:\\Windows', 'System32'), env.SystemRoot || env.SYSTEMROOT || 'C:\\Windows'].join(';');
+  }
 
   serverProc = cp.spawn(nodeExe, [serverFile], {
     cwd:   APP_ROOT,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
   });
 
   serverProc.stdout?.on('data', d => {
     const msg = d.toString().trim();
-    if (msg) console.log('[Server]', msg);
+    if (msg) { console.log('[Server]', msg); serverLog(msg); }
   });
 
   serverProc.stderr?.on('data', d => {
     const msg = d.toString().trim();
-    if (msg) console.error('[Server ERR]', msg);
+    if (msg) {
+      console.error('[Server ERR]', msg); serverLog(`ERR ${msg}`);
+      lastServerErr.push(...msg.split(/\r?\n/));
+      lastServerErr.splice(0, Math.max(0, lastServerErr.length - 8));
+    }
   });
 
   serverProc.on('error', err => {
+    serverLog(`SPAWN ERROR ${err.message}`);
     showError(
       `${APP_NAME} — Server Error`,
-      `The server process failed to start.\n\nError: ${err.message}\n\n` +
+      `The server process failed to start.
+
+Error: ${err.message}
+
+` +
       (err.code === 'ENOENT'
-        ? `Node.js not found at: ${nodeExe}\n\nPlease reinstall ${APP_NAME}.`
+        ? `The app's runtime is missing: ${nodeExe}
+
+Please reinstall ${APP_NAME}.`
         : `Please contact support at: support@radixile.com`)
     );
   });
 
-  serverProc.on('exit', (code, signal) => {
-    if (!app.isQuiting && code !== 0 && code !== null) {
-      console.error(`[Electron] Server exited unexpectedly (code ${code})`);
+  serverExited = false;
+  serverProc.on('exit', (code) => {
+    serverLog(`EXIT code=${code}`);
+    serverExited = true;
+    // Failing during startup is reported by the startup code with the real error
+    if (!serverReady) return;
+    if (app.isQuiting || code === 0 || code === null) return;
+    console.error(`[Electron] Server exited unexpectedly (code ${code})`);
+    // Restart once automatically; after that, tell the user and point to the log
+    if (serverRestarts < 1) {
+      serverRestarts++;
+      setTimeout(() => {
+        startServer(serverStartArgs.nodeExe, serverStartArgs.envFile);
+        waitForServer(40000).then(() => mainWindow?.loadURL(APP_URL)).catch(() => {});
+      }, 1500);
+      return;
     }
+    const choice = dialog.showMessageBoxSync({
+      type: 'error',
+      title: `${APP_NAME} stopped`,
+      message: `${APP_NAME} stopped working unexpectedly.`,
+      detail: `You can restart it, or send the log file to support@radixile.com.
+
+Log folder: ${LOG_DIR}`,
+      buttons: ['Restart', 'Open log folder', 'Quit'],
+      defaultId: 0,
+    });
+    if (choice === 0) { app.relaunch(); app.isQuiting = true; app.quit(); }
+    else if (choice === 1) { shell.openPath(LOG_DIR); }
+    else { app.isQuiting = true; app.quit(); }
   });
 }
 
@@ -248,8 +389,17 @@ function waitForServer(timeoutMs = 35000) {
   return new Promise((resolve, reject) => {
     const deadline = Date.now() + timeoutMs;
     const attempt = () => {
+      if (serverExited && !serverReady) return reject(new Error('The server stopped while starting'));
       if (Date.now() > deadline) return reject(new Error(`Server did not start within ${timeoutMs / 1000}s`));
-      const req = http.get(APP_URL, res => { res.destroy(); resolve(); });
+      // Only accept OUR server — another program may be using the same port
+      const req = http.get(`${APP_URL}/__health`, res => {
+        let body = '';
+        res.on('data', c => { body += c; });
+        res.on('end', () => {
+          try { if (JSON.parse(body).app === 'social-nexus') return resolve(); } catch {}
+          reject(new Error(`Another program is using port ${PORT}`));
+        });
+      });
       req.setTimeout(800, () => req.destroy());
       req.on('error', () => setTimeout(attempt, 600));
     };
@@ -288,7 +438,7 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1400, height: 920, minWidth: 960, minHeight: 640,
     show: false,
-    title: `${APP_NAME} — AI Digital Marketing`,
+    title: APP_FULL,
     icon: fs.existsSync(ICON_PATH) ? ICON_PATH : undefined,
     backgroundColor: '#080c14',
     webPreferences: {
@@ -314,13 +464,39 @@ function createMainWindow() {
       mainWindow.hide();
       showTrayNotification(
         `${APP_NAME} is running`,
-        'NEXUS is minimized to the system tray. Right-click the icon to quit.',
+        'Social-Nexus is minimized to the system tray. Right-click the icon to quit.',
       );
     }
   });
 
+  // The page asks to stay open when Create Post has unsaved changes:
+  // let the person choose (without this, quitting would silently do nothing)
+  mainWindow.webContents.on('will-prevent-unload', e => {
+    const choice = dialog.showMessageBoxSync(mainWindow, {
+      type: 'question',
+      buttons: ['Leave and lose changes', 'Stay'],
+      defaultId: 1, cancelId: 1,
+      title: APP_NAME,
+      message: 'Create Post has changes you haven’t saved.',
+      detail: 'Leave anyway? Your unsaved changes will be lost.',
+    });
+    if (choice === 0) e.preventDefault(); // go ahead and leave
+    else app.isQuiting = false;           // stay: closing again just hides to the tray
+  });
+
   // Open all external links in the system browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Help & User Guide opens in its own window, next to the app
+    if (url.startsWith(`${APP_URL}/help.html`)) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 1100, height: 820, minWidth: 420, autoHideMenuBar: true,
+          title: 'Social-Nexus Help',
+          webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true },
+        },
+      };
+    }
     if (!url.startsWith(APP_URL)) {
       shell.openExternal(url).catch(() => {});
     }
@@ -360,7 +536,7 @@ function createTray() {
     { label: `v${APP_VER} · ${COMPANY}`,     enabled: false },
     { type: 'separator' },
     {
-      label: '🚪  Quit NEXUS',
+      label: '🚪  Quit Social-Nexus',
       click: () => {
         app.isQuiting = true;
         serverProc?.kill('SIGTERM');
@@ -420,6 +596,9 @@ app.whenReady().then(async () => {
   // Resolve all paths now that app is ready
   resolvePaths();
 
+  // One-time move of old NEXUS data (after the single-instance lock)
+  const legacyBackup = migrateLegacyDataDir();
+
   // Windows compatibility checks
   const issues = checkWindowsCompatibility();
   if (issues.some(i => i.includes('not supported'))) {
@@ -441,7 +620,7 @@ app.whenReady().then(async () => {
     const choice = dialog.showMessageBoxSync({
       type: 'warning',
       title: `${APP_NAME} — Port ${PORT} In Use`,
-      message: `Port ${PORT} is already in use by another application.\n\nThis may be a previous instance of NEXUS.`,
+      message: `Port ${PORT} is already in use by another application.\n\nThis may be a previous instance of Social-Nexus.`,
       buttons: ['Try to Connect', 'Cancel'],
       defaultId: 0,
     });
@@ -461,11 +640,11 @@ app.whenReady().then(async () => {
   if (!nodeExe) {
     showError(
       `${APP_NAME} — Node.js Not Found`,
-      `Could not find Node.js to run the NEXUS server.\n\n` +
+      `Could not find Node.js to run the Social-Nexus server.\n\n` +
       `Looked for bundled Node.js at:\n${BUNDLED_NODE}\n\n` +
       `Fix options:\n` +
-      `1. Reinstall NEXUS from the latest installer\n` +
-      `2. Install Node.js from https://nodejs.org then restart NEXUS\n\n` +
+      `1. Reinstall Social-Nexus from the latest installer\n` +
+      `2. Install Node.js from https://nodejs.org then restart Social-Nexus\n\n` +
       `Support: support@radixile.com`
     );
     app.quit();
@@ -486,19 +665,21 @@ app.whenReady().then(async () => {
   try {
     await waitForServer(40000);
   } catch (err) {
+    // Show the real reason when the server printed one (e.g. a database error)
+    const detail = lastServerErr.filter(Boolean).slice(-5).join('\n');
     showError(
-      `${APP_NAME} — Startup Timeout`,
-      `The NEXUS server failed to start in time.\n\nError: ${err.message}\n\n` +
-      `Possible causes:\n` +
-      `• Antivirus software blocking Node.js\n` +
-      `• Windows Firewall blocking port ${PORT}\n` +
-      `• Missing dependencies (try reinstalling)\n\n` +
-      `Contact: support@radixile.com`
+      `${APP_NAME} — Could not start`,
+      `${APP_NAME} could not start.\n\n` +
+      (detail
+        ? `Reason:\n${detail}\n\n`
+        : `Error: ${err.message}\n\nPossible causes:\n• Antivirus software blocking the app\n• Missing files (try reinstalling)\n\n`) +
+      `Log folder: ${LOG_DIR}\nContact: support@radixile.com`
     );
     serverProc?.kill();
     app.quit();
     return;
   }
+  serverReady = true;
 
   // Prevent system sleep while server is running
   psBlockerId = powerSaveBlocker.start('prevent-app-suspension');
@@ -506,6 +687,7 @@ app.whenReady().then(async () => {
   // Create UI
   createMainWindow();
   createTray();
+  if (legacyBackup) setTimeout(() => offerLegacyBackupDeletion(legacyBackup), 4000);
 
   // First-run notification
   const firstRunFlag = path.join(DATA_DIR, '.first_run_done');
@@ -514,7 +696,7 @@ app.whenReady().then(async () => {
     setTimeout(() => {
       showTrayNotification(
         `Welcome to ${APP_NAME}!`,
-        'Register your admin account to get started. Click here to open NEXUS.',
+        'Register your admin account to get started. Click here to open Social-Nexus.',
       );
     }, 3000);
   }

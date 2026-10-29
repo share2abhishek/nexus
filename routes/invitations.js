@@ -28,10 +28,16 @@ module.exports = (knex, withWorkspace, requirePermission) => {
     if (!req.session?.userId) return res.status(401).json({ error: 'Log in to accept' });
     try {
       const inv = await knex('invitations').where({ token: req.params.token }).first();
-      const ok = await invites.accept(req.params.token, req.session.userId);
-      if (!ok) return res.status(400).json({ ok: false, error: 'Invalid or expired invitation' });
-      const workspace = inv ? await knex('workspaces').where({ id: inv.workspace_id }).first() : null;
-      res.json({ ok: true, workspace_name: workspace?.name || null, role: inv?.role || null });
+      // The invite is for one email address: only that account may use it
+      const user = await knex('users').where({ id: req.session.userId }).first();
+      if (!inv) return res.status(400).json({ ok: false, error: 'Invalid or expired invitation' });
+      if (!inv.email || !user || inv.email.trim().toLowerCase() !== user.email.trim().toLowerCase()) {
+        return res.status(403).json({ ok: false, error: `This invitation was sent to ${inv.email || 'someone else'}. Sign in with that account to accept it.` });
+      }
+      const result = await invites.accept(req.params.token, req.session.userId);
+      if (!result) return res.status(400).json({ ok: false, error: 'This invitation has already been used or has expired.' });
+      const workspace = await knex('workspaces').where({ id: inv.workspace_id }).first();
+      res.json({ ok: true, workspace_name: workspace?.name || null, role: result.role });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

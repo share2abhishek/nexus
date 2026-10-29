@@ -34,3 +34,14 @@ desktop.ini
 # Temporary
 *.tmp
 *.temp
+
+# Licence server: local signing keys, dev database, secrets
+
+# Release build artefacts
+.protect-backup/
+config/integrity.json
+*.jsc
+.env.backup-*
+
+# Claude Code: personal settings
+.claude/settings.local.json

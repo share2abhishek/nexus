@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────────
-   NEXUS — Frontend Application Script
+   Social-Nexus — Frontend Application Script
    ───────────────────────────────────────────────────────────────────────────── */
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -7,12 +7,11 @@ const State = {
   currentPage: 'dashboard',
   platformStatus: {},
   selectedTone: 'professional',
-  postMode: 'now',
+  postMode: 'schedule', // safer default: nothing goes out by accident
   calendarDate: new Date(),
   scheduledPosts: [],
   generatedContent: '',
   selectedFileContent: '',
-  anthropicKey: localStorage.getItem('nexus_api_key') || '',
   charts: {},
   // New module state
   editingCampaignId: null,
@@ -29,10 +28,10 @@ const State = {
 
 // ── Page Titles ───────────────────────────────────────────────────────────────
 const PAGE_META = {
-  dashboard: { title: 'Dashboard',              subtitle: 'Overview of your NEXUS platform' },
-  generate:  { title: 'AI Generate',            subtitle: 'Generate content with AI' },
-  compose:   { title: 'Compose & Post',         subtitle: 'Write and publish to all platforms' },
-  calendar:  { title: 'Content Calendar',       subtitle: 'View and manage scheduled content' },
+  dashboard: { title: 'Home',                   subtitle: 'Your posts, schedule and next steps' },
+  generate:  { title: 'AI Writer',              subtitle: 'Write a version for each platform with AI' },
+  compose:   { title: 'Create Post',            subtitle: 'Write, then publish or schedule' },
+  calendar:  { title: 'Calendar',               subtitle: 'Everything scheduled, published and in progress' },
   history:   { title: 'Post History',           subtitle: 'Published posts and AI generations' },
   templates: { title: 'Content Templates',      subtitle: 'Save and reuse your best content' },
   files:     { title: 'Local Files',            subtitle: 'Browse your local content folder' },
@@ -78,6 +77,11 @@ function navigateTo(page) {
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
   const pageEl = document.getElementById(`page-${page}`);
   if (pageEl) pageEl.classList.add('active');
+  // Pages under "More tools": keep that group open so the current page is visible
+  if (document.getElementById(`nav-${page}`)?.closest('#nav-more')) toggleMoreTools(true);
+
+  // Compose opens in "Schedule" mode with a time 1 hour ahead (unless one is already picked)
+  if (page === 'compose') setPostMode(State.postMode);
 
   // Update header
   const meta = PAGE_META[page] || {};
@@ -129,14 +133,24 @@ async function api(method, path, body = null) {
     method,
     headers: { 'Content-Type': 'application/json' },
   };
-  if (State.anthropicKey) opts.headers['x-api-key'] = State.anthropicKey;
   if (body) opts.body = JSON.stringify(body);
 
-  const res  = await fetch(path, opts);
+  let res;
+  try {
+    res = await fetch(path, opts);
+  } catch {
+    throw new Error('Can’t reach the Social-Nexus server. Make sure the app is running, then try again.');
+  }
   const data = await res.json().catch(() => ({}));
 
   if (res.status === 401) { window.location.href = '/login.html'; return; }
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    if (data.error) throw new Error(data.error);
+    // No message from the server: say what it means instead of "HTTP 404"
+    if (res.status === 404) throw new Error('The app’s server doesn’t know this action. It was probably started before an update: close Social-Nexus completely and start it again.');
+    if (res.status >= 500) throw new Error('Something went wrong in the app’s server. Try again; if it keeps happening, restart Social-Nexus.');
+    throw new Error(`The request failed (error ${res.status}). Try again.`);
+  }
   return data;
 }
 
@@ -149,7 +163,10 @@ function toast(message, type = 'info', duration = 4000) {
   const container = document.getElementById('toast-container');
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  el.innerHTML = `<span>${icons[type] || 'ℹ️'}</span> ${message}`;
+  // Messages often contain server errors or user data — always plain text
+  const icon = document.createElement('span');
+  icon.textContent = icons[type] || 'ℹ️';
+  el.append(icon, ` ${message}`);
   container.appendChild(el);
   setTimeout(() => el.remove(), duration);
 }
@@ -163,6 +180,7 @@ function initPlatformSelectors() {
     container.querySelectorAll('.platform-toggle').forEach(toggle => {
       toggle.addEventListener('click', () => {
         toggle.classList.toggle('selected');
+        if (container.id === 'compose-platforms') updateComposeCharCount();
       });
     });
   });
@@ -209,8 +227,9 @@ function renderDashboardPlatforms() {
 }
 
 function updateStatPlatforms() {
-  const count = Object.values(State.platformStatus).filter(s => s?.connected).length;
-  setEl('stat-platforms', `${count}/5`);
+  const all = Object.values(State.platformStatus);
+  const count = all.filter(s => s?.connected).length;
+  setEl('stat-platforms', `${count}/${all.length || 8}`);
 }
 
 function updateSettingsBadges() {
@@ -236,7 +255,8 @@ async function loadDashboardStats() {
       api('GET', '/api/posts/scheduled'),
       api('GET', '/api/history'),
     ]);
-    setEl('stat-total-posts', posts.length);
+    // Count only posts that actually went out on at least one platform
+    setEl('stat-total-posts', posts.filter(p => p.status !== 'failed').length);
     setEl('stat-scheduled', scheduled.length);
     setEl('stat-ai-generated', aiHistory.length);
   } catch {}
@@ -276,27 +296,13 @@ async function loadActivityFeed() {
 // Quick Generate (Dashboard)
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function quickGenerate() {
+function quickGenerate() {
   const prompt = document.getElementById('quick-prompt').value.trim();
   if (!prompt) return toast('Please enter a prompt', 'warning');
-
-  const btn = document.getElementById('btn-quick-generate');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Generating…';
-
-  try {
-    const platforms = getSelectedPlatforms('quick-platforms');
-    const data = await api('POST', '/api/generate', { prompt, platforms, tone: 'professional', max_tokens: 512 });
-    // Send to compose tab
-    document.getElementById('compose-content').value = data.content;
-    navigateTo('compose');
-    toast('Content generated! Review and post.', 'success');
-  } catch (err) {
-    toast(err.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '✨ Generate & Compose';
-  }
+  if (!startNewCompose({ platforms: getSelectedPlatforms('quick-platforms') })) return;
+  document.getElementById('compose-ai-prompt').value = prompt;
+  document.getElementById('quick-prompt').value = '';
+  composeAiWrite();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -316,13 +322,14 @@ async function generateContent() {
   const btn = document.getElementById('btn-generate');
   const output = document.getElementById('gen-output');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Generating…';
+  btn.innerHTML = '<span class="spinner"></span> Writing… (can take up to a minute)';
   output.innerHTML = '<div class="loading"><span class="spinner lg"></span></div>';
   output.classList.add('loading');
 
   try {
     const platforms  = getSelectedPlatforms('gen-platforms');
     const max_tokens = parseInt(document.getElementById('gen-max-tokens').value);
+    const language   = document.getElementById('gen-language')?.value || 'en';
 
     const data = await api('POST', '/api/generate', {
       prompt,
@@ -331,11 +338,30 @@ async function generateContent() {
       max_tokens,
       type: 'social_post',
       model: ModelState.textModel?.id || null,
+      language: language !== 'en' ? language : undefined,
     });
 
     State.generatedContent = data.content;
+    State.generatedPlatforms = platforms;
+    State.generatedVariants = data.variants || null;
     output.classList.remove('loading');
-    output.textContent = data.content;
+    if (data.variants) {
+      // One card per platform, each sent to Compose with just that platform selected
+      output.innerHTML = Object.entries(data.variants).map(([p, text]) => `
+        <div class="card" style="margin-bottom:10px;padding:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <strong>${PLATFORMS[p]?.icon || ''} ${escapeHtml(PLATFORMS[p]?.label || p)}</strong>
+            <span style="font-size:11px;color:var(--text-muted)">${text.length} chars</span>
+          </div>
+          <div style="white-space:pre-wrap;font-size:13px">${escapeHtml(text)}</div>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(${jsAttr(text)});toast('Copied!','success')">📋 Copy</button>
+            <button class="btn btn-primary btn-sm" onclick="sendToCompose(${jsAttr(p)})">→ Compose</button>
+          </div>
+        </div>`).join('');
+    } else {
+      output.textContent = data.content;
+    }
 
     updateCharCount('gen-char-count', data.content.length);
     document.getElementById('btn-copy').disabled = false;
@@ -377,12 +403,14 @@ function copyGenerated() {
   toast('Copied to clipboard!', 'success');
 }
 
-function sendToCompose() {
+// platform: send that platform's variant with only that platform selected.
+// Otherwise send the text with the platforms that were chosen on AI Generate.
+function sendToCompose(platform) {
   if (!State.generatedContent) return;
-  document.getElementById('compose-content').value = State.generatedContent;
-  navigateTo('compose');
-  updateComposeCharCount();
-  toast('Sent to Compose tab', 'success');
+  const text = platform && State.generatedVariants?.[platform] ? State.generatedVariants[platform] : State.generatedContent;
+  const targets = platform ? [platform] : (State.generatedPlatforms || []);
+  if (!startNewCompose({ text, platforms: targets })) return;
+  toast('Opened in Create Post', 'success');
 }
 
 async function loadAIHistory() {
@@ -397,19 +425,22 @@ async function loadAIHistory() {
       list.innerHTML = '<div class="empty-state" style="padding:20px 0"><div class="empty-desc">No generations yet</div></div>';
       return;
     }
+    State.aiHistoryMap = State.aiHistoryMap || {};
+    history.forEach(h => { State.aiHistoryMap[h.id] = h; });
+
     list.innerHTML = history.map(h => `
-      <div class="history-item">
-        <div class="history-prompt">"${escapeHtml(h.prompt.substring(0, 80))}${h.prompt.length > 80 ? '…' : ''}"</div>
-        <div class="history-content">${escapeHtml(h.response)}</div>
-        <div class="history-tags">
-          <span class="tag purple">${h.type || 'post'}</span>
+      <div class="history-item" style="margin-bottom:12px;padding:12px;border:1px solid var(--border);border-radius:8px">
+        <div class="history-prompt" style="font-weight:600;font-size:12px;color:var(--text-muted);margin-bottom:4px">"${escapeHtml(h.prompt.substring(0, 80))}${h.prompt.length > 80 ? '…' : ''}"</div>
+        <div class="history-content" style="white-space:pre-wrap;margin-bottom:8px;max-height:150px;overflow-y:auto">${escapeHtml(h.response)}</div>
+        <div class="history-tags" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span class="tag purple">${escapeHtml(h.model || 'post')}</span>
           <span class="tag">${h.tokens_used || '?'} tokens</span>
           <span class="tag">${new Date(h.created_at * 1000).toLocaleDateString()}</span>
-          <button class="btn btn-secondary btn-sm" onclick="reuseGeneration(${h.id})" style="margin-left:auto" data-content="${escapeHtml(h.response)}">Reuse</button>
+          <button class="btn btn-primary btn-sm" onclick="useAIGenHistory(${h.id})" style="margin-left:auto">✏️ Use in Compose</button>
         </div>
       </div>`).join('');
   } catch (err) {
-    list.innerHTML = `<div style="color:#ef4444;padding:16px">${err.message}</div>`;
+    list.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -417,117 +448,578 @@ function closeAIHistory() {
   document.getElementById('ai-history-card').style.display = 'none';
 }
 
-function reuseGeneration(id) {
-  const btn = document.querySelector(`[data-content]`);
-  const content = btn?.dataset?.content;
-  if (content) {
-    State.generatedContent = content;
-    document.getElementById('gen-output').textContent = content;
-    document.getElementById('btn-copy').disabled = false;
-    document.getElementById('btn-to-compose').disabled = false;
-    document.getElementById('btn-regenerate').disabled = false;
-    document.getElementById('btn-edit').disabled = false;
-    document.getElementById('gen-actions').style.display = 'flex';
-    updateCharCount('gen-char-count', content.length);
-    closeAIHistory();
-  }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Compose & Post
 // ─────────────────────────────────────────────────────────────────────────────
 
-function updateComposeCharCount() {
+// Character limits for a post's text on each network
+const PLATFORM_CHAR_LIMITS = {
+  twitter: 280, pinterest: 500, google_business: 1500, instagram: 2200,
+  tiktok: 2200, linkedin: 3000, youtube: 5000, facebook: 63206,
+};
+const PLATFORM_NEEDS_MEDIA = { instagram: 'an image', tiktok: 'a video' };
+
+// Warnings for the current Compose text/platforms, checked before posting too
+function composeWarnings() {
   const content = document.getElementById('compose-content').value;
-  updateCharCount('compose-char-count', content.length);
+  const hasMedia = !!document.getElementById('compose-image').value.trim();
+  const warnings = [];
+  for (const p of getSelectedPlatforms('compose-platforms')) {
+    const label = PLATFORMS[p]?.label || p;
+    const limit = PLATFORM_CHAR_LIMITS[p];
+    if (limit && content.length > limit) warnings.push(`${label} allows ${limit} characters — this post has ${content.length}.`);
+    if (PLATFORM_NEEDS_MEDIA[p] && !hasMedia) warnings.push(`${label} needs ${PLATFORM_NEEDS_MEDIA[p]} — add an image/video URL.`);
+  }
+  return warnings;
 }
 
-function setPostMode(mode) {
-  State.postMode = mode;
-  const now = document.getElementById('post-mode-now');
-  const sched = document.getElementById('post-mode-schedule');
-  const picker = document.getElementById('schedule-picker');
-  const submitBtn = document.getElementById('btn-submit-post');
-
-  if (mode === 'now') {
-    now.classList.add('btn-primary');   now.classList.remove('btn-secondary');
-    sched.classList.add('btn-secondary'); sched.classList.remove('btn-primary');
-    picker.style.display = 'none';
-    submitBtn.textContent = '📤 Post Now';
-  } else {
-    sched.classList.add('btn-primary');   sched.classList.remove('btn-secondary');
-    now.classList.add('btn-secondary');   now.classList.remove('btn-primary');
-    picker.style.display = 'block';
-    submitBtn.textContent = '📅 Schedule Post';
-
-    // Default: 1 hour from now
-    const dt = new Date(Date.now() + 3600000);
-    document.getElementById('compose-schedule-at').value = dt.toISOString().slice(0, 16);
+function updateComposeCharCount() {
+  const content = document.getElementById('compose-content').value;
+  composeAiToolsState();
+  updateCharCount('compose-char-count', content.length);
+  const el = document.getElementById('compose-char-count');
+  const warnings = composeWarnings();
+  if (el && warnings.length) {
+    el.innerHTML += warnings.map(w => `<div style="color:#f59e0b;margin-top:4px">⚠️ ${escapeHtml(w)}</div>`).join('');
   }
 }
 
-async function submitPost() {
+// 'YYYY-MM-DDTHH:mm' in local time, for <input type=datetime-local>
+function toLocalInputValue(d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Create Post → When to post: "review" (goes to the Calendar as In review),
+// "schedule" or "now". People who can't publish in this workspace only get review.
+const POST_MODES = {
+  now:      { button: '📤 Publish now',    hint: 'Posts straight away to the platforms you picked.' },
+  schedule: { button: '📅 Schedule post',  hint: 'Goes out automatically at the time you pick. You can repeat it every day, week or month.' },
+  review:   { button: '📝 Send for review', hint: 'Goes to the Calendar as "In review". Someone who can approve posts checks it and schedules it. Nothing is published yet.' },
+  draft:    { button: '💾 Keep as draft',   hint: 'Stays on the Calendar as a draft. Open it there any time to finish it.' },
+};
+function allowedPostModes() {
+  const canPublish = hasWorkspacePermission('content.publish');
+  const canSubmit = hasWorkspacePermission('content.submit') || hasWorkspacePermission('content.create');
+  const modes = [];
+  if (canPublish) modes.push('now', 'schedule');
+  if (canSubmit) modes.push('review');
+  modes.push('draft');
+  return modes.length > 1 ? modes : ['now', 'schedule', 'review', 'draft']; // role not loaded yet: server still checks
+}
+
+function setPostMode(mode) {
+  const allowed = allowedPostModes();
+  if (!allowed.includes(mode)) mode = allowed.includes('schedule') ? 'schedule' : allowed[0];
+  State.postMode = mode;
+  for (const m of Object.keys(POST_MODES)) {
+    const b = document.getElementById(`post-mode-${m}`);
+    if (!b) continue;
+    b.hidden = !allowed.includes(m);
+    b.setAttribute('aria-checked', String(m === mode));
+  }
+  const hint = document.getElementById('post-mode-hint');
+  if (hint) hint.textContent = POST_MODES[mode].hint;
+  const picker = document.getElementById('schedule-picker');
+  const label = document.getElementById('schedule-label');
+  const repeatBox = document.getElementById('repeat-box');
+  const submitBtn = document.getElementById('btn-submit-post');
+  picker.style.display = mode === 'now' || mode === 'draft' ? 'none' : 'block';
+  if (label) label.textContent = mode === 'review' ? 'Suggested time (the approver can change it)' : 'First post';
+  if (repeatBox) repeatBox.style.display = mode === 'schedule' ? '' : 'none';
+  submitBtn.textContent = POST_MODES[mode].button;
+
+  // Default time: 1 hour from now, in the computer's local time (datetime-local
+  // inputs are local; toISOString() would be UTC, i.e. 5½ hours off in India).
+  // Keep a time the user already picked.
+  const at = document.getElementById('compose-schedule-at');
+  if ((mode === 'schedule' || mode === 'review') && (!at.value || new Date(at.value) <= new Date())) at.value = toLocalInputValue(new Date(Date.now() + 3600000));
+  if (mode === 'schedule') setTimeout(updateRepeatSummary, 0);
+}
+
+// ── Create Post: step 1 (write + save) → step 2 (choose what happens) ─────────
+// Step 1 saves the post as a draft (it appears on the Calendar). Step 2 asks:
+// publish now, schedule (optionally repeating), send for review, or keep as draft.
+State.composeDraftId = null; // the draft saved from this editor (re-saving updates it)
+
+function composeFields() {
   const content = document.getElementById('compose-content').value.trim();
-  if (!content) return toast('Please enter post content', 'warning');
-
   const platforms = getSelectedPlatforms('compose-platforms');
-  if (!platforms.length) return toast('Please select at least one platform', 'warning');
-
   const image_url = document.getElementById('compose-image').value.trim() || null;
-  const btn = document.getElementById('btn-submit-post');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Posting…';
+  return { content, platforms, image_url };
+}
 
+function resetCompose() {
+  State.composeDraftId = null;
+  document.getElementById('compose-content').value = '';
+  document.getElementById('compose-image').value = '';
+  document.getElementById('compose-content').dispatchEvent(new Event('input'));
+  document.getElementById('compose-repeat').value = 'none';
+  document.getElementById('compose-repeat-until').value = '';
+  document.getElementById('compose-schedule-at').value = '';
+  document.getElementById('compose-ai-prompt').value = '';
+  State.composeUndo = null;
+  State.composeSavedText = '';
+  State.composeEditing = null;
+  const editing = document.getElementById('compose-editing');
+  if (editing) editing.hidden = true;
+  composeAiSeq++; // a reply still on its way belongs to the old post: drop it
+  if (composeAiBusy) composeAiSetBusy(false, '');
+  composeAiToolsState();
+}
+
+// True when the editor holds text that isn't saved anywhere yet
+function composeHasUnsaved() {
+  // Editing a saved post: platform and image changes count too
+  if (State.composeEditing) return composeSnapshot() !== State.composeEditing.saved;
+  const text = document.getElementById('compose-content').value.trim();
+  return !!text && text !== (State.composeSavedText || '').trim();
+}
+function composeSnapshot() {
+  const { content, platforms, image_url } = composeFields();
+  return JSON.stringify([content, [...platforms].sort(), image_url || '']);
+}
+
+// Put new text in Create Post as a NEW post (so saving doesn't overwrite an
+// earlier draft from this editor) and open the page.
+// Returns false (and changes nothing) if the person keeps their unsaved text.
+function startNewCompose({ text = '', platforms = null, image_url = '' } = {}) {
+  if (composeHasUnsaved() && !confirm('Create Post has text you haven\u2019t saved. Replace it with the new post?')) {
+    navigateTo('compose');
+    return false;
+  }
+  resetCompose();
+  if (image_url) document.getElementById('compose-image').value = image_url;
+  document.getElementById('compose-content').value = text;
+  if (platforms?.length) {
+    document.querySelectorAll('#compose-platforms .platform-toggle').forEach(el => {
+      el.classList.toggle('selected', platforms.includes(el.dataset.platform));
+    });
+  }
+  navigateTo('compose');
+  updateComposeCharCount();
+  composeAiToolsState();
+  return true;
+}
+
+// Open a saved post (from the Calendar) in Create Post. Saving updates that
+// post instead of making a new one. Only draft, in-review and failed posts can
+// be edited (the server checks too).
+State.composeEditing = null; // { id, status } of the saved post being edited
+const EDIT_STATUS_TEXT = {
+  draft: 'a draft',
+  in_review: 'a post waiting for review — saving keeps it in review',
+  failed: 'a post that failed to publish — saving turns it back into a draft',
+};
+function startEditCompose(item) {
+  if (composeHasUnsaved()) {
+    // Same post with changes not saved yet: just go back to them
+    if (State.composeEditing?.id === item.id) { navigateTo('compose'); return true; }
+    if (!confirm('Create Post has changes you haven’t saved. Replace them with the post you’re editing?')) {
+      navigateTo('compose');
+      return false;
+    }
+  }
+  resetCompose();
+  State.composeDraftId = item.id;
+  State.composeSavedText = item.body || '';
+  document.getElementById('compose-content').value = item.body || '';
+  document.getElementById('compose-image').value = item.image_url || '';
+  const platforms = Array.isArray(item.platforms) ? item.platforms : [];
+  document.querySelectorAll('#compose-platforms .platform-toggle').forEach(el => {
+    el.classList.toggle('selected', platforms.includes(el.dataset.platform));
+  });
+  // Keep the time the author suggested (step 2 offers it for review/schedule)
+  if (item.scheduled_at && item.scheduled_at * 1000 > Date.now()) {
+    document.getElementById('compose-schedule-at').value = toLocalInputValue(new Date(item.scheduled_at * 1000));
+  }
+  State.composeEditing = {
+    id: item.id, status: item.status, title: postTitle(item), saved: composeSnapshot(),
+    updated_at: item.updated_at, workspaceId: currentWorkspaceId, series: !!item.series_id,
+  };
+  composeEditingBanner();
+  navigateTo('compose');
+  updateComposeCharCount();
+  composeAiToolsState();
+  return true;
+}
+
+function composeEditingBanner() {
+  const e = State.composeEditing;
+  document.getElementById('compose-editing-text').textContent =
+    `✏️ Editing ${EDIT_STATUS_TEXT[e.status] || 'a saved post'}: “${e.title}”` +
+    (e.series ? ' · part of a repeating series — saving makes this one a separate post' : '');
+  document.getElementById('compose-editing').hidden = false;
+}
+
+// Warn before quitting or reloading with unsaved changes in Create Post
+// (the desktop app shows its own Leave/Stay dialog for this)
+window.addEventListener('beforeunload', (e) => {
+  if (composeHasUnsaved()) { e.preventDefault(); e.returnValue = ''; }
+});
+
+function leaveEditCompose() {
+  if (startNewCompose()) document.getElementById('compose-content').focus();
+}
+
+// ── Create Post: AI writes or edits the text box ──────────────────────────────
+// Every AI change can be undone with one click until the person edits the text.
+State.composeUndo = null; // { before, after }
+State.composeSavedText = ''; // text last saved as a draft from this editor
+let composeAiBusy = false;
+let composeAiSeq = 0; // bumped for every AI call and every new post; stale replies are ignored
+
+function composeAiToolsState() {
+  const box = document.getElementById('compose-content');
+  if (!box) return;
+  const hasText = !!box.value.trim();
+  document.querySelectorAll('#compose-ai-tools [data-ai-action]').forEach(b => { b.disabled = composeAiBusy || !hasText; });
+  const writeBtn = document.getElementById('btn-compose-ai-write');
+  if (writeBtn) writeBtn.disabled = composeAiBusy;
+  // Saving while the AI is still changing the text would save the old text
+  const saveBtn = document.getElementById('btn-save-post');
+  if (saveBtn && !saveBtn.querySelector('.spinner')) saveBtn.disabled = composeAiBusy;
+  document.getElementById('compose-platforms')?.classList.toggle('is-locked', composeAiBusy);
+  const undo = document.getElementById('btn-compose-ai-undo');
+  if (undo) undo.style.display = !composeAiBusy && State.composeUndo && box.value === State.composeUndo.after ? '' : 'none';
+}
+
+function composeAiSetBusy(busy, message = '') {
+  composeAiBusy = busy;
+  const status = document.getElementById('compose-ai-status');
+  status.replaceChildren();
+  if (busy) {
+    const sp = document.createElement('span');
+    sp.className = 'spinner';
+    status.append(sp, ` ${message}`);
+  } else if (message) {
+    status.textContent = message;
+  }
+  document.getElementById('compose-content').readOnly = busy;
+  composeAiToolsState();
+}
+
+function composeAiApply(newText, message) {
+  const box = document.getElementById('compose-content');
+  State.composeUndo = { before: box.value, after: newText };
+  box.value = newText;
+  updateComposeCharCount();
+  composeAiSetBusy(false, message);
+}
+
+function composeAiSourceNote(model) {
+  if (!model) return '';
+  const m = String(model);
+  return m.startsWith('ollama')
+    ? ` Written by Local AI (${m.replace(/^ollama:?/, '') || 'Ollama'}) on this PC.`
+    : ` Written by ${m} (online service).`;
+}
+
+function composeAiModel() {
+  return (typeof ModelState !== 'undefined' && ModelState.textModel?.id) || null;
+}
+
+async function composeAiWrite(promptOverride) {
+  if (composeAiBusy) return;
+  const input = document.getElementById('compose-ai-prompt');
+  const prompt = (promptOverride ?? input.value).trim();
+  if (!prompt) { input.focus(); return toast('Tell the AI what the post should say', 'warning'); }
+  const platforms = getSelectedPlatforms('compose-platforms');
+  const seq = ++composeAiSeq;
+  composeAiSetBusy(true, 'Writing… (can take up to a minute)');
   try {
-    if (State.postMode === 'now') {
-      const data = await api('POST', '/api/post/now', { content, platforms, image_url });
-      const successes = data.results.filter(r => r.success).map(r => r.platform);
-      const failures  = data.results.filter(r => !r.success).map(r => `${r.platform}: ${r.error}`);
+    const data = await api('POST', '/api/generate', {
+      prompt, platforms, single: true, max_tokens: 700, type: 'social_post',
+      tone: document.getElementById('compose-ai-tone').value,
+      model: composeAiModel(),
+    });
+    if (seq !== composeAiSeq) return;
+    if (!String(data.content || '').trim()) throw new Error('The AI returned nothing — try again.');
+    const had = !!document.getElementById('compose-content').value.trim();
+    composeAiApply(data.content, (had ? 'Replaced your text — Undo brings it back.' : 'Done — check it and edit anything you like.') + composeAiSourceNote(data.model));
+  } catch (err) {
+    if (seq !== composeAiSeq) return;
+    composeAiSetBusy(false, '');
+    toast(err.message, 'error');
+  }
+}
 
-      if (successes.length) toast(`Posted to: ${successes.join(', ')}`, 'success');
-      failures.forEach(f => toast(f, 'error'));
+const COMPOSE_AI_LABELS = { rewrite: 'Improving…', shorten: 'Shortening…', hashtags: 'Finding hashtags…' };
 
-      if (successes.length) {
-        document.getElementById('compose-content').value = '';
-        document.getElementById('compose-image').value = '';
+async function composeAiAssist(action) {
+  if (composeAiBusy) return;
+  const box = document.getElementById('compose-content');
+  const text = box.value.trim();
+  if (!text) return toast('Write something first', 'warning');
+  const platforms = getSelectedPlatforms('compose-platforms');
+  const seq = ++composeAiSeq;
+  composeAiSetBusy(true, COMPOSE_AI_LABELS[action] || 'Working…');
+  try {
+    const data = await api('POST', '/api/assist', {
+      action, text, platform: platforms.length === 1 ? platforms[0] : undefined, model: composeAiModel(),
+    });
+    if (seq !== composeAiSeq) return;
+    const result = String(data.text || '').trim();
+    if (!result) throw new Error('The AI returned nothing — try again.');
+    let next = result;
+    if (action === 'hashtags') {
+      // Keep only real #tags (small models sometimes answer with a sentence instead),
+      // skip ones already in the post, and add them at the end
+      const have = new Set((box.value.match(/#[\p{L}\p{M}\p{N}_]+/gu) || []).map(t => t.toLowerCase()));
+      const tags = [...new Set(result.match(/#[\p{L}\p{M}\p{N}_]+/gu) || [])].filter(t => !have.has(t.toLowerCase()));
+      if (!tags.length) throw new Error('The AI didn’t suggest any new hashtags — try again, or pick another AI model.');
+      next = `${box.value.replace(/\s+$/, '')}\n\n${tags.slice(0, 10).join(' ')}`;
+    }
+    composeAiApply(next, 'Done — Undo brings back the previous text.' + composeAiSourceNote(data.model));
+  } catch (err) {
+    if (seq !== composeAiSeq) return;
+    composeAiSetBusy(false, '');
+    toast(err.message, 'error');
+  }
+}
+
+function composeAiUndo() {
+  const box = document.getElementById('compose-content');
+  if (!State.composeUndo || box.value !== State.composeUndo.after) return;
+  box.value = State.composeUndo.before;
+  State.composeUndo = null;
+  updateComposeCharCount();
+  document.getElementById('compose-ai-status').textContent = 'Previous text restored.';
+  composeAiToolsState();
+}
+
+async function savePostAndContinue() {
+  if (composeAiBusy) return toast('Wait for the AI to finish first', 'info');
+  const { content, platforms, image_url } = composeFields();
+  if (!content) return toast('Write your post first', 'warning');
+  if (!platforms.length) return toast('Pick at least one platform', 'warning');
+  const btn = document.getElementById('btn-save-post');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Saving…';
+  try {
+    const editing = State.composeEditing;
+    if (editing) {
+      // A post opened from the Calendar: never save a second copy of it
+      let updated;
+      try {
+        if (editing.workspaceId !== currentWorkspaceId) throw new Error('you switched to another workspace');
+        const patch = { body: content, platforms, image_url, expected_updated_at: editing.updated_at };
+        if (content !== (State.composeSavedText || '').trim()) patch.title = null; // name follows the new text
+        updated = await api('PATCH', `/api/content/${editing.id}`, patch);
+      } catch (err) {
+        // Keep the person's work: offer to save it as a separate new draft
+        if (editing.workspaceId === currentWorkspaceId
+            && confirm(`Couldn’t save your changes to the existing post: ${err.message}\n\nSave your text as a new draft instead?`)) {
+          State.composeEditing = null;
+          State.composeDraftId = null;
+          document.getElementById('compose-editing').hidden = true;
+          const created = await api('POST', '/api/content', { body: content, platforms, image_url });
+          State.composeDraftId = created.id;
+          State.composeSavedText = content;
+          return openPostNext();
+        }
+        throw new Error(`Couldn’t save your changes: ${err.message}. Your text is still here to copy.`);
+      }
+      State.composeSavedText = content;
+      editing.status = updated.status;
+      editing.updated_at = updated.updated_at;
+      editing.title = postTitle(updated);
+      editing.saved = composeSnapshot();
+      composeEditingBanner(); // a failed post is a draft again now
+      if (updated.status === 'in_review') {
+        // Still waiting for a reviewer: nothing more to choose here
+        resetCompose();
+        toast('Changes saved. The post is still waiting for review on the Calendar.', 'success', 6000);
+        navigateTo('calendar');
+        return;
       }
     } else {
-      const scheduled_at = document.getElementById('compose-schedule-at').value;
-      if (!scheduled_at) return toast('Please pick a schedule time', 'warning');
-      const data = await api('POST', '/api/post/schedule', { content, platforms, image_url, scheduled_at });
-      toast(`Scheduled for ${new Date(data.scheduled_at).toLocaleString()}`, 'success');
-      loadScheduled();
+      if (State.composeDraftId) {
+        try {
+          await api('PATCH', `/api/content/${State.composeDraftId}`, { body: content, platforms, image_url });
+        } catch { State.composeDraftId = null; } // gone or no longer editable: save a new one
+      }
+      if (!State.composeDraftId) {
+        const created = await api('POST', '/api/content', { body: content, platforms, image_url });
+        State.composeDraftId = created.id;
+      }
+      State.composeSavedText = content;
     }
+    openPostNext();
   } catch (err) {
     toast(err.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = State.postMode === 'now' ? '📤 Post Now' : '📅 Schedule Post';
+    btn.innerHTML = 'Save &amp; continue →';
+  }
+}
+
+function openPostNext() {
+  const { content, platforms } = composeFields();
+  const preview = document.getElementById('post-next-preview');
+  preview.replaceChildren();
+  const text = document.createElement('div');
+  text.className = 'next-preview-text';
+  text.textContent = content.length > 220 ? `${content.slice(0, 220)}…` : content;
+  const where = document.createElement('div');
+  where.className = 'next-preview-meta';
+  where.textContent = `To: ${platforms.map(p => PLATFORMS[p]?.label || p).join(', ')} · ${State.composeEditing ? 'changes saved (draft)' : 'saved as a draft'}`;
+  preview.append(text, where);
+  // Offer the most likely next step for this person
+  const allowed = allowedPostModes();
+  setPostMode(allowed.includes(State.postMode) && State.postMode !== 'draft' ? State.postMode : (allowed.includes('schedule') ? 'schedule' : 'review'));
+  const modal = document.getElementById('post-next-modal');
+  // Page sections are animated (transform), which would trap a fixed overlay inside them
+  if (modal.parentElement !== document.body) document.body.appendChild(modal);
+  modal.style.display = 'flex';
+  modal.querySelector('.seg[aria-checked="true"]')?.focus();
+}
+
+function closePostNext() {
+  document.getElementById('post-next-modal').style.display = 'none';
+}
+
+async function submitPost() {
+  const id = State.composeDraftId;
+  if (!id) return closePostNext();
+  const { platforms } = composeFields();
+  const mode = State.postMode;
+
+  if (mode === 'draft') {
+    closePostNext();
+    resetCompose();
+    toast('Kept as a draft. Find it on the Calendar whenever you’re ready.', 'success', 6000);
+    return;
+  }
+  if (mode === 'now') {
+    const warnings = composeWarnings();
+    if (warnings.length) return toast(warnings.join(' '), 'warning', 8000);
+    const names = platforms.map(p => PLATFORMS[p]?.label || p).join(', ');
+    if (!confirm(`Publish this post to ${names} now?\n\nIt goes live straight away and can't be undone from here.`)) return;
+  }
+
+  let schedule = null;
+  if (mode === 'schedule') {
+    const at = document.getElementById('compose-schedule-at').value;
+    if (!at || new Date(at) <= new Date()) return toast('Pick a time in the future', 'warning');
+    const rep = readRepeat();
+    if (rep?.error) return toast(rep.error, 'warning');
+    schedule = {
+      scheduled_at: Math.floor(new Date(at).getTime() / 1000),
+      repeat: rep ? { every: rep.every, ...(rep.until ? { until: rep.until } : { count: rep.count }) } : undefined,
+    };
+  }
+
+  const btn = document.getElementById('btn-submit-post');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> ${mode === 'now' ? 'Publishing…' : mode === 'review' ? 'Sending…' : 'Scheduling…'}`;
+  try {
+    if (mode === 'review') {
+      const at = document.getElementById('compose-schedule-at').value;
+      if (at && new Date(at) > new Date()) await api('PATCH', `/api/content/${id}`, { scheduled_at: Math.floor(new Date(at).getTime() / 1000) });
+      await api('PATCH', `/api/content/${id}/status`, { toStatus: 'in_review' });
+      toast('Sent for review. It’s on the Calendar as "In review" until someone approves it.', 'success', 6000);
+    } else if (mode === 'now') {
+      const data = await api('POST', `/api/content/${id}/publish`);
+      const ok = data.results.filter(r => r.success).map(r => PLATFORMS[r.platform]?.label || r.platform);
+      const bad = data.results.filter(r => !r.success);
+      if (ok.length) toast(`Published to ${ok.join(', ')}`, 'success');
+      bad.forEach(r => toast(`${PLATFORMS[r.platform]?.label || r.platform || 'Post'}: ${r.error}`, 'error', 9000));
+      if (!ok.length) toast('Nothing was published. The post is on the Calendar as "Failed": fix the problem, then press Retry there.', 'warning', 9000);
+    } else {
+      const data = await api('POST', `/api/content/${id}/schedule`, schedule);
+      const fmt = (d) => new Date(d).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+      toast(data.series_id
+        ? `Scheduled ${data.count} posts (${REPEAT_LABEL[data.every].toLowerCase()}), from ${fmt(data.first_at)} to ${fmt(data.last_at)}`
+        : `Scheduled for ${fmt(schedule.scheduled_at * 1000)}`, 'success', 6000);
+    }
+    closePostNext();
+    resetCompose();
+    loadScheduled();
+  } catch (err) {
+    toast(err.message, 'error', 8000);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = POST_MODES[State.postMode]?.button || '📅 Schedule post';
+    if (State.postMode === 'schedule') updateRepeatSummary();
   }
 }
 
 async function loadScheduled() {
   try {
-    const posts = await api('GET', '/api/posts/scheduled');
+    const [posts, failed] = await Promise.all([
+      api('GET', '/api/posts/scheduled'),
+      api('GET', '/api/posts/scheduled/failed').catch(() => []),
+    ]);
     State.scheduledPosts = posts;
-    renderScheduledList(posts);
+    renderScheduledList(posts, failed);
   } catch {}
 }
 
-function renderScheduledList(posts) {
+async function retryScheduled(id) {
+  try {
+    await api('POST', `/api/posts/scheduled/${id}/retry`);
+    toast('Will try again in about a minute', 'info');
+    loadScheduled();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function renderFailedScheduled(failed) {
+  if (!failed.length) return '';
+  return `<div style="margin-top:14px;font-size:12px;font-weight:600;color:#ef4444">⚠️ Failed in the last 14 days</div>` +
+    failed.map(post => {
+      const dt = new Date(post.scheduled_at * 1000);
+      const errors = (Array.isArray(post.result) ? post.result : []).filter(r => !r.success)
+        .map(r => `${PLATFORMS[r.platform]?.icon || ''} ${escapeHtml(r.error || 'failed')}`).join('<br>');
+      return `
+      <div class="scheduled-item" style="border-left:3px solid #ef4444">
+        <div class="scheduled-time">
+          <div class="scheduled-time-date">${dt.toLocaleDateString('en', {month:'short', day:'numeric'})}</div>
+          <div class="scheduled-time-hour">${dt.toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit'})}</div>
+        </div>
+        <div class="scheduled-content">
+          <div class="scheduled-text">${escapeHtml(post.content.substring(0, 120))}${post.content.length > 120 ? '…' : ''}</div>
+          <div style="font-size:11px;color:#ef4444;margin-top:4px">${errors || 'Failed'}</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="retryScheduled(${post.id})" title="Try again">🔁 Retry</button>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="cancelScheduled(${post.id})" title="Delete">🗑</button>
+      </div>`;
+    }).join('');
+}
+
+function renderScheduledList(posts, failed = []) {
   const list = document.getElementById('scheduled-list');
   if (!posts.length) {
     list.innerHTML = `<div class="empty-state" style="padding:30px 0">
       <div class="empty-icon">📅</div>
       <div class="empty-title">No scheduled posts</div>
       <div class="empty-desc">Schedule a post to see it here.</div>
-    </div>`;
+    </div>` + renderFailedScheduled(failed);
     return;
   }
 
-  list.innerHTML = posts.map(post => {
+  // A repeating schedule shows once: its next post, how many are left and when it ends
+  const seen = new Map();
+  for (const post of posts) {
+    if (!post.series_id) continue;
+    const g = seen.get(post.series_id) || { left: 0, last: 0 };
+    g.left++; g.last = Math.max(g.last, post.scheduled_at);
+    seen.set(post.series_id, g);
+  }
+  const shown = new Set();
+  const rows = posts.filter(p => !p.series_id || (!shown.has(p.series_id) && shown.add(p.series_id)));
+
+  list.innerHTML = rows.map(post => {
     const dt = new Date(post.scheduled_at * 1000);
     const platforms = Array.isArray(post.platforms) ? post.platforms : [];
+    const g = post.series_id ? seen.get(post.series_id) : null;
+    const seriesHtml = g ? `<div style="margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span class="series-chip">🔁 ${escapeHtml(REPEAT_LABEL[post.series_every] || 'Repeats')}</span>
+        <span style="font-size:11px;color:var(--text-muted)">${g.left} post${g.left === 1 ? '' : 's'} left · last on ${new Date(g.last * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+      </div>` : '';
+    const actions = g
+      ? `<button class="btn btn-secondary btn-sm" onclick="stopSeries(${jsAttr(post.series_id)}, ${g.left})" title="Remove the posts that haven't gone out yet">Stop series</button>`
+      : `<button class="btn btn-danger btn-sm btn-icon" onclick="cancelScheduled(${post.id})" title="Cancel" aria-label="Cancel this post">🗑</button>`;
     return `
       <div class="scheduled-item">
         <div class="scheduled-time">
@@ -537,12 +1029,107 @@ function renderScheduledList(posts) {
         <div class="scheduled-content">
           <div class="scheduled-text">${escapeHtml(post.content.substring(0, 120))}${post.content.length > 120 ? '…' : ''}</div>
           <div class="scheduled-platforms">
-            ${platforms.map(p => `<span class="scheduled-platform-tag">${PLATFORMS[p]?.icon || ''} ${p}</span>`).join('')}
+            ${platforms.map(p => `<span class="scheduled-platform-tag">${PLATFORMS[p]?.icon || ''} ${escapeHtml(PLATFORMS[p]?.label || p)}</span>`).join('')}
           </div>
+          ${seriesHtml}
         </div>
-        <button class="btn btn-danger btn-sm btn-icon" onclick="cancelScheduled(${post.id})" title="Cancel">🗑</button>
+        ${actions}
       </div>`;
-  }).join('');
+  }).join('') + renderFailedScheduled(failed);
+}
+
+// ── Repeating schedules ─────────────────────────────────────────────────────
+const REPEAT_LABEL = { daily: 'Every day', weekly: 'Every week', monthly: 'Every month' };
+
+// Same rules as services/recurrence.js (the server re-checks everything)
+function repeatDates(start, every, { count, until }) {
+  const out = [];
+  const max = 365;
+  let untilDate = null;
+  if (until) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(until);
+    if (!m) return { error: 'Pick an end date.' };
+    untilDate = new Date(+m[1], +m[2] - 1, +m[3], 23, 59, 59);
+    if (untilDate < start) return { error: 'The end date is before the first post.' };
+    if ((untilDate - start) / 86400000 > 731) return { error: 'A repeating schedule can run for up to 2 years.' };
+  } else if (!Number.isInteger(count) || count < 2) return { error: 'Choose how many times to post (at least 2).' };
+  else if (count > max) return { error: `A repeating schedule can have up to ${max} posts.` };
+  const limit = until ? max : count;
+  for (let i = 0; i < limit; i++) {
+    const d = new Date(start.getTime());
+    if (every === 'daily') d.setDate(start.getDate() + i);
+    else if (every === 'weekly') d.setDate(start.getDate() + 7 * i);
+    else {
+      const total = start.getMonth() + i, y = start.getFullYear() + Math.floor(total / 12), mo = total % 12;
+      d.setFullYear(y, mo, Math.min(start.getDate(), new Date(y, mo + 1, 0).getDate()));
+    }
+    if (untilDate && d > untilDate) break;
+    if ((d - start) / 86400000 > 731) break;
+    out.push(d);
+  }
+  if (out.length < 2) return { error: 'That end date leaves only one post. Choose a later date, or set Repeat to "Does not repeat".' };
+  if (until && out.length >= max) return { error: `That is more than ${max} posts. Choose an earlier end date.` };
+  return { dates: out };
+}
+
+// Reads the Repeat controls. Returns null (no repeat), { error }, or { every, count|until, dates }
+function readRepeat() {
+  const every = document.getElementById('compose-repeat')?.value || 'none';
+  if (every === 'none') return null;
+  const startStr = document.getElementById('compose-schedule-at').value;
+  if (!startStr) return { error: 'Pick the date and time of the first post.' };
+  const byDate = document.querySelector('input[name="repeat-end"]:checked')?.value === 'until';
+  const opts = byDate
+    ? { until: document.getElementById('compose-repeat-until').value }
+    : { count: parseInt(document.getElementById('compose-repeat-count').value, 10) };
+  const r = repeatDates(new Date(startStr), every, opts);
+  return r.error ? r : { every, ...opts, dates: r.dates };
+}
+
+function updateRepeatSummary() {
+  const every = document.getElementById('compose-repeat')?.value || 'none';
+  const endBox = document.getElementById('repeat-end');
+  const box = document.getElementById('repeat-summary');
+  if (!box || !endBox) return;
+  endBox.style.display = every === 'none' ? 'none' : 'block';
+  // Sensible default end date: the day of the 5th post
+  const untilInput = document.getElementById('compose-repeat-until');
+  const startStr = document.getElementById('compose-schedule-at').value;
+  if (every !== 'none' && untilInput && !untilInput.value && startStr) {
+    const r5 = repeatDates(new Date(startStr), every, { count: 5 });
+    if (r5.dates) {
+      const d = r5.dates[4];
+      untilInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+  }
+  const btn = document.getElementById('btn-submit-post');
+  const r = readRepeat();
+  if (!r) {
+    box.className = 'repeat-summary'; box.textContent = '';
+    if (btn && State.postMode === 'schedule' && !btn.disabled) btn.textContent = '📅 Schedule post';
+    return;
+  }
+  if (r.error) { box.className = 'repeat-summary err'; box.textContent = r.error; return; }
+  const first = r.dates[0], last = r.dates[r.dates.length - 1];
+  const time = first.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+  const when = r.every === 'daily' ? `every day at ${time}`
+    : r.every === 'weekly' ? `every ${first.toLocaleDateString('en-IN', { weekday: 'long' })} at ${time}`
+    : `on day ${first.getDate()} of every month at ${time}${first.getDate() > 28 ? ' (or the last day of shorter months)' : ''}`;
+  const fmt = (d) => d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  box.className = 'repeat-summary ok';
+  box.textContent = `${r.dates.length} posts, ${when}. First: ${fmt(first)}. Last: ${fmt(last)}, then the schedule ends.`;
+  if (btn && State.postMode === 'schedule' && !btn.disabled) btn.textContent = `📅 Schedule ${r.dates.length} posts`;
+}
+
+async function stopSeries(seriesId, left) {
+  const what = left == null ? 'All its posts that haven\'t gone out yet' : `The ${left} post${left === 1 ? '' : 's'} that haven't gone out yet`;
+  if (!confirm(`Stop this repeating schedule?\n\n${what} will be removed. Posts already published stay.`)) return;
+  try {
+    const r = await api('DELETE', `/api/posts/series/${encodeURIComponent(seriesId)}`);
+    toast(`Stopped: ${r.removed} upcoming post${r.removed === 1 ? '' : 's'} removed`, 'success');
+    loadScheduled();
+    if (State.currentPage === 'calendar') renderCalendar(State.calendarDate);
+  } catch (err) { toast(err.message, 'error'); }
 }
 
 async function cancelScheduled(id) {
@@ -824,11 +1411,11 @@ function renderAgendaView(date, events) {
                   <div style="font-size:12px;font-weight:700;color:#a78bfa">${timeLabel}</div>
                 </div>
                 <div class="scheduled-content">
-                  <div style="font-weight:600;font-size:14px;color:var(--text-primary);margin-bottom:4px">${escapeHtml(e.title || 'Untitled Draft')}</div>
+                  <div style="font-weight:600;font-size:14px;color:var(--text-primary);margin-bottom:4px">${escapeHtml(postTitle(e))}</div>
                   <div class="scheduled-text" style="-webkit-line-clamp: 2; line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden">${escapeHtml(e.body)}</div>
                   <div style="display:flex;gap:12px;align-items:center;margin-top:6px">
                     <span style="font-size:11px;color:var(--text-muted)">Channels: ${platformsText}</span>
-                    <span class="badge event-status-${e.status}" style="font-size:9.5px;padding:2px 8px">${e.status}</span>
+                    <span class="badge event-status-${e.status}" style="font-size:9.5px;padding:2px 8px">${statusLabel(e.status)}</span>
                   </div>
                 </div>
                 <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openContentDetail(${e.id})">View Details</button>
@@ -865,24 +1452,50 @@ function hasWorkspacePermission(permission) {
 
 // ── Slide-in Detail Panel Logic ──────────────────────────────────────────────
 
+// Friendly names for content statuses and people (instead of "in_review" / "User #3")
+// A post's title, or its first words when it has none
+function postTitle(item) {
+  if (item?.title) return item.title;
+  const words = String(item?.body || '').replace(/\s+/g, ' ').trim();
+  return words ? (words.length > 48 ? `${words.slice(0, 48).trim()}…` : words) : 'Untitled post';
+}
+
+const STATUS_LABELS = { draft: 'Draft', in_review: 'In review', approved: 'Approved', scheduled: 'Scheduled', publishing: 'Publishing…', published: 'Published', failed: 'Failed' };
+const statusLabel = (s) => STATUS_LABELS[s] || s;
+
+State.memberNames = {};
+async function loadMemberNames() {
+  if (!currentWorkspaceId) return;
+  try {
+    const members = await fetch(`/workspaces/${currentWorkspaceId}/members`).then(r => r.json());
+    for (const m of members || []) State.memberNames[m.user_id] = m.name || m.email;
+  } catch {}
+}
+function userLabel(id) {
+  if (!id) return 'someone';
+  if (State.user && String(State.user.id) === String(id)) return 'you';
+  return State.memberNames[id] || 'a team member';
+}
+
 async function openContentDetail(itemId) {
   try {
-    const item = await api('GET', `/api/content/${itemId}`);
+    const [item] = await Promise.all([api('GET', `/api/content/${itemId}`), loadMemberNames()]);
     State.selectedContentItem = item;
 
-    // Load active settings to read the user default AI model or check Ollama
-    const userSettings = await fetch('/users/settings').then(r => r.json()).catch(() => ({}));
-    const model = userSettings.default_text_model || 'ollama';
-    const ollamaEnabled = !!userSettings.ollama_enabled;
-    const activeModelBadge = document.getElementById('detail-ai-model-badge');
-    if (activeModelBadge) {
-      activeModelBadge.textContent = ollamaEnabled && model === 'ollama' ? '🦙 Ollama' : model === 'gemini' ? '✨ Gemini' : '🤖 Claude';
-    }
-
     // Set panel info
-    document.getElementById('detail-status-badge').textContent = item.status;
+    document.getElementById('detail-status-badge').textContent = statusLabel(item.status);
     document.getElementById('detail-status-badge').className = `badge event-status-${item.status}`;
-    document.getElementById('detail-title-label').textContent = item.title || 'Draft Item';
+    // Part of a repeating schedule?
+    const badge = document.getElementById('detail-status-badge');
+    badge.parentElement.querySelector('.series-chip')?.remove();
+    if (item.series_id) {
+      const chip = document.createElement('span');
+      chip.className = 'series-chip';
+      chip.style.marginLeft = '6px';
+      chip.textContent = `🔁 ${REPEAT_LABEL[item.series_every] || 'Repeats'} · post ${item.series_index} of ${item.series_total}`;
+      badge.after(chip);
+    }
+    document.getElementById('detail-title-label').textContent = postTitle(item);
     document.getElementById('detail-body-container').textContent = item.body;
     
     // Image Preview
@@ -917,23 +1530,12 @@ async function openContentDetail(itemId) {
     // Audit logs formatting
     const auditLogs = document.getElementById('detail-audit-logs');
     let auditHtml = `<div>📅 Created on ${new Date(item.created_at * 1000).toLocaleString()}</div>`;
-    if (item.submitted_by) auditHtml += `<div>📤 Submitted by User #${item.submitted_by}</div>`;
-    if (item.reviewed_by) auditHtml += `<div>👀 Reviewed by User #${item.reviewed_by}</div>`;
-    if (item.approved_by) auditHtml += `<div>✅ Approved by User #${item.approved_by}</div>`;
+    if (item.submitted_by) auditHtml += `<div>✍️ Created by ${escapeHtml(userLabel(item.submitted_by))}</div>`;
+    if (item.reviewed_by) auditHtml += `<div>👀 Reviewed by ${escapeHtml(userLabel(item.reviewed_by))}</div>`;
+    if (item.approved_by) auditHtml += `<div>✅ Approved by ${escapeHtml(userLabel(item.approved_by))}</div>`;
     if (item.scheduled_at) auditHtml += `<div>⏰ Scheduled for ${new Date(item.scheduled_at * 1000).toLocaleString()}</div>`;
     if (item.published_at) auditHtml += `<div>🚀 Published on ${new Date(item.published_at * 1000).toLocaleString()}</div>`;
     auditLogs.innerHTML = auditHtml;
-
-    // AI Assist Sub-panel visibility
-    const isEditable = ['draft', 'in_review', 'failed'].includes(item.status);
-    const hasEditPermission = hasWorkspacePermission('content.edit');
-    const aiPanel = document.getElementById('detail-ai-assist-panel');
-    if (isEditable && hasEditPermission) {
-      aiPanel.style.display = 'block';
-    } else {
-      aiPanel.style.display = 'none';
-    }
-    document.getElementById('detail-ai-feedback').style.display = 'none';
 
     // Populate comments
     renderCommentsList(item.comments || []);
@@ -964,7 +1566,7 @@ function renderCommentsList(comments) {
   container.innerHTML = comments.map(c => `
     <div class="comment-item">
       <div class="comment-header">
-        <span class="comment-author">User #${c.user_id}</span>
+        <span class="comment-author">${escapeHtml(userLabel(c.user_id))}</span>
         <span>${new Date(c.created_at).toLocaleString()}</span>
       </div>
       <div class="comment-body">${escapeHtml(c.body)}</div>
@@ -1002,15 +1604,19 @@ function renderDetailActionButtons(item) {
 
   const buttons = [];
 
+  // People who may approve their own work schedule a draft in one step;
+  // asking for review is only offered in Agency mode (or to those who can't approve)
+  const selfApprove = canApprove && canSchedule;
+
   // Transition: Submit (draft -> in_review)
-  if (item.status === 'draft' && canSubmit) {
-    buttons.push(`<button class="btn btn-primary" onclick="transitionContentStatus(${item.id}, 'in_review')">📤 Submit for Review</button>`);
+  if (item.status === 'draft' && canSubmit && (!selfApprove || isAgencyMode())) {
+    buttons.push(`<button class="btn ${selfApprove ? 'btn-secondary' : 'btn-primary'}" onclick="transitionContentStatus(${item.id}, 'in_review')">📤 Ask for review</button>`);
   }
 
   // Transition: Approve/Reject (in_review -> approved / draft)
   if (item.status === 'in_review' && canApprove) {
     buttons.push(`<button class="btn btn-success" onclick="transitionContentStatus(${item.id}, 'approved')">✅ Approve</button>`);
-    buttons.push(`<button class="btn btn-danger" onclick="transitionContentStatus(${item.id}, 'draft')">❌ Request Changes</button>`);
+    buttons.push(`<button class="btn btn-danger" onclick="transitionContentStatus(${item.id}, 'draft')">❌ Ask for changes</button>`);
   }
 
   // Transition: Cancel Approval (approved -> draft)
@@ -1018,18 +1624,28 @@ function renderDetailActionButtons(item) {
     buttons.push(`<button class="btn btn-danger" onclick="transitionContentStatus(${item.id}, 'draft')">↩️ Revoke Approval</button>`);
   }
 
-  // Transition: Schedule (approved -> scheduled)
-  if (item.status === 'approved' && canSchedule) {
+  // Transition: Schedule (approved -> scheduled, or draft -> scheduled in one step)
+  if ((item.status === 'approved' && canSchedule) || (item.status === 'draft' && selfApprove)) {
     buttons.push(`
       <div style="display:flex;align-items:center;gap:6px">
-        <input type="datetime-local" class="form-input" id="detail-schedule-time" style="padding:6px 8px;font-size:12px;width:170px" />
-        <button class="btn btn-primary" onclick="scheduleContentDetail(${item.id})">⏰ Schedule</button>
+        <input type="datetime-local" class="form-input" id="detail-schedule-time" value="${toLocalInputValue(new Date(item.scheduled_at && item.scheduled_at * 1000 > Date.now() ? item.scheduled_at * 1000 : Date.now() + 3600000))}" title="${item.scheduled_at && item.scheduled_at * 1000 > Date.now() ? 'Suggested time from the author' : ''}" style="padding:6px 8px;font-size:12px;width:170px" />
+        <button class="btn btn-primary" onclick="scheduleContentDetail(${item.id})">📅 Schedule</button>
       </div>`);
   }
 
   // Transition: Cancel Schedule (scheduled -> approved)
   if (item.status === 'scheduled' && canSchedule) {
     buttons.push(`<button class="btn btn-secondary" onclick="transitionContentStatus(${item.id}, 'approved')">📅 Unschedule</button>`);
+  }
+
+  // Stop a repeating schedule (removes its posts that haven't gone out yet)
+  if (item.series_id && item.status === 'scheduled' && canSchedule) {
+    buttons.push(`<button class="btn btn-secondary" onclick="stopSeries(${jsAttr(item.series_id)}, null).then(closeContentDetail)">⏹ Stop series</button>`);
+  }
+
+  // Retry a failed or missed post (goes out within about a minute)
+  if (item.status === 'failed' && canSchedule) {
+    buttons.push(`<button class="btn btn-primary" onclick="retryContentItem(${item.id})">🔁 Retry now</button>`);
   }
 
   // Edit / Delete
@@ -1063,8 +1679,20 @@ async function transitionContentStatus(itemId, toStatus, scheduled_at = null) {
     if (scheduled_at) body.scheduled_at = scheduled_at;
     
     await api('PATCH', `/api/content/${itemId}/status`, body);
-    toast(`Content state transitioned to: ${toStatus}`, 'success');
+    const done = { in_review: 'Sent for review', approved: 'Approved', draft: 'Moved back to draft', scheduled: 'Scheduled', published: 'Published' };
+    toast(done[toStatus] || 'Updated', 'success');
     
+    await openContentDetail(itemId);
+    renderCalendar(State.calendarDate);
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function retryContentItem(itemId) {
+  try {
+    await api('PATCH', `/api/content/${itemId}/status`, { toStatus: 'scheduled', scheduled_at: Math.floor(Date.now() / 1000) + 60 });
+    toast('Queued again: it will be posted within about a minute', 'success');
     await openContentDetail(itemId);
     renderCalendar(State.calendarDate);
   } catch (err) {
@@ -1084,147 +1712,25 @@ async function deleteContentItem(itemId) {
   }
 }
 
-async function runAiAssistDetail(action) {
-  if (!State.selectedContentItem) return;
-  const itemId = State.selectedContentItem.id;
-  const feedbackEl = document.getElementById('detail-ai-feedback');
-  
-  feedbackEl.style.display = 'block';
-  feedbackEl.className = 'info';
-  feedbackEl.innerHTML = '<span class="spinner"></span> AI is working…';
-
-  try {
-    const platform = State.selectedContentItem.platforms?.[0] || 'linkedin';
-    const result = await api('POST', `/api/content/${itemId}/ai-assist`, { action, platform });
-    
-    const updated = await api('PATCH', `/api/content/${itemId}`, { body: result.text });
-    
-    State.selectedContentItem = updated;
-    document.getElementById('detail-body-container').textContent = updated.body;
-    
-    const auditLogs = document.getElementById('detail-audit-logs');
-    let auditHtml = `<div>📅 Created on ${new Date(updated.created_at * 1000).toLocaleString()}</div>`;
-    if (updated.submitted_by) auditHtml += `<div>📤 Submitted by User #${updated.submitted_by}</div>`;
-    if (updated.reviewed_by) auditHtml += `<div>👀 Reviewed by User #${updated.reviewed_by}</div>`;
-    if (updated.approved_by) auditHtml += `<div>✅ Approved by User #${updated.approved_by}</div>`;
-    auditLogs.innerHTML = auditHtml;
-
-    const sources = { ollama: '🦙 Ollama', gemini: '✨ Gemini', claude: '🤖 Claude' };
-    feedbackEl.innerHTML = `✅ Changed text successfully! <span style="font-weight:bold;color:#a78bfa">(${sources[result.source] || result.source})</span>`;
-    
-    renderCalendar(State.calendarDate);
-    toast('Content updated by AI Assist', 'success');
-  } catch (err) {
-    feedbackEl.innerHTML = `<span style="color:#ef4444">❌ AI Assist failed: ${escapeHtml(err.message)}</span>`;
-    toast(err.message, 'error');
-  }
-}
-
-// ── Content Editor Modal Logic ───────────────────────────────────────────────
-
+// ── Calendar → Create Post ────────────────────────────────────────────────────
+// New posts and edits both happen in Create Post.
 function openNewContentModal() {
-  document.getElementById('content-editor-modal-title').textContent = '✏️ Compose New Content';
-  document.getElementById('edit-content-id').value = '';
-  document.getElementById('edit-content-title').value = '';
-  document.getElementById('edit-content-body').value = '';
-  document.getElementById('edit-content-image').value = '';
-  
-  populateSocialAccountCheckboxes([]);
-  document.getElementById('content-editor-modal').style.display = 'flex';
+  if (startNewCompose()) document.getElementById('compose-content').focus();
 }
 
+// Calendar "Edit": open the saved post in Create Post (same editor and AI tools)
 async function openEditContentModal(itemId) {
   try {
     const item = await api('GET', `/api/content/${itemId}`);
-    document.getElementById('content-editor-modal-title').textContent = '✏️ Edit Content Draft';
-    document.getElementById('edit-content-id').value = item.id;
-    document.getElementById('edit-content-title').value = item.title || '';
-    document.getElementById('edit-content-body').value = item.body;
-    document.getElementById('edit-content-image').value = item.image_url || '';
-    
-    populateSocialAccountCheckboxes(item.social_account_ids || []);
-    
-    closeContentDetail();
-    document.getElementById('content-editor-modal').style.display = 'flex';
-  } catch (err) {
-    toast(err.message, 'error');
-  }
-}
-
-function closeContentEditorModal() {
-  document.getElementById('content-editor-modal').style.display = 'none';
-}
-
-function populateSocialAccountCheckboxes(selectedIds) {
-  const container = document.getElementById('edit-content-accounts');
-  if (!container) return;
-  container.innerHTML = '';
-
-  const workspace = State.userWorkspaces?.find(w => w.workspace_id === currentWorkspaceId);
-  const accounts = workspace?.social_accounts || [];
-
-  if (accounts.length === 0) {
-    container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);font-style:italic">No connected social accounts found. Connect platforms in settings.</div>';
-    return;
-  }
-
-  container.innerHTML = accounts.map(acc => {
-    const isChecked = selectedIds.includes(acc.id);
-    const platformDef = PLATFORMS[acc.platform] || { icon: '🔗', label: acc.platform };
-    return `
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-primary);cursor:pointer">
-        <input type="checkbox" name="edit-account-checkbox" value="${acc.id}" data-platform="${acc.platform}" ${isChecked ? 'checked' : ''} style="cursor:pointer" />
-        <span>${platformDef.icon} ${escapeHtml(acc.account_label || platformDef.label)}</span>
-      </label>
-    `;
-  }).join('');
-}
-
-async function saveContentItem() {
-  const itemId = document.getElementById('edit-content-id').value;
-  const title = document.getElementById('edit-content-title').value.trim();
-  const body = document.getElementById('edit-content-body').value.trim();
-  const image_url = document.getElementById('edit-content-image').value.trim() || null;
-
-  if (!body) {
-    return toast('Body content is required', 'warning');
-  }
-
-  const checkedEls = Array.from(document.querySelectorAll('input[name="edit-account-checkbox"]:checked'));
-  if (checkedEls.length === 0) {
-    return toast('Please select at least one social account', 'warning');
-  }
-
-  const social_account_ids = checkedEls.map(el => parseInt(el.value));
-  const platforms = [...new Set(checkedEls.map(el => el.dataset.platform))];
-
-  const payload = { title, body, image_url, social_account_ids, platforms };
-  const btn = document.getElementById('btn-save-content-item');
-  
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Saving…';
-
-  try {
-    if (itemId) {
-      await api('PATCH', `/api/content/${itemId}`, payload);
-      toast('Draft updated successfully', 'success');
-    } else {
-      await api('POST', '/api/content', payload);
-      toast('Draft created successfully', 'success');
+    if (!['draft', 'in_review', 'failed'].includes(item.status)) {
+      return toast(`This post is ${statusLabel(item.status).toLowerCase()}, so it can’t be edited.`, 'warning');
     }
-    closeContentEditorModal();
-    renderCalendar(State.calendarDate);
+    closeContentDetail();
+    startEditCompose(item);
   } catch (err) {
     toast(err.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = itemId ? 'Save Draft' : 'Create Draft';
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// History
-// ─────────────────────────────────────────────────────────────────────────────
 
 async function loadHistory() {
   await Promise.all([loadPostHistory(), loadAIGenHistory()]);
@@ -1238,21 +1744,30 @@ async function loadPostHistory() {
       list.innerHTML = '<div class="empty-state" style="padding:30px 0"><div class="empty-icon">📭</div><div class="empty-title">No posts yet</div></div>';
       return;
     }
+    State.postsHistoryMap = {};
+    posts.forEach(p => { State.postsHistoryMap[p.id] = p; });
+
     list.innerHTML = posts.map(post => {
       const platforms = Array.isArray(post.platforms) ? post.platforms : [];
       const date = new Date(post.created_at * 1000);
+      const waText = encodeURIComponent(post.content?.substring(0, 1000) || '');
       return `
-        <div class="history-item">
-          <div class="history-content">${escapeHtml(post.content)}</div>
-          <div class="history-tags">
+        <div class="history-item" style="margin-bottom:12px;padding:12px;border:1px solid var(--border);border-radius:8px">
+          <div class="history-content" style="white-space:pre-wrap;margin-bottom:8px;max-height:160px;overflow-y:auto">${escapeHtml(post.content)}</div>
+          <div class="history-tags" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
             ${platforms.map(p => `<span class="tag purple">${PLATFORMS[p]?.icon || ''} ${p}</span>`).join('')}
             <span class="tag">${date.toLocaleDateString()}</span>
-            <span class="badge badge-${post.status === 'published' ? 'green' : 'orange'}" style="margin-left:auto">${post.status}</span>
+            <span class="badge badge-${post.status === 'published' ? 'green' : 'orange'}">${post.status}</span>
+            <div style="margin-left:auto;display:flex;gap:6px">
+              <button class="btn btn-secondary btn-sm" onclick="copyPostHistory(${post.id})">📋 Copy</button>
+              <a class="btn btn-sm" style="background:rgba(37,211,102,0.15);color:#25d366;border:1px solid rgba(37,211,102,0.3);text-decoration:none" href="https://api.whatsapp.com/send?text=${waText}" target="_blank">💬 WhatsApp</a>
+              <button class="btn btn-primary btn-sm" onclick="openRepostModal(${post.id})">✏️ Edit & Repost</button>
+            </div>
           </div>
         </div>`;
     }).join('');
   } catch (err) {
-    list.innerHTML = `<div style="color:#ef4444;padding:16px">${err.message}</div>`;
+    list.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -1264,28 +1779,61 @@ async function loadAIGenHistory() {
       list.innerHTML = '<div class="empty-state" style="padding:30px 0"><div class="empty-icon">✨</div><div class="empty-title">No generations yet</div></div>';
       return;
     }
+    State.aiHistoryMap = State.aiHistoryMap || {};
+    history.forEach(h => { State.aiHistoryMap[h.id] = h; });
+
     list.innerHTML = history.map(h => `
-      <div class="history-item">
-        <div class="history-prompt">"${escapeHtml(h.prompt.substring(0, 80))}…"</div>
-        <div class="history-content">${escapeHtml(h.response)}</div>
-        <div class="history-tags">
-          <span class="tag blue">${h.model || 'claude'}</span>
+      <div class="history-item" style="margin-bottom:12px;padding:12px;border:1px solid var(--border);border-radius:8px">
+        <div class="history-prompt" style="font-weight:600;font-size:12px;color:var(--text-muted);margin-bottom:4px">"${escapeHtml(h.prompt.substring(0, 100))}${h.prompt.length > 100 ? '…' : ''}"</div>
+        <div class="history-content" style="white-space:pre-wrap;margin-bottom:8px;max-height:160px;overflow-y:auto">${escapeHtml(h.response)}</div>
+        <div class="history-tags" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span class="tag blue">${escapeHtml(h.model || 'ai')}</span>
           <span class="tag">${h.tokens_used || '?'} tokens</span>
           <span class="tag">${new Date(h.created_at * 1000).toLocaleDateString()}</span>
-          <button class="btn btn-secondary btn-sm" onclick="useHistoryContent('${encodeURIComponent(h.response)}')" style="margin-left:auto">Use</button>
+          <div style="margin-left:auto;display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" onclick="copyAIGenHistory(${h.id})">📋 Copy</button>
+            <button class="btn btn-primary btn-sm" onclick="useAIGenHistory(${h.id})">✏️ Use in Compose</button>
+          </div>
         </div>
       </div>`).join('');
   } catch (err) {
-    list.innerHTML = `<div style="color:#ef4444;padding:16px">${err.message}</div>`;
+    list.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`;
   }
 }
 
-function useHistoryContent(encoded) {
-  const content = decodeURIComponent(encoded);
-  document.getElementById('compose-content').value = content;
-  navigateTo('compose');
-  updateComposeCharCount();
-  toast('Content loaded into Compose', 'success');
+function useAIGenHistory(id) {
+  const item = State.aiHistoryMap?.[id];
+  if (!item || !item.response) return toast('Content not found', 'error');
+
+  if (!startNewCompose({ text: item.response })) return;
+  State.generatedContent = item.response;
+
+  const genOut = document.getElementById('gen-output');
+  if (genOut) genOut.textContent = item.response;
+  closeAIHistory();
+  toast('✅ Content loaded into Compose!', 'success');
+}
+
+function usePostHistory(id) {
+  const post = State.postsHistoryMap?.[id];
+  if (!post || !post.content) return toast('Post content not found', 'error');
+
+  if (!startNewCompose({ text: post.content, image_url: post.image_url || '', platforms: Array.isArray(post.platforms) ? post.platforms : null })) return;
+  toast('✅ Post copied to Compose ready for re-posting!', 'success');
+}
+
+function copyAIGenHistory(id) {
+  const item = State.aiHistoryMap?.[id];
+  if (!item || !item.response) return;
+  navigator.clipboard.writeText(item.response);
+  toast('📋 Copied to clipboard!', 'info');
+}
+
+function copyPostHistory(id) {
+  const post = State.postsHistoryMap?.[id];
+  if (!post || !post.content) return;
+  navigator.clipboard.writeText(post.content);
+  toast('📋 Copied to clipboard!', 'info');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1306,14 +1854,14 @@ async function loadLocalFiles(targetListId = 'local-files-list') {
     list.innerHTML = files.map(f => {
       const ext = f.ext.replace('.', '');
       const size = formatBytes(f.size);
-      return `<div class="file-item" onclick="previewFile('${escapeHtml(f.name)}', '${targetListId}')">
+      return `<div class="file-item" onclick="previewFile(${jsAttr(f.name)}, '${targetListId}')">
         <span class="file-ext-badge ${ext}">${ext}</span>
         <span class="file-name">${escapeHtml(f.name)}</span>
         <span class="file-size">${size}</span>
       </div>`;
     }).join('');
   } catch (err) {
-    list.innerHTML = `<div style="color:#ef4444;padding:16px">${err.message}</div>`;
+    list.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -1346,9 +1894,7 @@ async function previewFile(name, sourceList) {
 
 function useFileAsContent() {
   if (!State.selectedFileContent) return;
-  document.getElementById('compose-content').value = State.selectedFileContent;
-  navigateTo('compose');
-  updateComposeCharCount();
+  if (!startNewCompose({ text: State.selectedFileContent })) return;
   toast('File content loaded into Compose', 'success');
 }
 
@@ -1367,10 +1913,8 @@ async function importFileToCompose(name) {
   try {
     const data = await api('GET', `/api/local/read?file=${encodeURIComponent(name)}`);
     if (data.content) {
-      document.getElementById('compose-content').value = data.content;
-      updateComposeCharCount();
       closeFileBrowserModal();
-      navigateTo('compose');
+      if (!startNewCompose({ text: data.content })) return;
       toast(`Imported: ${name}`, 'success');
     }
   } catch (err) {
@@ -1495,7 +2039,7 @@ function chartOptions(title) {
 function renderAnalyticsTable(summary) {
   const tbody = document.getElementById('analytics-table-body');
   if (!summary.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:30px">No data yet. Click "Simulate Data" to generate sample analytics.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:30px">Analytics appear here after your first published post. (Want a preview? Click "Show sample data (demo)" — those numbers are made up.)</td></tr>';
     return;
   }
 
@@ -1527,12 +2071,77 @@ async function simulateAnalytics() {
 // Settings
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ❓ Help & User Guide (public/help.html; opens in its own window in the desktop app)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Help section for each screen (ids in public/help.html)
+const HELP_TOPICS = {
+  dashboard: 'tour', compose: 'write', generate: 'write', calendar: 'schedule', history: 'failed',
+  templates: 'templates', brand: 'templates', hashtags: 'hashtags', utm: 'hashtags', seo: 'seo', aso: 'seo',
+  adcopy: 'seo', media: 'ai-keys', email: 'email', clients: 'clients', analytics: 'tour', files: 'data',
+  admin: 'team', 'tools-directory': 'ai-keys',
+  // Settings tabs
+  'settings:platforms': 'connect', 'settings:license': 'licence', 'settings:ai': 'ai-keys',
+  'settings:smtp': 'email',
+  'settings:members': 'team', 'settings:about': 'support',
+};
+
+function helpTopicForPage() {
+  const page = document.querySelector('.page.active')?.id?.replace(/^page-/, '') || '';
+  if (page === 'settings') {
+    const panel = [...document.querySelectorAll('.settings-panel')].find(p => p.style.display !== 'none');
+    const tab = panel?.id?.replace(/^settings-panel-/, '');
+    if (tab && HELP_TOPICS[`settings:${tab}`]) return HELP_TOPICS[`settings:${tab}`];
+  }
+  return HELP_TOPICS[page] || '';
+}
+
+function openHelp(topic = '') {
+  const url = `/help.html${topic ? `#${encodeURIComponent(topic)}` : ''}`;
+  const win = window.open(url, 'social-nexus-help');
+  if (!win) location.href = url; // pop-ups blocked: open it here instead
+}
+
+// F1 opens help for the current screen, like other Windows apps
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'F1') { e.preventDefault(); openHelp(helpTopicForPage()); }
+});
+
+// Settings tabs that change things for everyone on this PC: only the admin can
+// edit them. Others see a short note and read-only controls instead of a form
+// that would only fail when saved.
+const ADMIN_ONLY_TABS = {
+  smtp: 'Email sending (SMTP) is set up once for everyone by the admin of this installation. Ask them if emails are not going out.',
+  ai: 'Local AI and the default model are set up for everyone by the admin of this installation. You can still save your own API keys below — they are stored on your account only.',
+};
+function applyAdminOnly(tab) {
+  const panel = document.getElementById(`settings-panel-${tab}`);
+  if (!panel || !ADMIN_ONLY_TABS[tab]) return;
+  const isAdmin = State.user?.role === 'admin';
+  let note = panel.querySelector(':scope > .admin-note');
+  if (!isAdmin && !note) {
+    note = document.createElement('div');
+    note.className = 'admin-note';
+    note.textContent = '🔒 ' + ADMIN_ONLY_TABS[tab];
+    panel.prepend(note);
+  }
+  if (isAdmin && note) note.remove();
+  panel.querySelectorAll('input, select, textarea, button').forEach(el => {
+    if (el.closest('.admin-note') || el.closest('.user-scoped') || el.classList.contains('admin-note-exempt')) return;
+    if (!isAdmin) { el.dataset.adminLocked = '1'; el.disabled = true; }
+    else if (el.dataset.adminLocked) { el.disabled = false; delete el.dataset.adminLocked; }
+  });
+}
+
 function switchSettingsTab(tab, btn) {
   document.querySelectorAll('.settings-panel').forEach(p => p.style.display = 'none');
   document.getElementById(`settings-panel-${tab}`).style.display = '';
   document.querySelectorAll('.settings-tab-btn').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-secondary'); });
   if (btn) { btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary'); }
   if (tab === 'members') loadMembers();
+  applyAdminOnly(tab);
+  if (tab === 'license') { if (State.license) renderLicensePanel(State.license); loadLicense(); }
 }
 
 async function loadSettings() {
@@ -1570,9 +2179,11 @@ function renderPlatformCards(platforms) {
 
     const statusBadge = isConnected
       ? `<span class="badge badge-green" style="font-size:11px">● Connected</span>`
+      : p.needs_reconnect
+        ? `<span class="badge badge-orange" style="font-size:11px" title="The saved sign-in can't be used to post. Click Connect to sign in again.">● Sign in again</span>`
       : isConfigured
         ? `<span class="badge badge-orange" style="font-size:11px">● Ready to Connect</span>`
-        : `<span class="badge badge-red" style="font-size:11px">● Credentials Needed</span>`;
+        : State.user?.role === 'admin' ? `<span class="badge badge-red" style="font-size:11px">● Credentials Needed</span>` : `<span class="badge badge-orange" style="font-size:11px">● Waiting for admin</span>`;
 
     const profileHtml = isConnected ? `
       <div style="display:flex;align-items:center;gap:10px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:10px 14px;margin-bottom:12px">
@@ -1587,7 +2198,14 @@ function renderPlatformCards(platforms) {
         </div>
       </div>` : '';
 
-    const credentialsHtml = p.credentials?.length ? `
+    // App keys are shared by everyone on this PC, so only the admin enters them
+    const isAdminUser = State.user?.role === 'admin';
+    const credentialsHtml = !p.credentials?.length ? '' : !isAdminUser ? `
+      <div class="admin-note">
+        ${isConfigured
+          ? `✅ Your admin has set up ${escapeHtml(p.label || key)}. Click <strong>Connect</strong> to link your own account.`
+          : `🔒 Your admin needs to add the ${escapeHtml(p.label || key)} app keys first (Settings → Social Platforms). Then you can click <strong>Connect</strong> here.`}
+      </div>` : p.credentials?.length ? `
       <details style="margin-bottom:12px" ${!isConfigured ? 'open' : ''}>
         <summary style="font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;padding:4px 0">
           🔑 API Credentials ${isConfigured ? '<span class="badge badge-green" style="font-size:10px">Saved</span>' : '<span class="badge badge-orange" style="font-size:10px">Required</span>'}
@@ -1614,9 +2232,31 @@ function renderPlatformCards(platforms) {
         </div>
       </details>` : '';
 
+    // Step-by-step guide (open by default until the platform is connected)
+    const g = p.guide;
+    const availBadge = !g ? '' : g.availability === 'unavailable'
+      ? '<span class="badge badge-red" style="font-size:10px">Not available yet</span>'
+      : g.availability === 'limited' ? '<span class="badge badge-orange" style="font-size:10px">Works with limits</span>' : '';
+    const guideHtml = !g ? '' : `
+      <details style="margin-bottom:12px" ${!isConnected && isAdminUser && g.availability !== 'unavailable' ? 'open' : ''}>
+        <summary style="font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;padding:4px 0">
+          📘 Setup guide ${g.time && g.time !== '—' ? `<span style="font-weight:400;color:var(--text-muted)">· ${escapeHtml(g.time)}</span>` : ''} ${availBadge}
+        </summary>
+        <div style="font-size:13px;margin-top:8px">
+          <div style="color:var(--text-muted);margin-bottom:6px">You need: ${g.needs.map(n => escapeHtml(n)).join(' · ')}</div>
+          <ol style="margin:0 0 0 18px;padding:0;display:flex;flex-direction:column;gap:6px">
+            ${g.steps.map(st => `<li>${escapeHtml(st.text)}
+              ${st.link ? ` <a href="${escapeHtml(st.link)}" target="_blank" rel="noopener" style="color:#60a5fa">Open ↗</a>` : ''}
+              ${st.copy ? `<div style="display:flex;gap:6px;margin-top:4px"><code style="flex:1;padding:6px 8px;background:var(--glass);border-radius:6px;font-size:12px;word-break:break-all">${escapeHtml(st.copy)}</code><button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(${jsAttr(st.copy)});toast('Copied — paste it into the developer portal','success')">📋 Copy</button></div>` : ''}
+            </li>`).join('')}
+          </ol>
+          ${g.notes?.length ? `<div style="margin-top:8px;color:var(--text-muted);font-size:12px">${g.notes.map(n => `ℹ️ ${escapeHtml(n)}`).join('<br>')}</div>` : ''}
+        </div>
+      </details>`;
+
     const noteHtml = p.note ? `<div style="font-size:11px;color:var(--text-muted);background:rgba(255,255,255,0.03);border-radius:6px;padding:8px;margin-bottom:10px">💡 ${escapeHtml(p.note)}</div>` : '';
 
-    const manualTokenHtml = !isConnected && isConfigured ? `
+    const manualTokenHtml = !isConnected && isConfigured && key === 'facebook' ? `
       <details style="margin-top:8px">
         <summary style="font-size:12px;color:var(--accent-blue);cursor:pointer;padding:4px 0">🔑 Paste token manually (if OAuth fails)</summary>
         <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
@@ -1639,8 +2279,14 @@ function renderPlatformCards(platforms) {
       <div id="pinterest-board-selector" style="display:none;margin-top:8px"></div>` : '';
 
     const connectBtn = isConnected
-      ? `<button class="btn btn-danger btn-sm" onclick="disconnect('${key}')">Disconnect</button>`
-      : `<a href="${escapeHtml(p.oauth_url)}" class="btn btn-${isConfigured ? 'primary' : 'secondary'} btn-sm" ${!isConfigured ? 'title="Save credentials first"' : ''}>Connect</a>`;
+      ? `<div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="triggerPlatformConnection('${key}', event)" title="Refresh & re-verify status">🔄 Refresh</button>
+          <button class="btn btn-danger btn-sm" onclick="disconnect('${key}')">Disconnect</button>
+         </div>`
+      : `<div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="triggerPlatformConnection('${key}', event)" title="Check or trigger connection">🔄 Refresh</button>
+          <a href="${escapeHtml(p.oauth_url)}" class="btn btn-${isConfigured ? 'primary' : 'secondary'} btn-sm" ${!isConfigured ? 'title="Save credentials first"' : ''}>Connect</a>
+         </div>`;
 
     return `
       <div class="platform-config-card" id="pcard-${key}" style="border-left:3px solid ${p.color}">
@@ -1655,6 +2301,7 @@ function renderPlatformCards(platforms) {
           <div>${connectBtn}</div>
         </div>
         ${profileHtml}
+        ${guideHtml}
         ${noteHtml}
         ${credentialsHtml}
         ${manualTokenHtml}
@@ -1718,17 +2365,19 @@ async function loadFBPages() {
     container.innerHTML = `<div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px">Select a page to post from:</div>
       <div style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto">
         ${pages.map(pg => `
-          <button class="btn btn-secondary btn-sm" onclick="setFBPage('${escapeHtml(pg.id)}','${escapeHtml(pg.name)}','${escapeHtml(pg.access_token)}')" style="justify-content:flex-start;text-align:left">
+          <button class="btn btn-secondary btn-sm" onclick="setFBPage(${jsAttr(pg.id)},${jsAttr(pg.name)})" style="justify-content:flex-start;text-align:left">
             📄 ${escapeHtml(pg.name)} <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${escapeHtml(pg.id)}</span>
           </button>`).join('')}
       </div>`;
   } catch (err) { container.innerHTML = `<div style="color:#ef4444;font-size:12px">${escapeHtml(err.message)}</div>`; }
 }
 
-async function setFBPage(id, name, token) {
+async function setFBPage(id, name) {
   try {
-    const result = await api('POST', '/api/config/facebook/set-page', { page_id: id, page_name: name, page_token: token });
-    const msg = result.instagram_detected ? `Page set! Instagram Business account also detected. ✅` : `Page "${name}" set as default. ✅`;
+    const result = await api('POST', '/api/config/facebook/set-page', { page_id: id });
+    const msg = result.instagram_connected ? `Page "${name}" set, and its Instagram account is connected too. ✅`
+      : result.instagram_detected ? `Page "${name}" set. ✅ To post to its linked Instagram, click Connect on the Instagram card.`
+      : `Page "${name}" set as default. ✅`;
     toast(msg, 'success');
     document.getElementById('fb-page-selector').style.display = 'none';
     loadSettings();
@@ -1745,7 +2394,7 @@ async function loadPinterestBoards() {
     container.innerHTML = `<div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px">Select a board:</div>
       <div style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto">
         ${boards.map(b => `
-          <button class="btn btn-secondary btn-sm" onclick="setPinterestBoard('${escapeHtml(b.id)}','${escapeHtml(b.name)}')" style="justify-content:flex-start">
+          <button class="btn btn-secondary btn-sm" onclick="setPinterestBoard(${jsAttr(b.id)},${jsAttr(b.name)})" style="justify-content:flex-start">
             📌 ${escapeHtml(b.name)}
           </button>`).join('')}
       </div>`;
@@ -1771,31 +2420,35 @@ async function saveDefaultModelSetting() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
+// All AI and media keys are saved to the signed-in user's own account
+// (POST /users/settings) — never shared with other users of this PC.
+const ENV_TO_USER_SETTING = {
+  GOOGLE_AI_KEY: 'google_ai_key', ANTHROPIC_API_KEY: 'anthropic_key',
+  STABILITY_API_KEY: 'stability_key', OPENAI_API_KEY: 'openai_key',
+  LUMA_API_KEY: 'luma_key', RUNWAY_API_KEY: 'runway_key',
+};
+
+async function saveUserKey(settingKey, value, label) {
+  if (!value) return toast(`Please enter your ${label}`, 'warning');
+  try {
+    await api('POST', '/users/settings', { [settingKey]: value });
+    toast(`✅ ${label} saved to your account`, 'success');
+    loadModels?.();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
 function saveApiKey() {
-  const key = document.getElementById('setting-anthropic-key').value.trim();
-  if (!key) return toast('Please enter a Google Gemini API key', 'warning');
-  State.anthropicKey = key;
-  localStorage.setItem('nexus_api_key', key);
-  api('POST', '/api/config/ai-keys', { GOOGLE_AI_KEY: key }).catch(() => {});
-  toast('✅ Google Gemini API key saved!', 'success');
+  return saveUserKey('google_ai_key', document.getElementById('setting-anthropic-key').value.trim(), 'Google Gemini API key');
 }
 
 function saveClaudeKey() {
-  const key = document.getElementById('setting-claude-key').value.trim();
-  if (!key) return toast('Please enter an Anthropic API key', 'warning');
-  localStorage.setItem('nexus_claude_key', key);
-  api('POST', '/api/config/ai-keys', { ANTHROPIC_API_KEY: key }).catch(() => {});
-  toast('✅ Anthropic API key saved!', 'success');
+  return saveUserKey('anthropic_key', document.getElementById('setting-claude-key').value.trim(), 'Anthropic API key');
 }
 
 async function saveMediaKey(envKey, inputId) {
-  const val = document.getElementById(inputId)?.value.trim();
-  if (!val) return toast('Please enter a key', 'warning');
-  try {
-    const body = {}; body[envKey] = val;
-    await api('POST', '/api/config/ai-keys', body);
-    toast('✅ Key saved!', 'success');
-  } catch (err) { toast(err.message, 'error'); }
+  const settingKey = ENV_TO_USER_SETTING[envKey];
+  if (!settingKey) return toast('Unknown key type', 'error');
+  return saveUserKey(settingKey, document.getElementById(inputId)?.value.trim(), 'key');
 }
 
 async function saveContentFolder() {
@@ -1829,6 +2482,33 @@ async function saveSMTPSettings() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
+async function triggerPlatformConnection(platform, evt) {
+  const btn = evt?.currentTarget || (evt?.target?.tagName === 'BUTTON' ? evt.target : null);
+  const origHtml = btn ? btn.innerHTML : '🔄 Refresh';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Verifying…'; }
+
+  try {
+    const res = await api('POST', `/auth/refresh/${platform}`);
+    if (res.connected) {
+      toast(`✅ ${platform} connection verified & refreshed!`, 'success');
+      await refreshStatus();
+      loadSettings();
+      renderDashboardPlatforms();
+    } else if (res.oauth_url) {
+      toast(`Starting ${platform} authorization…`, 'info');
+      window.location.href = res.oauth_url;
+    }
+  } catch (err) {
+    toast(err.message, 'warning');
+    const oauthUrl = `/auth/${platform}`;
+    if (confirm(`${err.message}\n\nWould you like to connect ${platform} now?`)) {
+      window.location.href = oauthUrl;
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+  }
+}
+
 async function disconnect(platform) {
   if (!confirm(`Disconnect ${platform}?`)) return;
   try {
@@ -1849,10 +2529,20 @@ function setEl(id, val) {
   if (el) el.textContent = val;
 }
 
+// Escapes text for HTML content AND attribute values (quotes included).
 function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.appendChild(document.createTextNode(str || ''));
-  return div.innerHTML;
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// A value passed as an argument inside an inline handler, e.g.
+//   onclick="switchWorkspace(${id}, ${jsAttr(name)})"
+// JSON-encodes it (a valid JS literal) and then HTML-escapes it for the attribute,
+// so names like "Priya's Workspace" or text with quotes can't break the handler.
+function jsAttr(value) {
+  return escapeHtml(JSON.stringify(value === undefined ? null : value));
 }
 
 function timeAgo(date) {
@@ -1934,8 +2624,8 @@ async function loadAdminUsers() {
             ${u.status !== 'suspended'
               ? `<button class="btn btn-secondary btn-sm" onclick="suspendUser(${u.id})" title="Suspend">🚫</button>`
               : `<button class="btn btn-success btn-sm" onclick="activateUser(${u.id})" title="Activate">✅</button>`}
-            <button class="btn btn-secondary btn-sm btn-icon" onclick="adminResetPassword(${u.id},'${escapeHtml(u.email)}')" title="Reset Password">🔑</button>
-            <button class="btn btn-danger btn-sm btn-icon" onclick="deleteUser(${u.id},'${escapeHtml(u.email)}')" title="Delete">🗑</button>
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="adminResetPassword(${u.id},${jsAttr(u.email)})" title="Reset Password">🔑</button>
+            <button class="btn btn-danger btn-sm btn-icon" onclick="deleteUser(${u.id},${jsAttr(u.email)})" title="Delete">🗑</button>
           </div>
         </td>
       </tr>`).join('');
@@ -2008,8 +2698,8 @@ async function generateInviteCode() {
         <div style="font-size:22px;font-weight:900;letter-spacing:4px;color:#a78bfa;font-family:monospace">${data.code}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:6px;word-break:break-all">${shareUrl}</div>
         <div style="display:flex;gap:6px;margin-top:8px">
-          <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText('${data.code}');toast('Code copied!','success')">📋 Copy Code</button>
-          <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText('${escapeHtml(shareUrl)}');toast('Link copied!','success')">🔗 Copy Link</button>
+          <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText(${jsAttr(data.code)});toast('Code copied!','success')">📋 Copy Code</button>
+          <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(${jsAttr(shareUrl)});toast('Link copied!','success')">🔗 Copy Link</button>
         </div>
       </div>`;
     document.getElementById('inv-note').value = '';
@@ -2042,7 +2732,7 @@ async function loadInviteCodes() {
           </div>
           <div style="display:flex;align-items:center;gap:6px">
             <span class="badge ${badgeCls}">${status}</span>
-            <button class="btn btn-secondary btn-sm btn-icon" onclick="navigator.clipboard.writeText('${escapeHtml(c.code)}');toast('Copied!','success')" title="Copy">📋</button>
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="navigator.clipboard.writeText(${jsAttr(c.code)});toast('Copied!','success')" title="Copy">📋</button>
             <button class="btn btn-danger btn-sm btn-icon" onclick="revokeInvite(${c.id})" title="Revoke">🗑</button>
           </div>
         </div>`;
@@ -2083,7 +2773,7 @@ async function loadAdminConfig() {
     const modeEl = document.getElementById('admin-reg-mode');
     const nameEl = document.getElementById('admin-app-name');
     if (modeEl) modeEl.value = config.registration_mode || 'open';
-    if (nameEl) nameEl.value = config.app_name || 'NEXUS';
+    if (nameEl) nameEl.value = config.app_name || 'Social-Nexus';
   } catch {}
 }
 
@@ -2109,7 +2799,7 @@ function toggleTheme() {
   const isLight = document.body.classList.toggle('light-mode');
   localStorage.setItem('nexus_theme', isLight ? 'light' : 'dark');
   const btn = document.getElementById('btn-theme');
-  if (btn) btn.textContent = isLight ? '☀️' : '🌙';
+  document.getElementById('theme-icon')?.querySelector('use')?.setAttribute('href', `icons/sprite.svg#i-${isLight ? 'sun' : 'moon'}`);
   if (btn) btn.title = isLight ? 'Switch to dark mode' : 'Switch to light mode';
 }
 
@@ -2118,7 +2808,8 @@ function initTheme() {
   if (saved === 'light') {
     document.body.classList.add('light-mode');
     const btn = document.getElementById('btn-theme');
-    if (btn) { btn.textContent = '☀️'; btn.title = 'Switch to dark mode'; }
+    document.getElementById('theme-icon')?.querySelector('use')?.setAttribute('href', 'icons/sprite.svg#i-sun');
+    if (btn) btn.title = 'Switch to dark mode';
   }
 }
 
@@ -2133,6 +2824,11 @@ function handleURLParams() {
 
   if (connected) {
     toast(`✅ ${connected.charAt(0).toUpperCase() + connected.slice(1)} connected successfully!`, 'success');
+    if (connected === 'facebook' && params.get('select_page')) {
+      toast(params.get('instagram')
+        ? 'You manage several Facebook Pages — choose the one linked to your Instagram in Settings → Facebook → Select page. Instagram connects when you pick it.'
+        : 'You manage several Facebook Pages — choose which one Social-Nexus posts to in Settings → Facebook → Select page.', 'info', 9000);
+    }
     window.history.replaceState({}, '', '/');
   }
 
@@ -2146,8 +2842,18 @@ function handleURLParams() {
       pinterest_failed: 'Pinterest connection failed',
       twitter_denied: 'Twitter authorization was denied',
       twitter_failed: 'Twitter connection failed',
+      oauth_state_invalid: 'Sign-in link expired or was not started from Social-Nexus — please try connecting again',
+      instagram_not_found: 'Facebook is connected, but no Instagram account is linked to your Facebook Page. In Instagram, switch to a Business or Creator account and link it to the Page, then click Connect on the Instagram card again.',
     };
-    toast(msgs[error] || `OAuth error: ${error}`, 'error', 6000);
+    if (error === 'not_configured') {
+      const names = { linkedin: 'LinkedIn', facebook: 'Facebook', pinterest: 'Pinterest', twitter: 'Twitter/X', google: 'YouTube / Google Business', tiktok: 'TikTok' };
+      const name = names[params.get('platform')] || 'this platform';
+      toast(`Before connecting ${name}, add your ${name} app details in Settings → Social Platforms (open "API Credentials" on its card).`, 'warning', 8000);
+      navigateTo('settings');
+      window.history.replaceState({}, '', '/');
+      return;
+    }
+    toast(msgs[error] || `OAuth error: ${error}`, 'error', error === 'instagram_not_found' ? 12000 : 6000);
     window.history.replaceState({}, '', '/');
   }
 }
@@ -2221,7 +2927,7 @@ function renderModelChips(containerId, models, type, onSelect) {
     const bg = isActive ? 'rgba(124,58,237,0.2)' : 'var(--glass)';
     const bc = isActive ? 'var(--accent-purple)' : 'var(--border)';
     const color = isActive ? '#a78bfa' : 'var(--text-secondary)';
-    return `<button class="model-chip" data-model-id="${m.id}" onclick="selectModel(${JSON.stringify(m).replace(/"/g,'&quot;')}, '${type}')"
+    return `<button class="model-chip" data-model-id="${m.id}" onclick="selectModel(${jsAttr(m)}, '${type}')"
       style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid ${bc};background:${bg};cursor:pointer;font-size:12px;font-weight:500;color:${color};transition:var(--transition)">
       ${icon} ${escapeHtml(m.label)}${sizeText}
     </button>`;
@@ -2269,7 +2975,7 @@ function switchSeoTab(tab, btn) {
 async function generateMetaTags() {
   const btn = document.getElementById('btn-seo-meta');
   const out = document.getElementById('seo-meta-output');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Generating…';
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Writing… (can take up to a minute)';
   out.innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner lg"></span></div>';
   try {
     const data = await api('POST', '/api/seo/meta', {
@@ -2281,11 +2987,11 @@ async function generateMetaTags() {
     out.innerHTML = `
       <div class="seo-result-group"><div class="seo-result-label">Meta Title <span class="badge badge-${data.meta_title?.length > 60 ? 'red' : 'green'}">${data.meta_title?.length || 0} chars</span></div>
         <div class="seo-result-value">${escapeHtml(data.meta_title || '')}</div>
-        <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText('${escapeHtml(data.meta_title || '')}');toast('Copied!','success')" style="margin-top:6px">📋 Copy</button>
+        <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(${jsAttr(data.meta_title || '')});toast('Copied!','success')" style="margin-top:6px">📋 Copy</button>
       </div>
       <div class="seo-result-group"><div class="seo-result-label">Meta Description <span class="badge badge-${data.meta_description?.length > 160 ? 'red' : 'green'}">${data.meta_description?.length || 0} chars</span></div>
         <div class="seo-result-value">${escapeHtml(data.meta_description || '')}</div>
-        <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText('${escapeHtml(data.meta_description || '')}');toast('Copied!','success')" style="margin-top:6px">📋 Copy</button>
+        <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(${jsAttr(data.meta_description || '')});toast('Copied!','success')" style="margin-top:6px">📋 Copy</button>
       </div>
       <div class="seo-result-group"><div class="seo-result-label">Focus Keywords</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">${(data.focus_keywords || []).map(k => `<span class="badge badge-blue">${escapeHtml(k)}</span>`).join('')}</div>
@@ -2329,11 +3035,11 @@ async function researchKeywords() {
     let html = '';
     if (data.primary_keywords?.length) {
       html += `<div class="seo-result-group"><div class="seo-result-label">🎯 Primary Keywords</div>${data.primary_keywords.map(k =>
-        `<div class="kw-row"><span class="kw-term">${escapeHtml(k.keyword)}</span><span class="badge badge-${k.difficulty==='low'?'green':k.difficulty==='medium'?'orange':'red'}">${k.difficulty}</span><span class="badge badge-blue">${k.intent}</span><button class="btn btn-secondary btn-sm" onclick="addTrackedFromResearch('${encapeHtml(k.keyword)}')">+ Track</button></div>`).join('')}</div>`;
+        `<div class="kw-row"><span class="kw-term">${escapeHtml(k.keyword)}</span><span class="badge badge-${k.difficulty==='low'?'green':k.difficulty==='medium'?'orange':'red'}">${k.difficulty}</span><span class="badge badge-blue">${k.intent}</span><button class="btn btn-secondary btn-sm" onclick="addTrackedFromResearch(${jsAttr(k.keyword)})">+ Track</button></div>`).join('')}</div>`;
     }
     if (data.long_tail_keywords?.length) {
       html += `<div class="seo-result-group"><div class="seo-result-label">📏 Long-tail Keywords</div>${data.long_tail_keywords.map(k =>
-        `<div class="kw-row"><span class="kw-term">${escapeHtml(k.keyword)}</span><span class="badge badge-${k.difficulty==='low'?'green':k.difficulty==='medium'?'orange':'red'}">${k.difficulty}</span><button class="btn btn-secondary btn-sm" onclick="addTrackedFromResearch('${encapeHtml(k.keyword)}')">+ Track</button></div>`).join('')}</div>`;
+        `<div class="kw-row"><span class="kw-term">${escapeHtml(k.keyword)}</span><span class="badge badge-${k.difficulty==='low'?'green':k.difficulty==='medium'?'orange':'red'}">${k.difficulty}</span><button class="btn btn-secondary btn-sm" onclick="addTrackedFromResearch(${jsAttr(k.keyword)})">+ Track</button></div>`).join('')}</div>`;
     }
     if (data.questions?.length) {
       html += `<div class="seo-result-group"><div class="seo-result-label">❓ Questions to Answer</div>${data.questions.map(q => `<div style="padding:5px 0;font-size:13px;border-bottom:1px solid var(--border)">• ${escapeHtml(q)}</div>`).join('')}</div>`;
@@ -2428,7 +3134,7 @@ async function deleteTrackedKeyword(id) {
 async function generateASO() {
   const btn = document.getElementById('btn-aso');
   const out = document.getElementById('aso-output');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Generating…';
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Writing… (can take up to a minute)';
   out.innerHTML = '<div style="text-align:center;padding:60px"><span class="spinner lg"></span></div>';
   try {
     const data = await api('POST', '/api/seo/aso', {
@@ -2438,7 +3144,7 @@ async function generateASO() {
       platform: document.getElementById('aso-platform').value,
       competitors: document.getElementById('aso-competitors').value,
     });
-    const copyBtn = (text) => `<button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="navigator.clipboard.writeText(${JSON.stringify(text)});toast('Copied!','success')">📋 Copy</button>`;
+    const copyBtn = (text) => `<button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="navigator.clipboard.writeText(${jsAttr(text)});toast('Copied!','success')">📋 Copy</button>`;
     let html = '';
     if (data.app_store) {
       html += `<div class="seo-result-group"><div class="seo-result-label" style="color:#0a66c2">🍎 App Store (iOS)</div>
@@ -2495,7 +3201,7 @@ async function loadCampaigns() {
       return;
     }
     list.innerHTML = camps.map(c => `
-      <div class="scheduled-item" style="cursor:pointer" onclick="loadCampaignToEditor(${JSON.stringify(c).replace(/"/g, '&quot;')})">
+      <div class="scheduled-item" style="cursor:pointer" onclick="loadCampaignToEditor(${jsAttr(c)})">
         <div class="scheduled-content">
           <div class="scheduled-text"><strong>${escapeHtml(c.name)}</strong></div>
           <div style="font-size:12px;color:var(--text-muted)">${escapeHtml(c.subject)}</div>
@@ -2522,17 +3228,21 @@ async function saveCampaign() {
   const name = document.getElementById('camp-name').value.trim();
   const subject = document.getElementById('camp-subject').value.trim();
   const body = document.getElementById('camp-body').value.trim();
-  if (!name || !subject) return toast('Campaign name and subject are required', 'warning');
+  if (!name || !subject) { toast('Campaign name and subject are required', 'warning'); return null; }
+  // Plain-text part for mail clients that don't show HTML
+  const text = body.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n\n').replace(/<[^>]+>/g, '').trim();
   try {
     if (State.editingCampaignId) {
-      await api('PUT', `/api/email/campaigns/${State.editingCampaignId}`, { name, subject, html_content: body, text_content: body });
+      await api('PUT', `/api/email/campaigns/${State.editingCampaignId}`, { name, subject, html_content: body, text_content: text });
     } else {
-      await api('POST', '/api/email/campaigns', { name, subject, html_content: body, text_content: body });
+      const res = await api('POST', '/api/email/campaigns', { name, subject, html_content: body, text_content: text });
+      // Keep editing the saved campaign: later saves update it and Send can send it
+      State.editingCampaignId = res.id;
     }
     toast('Campaign saved!', 'success');
-    State.editingCampaignId = null;
     loadCampaigns();
-  } catch (err) { toast(err.message, 'error'); }
+    return State.editingCampaignId;
+  } catch (err) { toast(err.message, 'error'); return null; }
 }
 
 async function sendCampaign() {
@@ -2544,9 +3254,9 @@ async function sendCampaign() {
   const btn = document.getElementById('btn-send-camp');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Sending…';
   try {
-    if (!State.editingCampaignId) await saveCampaign();
-    const campId = State.editingCampaignId;
-    if (!campId) { toast('Save the campaign first', 'warning'); return; }
+    // Always save first, so the latest subject/body edits are what gets sent
+    const campId = await saveCampaign();
+    if (!campId) return;
     const result = await api('POST', `/api/email/campaigns/${campId}/send`);
     toast(`Sent to ${result.sent} subscribers!`, 'success');
     State.editingCampaignId = null;
@@ -2623,7 +3333,7 @@ async function generateEmail() {
   const btn = document.getElementById('btn-gen-email');
   const out = document.getElementById('email-gen-output');
   const sendBtn = document.getElementById('btn-email-to-camp');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Generating…';
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Writing… (can take up to a minute)';
   out.innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner lg"></span></div>';
   try {
     const data = await api('POST', '/api/email/generate', {
@@ -2670,7 +3380,7 @@ function switchAdTab(tab, btn) {
 async function generateAdCopy() {
   const btn = document.getElementById('btn-gen-ad');
   const out = document.getElementById('ad-output');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Generating…';
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Writing… (can take up to a minute)';
   out.innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner lg"></span></div>';
   try {
     const data = await api('POST', '/api/tools/ad-copy', {
@@ -2679,7 +3389,7 @@ async function generateAdCopy() {
       usp: document.getElementById('ad-usp').value,
       goal: document.getElementById('ad-goal').value,
     });
-    const copyBtn = (label, text) => `<button class="btn btn-secondary btn-sm" style="margin-top:4px" onclick="navigator.clipboard.writeText(${JSON.stringify(text||'')});toast('Copied!','success')">📋 ${label}</button>`;
+    const copyBtn = (label, text) => `<button class="btn btn-secondary btn-sm" style="margin-top:4px" onclick="navigator.clipboard.writeText(${jsAttr(text||'')});toast('Copied!','success')">📋 ${label}</button>`;
     const g = data.google_ads || {};
     const m = data.meta_ads || {};
     let html = `<div class="seo-result-group"><div class="seo-result-label" style="color:#4285f4">🔵 Google Ads</div>
@@ -2824,8 +3534,8 @@ async function generateImage() {
     toast('Image generated!', 'success');
   } catch (err) {
     out.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`;
-    if (err.message.includes('not configured')) {
-      out.innerHTML += `<div style="margin-top:12px;font-size:12px;color:var(--text-muted)">Add <code>STABILITY_API_KEY</code> or <code>OPENAI_API_KEY</code> to your .env file and restart the server.</div>`;
+    if (/No image generator/.test(err.message)) {
+      out.innerHTML += `<div style="margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="navigateTo('user-settings')">⚙️ Open My API Keys</button></div>`;
     }
     toast(err.message, 'error');
   }
@@ -2849,7 +3559,7 @@ function useImageInCompose() {
   if (State.lastImageUrl) {
     document.getElementById('compose-image').value = State.lastImageUrl;
     navigateTo('compose');
-    toast('Image URL added to Compose', 'success');
+    toast(State.composeEditing ? 'Image added to the post you’re editing — Save to keep it' : 'Image added to Create Post', 'success');
   } else if (State.lastImageBase64) {
     toast('For compose, use a hosted image URL. Download the image and upload to your hosting.', 'info', 6000);
   }
@@ -2873,7 +3583,7 @@ async function generateVideo() {
         <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Provider: ${data.provider} | Job: <code>${data.job_id}</code></div>
         <div class="badge badge-orange" style="font-size:12px">Processing — takes 30-120 seconds</div>
         <div style="margin-top:16px">
-          <button class="btn btn-primary" onclick="pollVideoStatus('${data.provider}','${data.job_id}',this)" id="btn-poll-video">🔄 Check Status</button>
+          <button class="btn btn-primary" onclick="pollVideoStatus(${jsAttr(data.provider)},${jsAttr(data.job_id)},this)" id="btn-poll-video">🔄 Check Status</button>
         </div>
         <div id="video-poll-result" style="margin-top:16px"></div>
       </div>`;
@@ -2917,7 +3627,7 @@ async function generateAnimation() {
       <div style="text-align:center;padding:16px">
         <div class="badge badge-orange">⏳ Animation processing…</div>
         <div style="font-size:12px;color:var(--text-muted);margin:8px 0">Job ID: ${data.job_id}</div>
-        <button class="btn btn-primary btn-sm" onclick="pollAnimationStatus('${data.job_id}',this)">🔄 Check Status</button>
+        <button class="btn btn-primary btn-sm" onclick="pollAnimationStatus(${jsAttr(data.job_id)},this)">🔄 Check Status</button>
         <div id="anim-poll-result" style="margin-top:12px"></div>
       </div>`;
     toast('Animation started!', 'success');
@@ -2966,8 +3676,7 @@ async function generateCaption() {
 
 function sendCaptionToCompose() {
   if (!State.lastCaption) return;
-  document.getElementById('compose-content').value = State.lastCaption;
-  navigateTo('compose'); updateComposeCharCount();
+  if (!startNewCompose({ text: State.lastCaption })) return;
   toast('Caption loaded into Compose', 'success');
 }
 
@@ -2989,15 +3698,15 @@ async function researchHashtags() {
     });
     State.lastHashtags = data;
     const renderGroup = (label, tags) => tags?.length
-      ? `<div class="seo-result-group"><div class="seo-result-label">${label}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${tags.map(t=>`<span class="badge badge-blue" style="cursor:pointer" onclick="navigator.clipboard.writeText('${escapeHtml(t)}');toast('Copied!','success')">${escapeHtml(t)}</span>`).join('')}</div></div>` : '';
+      ? `<div class="seo-result-group"><div class="seo-result-label">${label}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${tags.map(t=>`<span class="badge badge-blue" style="cursor:pointer" onclick="navigator.clipboard.writeText(${jsAttr(t)});toast('Copied!','success')">${escapeHtml(t)}</span>`).join('')}</div></div>` : '';
     const ht = data.hashtags || {};
     out.innerHTML = `
       ${renderGroup('🔥 High Volume', ht.high_volume)}
       ${renderGroup('📊 Medium Volume', ht.medium_volume)}
       ${renderGroup('🎯 Niche', ht.niche)}
       ${renderGroup('⚡ Trending', ht.trending)}
-      ${data.recommended_mix ? `<div class="seo-result-group"><div class="seo-result-label">⭐ Recommended Mix</div><div style="font-size:13px;color:var(--accent-blue);word-break:break-all">${escapeHtml(data.recommended_mix)}</div><button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="navigator.clipboard.writeText('${escapeHtml(data.recommended_mix||'')}');toast('Copied!','success')">📋 Copy Mix</button></div>` : ''}
-      ${data.instagram_set ? `<div class="seo-result-group"><div class="seo-result-label">📸 Instagram Set (30 tags)</div><div style="font-size:12px;color:var(--text-secondary);word-break:break-all">${escapeHtml(data.instagram_set)}</div><button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="navigator.clipboard.writeText('${escapeHtml(data.instagram_set||'')}');toast('Copied!','success')">📋 Copy IG Set</button></div>` : ''}
+      ${data.recommended_mix ? `<div class="seo-result-group"><div class="seo-result-label">⭐ Recommended Mix</div><div style="font-size:13px;color:var(--accent-blue);word-break:break-all">${escapeHtml(data.recommended_mix)}</div><button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="navigator.clipboard.writeText(${jsAttr(data.recommended_mix||'')});toast('Copied!','success')">📋 Copy Mix</button></div>` : ''}
+      ${data.instagram_set ? `<div class="seo-result-group"><div class="seo-result-label">📸 Instagram Set (30 tags)</div><div style="font-size:12px;color:var(--text-secondary);word-break:break-all">${escapeHtml(data.instagram_set)}</div><button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="navigator.clipboard.writeText(${jsAttr(data.instagram_set||'')});toast('Copied!','success')">📋 Copy IG Set</button></div>` : ''}
       ${data.tip ? `<div class="seo-result-group"><div class="seo-result-label">💡 Tip</div><div style="font-size:12px;color:var(--text-secondary)">${escapeHtml(data.tip)}</div></div>` : ''}`;
     copyBtn.disabled = false;
     toast('Hashtags researched!', 'success');
@@ -3075,7 +3784,7 @@ async function loadUTMLinks() {
           <div style="font-size:11px;color:var(--text-muted);word-break:break-all;margin-top:4px">${escapeHtml((l.full_url||'').substring(0,80))}…</div>
         </div>
         <div style="display:flex;gap:4px">
-          <button class="btn btn-secondary btn-sm btn-icon" onclick="navigator.clipboard.writeText('${escapeHtml(l.full_url||'')}');toast('Copied!','success')" title="Copy">📋</button>
+          <button class="btn btn-secondary btn-sm btn-icon" onclick="navigator.clipboard.writeText(${jsAttr(l.full_url||'')});toast('Copied!','success')" title="Copy">📋</button>
           <button class="btn btn-danger btn-sm btn-icon" onclick="deleteUTMLink(${l.id})" title="Delete">🗑</button>
         </div>
       </div>`).join('');
@@ -3102,7 +3811,7 @@ async function loadTemplates() {
       return;
     }
     list.innerHTML = templates.map(t => `
-      <div class="scheduled-item" style="cursor:pointer" onclick="previewTemplate(${JSON.stringify(t).replace(/"/g, '&quot;')})">
+      <div class="scheduled-item" style="cursor:pointer" onclick="previewTemplate(${jsAttr(t)})">
         <div class="scheduled-content">
           <div class="scheduled-text"><strong>${escapeHtml(t.name)}</strong></div>
           <div style="display:flex;gap:6px;margin-top:4px">
@@ -3124,8 +3833,7 @@ function previewTemplate(t) {
 
 function useTemplate() {
   if (!State.selectedTemplate) return;
-  document.getElementById('compose-content').value = State.selectedTemplate;
-  navigateTo('compose'); updateComposeCharCount();
+  if (!startNewCompose({ text: State.selectedTemplate })) return;
   toast('Template loaded into Compose', 'success');
 }
 
@@ -3186,7 +3894,7 @@ async function checkOllamaStatus() {
         modelsList.style.display = 'block';
         modelsGrid.innerHTML = data.models.map(m => {
           const sizeGB = m.size ? (m.size / 1e9).toFixed(1) + ' GB' : '';
-          return `<span class="badge badge-purple" style="cursor:pointer" onclick="selectOllamaModel('${escapeHtml(m.name)}')">${escapeHtml(m.name)} ${sizeGB}</span>`;
+          return `<span class="badge badge-purple" style="cursor:pointer" onclick="selectOllamaModel(${jsAttr(m.name)})">${escapeHtml(m.name)} ${sizeGB}</span>`;
         }).join('');
 
         // Auto-select current model in dropdown
@@ -3449,39 +4157,84 @@ function toggleWorkspaceSwitcher() {
 
 async function loadWorkspaces() {
   try {
-    const workspaces = await fetch('/me/workspaces').then(r => r.json());
+    const res = await fetch('/me/workspaces');
+    if (res.status === 401) { window.location.href = '/login.html'; return; }
+    const workspaces = await res.json();
     State.userWorkspaces = workspaces;
+    
+    if (workspaces.length > 0 && !currentWorkspaceId) {
+      currentWorkspaceId = workspaces[0].workspace_id;
+      currentWorkspaceName = workspaces[0].workspace_name;
+      const label = document.getElementById('workspace-name-label');
+      if (label) label.textContent = currentWorkspaceName;
+    }
+
     const list = document.getElementById('workspace-list');
     if (!list) return;
     list.innerHTML = workspaces.map(w => `
-      <button class="btn" onclick="switchWorkspace(${w.workspace_id},'${escapeHtml(w.workspace_name)}')"
+      <button class="btn" onclick="switchWorkspace(${w.workspace_id},${jsAttr(w.workspace_name)})"
         style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 14px;font-size:13px;color:var(--text-primary);${w.workspace_id === currentWorkspaceId ? 'background:var(--glass)' : ''}">
         ${w.workspace_id === currentWorkspaceId ? '✓ ' : ''}${escapeHtml(w.workspace_name)}
         <span style="font-size:11px;color:var(--text-muted);margin-left:auto">${w.role}</span>
       </button>`).join('');
-    if (workspaces.length > 0 && !currentWorkspaceId) {
-      await switchWorkspace(workspaces[0].workspace_id, workspaces[0].workspace_name, false);
-    }
-  } catch {}
+  } catch (err) {
+    console.error('loadWorkspaces error:', err);
+  }
 }
 
 async function switchWorkspace(wsId, wsName, closeDropdown = true) {
+  // Create Post belongs to the current workspace (client): never carry it over
+  if (String(wsId) !== String(currentWorkspaceId) && typeof composeHasUnsaved === 'function') {
+    if (composeHasUnsaved() && !confirm('Create Post has changes you haven’t saved. Switch workspace and discard them?')) return;
+    resetCompose();
+  }
   try {
-    await fetch('/session/active-workspace', {
+    const res = await fetch('/session/active-workspace', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ workspaceId: wsId }),
     });
+    if (res.status === 401) { window.location.href = '/login.html'; return; }
+
     currentWorkspaceId = wsId;
     currentWorkspaceName = wsName;
+
     const label = document.getElementById('workspace-name-label');
     if (label) label.textContent = wsName;
+
     if (closeDropdown) {
       const dd = document.getElementById('workspace-dropdown');
       if (dd) dd.style.display = 'none';
-      await loadWorkspaces(); // refresh checkmarks
     }
-  } catch {}
+
+    await loadWorkspaces();
+    await refreshStatus();
+
+    if (typeof State !== 'undefined' && State.currentPage) {
+      const hooks = {
+        dashboard: loadDashboard,
+        calendar:  () => renderCalendar(State.calendarDate),
+        history:   loadHistory,
+        analytics: loadAnalytics,
+        files:     loadLocalFiles,
+        compose:   loadScheduled,
+        templates: loadTemplates,
+        utm:       loadUTMLinks,
+        email:     loadEmailPage,
+        brand:     loadBrandKit,
+        seo:       loadTrackedKeywords,
+        settings:  loadSettings,
+        clients:   loadClients,
+        generate:  loadModels,
+        media:     loadModels,
+        'user-settings': loadUserSettings,
+        admin:     loadAdminDashboard,
+      };
+      if (hooks[State.currentPage]) hooks[State.currentPage]();
+    }
+  } catch (err) {
+    console.error('Workspace switch error:', err);
+  }
 }
 
 // ── Client & Brand Management ──────────────────────────────────────────────────
@@ -3522,7 +4275,6 @@ async function loadClients() {
           <div class="card-body" style="padding:24px;flex-grow:1;display:flex;flex-direction:column;gap:12px">
             <div>
               <div style="font-size:18px;font-weight:700;color:var(--text-primary);margin-bottom:4px">${escapeHtml(c.name)}</div>
-              <div style="font-size:12px;color:var(--text-muted);font-family:monospace">slug: ${escapeHtml(c.slug)}</div>
             </div>
             
             <div style="border-top:1px solid var(--border);padding-top:12px">
@@ -3536,16 +4288,16 @@ async function loadClients() {
             </div>
           </div>
           <div class="card-footer" style="padding:16px 24px;background:rgba(255,255,255,0.01);border-top:1px solid var(--border);display:flex;gap:8px">
-            <button class="btn ${isCurrent ? 'btn-secondary' : 'btn-primary'}" onclick="switchClientWorkspace(${c.workspace_id}, '${escapeHtml(c.name)}')" style="flex:1" ${isCurrent ? 'disabled' : ''}>
+            <button class="btn ${isCurrent ? 'btn-secondary' : 'btn-primary'}" onclick="switchClientWorkspace(${c.workspace_id}, ${jsAttr(c.name)})" style="flex:1" ${isCurrent ? 'disabled' : ''}>
               ${isCurrent ? '🟢 Managing Client' : '🔌 Manage Social Media'}
             </button>
             <button class="btn btn-secondary btn-sm" onclick="navigateTo('settings');setTimeout(()=>switchSettingsTab('members',document.querySelector('[data-tab=members]')),100)" title="Client Settings">⚙️</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteClient(${c.workspace_id}, '${escapeHtml(c.name)}')" title="Delete Client Brand" ${c.role !== 'manager' ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}>🗑️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteClient(${c.workspace_id}, ${jsAttr(c.name)})" title="Delete Client Brand" ${c.role !== 'manager' ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}>🗑️</button>
           </div>
         </div>`;
     }).join('');
   } catch (err) {
-    grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:var(--text-danger)">⚠️ Error loading client brands: ${err.message}</div>`;
+    grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:var(--text-danger)">⚠️ Error loading client brands: ${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -3597,12 +4349,14 @@ function autoGenerateClientSlug() {
 
 async function submitCreateClient() {
   const name = document.getElementById('client-name-input').value.trim();
-  const slug = document.getElementById('client-slug-input').value.trim();
+  // The short web name is generated from the client name unless the user typed one
+  const slug = document.getElementById('client-slug-input').value.trim()
+    || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const timezone = document.getElementById('client-timezone-select').value;
   const orgId = parseInt(document.getElementById('client-org-select').value);
 
-  if (!name || !slug) {
-    return toast('Client name and slug are required', 'warning');
+  if (!name) {
+    return toast('Please enter the client name', 'warning');
   }
   if (!orgId) {
     return toast('A valid Organization must be selected', 'warning');
@@ -3677,7 +4431,7 @@ async function loadMembers() {
         <th style="text-align:left;padding:8px 4px">Status</th>
       </tr></thead>
       <tbody>${members.map(m => `<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:10px 4px;font-size:13px">${escapeHtml(m.email || m.user_id)}</td>
+        <td style="padding:10px 4px;font-size:13px">${escapeHtml(m.name || m.email || `User #${m.user_id}`)}${m.name && m.email ? `<div style="font-size:11px;color:var(--text-muted)">${escapeHtml(m.email)}</div>` : ''}</td>
         <td style="padding:10px 4px"><span style="font-size:11px;background:var(--glass);padding:2px 8px;border-radius:20px">${escapeHtml(m.role)}</span></td>
         <td style="padding:10px 4px"><span style="font-size:11px;color:${m.status==='active'?'#22c55e':'var(--text-muted)'}">${escapeHtml(m.status)}</span></td>
       </tr>`).join('')}</tbody>
@@ -3701,7 +4455,7 @@ async function sendInvite() {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Failed to send invite');
-    if (resultEl) resultEl.innerHTML = `<span style="color:#22c55e">Invite sent! Share this link: <a href="${escapeHtml(data.invite_url)}" target="_blank" style="color:#60a5fa">${escapeHtml(data.invite_url)}</a></span>`;
+    if (resultEl) resultEl.innerHTML = `<span style="color:#22c55e">Invite created. Copy this link and send it to them (it is not emailed automatically): <a href="${escapeHtml(data.invite_url)}" target="_blank" style="color:#60a5fa">${escapeHtml(data.invite_url)}</a></span>`;
     document.getElementById('invite-email').value = '';
   } catch (err) {
     if (resultEl) resultEl.innerHTML = `<span style="color:#ef4444">${escapeHtml(err.message)}</span>`;
@@ -3717,14 +4471,17 @@ async function loadUserSettings() {
   try {
     const s = await fetch('/users/settings').then(r => r.json());
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-    set('u-google-key',     s.google_ai_key);
-    set('u-anthropic-key',  s.anthropic_key);
-    set('u-stability-key',  s.stability_key);
-    set('u-openai-key',     s.openai_key);
-    set('u-luma-key',       s.luma_key);
-    set('u-runway-key',     s.runway_key);
-    set('u-ollama-model',   s.ollama_model);
-    set('u-ollama-url',     s.ollama_url);
+    set('u-google-key',      s.google_ai_key);
+    set('u-groq-key',        s.groq_key);
+    set('u-openrouter-key',  s.openrouter_key);
+    set('u-mistral-key',     s.mistral_key);
+    set('u-anthropic-key',   s.anthropic_key);
+    set('u-stability-key',   s.stability_key);
+    set('u-openai-key',      s.openai_key);
+    set('u-luma-key',        s.luma_key);
+    set('u-runway-key',      s.runway_key);
+    set('u-ollama-model',    s.ollama_model);
+    set('u-ollama-url',      s.ollama_url);
     set('u-default-text-model', s.default_text_model);
     const toggle = document.getElementById('u-ollama-enabled');
     if (toggle) toggle.checked = !!s.ollama_enabled;
@@ -3738,15 +4495,18 @@ async function saveUserApiSettings() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        google_ai_key:  get('u-google-key'),
-        anthropic_key:  get('u-anthropic-key'),
-        stability_key:  get('u-stability-key'),
-        openai_key:     get('u-openai-key'),
-        luma_key:       get('u-luma-key'),
-        runway_key:     get('u-runway-key'),
-        ollama_model:   get('u-ollama-model'),
-        ollama_url:     get('u-ollama-url'),
-        ollama_enabled: document.getElementById('u-ollama-enabled')?.checked ? 1 : 0,
+        google_ai_key:    get('u-google-key'),
+        groq_key:         get('u-groq-key'),
+        openrouter_key:   get('u-openrouter-key'),
+        mistral_key:      get('u-mistral-key'),
+        anthropic_key:    get('u-anthropic-key'),
+        stability_key:    get('u-stability-key'),
+        openai_key:       get('u-openai-key'),
+        luma_key:         get('u-luma-key'),
+        runway_key:       get('u-runway-key'),
+        ollama_model:     get('u-ollama-model'),
+        ollama_url:       get('u-ollama-url'),
+        ollama_enabled:   document.getElementById('u-ollama-enabled')?.checked ? 1 : 0,
         default_text_model: document.getElementById('u-default-text-model')?.value || 'ollama',
       }),
     });
@@ -3763,7 +4523,7 @@ const AI_TOOLS = {
   'Text Generation': {
     free: [
       { name: 'Ollama',          desc: 'Run Llama, Mistral, Gemma locally. 100% free, 100% private.',  url: 'https://ollama.com',                  badge: '🦙 Local' },
-      { name: 'Google Gemini',   desc: 'Gemini 1.5 Flash — free tier with generous limits.',           url: 'https://aistudio.google.com',         badge: '✨ Free tier' },
+      { name: 'Google Gemini',   desc: 'Gemini Flash — free tier with generous limits.',           url: 'https://aistudio.google.com',         badge: '✨ Free tier' },
       { name: 'Claude.ai',       desc: 'Anthropic Claude — free tier for personal use.',               url: 'https://claude.ai',                   badge: '🤖 Free tier' },
       { name: 'ChatGPT',         desc: 'OpenAI GPT-4o mini — free tier available.',                    url: 'https://chat.openai.com',             badge: '🟢 Free tier' },
       { name: 'Groq',            desc: 'Blazing fast Llama/Mixtral inference. Generous free API.',     url: 'https://console.groq.com',            badge: '⚡ Free API' },
@@ -3801,7 +4561,7 @@ const AI_TOOLS = {
     ],
     paid: [
       { name: 'Stability AI API',desc: '$0.01/image. SDXL + SD3 via API. Best for apps.',             url: 'https://stability.ai',                badge: '💲 $0.01' },
-      { name: 'DALL-E 3 API',    desc: '$0.04/image. OpenAI\'s best image model.',                    url: 'https://platform.openai.com',         badge: '💲 $0.04' },
+      { name: 'OpenAI GPT Image', desc: 'Paid per image. OpenAI image generation API.',               url: 'https://platform.openai.com',         badge: '💲 Paid' },
       { name: 'Midjourney',      desc: '$10/mo. Best artistic quality. Discord-based.',                url: 'https://www.midjourney.com',          badge: '💲 $10/mo' },
       { name: 'Flux Pro API',    desc: '$0.05/image. State-of-art image quality (2024).',              url: 'https://replicate.com/black-forest-labs', badge: '💲 $0.05' },
       { name: 'Adobe Firefly API',desc: '$0.02/image. Commercially safe, no copyright issues.',       url: 'https://developer.adobe.com/firefly', badge: '💲 $0.02' },
@@ -3826,7 +4586,7 @@ const AI_TOOLS = {
       { name: 'Luma (Trial)',    desc: '30 free videos/month. Photorealistic quality.',                url: 'https://lumalabs.ai',                 badge: '🆓 30/month' },
     ],
     paid: [
-      { name: 'Luma Dream Machine', desc: '$29/mo. Best image-to-video. NEXUS integrated.',           url: 'https://lumalabs.ai',                 badge: '💲 $29/mo' },
+      { name: 'Luma Dream Machine', desc: '$29/mo. Best image-to-video. Social-Nexus integrated.',           url: 'https://lumalabs.ai',                 badge: '💲 $29/mo' },
       { name: 'Runway Gen-3',    desc: '$15/mo. 625 credits. Professional video gen.',                 url: 'https://runwayml.com',                badge: '💲 $15/mo' },
       { name: 'Kling AI Pro',    desc: '$10/mo. Chinese model, excellent quality.',                    url: 'https://klingai.com',                 badge: '💲 $10/mo' },
       { name: 'Pika 2.0',        desc: '$8/mo. 150 videos/month. Good for social.',                   url: 'https://pika.art',                    badge: '💲 $8/mo' },
@@ -3892,7 +4652,7 @@ const AI_TOOLS = {
   },
   'Social Media Management': {
     free: [
-      { name: 'NEXUS (This App)', desc: 'Free, local, AI-powered social marketing suite.',            url: 'http://localhost:3000',               badge: '⚡ You are here' },
+      { name: 'Social-Nexus (This App)', desc: 'Free, local, AI-powered social marketing suite.',            url: 'http://localhost:3000',               badge: '⚡ You are here' },
       { name: 'Buffer (Free)',    desc: '3 channels, 10 scheduled posts free.',                       url: 'https://buffer.com',                  badge: '🆓 3 channels' },
       { name: 'Later (Free)',     desc: '30 posts/month per social profile.',                          url: 'https://later.com',                   badge: '🆓 30 posts/mo' },
       { name: 'Zoho Social',     desc: '1 user, 1 brand free. Good all-round tool.',                  url: 'https://www.zoho.com/social',         badge: '🆓 1 brand' },
@@ -3975,7 +4735,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   initPlatformSelectors();
   initTheme();
   handleURLParams();
-  loadWorkspaces();
+  loadWorkspaces().then(initUiMode).catch(() => applyUiMode("simple"));
+  try { if (localStorage.getItem("nexus_more_tools_open")) toggleMoreTools(true); } catch {}
+  checkOnboarding();
+  loadLicense();
+  setInterval(loadLicense, 10 * 60 * 1000);
 
   // Handle local computer file import
   const fileInput = document.getElementById('computer-file-input');
@@ -3987,14 +4751,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const content = event.target.result;
-        const composeTextarea = document.getElementById('compose-content');
-        if (composeTextarea) {
-          composeTextarea.value = content;
-          updateComposeCharCount();
-          closeFileBrowserModal();
-          navigateTo('compose');
-          toast(`Successfully imported "${file.name}"!`, 'success');
-        }
+        closeFileBrowserModal();
+        // A new post, so it never overwrites a post being edited
+        if (!startNewCompose({ text: content })) return;
+        toast(`Successfully imported "${file.name}"!`, 'success');
       };
       reader.onerror = () => {
         toast('Failed to read file from computer', 'error');
@@ -4004,14 +4764,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Restore API key
-  if (State.anthropicKey) {
-    const keyInput = document.getElementById('setting-anthropic-key');
-    if (keyInput) keyInput.value = State.anthropicKey;
-  }
+  // Keys used to be kept in browser storage, where the next person on this PC
+  // could use them. They now live only in each user's account — remove leftovers.
+  try { localStorage.removeItem('nexus_api_key'); localStorage.removeItem('nexus_claude_key'); } catch {}
 
   // Set default post mode
-  setPostMode('now');
+  setPostMode('schedule');
 
   // Load initial page
   navigateTo('dashboard');
@@ -4033,5 +4791,464 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  console.log('NEXUS v2.0 initialized ⚡ — Full Digital Marketing Suite');
+  console.log('Social-Nexus v2.0 initialized ⚡ — Full Digital Marketing Suite');
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 🇮🇳 Indian Holidays & WhatsApp Features
+// ─────────────────────────────────────────────────────────────────────────────
+
+let _todayHolidays = [];
+
+async function loadIndianHolidays() {
+  try {
+    const data = await fetch('/api/holidays').then(r => r.json());
+    _todayHolidays = data.today || [];
+
+    // Show dashboard banner if there's a holiday today
+    if (_todayHolidays.length > 0) {
+      const h = _todayHolidays[0];
+      const banner = document.getElementById('india-holiday-banner');
+      const nameEl = document.getElementById('holiday-banner-name');
+      const emojiEl = document.getElementById('holiday-banner-emoji');
+      if (banner && nameEl && emojiEl) {
+        nameEl.textContent = `${h.emoji} ${h.name} — Post a special message today!`;
+        emojiEl.textContent = h.emoji;
+        banner.style.display = 'block';
+      }
+
+      // Show in generate page
+      const genBar = document.getElementById('gen-holiday-bar');
+      const genName = document.getElementById('gen-holiday-name');
+      if (genBar && genName) {
+        genName.textContent = `${h.emoji} ${h.name}`;
+        genBar.style.display = 'block';
+      }
+
+      // Store globally for use
+      window._activeHoliday = h;
+    }
+
+    // Mark upcoming holidays on calendar (if calendar is loaded)
+    if (data.upcoming?.length) {
+      window._upcomingHolidays = data.upcoming;
+      updateCalendarWithHolidays(data.upcoming);
+    }
+  } catch { /* silent fail */ }
+}
+
+function updateCalendarWithHolidays(holidays) {
+  holidays.forEach(h => {
+    const dayEl = document.querySelector(`[data-date="${h.date}"]`);
+    if (dayEl) {
+      const badge = document.createElement('div');
+      badge.style.cssText = 'font-size:10px;background:rgba(255,153,0,0.2);border-radius:4px;padding:2px 4px;color:#ff9900;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      badge.title = h.name;
+      badge.textContent = `${h.emoji} ${h.name}`;
+      dayEl.appendChild(badge);
+    }
+  });
+}
+
+async function generateHolidayContent() {
+  const holiday = window._activeHoliday;
+  if (!holiday) return;
+  const platforms = getSelectedPlatforms('gen-platforms');
+  const platform = platforms[0] || 'facebook';
+
+  document.getElementById('gen-prompt').value = `Create an engaging ${platform} post for ${holiday.name}`;
+  await generateContent();
+}
+
+async function generateHolidayContentFromDashboard() {
+  const holiday = window._activeHoliday;
+  if (!holiday) return;
+  if (!startNewCompose()) return;
+  document.getElementById('compose-ai-prompt').value = `An engaging post for ${holiday.name}. Warm, celebratory and relevant for Indian audiences.`;
+  composeAiWrite();
+}
+
+function shareViaWhatsApp(text) {
+  if (!text?.trim()) { toast('No content to share', 'warning'); return; }
+  const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 🔁 Edit & Repost Modal
+// ─────────────────────────────────────────────────────────────────────────────
+
+function openRepostModal(postId) {
+  const post = State.postsHistoryMap?.[postId];
+  if (!post) return;
+
+  const modal = document.getElementById('repost-modal');
+  const content = document.getElementById('repost-content');
+  content.value = post.content || '';
+
+  // Pre-select the same platforms
+  const platforms = Array.isArray(post.platforms) ? post.platforms : [];
+  document.querySelectorAll('#repost-platforms .platform-toggle').forEach(el => {
+    const p = el.dataset.platform;
+    if (platforms.includes(p)) el.classList.add('selected');
+    else el.classList.remove('selected');
+    el.onclick = () => el.classList.toggle('selected');
+  });
+
+  modal.style.display = 'flex';
+  modal.style.alignItems = 'center';
+  modal.style.justifyContent = 'center';
+  window._repostPostId = postId;
+}
+
+function closeRepostModal() {
+  const modal = document.getElementById('repost-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function sendRepostToCompose() {
+  const content = document.getElementById('repost-content')?.value;
+  if (!content) return;
+  closeRepostModal();
+  if (!startNewCompose({ text: content })) return;
+  toast('Content loaded into Compose ✏️', 'success');
+}
+
+async function publishRepost() {
+  const content = document.getElementById('repost-content')?.value?.trim();
+  if (!content) return toast('Add content before posting', 'warning');
+
+  const platforms = [];
+  document.querySelectorAll('#repost-platforms .platform-toggle.selected').forEach(el => {
+    if (el.dataset.platform && el.dataset.platform !== 'whatsapp') {
+      platforms.push(el.dataset.platform);
+    }
+  });
+
+  if (!platforms.length) {
+    // WhatsApp deep link if only WhatsApp is selected
+    shareViaWhatsApp(content);
+    closeRepostModal();
+    return;
+  }
+
+  try {
+    const btn = document.querySelector('#repost-modal .btn-primary');
+    if (btn) { btn.disabled = true; btn.textContent = 'Posting…'; }
+    await api('POST', '/api/post/now', { content, platforms, image_url: '' });
+    closeRepostModal();
+    toast('✅ Reposted successfully!', 'success');
+    loadPostHistory();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    const btn = document.querySelector('#repost-modal .btn-primary');
+    if (btn) { btn.disabled = false; btn.textContent = '📤 Post Now'; }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 🚀 Onboarding Wizard
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Remembered per user, so a second person on the same PC still gets the welcome steps
+function onboardingKey() {
+  return `nexus_onboarding_v2_done_${State.user?.id || 'anon'}`;
+}
+
+function checkOnboarding() {
+  let done = false;
+  try { done = !!localStorage.getItem(onboardingKey()); } catch {}
+  if (!done) setTimeout(() => showOnboarding(), 800);
+}
+
+function showOnboarding() {
+  const overlay = document.getElementById('onboarding-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+  }
+}
+
+function closeOnboarding() {
+  const overlay = document.getElementById('onboarding-overlay');
+  if (overlay) overlay.style.display = 'none';
+  try { localStorage.setItem(onboardingKey(), '1'); } catch {}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Simple / Agency mode
+//   Simple (default for one person): short menu, no review step, no client screens.
+//   Agency: clients & brands, team review, workspace switcher, members.
+// Saved per user; when never chosen, Agency is used once there are several
+// workspaces or team members.
+// ─────────────────────────────────────────────────────────────────────────────
+function isAgencyMode() { return document.body.classList.contains('agency-mode'); }
+
+function applyUiMode(mode) {
+  const agency = mode === 'agency';
+  document.body.classList.toggle('agency-mode', agency);
+  const sw = document.getElementById('mode-switch');
+  if (sw) sw.checked = agency;
+}
+
+async function initUiMode() {
+  let mode = null;
+  try { mode = (await fetch('/users/settings').then(r => r.json())).ui_mode || null; } catch {}
+  if (!mode) {
+    // Not chosen yet: decide from how the app is used
+    try {
+      const workspaces = await fetch('/workspaces').then(r => r.json());
+      let members = 1;
+      if (currentWorkspaceId) members = (await fetch(`/workspaces/${currentWorkspaceId}/members`).then(r => r.json())).length || 1;
+      mode = (Array.isArray(workspaces) && workspaces.length > 1) || members > 1 ? 'agency' : 'simple';
+    } catch { mode = 'simple'; }
+  }
+  applyUiMode(mode);
+}
+
+async function setUiMode(mode) {
+  applyUiMode(mode);
+  try { await api('POST', '/users/settings', { ui_mode: mode }); } catch {}
+  toast(mode === 'agency'
+    ? 'Agency mode: clients & brands, team review and the workspace switcher are now shown'
+    : 'Simple mode: the menu shows just what one person needs', 'info');
+  if (State.currentPage === 'calendar' && State.selectedContentItem) openContentDetail(State.selectedContentItem.id);
+}
+
+function toggleMoreTools(forceOpen) {
+  const box = document.getElementById('nav-more');
+  const btn = document.getElementById('nav-more-toggle');
+  if (!box || !btn) return;
+  const open = forceOpen === true ? true : !box.classList.contains('open');
+  box.classList.toggle('open', open);
+  btn.setAttribute('aria-expanded', String(open));
+  try { localStorage.setItem('nexus_more_tools_open', open ? '1' : ''); } catch {}
+}
+
+function openPlatformSettings() {
+  navigateTo('settings');
+  switchSettingsTab('platforms', document.querySelector('[data-tab=platforms]'));
+}
+
+// Welcome guide step 2: say so when Ollama is already installed and ready
+async function checkOnboardOllama() {
+  const box = document.getElementById('onboard-ollama-status');
+  if (!box) return;
+  try {
+    const st = await fetch('/api/config/ollama/status').then(r => r.json());
+    if (!st.running) return; // keep the download hint
+    const want = String(st.current || 'llama3.2').split(':')[0];
+    const ready = (st.models || []).some(m => m.name === st.current || m.name.split(':')[0] === want);
+    if (ready) {
+      // Nothing to set up: the main button just moves on
+      const btn = document.getElementById('onboard-ai-btn');
+      if (btn) { btn.textContent = 'Continue →'; btn.onclick = () => goOnboardStep(3); }
+    }
+    box.textContent = ready
+      ? `✅ Ollama is running on this computer and ${st.current} is ready. Nothing else to set up.`
+      : `✅ Ollama is running. Download the ${st.current} model in Settings → Local AI (one click).`;
+  } catch {}
+}
+
+function goOnboardStep(step) {
+  // Hide all panels
+  document.querySelectorAll('.onboard-panel').forEach(p => p.style.display = 'none');
+  const panel = document.getElementById(`onboard-panel-${step}`);
+  if (panel) panel.style.display = 'block';
+  if (step === 2) checkOnboardOllama();
+
+  // Update step indicators
+  document.querySelectorAll('.onboard-step').forEach(el => {
+    const s = parseInt(el.dataset.step);
+    if (s === step) {
+      el.style.borderBottomColor = 'var(--accent-purple)';
+      el.style.color = 'var(--accent-purple)';
+    } else {
+      el.style.borderBottomColor = 'var(--border)';
+      el.style.color = 'var(--text-muted)';
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 🔑 Licence (Settings → Licence + top banner)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const LICENSE_BUY_URL = 'https://license.radixile.com/buy';
+
+function licenseDate(epoch) {
+  return epoch ? new Date(epoch * 1000).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+}
+
+async function loadLicense() {
+  licenseLastCheck = Date.now();
+  try {
+    State.license = await api('GET', '/api/license');
+  } catch { return; }
+  if (!State.license?.state) return; // signed out: api() is sending the page to sign-in
+  renderLicenseBanner(State.license);
+  if (document.getElementById('settings-panel-license')?.style.display !== 'none') renderLicensePanel(State.license);
+}
+
+// The licence can change while this page stays open (activated in another tab or
+// window, renewed, lease ran out): look again when the window comes back into view.
+var licenseLastCheck = 0; // var: loadLicense may run before this line is reached
+document.addEventListener('visibilitychange', () => {
+  // State.user: only once signed in (also retries if the first check failed)
+  if (document.visibilityState !== 'visible' || !State.user || Date.now() - licenseLastCheck < 30000) return;
+  licenseLastCheck = Date.now();
+  loadLicense();
+});
+
+function renderLicenseBanner(s) {
+  const bar = document.getElementById('license-banner');
+  if (!bar) return;
+  // Start-up checks take a few seconds: don't flash a warning, just look again
+  if (s.state === 'checking') {
+    bar.style.display = 'none';
+    clearTimeout(renderLicenseBanner._t);
+    renderLicenseBanner._t = setTimeout(loadLicense, 3000);
+    return;
+  }
+  const show = s.state !== 'active' || !!s.message;
+  bar.style.display = show ? 'flex' : 'none';
+  if (!show) return;
+  document.getElementById('license-banner-text').textContent =
+    s.state === 'active' ? `🔑 ${s.message}` : `🔑 ${s.message || 'Activate Social-Nexus to start publishing.'} You can keep writing, planning and exporting meanwhile.`;
+  const btn = document.getElementById('license-banner-btn');
+  const checkFirst = s.state === 'offline' || (s.lic && s.state === 'invalid');
+  btn.textContent = s.state === 'active' ? 'Renew' : checkFirst ? 'Check now' : 'Activate';
+  btn.onclick = () => {
+    if (checkFirst) return licenseRefresh();
+    navigateTo('settings');
+    switchSettingsTab('license', document.querySelector('[data-tab=license]'));
+  };
+}
+
+function renderLicensePanel(s) {
+  const box = document.getElementById('license-panel');
+  if (!box) return;
+  const isAdmin = State.user?.role === 'admin';
+  const el = (tag, attrs = {}, ...kids) => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === 'onclick') e.addEventListener('click', v); else if (k === 'style') e.style.cssText = v; else e.setAttribute(k, v);
+    }
+    for (const k of kids) if (k !== null && k !== undefined) e.append(k instanceof Node ? k : document.createTextNode(String(k)));
+    return e;
+  };
+  const row = (label, value) => el('div', { class: 'settings-row' },
+    el('div', { class: 'settings-row-info' }, el('div', { class: 'settings-row-title' }, label)),
+    el('div', { style: 'font-size:13px;color:var(--text-secondary)' }, value));
+  const stateText = { active: '✅ Active', checking: '⏳ Checking…', unlicensed: '⚪ Not activated', offline: '🟠 Needs internet', expired: '🔴 Ended', invalid: '🔴 Not valid on this PC' }[s.state] || s.state;
+
+  const parts = [];
+  if (s.message) parts.push(el('div', { style: 'padding:10px 12px;border-radius:8px;background:var(--glass);margin-bottom:12px;font-size:13px' }, s.message));
+  parts.push(row('Status', stateText));
+  if (s.lic) {
+    parts.push(row('Licensed to', s.licensee || '—'));
+    parts.push(row('Edition', `${s.edition_name || s.edition}${s.type === 'coupon' ? ' (coupon)' : s.type === 'subscription' ? ' (yearly)' : ' (one-time)'}`));
+    if (s.expires_at) parts.push(row(s.type === 'coupon' ? 'Coupon ends' : 'Renews / ends', licenseDate(s.expires_at)));
+    if (s.updates_until) parts.push(row('Updates included until', licenseDate(s.updates_until)));
+    parts.push(row('Works offline until', `${licenseDate(s.lease_until)} (checks in automatically when online)`));
+    const lim = s.limits || {};
+    const n = (v) => (v === -1 ? 'unlimited' : v);
+    const plural = (v, word) => `${v} ${word}${v === 1 ? '' : 's'}`;
+    parts.push(row('Includes', [plural(n(lim.seats), 'PC'), plural(n(lim.workspaces), 'workspace'), plural(n(lim.users), 'user'), plural(n(lim.autopilot_rules), 'autopilot rule'), plural(n(lim.seo_sites), 'SEO site')].join(' · ')));
+  }
+
+  if (!isAdmin) {
+    parts.push(el('p', { style: 'margin-top:12px;font-size:13px;color:var(--text-muted)' }, 'Only the admin of this installation can activate or change the licence.'));
+    box.replaceChildren(...parts);
+    return;
+  }
+
+  // A licence that stopped working may just need a check-in (renewed, lifted
+  // suspension, lease ran out): offer that before asking for a new key
+  if (s.lic && s.state !== 'active') {
+    parts.push(el('div', { style: 'margin-top:16px' },
+      el('button', { class: 'btn btn-primary', onclick: licenseRefresh }, '🔄 Check licence now'),
+      el('span', { style: 'margin-left:10px;font-size:12px;color:var(--text-muted)' }, 'Renewed or moved your licence? Check first. Otherwise enter a key below.')));
+  }
+
+  // Activate (key or coupon)
+  if (s.state !== 'active') {
+    const code = el('input', { class: 'form-input', id: 'lic-code', placeholder: 'SNXP-… / SNXS-… licence key, or SNX-XXXX-XXXX coupon', style: 'font-family:monospace' });
+    const email = el('input', { class: 'form-input', id: 'lic-email', type: 'email', placeholder: 'Your email (needed for coupons)' });
+    const name = el('input', { class: 'form-input', id: 'lic-name', placeholder: 'Your name or business (shown as "Licensed to")' });
+    const device = el('input', { class: 'form-input', id: 'lic-device', placeholder: 'Name for this computer, e.g. "Office PC" (optional)' });
+    const msg = el('div', { style: 'font-size:13px;margin-top:8px' });
+    const go = el('button', { class: 'btn btn-primary', onclick: async () => {
+      go.disabled = true; msg.textContent = 'Activating…'; msg.style.color = '';
+      try {
+        const r = await api('POST', '/api/license/activate', { key: code.value, email: email.value, name: name.value, device_name: device.value });
+        State.license = r;
+        toast('Social-Nexus is activated ✅', 'success');
+        renderLicensePanel(r); renderLicenseBanner(r);
+      } catch (err) {
+        msg.textContent = err.message; msg.style.color = '#ef4444';
+      } finally { go.disabled = false; }
+    } }, 'Activate');
+    parts.push(el('h3', { style: 'margin:20px 0 8px;font-size:15px' }, 'Activate'),
+      code, el('div', { style: 'height:8px' }), email, el('div', { style: 'height:8px' }), name, el('div', { style: 'height:8px' }), device,
+      el('div', { style: 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap' }, go,
+        el('a', { class: 'btn btn-secondary', href: LICENSE_BUY_URL, target: '_blank', rel: 'noopener' }, 'Buy a licence')),
+      msg,
+      el('p', { style: 'font-size:12px;color:var(--text-muted);margin-top:10px' },
+        'Privacy: activation sends only scrambled (hashed) computer identifiers, the computer name you type, and your email for coupons. Your posts, accounts and keys never leave this PC.'));
+
+    // Offline activation
+    const offKey = el('input', { class: 'form-input', placeholder: 'Licence key (SNXP-… / SNXS-…)', style: 'font-family:monospace' });
+    const file = el('input', { type: 'file', accept: '.snlic,application/json' });
+    parts.push(el('details', { style: 'margin-top:16px' },
+      el('summary', { style: 'cursor:pointer;font-size:13px;color:var(--accent-blue)' }, 'No internet on this computer? Activate offline'),
+      el('ol', { style: 'font-size:13px;color:var(--text-secondary);margin:8px 0 8px 18px' },
+        el('li', {}, 'Enter your licence key and save the request file.'),
+        el('li', {}, 'On any device with internet, open license.radixile.com/offline and upload it.'),
+        el('li', {}, 'Bring back the downloaded license.snlic and import it below.')),
+      offKey,
+      el('div', { style: 'display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center' },
+        el('button', { class: 'btn btn-secondary btn-sm', onclick: async () => {
+          try {
+            const req = await api('POST', '/api/license/offline-request', { key: offKey.value, device_name: device.value });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([JSON.stringify(req, null, 2)], { type: 'application/json' }));
+            a.download = 'activation.snreq';
+            a.click();
+          } catch (err) { toast(err.message, 'error'); }
+        } }, '💾 Save request file'),
+        file,
+        el('button', { class: 'btn btn-secondary btn-sm', onclick: async () => {
+          const f = file.files[0];
+          if (!f) return toast('Choose the license.snlic file first', 'warning');
+          try {
+            const r = await api('POST', '/api/license/import', { content: await f.text() });
+            State.license = r; toast('Licence imported ✅', 'success'); renderLicensePanel(r); renderLicenseBanner(r);
+          } catch (err) { toast(err.message, 'error'); }
+        } }, '📥 Import licence file'))));
+  } else {
+    parts.push(el('div', { style: 'display:flex;gap:8px;margin-top:16px;flex-wrap:wrap' },
+      el('button', { class: 'btn btn-secondary', onclick: licenseRefresh }, '🔄 Check licence now'),
+      s.type !== 'perpetual' ? el('a', { class: 'btn btn-secondary', href: LICENSE_BUY_URL, target: '_blank', rel: 'noopener' }, s.type === 'coupon' ? 'Buy a licence' : 'Manage / renew') : null,
+      el('button', { class: 'btn btn-danger', onclick: async () => {
+        if (!confirm('Deactivate this computer? Use this before moving Social-Nexus to a new PC. Your data stays here; publishing stops until you activate again.')) return;
+        try {
+          const r = await api('POST', '/api/license/deactivate');
+          State.license = r; toast('This computer was deactivated', 'info'); renderLicensePanel(r); renderLicenseBanner(r);
+        } catch (err) { toast(err.message, 'error'); }
+      } }, 'Deactivate this PC')));
+  }
+  box.replaceChildren(...parts);
+}
+
+async function licenseRefresh() {
+  try {
+    const r = await api('POST', '/api/license/refresh');
+    State.license = r;
+    toast(r.state === 'active' ? 'Licence confirmed ✅' : (r.last_error || r.message || 'Licence checked'), r.state === 'active' ? 'success' : 'warning');
+    renderLicenseBanner(r);
+    renderLicensePanel(r);
+  } catch (err) { toast(err.message, 'error'); }
+}

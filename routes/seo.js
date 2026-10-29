@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../services/database');
-const { aiGenerate, aiJSON } = require('../services/aiHelper');
+const { aiGenerate, aiJSON, aiArgsFromReq } = require('../services/aiHelper');
+const knexInstance  = require('../services/knex');
+const seoRepo       = require('../repos/seoRepo')(knexInstance);
+const historyRepo   = require('../repos/historyRepo')(knexInstance);
 
-function apiKey(req) {
-  return req.headers['x-api-key'] || process.env.GOOGLE_AI_KEY;
-}
+// The user's own AI keys / Ollama / chosen model (not just the shared .env key)
+function ai(req) { return aiArgsFromReq(req); }
 
 // POST /api/seo/meta — generate SEO meta tags
 router.post('/meta', async (req, res) => {
@@ -31,8 +32,8 @@ Return ONLY valid JSON (no markdown):
 }`;
 
   try {
-    const { data, model } = await aiJSON(prompt, apiKey(req));
-    db.saveHistory({ prompt: `SEO meta: ${page_title}`, response: JSON.stringify(data), type: 'seo_meta', model });
+    const { data, model } = await aiJSON(prompt, ai(req).apiKey, 1024, ai(req).options, ai(req).model);
+    historyRepo.save(req.workspaceId, req.session?.userId, { prompt: `SEO meta: ${page_title}`, response: JSON.stringify(data), type: 'seo_meta', model }).catch(() => {});
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -63,8 +64,8 @@ Return ONLY valid JSON (no markdown):
 Include 6 primary, 10 long-tail, 5 questions, 3 negatives, 5 content ideas.`;
 
   try {
-    const { data, model } = await aiJSON(prompt, apiKey(req), 2048);
-    db.saveHistory({ prompt: `Keyword research: ${topic}`, response: JSON.stringify(data), type: 'seo_keywords', model });
+    const { data, model } = await aiJSON(prompt, ai(req).apiKey, 2048, ai(req).options, ai(req).model);
+    historyRepo.save(req.workspaceId, req.session?.userId, { prompt: `Keyword research: ${topic}`, response: JSON.stringify(data), type: 'seo_keywords', model }).catch(() => {});
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -96,7 +97,7 @@ Return ONLY valid JSON (no markdown):
 }`;
 
   try {
-    const { data } = await aiJSON(prompt, apiKey(req));
+    const { data } = await aiJSON(prompt, ai(req).apiKey, 1024, ai(req).options, ai(req).model);
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -104,22 +105,26 @@ Return ONLY valid JSON (no markdown):
 });
 
 // GET /api/seo/keywords/tracked — list tracked keywords
-router.get('/keywords/tracked', (req, res) => {
-  res.json(db.getSEOKeywords());
+router.get('/keywords/tracked', async (req, res) => {
+  try { res.json(await seoRepo.list(req.workspaceId)); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // POST /api/seo/keywords/tracked — add keyword to track
-router.post('/keywords/tracked', (req, res) => {
+router.post('/keywords/tracked', async (req, res) => {
   const { keyword, url, notes } = req.body;
   if (!keyword) return res.status(400).json({ error: 'keyword is required' });
-  const id = db.saveSEOKeyword({ keyword, url, notes });
-  res.json({ success: true, id });
+  try {
+    const id = await seoRepo.save(req.workspaceId, { keyword, url, notes });
+    res.json({ success: true, id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // DELETE /api/seo/keywords/tracked/:id
-router.delete('/keywords/tracked/:id', (req, res) => {
-  db.deleteSEOKeyword(parseInt(req.params.id));
-  res.json({ success: true });
+router.delete('/keywords/tracked/:id', async (req, res) => {
+  try {
+    await seoRepo.remove(req.workspaceId, parseInt(req.params.id));
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // POST /api/seo/aso — App Store Optimization
@@ -155,8 +160,8 @@ Return ONLY valid JSON (no markdown):
 }`;
 
   try {
-    const { data, model } = await aiJSON(prompt, apiKey(req), 3000);
-    db.saveHistory({ prompt: `ASO: ${app_name}`, response: JSON.stringify(data), type: 'aso', model });
+    const { data, model } = await aiJSON(prompt, ai(req).apiKey, 3000, ai(req).options, ai(req).model);
+    historyRepo.save(req.workspaceId, req.session?.userId, { prompt: `ASO: ${app_name}`, response: JSON.stringify(data), type: 'aso', model }).catch(() => {});
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });

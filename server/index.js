@@ -11,6 +11,10 @@ require('dotenv').config(
 // (provided by Electron via NEXUS_DATA_DIR). Falls back to ../data in dev.
 const DATA_DIR = process.env.NEXUS_DATA_DIR || path.join(__dirname, '..', 'data');
 
+// Express 4 does not forward rejected promises from async handlers/middleware to the
+// error handler; without this a thrown await leaves the request hanging.
+require('express-async-errors');
+
 const knex               = require('../services/knex');
 const runLegacyMigration = require('../services/legacyMigration');
 
@@ -36,10 +40,19 @@ const withWorkspace = makeWithWorkspace(membershipsRepo);
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
+// Desktop app: listen on loopback only so other machines on the network can't reach it.
+const HOST = process.env.HOST || '127.0.0.1';
+
+if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
+  console.error('[Startup] SESSION_SECRET must be set in production.');
+  process.exit(1);
+}
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 
-app.use(cors());
+// The UI is served from this same server, so no other website may call the API.
+// (cors() with no options allowed every origin.)
+app.use(cors({ origin: false }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -56,22 +69,46 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'nexus-dev-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 },
+  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax' },
 }));
+
+// Identity check used by the desktop shell before it connects to this port
+// Used by Electron (is this our server?) and the build smoke test (licence state
+// must not be "invalid", i.e. a genuine build is not flagged as modified)
+app.get('/__health', (req, res) => {
+  let licence = 'unknown';
+  try { licence = require('../services/license').status().state; } catch {}
+  res.json({ app: 'social-nexus', version: require('../package.json').version, licence });
+});
 
 // ── Static Files ──────────────────────────────────────────────────────────────
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// Ollama setup: reads (status/recommend) are public for the first-run wizard, but
+// changes (select model, pull model — which also write .env) need a logged-in user,
+// except on a brand-new install before the first account exists.
+async function ollamaSetupGuard(req, res, next) {
+  if (req.method === 'GET') return next();
+  const [{ c }] = await knex('users').count('id as c');
+  if (parseInt(c, 10) === 0) return next();
+  // These change the app-wide AI setting, so only an admin may use them
+  const user = req.session?.userId ? await knex('users').where({ id: req.session.userId }).first() : null;
+  if (!user) return res.status(401).json({ error: 'Not authenticated', redirect: '/login' });
+  if (user.role !== 'admin') return res.status(403).json({ error: 'Only an admin can change the local AI setup.' });
+  return next();
+}
 
 // ── Public Routes (no auth required) ─────────────────────────────────────────
 
 app.use('/auth',       authRoutes);   // OAuth platform callbacks
 app.use('/users',      usersRoutes);  // register / login / logout / me
 app.use('/admin',      adminRoutes);  // super admin dashboard
-app.use('/ollama',     ollamaRoutes); // guided AI setup (status / pull)
+app.use('/ollama',     ollamaSetupGuard, ollamaRoutes); // guided AI setup (status / pull)
 
 // ── Protected Routes (require login) ─────────────────────────────────────────
 
+app.use('/api/license', requireAuth, require('../routes/license'));
 app.use('/api',        requireAuth, withWorkspace, injectUserKeys, apiRoutes);
 app.use('/api/seo',    requireAuth, withWorkspace, injectUserKeys, seoRoutes);
 app.use('/api/email',  requireAuth, withWorkspace, injectUserKeys, emailRoutes);
@@ -82,15 +119,19 @@ app.use('/api/content', requireAuth, withWorkspace, injectUserKeys, require('../
 
 // ── Tenancy Routes ────────────────────────────────────────────────────────────
 
-app.use('/workspaces', require('../routes/workspaces')(knex));
-app.use('/workspaces/:workspaceId/members', require('../routes/members')(knex, withWorkspace, requirePermission));
-app.use('/workspaces/:workspaceId/social-accounts', require('../routes/social-accounts')(knex, withWorkspace, requirePermission));
-app.use('/invitations', require('../routes/invitations')(knex, withWorkspace, requirePermission));
+app.use('/workspaces', requireAuth, require('../routes/workspaces')(knex));
+app.use('/workspaces/:workspaceId/members', requireAuth, require('../routes/members')(knex, withWorkspace, requirePermission));
+app.use('/workspaces/:workspaceId/social-accounts', requireAuth, require('../routes/social-accounts')(knex, withWorkspace, requirePermission));
+app.use('/invitations', requireAuth, require('../routes/invitations')(knex, withWorkspace, requirePermission));
 
-app.post('/session/active-workspace', (req, res) => {
+app.post('/session/active-workspace', async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'Not authenticated' });
-  req.session.activeWorkspaceId = Number(req.body.workspaceId);
-  res.json({ ok: true });
+  const workspaceId = Number(req.body.workspaceId);
+  // Only switch to a workspace this user actually belongs to
+  const role = workspaceId ? await membershipsRepo.roleFor(req.session.userId, workspaceId) : null;
+  if (!role) return res.status(403).json({ error: 'You are not a member of that workspace.' });
+  req.session.activeWorkspaceId = workspaceId;
+  res.json({ ok: true, role });
 });
 
 app.get('/me/workspaces', async (req, res) => {
@@ -126,7 +167,10 @@ app.get('*', (req, res) => {
 
 app.use((err, req, res, next) => {
   console.error('[Server] Unhandled error:', err.message);
-  res.status(500).json({ error: 'Internal server error', details: err.message });
+  res.status(500).json({
+    error: 'Internal server error',
+    ...(process.env.NODE_ENV === 'production' ? {} : { details: err.message }),
+  });
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
@@ -135,19 +179,22 @@ async function bootstrap() {
   try {
     await knex.migrate.latest();
     await runLegacyMigration(knex);
+    await require('../services/ensureAdmin')(knex);
     console.log('[DB] Migrations complete.');
   } catch (err) {
+    // Starting on a half-migrated schema corrupts data in confusing ways — stop instead.
     console.error('[DB] Migration error:', err.message);
-    // Don't exit on migration error — let the app start, log the issue
+    throw err;
   }
 
-  app.listen(PORT, async () => {
+  app.listen(PORT, HOST, async () => {
     console.log(`\n╔════════════════════════════════════════╗`);
-    console.log(`║   NEXUS v2.0 — Digital Marketing Suite ║`);
+    console.log(`║   Social-Nexus — Radixile Technology Sol. ║`);
     console.log(`║   http://localhost:${PORT}                ║`);
     console.log(`╚════════════════════════════════════════╝\n`);
 
     scheduler.start();
+    require('../services/license').start(); // background licence check
 
     // Only auto-open a browser when running standalone. Under Electron the
     // desktop window handles the UI (NEXUS_NO_BROWSER=true).

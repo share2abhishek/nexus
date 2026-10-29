@@ -3,11 +3,13 @@ const FormData = require('form-data');
 
 // ── LinkedIn ──────────────────────────────────────────────────────────────────
 
-async function postToLinkedIn(token, content, imageUrl = null) {
-  const profileRes = await axios.get('https://api.linkedin.com/v2/me', {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const urn = `urn:li:person:${profileRes.data.id}`;
+// memberId: the OpenID "sub" saved when the account was connected
+async function postToLinkedIn(token, content, imageUrl = null, memberId = null) {
+  let id = memberId;
+  if (!id) {
+    id = (await axios.get('https://api.linkedin.com/v2/userinfo', { headers: { Authorization: `Bearer ${token}` } })).data.sub;
+  }
+  const urn = `urn:li:person:${id}`;
 
   const body = {
     author: urn,
@@ -19,7 +21,7 @@ async function postToLinkedIn(token, content, imageUrl = null) {
         ...(imageUrl && {
           media: [{
             status: 'READY',
-            description: { text: 'Shared via NEXUS' },
+            description: { text: 'Shared via Social-Nexus' },
             originalUrl: imageUrl,
           }],
         }),
@@ -42,8 +44,10 @@ async function postToLinkedIn(token, content, imageUrl = null) {
 // ── Facebook ──────────────────────────────────────────────────────────────────
 
 async function postToFacebook(pageToken, pageId, content, imageUrl = null) {
+  // Posting needs a Page token + Page ID. Personal-profile posting (/me/feed) was
+  // removed by Meta in 2018, and guessing a page could post to the wrong one.
   if (!pageToken) throw new Error('Facebook Page token missing. Reconnect Facebook in Settings.');
-  if (!pageId)    throw new Error('Facebook Page ID missing. Select a page in Settings → Facebook → Select Facebook Page.');
+  if (!pageId)    throw new Error('No Facebook Page selected. Choose one in Settings → Facebook → Select page.');
 
   let endpoint, params;
   if (imageUrl) {
@@ -60,10 +64,9 @@ async function postToFacebook(pageToken, pageId, content, imageUrl = null) {
   } catch (err) {
     const fb = err.response?.data?.error;
     if (fb) {
-      // Map Facebook error codes to helpful messages
-      const msg = fb.code === 190  ? `Token expired or invalid. Go to Graph API Explorer, generate a new token with pages_manage_posts permission, and reconnect in Settings.`
-                : fb.code === 200  ? `Missing permission: pages_manage_posts. Regenerate token with that permission in Graph API Explorer.`
-                : fb.code === 10   ? `App permission denied. Make sure pages_manage_posts is added to your Nexus app in Meta Developer Console.`
+      const msg = fb.code === 190  ? `Token expired or invalid. Reconnect Facebook in Settings.`
+                : fb.code === 200  ? `Missing permission: pages_manage_posts. Reconnect Facebook in Settings.`
+                : fb.code === 10   ? `App permission denied. Make sure pages_manage_posts is enabled on your app.`
                 : `Facebook error ${fb.code}: ${fb.message}`;
       throw new Error(msg);
     }
@@ -150,26 +153,10 @@ async function postToTwitter(token, tokenSecret, content, imageUrl = null) {
 
 // ── YouTube Community Post ────────────────────────────────────────────────────
 
-async function postToYouTube(token, channelId, content, imageUrl = null) {
-  // YouTube Community Posts via Data API v3
-  // Note: requires channel with 500+ subscribers; posts as a community post
-  const body = {
-    snippet: {
-      type: imageUrl ? 'textOriginal' : 'textOriginal',
-      textOriginal: content,
-      ...(imageUrl && {
-        type: 'imagePost',
-        imagePost: { url: imageUrl },
-      }),
-    },
-  };
-
-  const res = await axios.post(
-    'https://www.googleapis.com/youtube/v3/communityPosts?part=snippet',
-    body,
-    { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
-  );
-  return { success: true, id: res.data.id, platform: 'youtube' };
+async function postToYouTube() {
+  // YouTube's public Data API has no way to create Community posts (text/image
+  // posts); it only supports uploading videos, which Social-Nexus doesn't do yet.
+  throw new Error('Posting text or images to YouTube is not possible through the public YouTube API. Publish there from YouTube Studio for now.');
 }
 
 // ── Google Business Profile Post ──────────────────────────────────────────────
@@ -226,14 +213,14 @@ async function postToTikTok(token, content, videoUrl = null) {
 
 // ── Master post dispatcher ────────────────────────────────────────────────────
 
-async function postToPlatform(platform, tokenData, content, imageUrl) {
+async function dispatchPost(platform, tokenData, content, imageUrl) {
   switch (platform) {
     case 'linkedin':
-      return postToLinkedIn(tokenData.access_token, content, imageUrl);
+      return postToLinkedIn(tokenData.access_token, content, imageUrl, tokenData.external_id);
 
     case 'facebook':
       return postToFacebook(
-        tokenData.page_token || tokenData.access_token,
+        tokenData.page_token,
         tokenData.page_id,
         content,
         imageUrl
@@ -264,6 +251,32 @@ async function postToPlatform(platform, tokenData, content, imageUrl) {
 
     default:
       throw new Error(`Unknown platform: ${platform}`);
+  }
+}
+
+// Turn raw HTTP failures into a message the user can act on; adapter-specific
+// messages (e.g. Facebook's) already pass through unchanged.
+const PLATFORM_NAMES = {
+  linkedin: 'LinkedIn', facebook: 'Facebook', instagram: 'Instagram', pinterest: 'Pinterest',
+  twitter: 'Twitter/X', youtube: 'YouTube', google_business: 'Google Business', tiktok: 'TikTok',
+};
+
+async function postToPlatform(platform, tokenData, content, imageUrl) {
+  try {
+    return await dispatchPost(platform, tokenData, content, imageUrl);
+  } catch (err) {
+    const name = PLATFORM_NAMES[platform] || platform;
+    const status = err.response?.status;
+    if (status === 401 || status === 403) {
+      throw new Error(`${name} rejected the connection (${status}) — the login has expired or lacks permission. Reconnect ${name} in Settings.`);
+    }
+    if (status === 429) throw new Error(`${name} rate limit reached — try again later.`);
+    if (status >= 500) throw new Error(`${name} is having problems (${status}) — try again later.`);
+    if (status) {
+      const apiMsg = err.response.data?.message || err.response.data?.error?.message || err.response.data?.error_description;
+      throw new Error(`${name} error ${status}${apiMsg ? `: ${apiMsg}` : ''}`);
+    }
+    throw err;
   }
 }
 
