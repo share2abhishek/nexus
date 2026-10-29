@@ -7,6 +7,7 @@ function deserialize(row) {
     ...row,
     platforms: safe(row.platforms) || [],
     social_account_ids: safe(row.social_account_ids) || [],
+    options: safe(row.options) || null,
   };
 }
 
@@ -42,6 +43,7 @@ module.exports = (knex) => ({
       platforms: JSON.stringify(data.platforms || []),
       image_url: data.image_url || null,
       social_account_ids: JSON.stringify(data.social_account_ids || []),
+      options: data.options ? JSON.stringify(data.options) : null,
       status: 'draft',
       scheduled_at: data.scheduled_at || null,
       submitted_by: userId,
@@ -79,6 +81,7 @@ module.exports = (knex) => ({
     if (data.platforms !== undefined) patch.platforms = JSON.stringify(data.platforms);
     if (data.image_url !== undefined) patch.image_url = data.image_url;
     if (data.social_account_ids !== undefined) patch.social_account_ids = JSON.stringify(data.social_account_ids);
+    if (data.options !== undefined) patch.options = data.options ? JSON.stringify(data.options) : null;
     if (data.scheduled_at !== undefined) patch.scheduled_at = data.scheduled_at;
 
     if (existing.status === 'failed') {

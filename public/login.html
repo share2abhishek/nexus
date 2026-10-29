@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Social-Nexus — Sign In</title>
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="stylesheet" href="styles.css" />
   <style>
     body { display:flex; align-items:center; justify-content:center; min-height:100vh; }
@@ -205,6 +204,28 @@
         <button class="auth-btn" id="btn-login" onclick="doLogin()">
           Sign In →
         </button>
+        <p style="text-align:center;margin:14px 0 0;font-size:13px"><a href="#" onclick="switchAuthTab('recover');return false" style="color:var(--text-muted)">Forgot your password?</a></p>
+      </div>
+
+      <!-- Forgotten password: reset with the recovery code -->
+      <div class="auth-panel" id="panel-recover">
+        <p style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Use the recovery code you saved when you created your account. No code? Ask your admin to set a new password for you.</p>
+        <div class="auth-error"   id="recover-error"></div>
+        <div class="form-group"><label class="form-label">Email Address</label><input type="email" class="form-input" id="recover-email" autocomplete="email" /></div>
+        <div class="form-group"><label class="form-label">Recovery code</label><input type="text" class="form-input" id="recover-code" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false" style="font-family:monospace;text-transform:uppercase" /></div>
+        <div class="form-group"><label class="form-label">New password <span style="color:var(--text-muted);font-weight:400">(min 6 characters)</span></label><input type="password" class="form-input" id="recover-password" autocomplete="new-password" /></div>
+        <button class="auth-btn" id="btn-recover" onclick="doRecover()">Set new password →</button>
+        <p style="text-align:center;margin:14px 0 0;font-size:13px"><a href="#" onclick="switchAuthTab('login');return false" style="color:var(--text-muted)">Back to sign in</a></p>
+      </div>
+
+      <!-- Shown once: the recovery code to keep -->
+      <div class="auth-panel" id="panel-code">
+        <h3 style="margin:0 0 8px">Save your recovery code</h3>
+        <p style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">If you ever forget your password, this code lets you set a new one. Write it down or keep it in a password manager. It is shown only now.</p>
+        <div id="code-box" style="font-family:monospace;font-size:20px;letter-spacing:1px;text-align:center;padding:14px;border:1px dashed var(--border);border-radius:10px;user-select:all"></div>
+        <button class="auth-btn" style="margin-top:12px" onclick="copyRecoveryCode()">📋 Copy code</button>
+        <label style="display:flex;gap:8px;align-items:center;margin:14px 0;font-size:13px"><input type="checkbox" id="code-saved" onchange="document.getElementById('btn-code-done').disabled=!this.checked" /> I have saved my recovery code</label>
+        <button class="auth-btn" id="btn-code-done" disabled onclick="window.location.href = safeNext()">Continue →</button>
       </div>
 
       <!-- Register Panel -->
@@ -304,7 +325,7 @@
   function switchAuthTab(tab) {
     document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById(`tab-${tab}`).classList.add('active');
+    document.getElementById(`tab-${tab}`)?.classList.add('active');
     document.getElementById(`panel-${tab}`).classList.add('active');
   }
 
@@ -359,10 +380,43 @@
       const r    = await fetch('/users/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: pass, name, invite_code }) });
       const data = await r.json();
       if (!r.ok) { showError('reg-error', data.error); if (data.needs_invite) document.getElementById('invite-code-row').style.display = 'block'; return; }
+      if (data.recovery_code) return showRecoveryCode(data.recovery_code);
       showSuccess('reg-success', `Account created! ${data.user.role === 'admin' ? '👑 You are the Super Admin!' : 'Redirecting…'}`);
       setTimeout(() => window.location.href = safeNext(), 800);
     } catch { showError('reg-error', 'Connection error'); }
     finally { btn.disabled = false; btn.textContent = 'Create Account →'; }
+  }
+
+  function showRecoveryCode(code) {
+    document.getElementById('code-box').textContent = code;
+    document.querySelector('.auth-tabs').style.display = 'none';
+    switchAuthTab('code');
+  }
+  function copyRecoveryCode() {
+    navigator.clipboard?.writeText(document.getElementById('code-box').textContent).catch(() => {});
+  }
+
+  async function doRecover() {
+    const btn = document.getElementById('btn-recover');
+    const email = document.getElementById('recover-email').value.trim();
+    const code = document.getElementById('recover-code').value.trim();
+    const password = document.getElementById('recover-password').value;
+    if (!email || !code || !password) return showError('recover-error', 'Please fill in all fields');
+    btn.disabled = true;
+    try {
+      const r = await fetch('/users/recover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, code, password }) });
+      const data = await r.json();
+      if (!r.ok) return showError('recover-error', data.error);
+      // Signed in with the new password next; first keep the NEW code (the old one is used up)
+      document.getElementById('login-email').value = email;
+      document.getElementById('code-box').textContent = data.recovery_code;
+      document.querySelector('#panel-code h3').textContent = 'Password changed. Save your new recovery code';
+      document.getElementById('btn-code-done').onclick = () => { document.querySelector('.auth-tabs').style.display = ''; switchAuthTab('login'); };
+      document.getElementById('btn-code-done').textContent = 'Sign in →';
+      document.querySelector('.auth-tabs').style.display = 'none';
+      switchAuthTab('code');
+    } catch { showError('recover-error', 'Connection error — is the server running?'); }
+    finally { btn.disabled = false; }
   }
 
   // Enter key support

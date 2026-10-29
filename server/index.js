@@ -1,5 +1,13 @@
 const path    = require('path');
 
+// A backup chosen in Settings → Backups is swapped in now, before settings are
+// read and the database is opened
+try { require('../services/backup').applyPendingRestore(); } catch (err) {
+  // Don't start on half-restored data: stop with the reason (shown by the desktop app)
+  console.error(`Restoring the backup did not finish: ${err.message}. Your previous data is in the backups folder (before-restore-…). Free some disk space or close other programs, then start Social-Nexus again.`);
+  process.exit(1);
+}
+
 // Load .env from the writable location Electron prepared (falls back to project
 // root in development). Plain `dotenv.config()` only reads ./.env, so pass it.
 require('dotenv').config(
@@ -81,9 +89,32 @@ app.get('/__health', (req, res) => {
   res.json({ app: 'social-nexus', version: require('../package.json').version, licence });
 });
 
+// For the desktop app's tray and shutdown warning: when the next posts are due.
+// Counts and times only (no post text), and only for this PC (127.0.0.1).
+app.get('/__schedule', async (req, res) => {
+  const ip = req.socket.remoteAddress || '';
+  if (!['::1', '127.0.0.1', '::ffff:127.0.0.1'].includes(ip)) return res.status(403).end();
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const rows = await knex('content_items').where({ status: 'scheduled' }).where('scheduled_at', '>', now)
+      .orderBy('scheduled_at', 'asc').limit(500).pluck('scheduled_at');
+    if (await knex.schema.hasTable('scheduled_posts')) {
+      rows.push(...await knex('scheduled_posts').where({ status: 'pending' }).where('scheduled_at', '>', now).limit(500).pluck('scheduled_at'));
+      rows.sort((a, b) => a - b);
+    }
+    res.json({
+      next_at: rows[0] || null,
+      due_1h: rows.filter(t => t <= now + 3600).length,
+      due_24h: rows.filter(t => t <= now + 86400).length,
+    });
+  } catch { res.json({ next_at: null, due_1h: 0, due_24h: 0 }); }
+});
+
 // ── Static Files ──────────────────────────────────────────────────────────────
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
+// Chart library shipped with the app (works offline; no CDN)
+app.get('/vendor/chart.umd.js', (req, res) => res.sendFile(path.join(__dirname, '..', 'node_modules', 'chart.js', 'dist', 'chart.umd.js')));
 
 // Ollama setup: reads (status/recommend) are public for the first-run wizard, but
 // changes (select model, pull model — which also write .env) need a logged-in user,
@@ -109,6 +140,31 @@ app.use('/ollama',     ollamaSetupGuard, ollamaRoutes); // guided AI setup (stat
 // ── Protected Routes (require login) ─────────────────────────────────────────
 
 app.use('/api/license', requireAuth, require('../routes/license'));
+app.use('/api/backups', requireAuth, require('../routes/backups')(knex));
+app.use('/api/bio', requireAuth, withWorkspace, require('../routes/bio')(knex, requirePermission));
+// Phone companion (per user, across workspaces)
+app.use('/api/companion', requireAuth, (() => {
+  const r = require('express').Router();
+  const companion = require('../services/companion');
+  r.get('/', async (req, res) => {
+    try {
+      const rows = await knex('companion_pairs').where({ user_id: req.session.userId }).orderBy('id', 'desc');
+      res.json(rows.map(p => ({ id: p.id, label: p.label, url: p.url, created_at: p.created_at, last_push: p.last_push })));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+  r.post('/', async (req, res) => {
+    try { res.json(await companion.pair(knex, req.session.userId, req.body?.label || 'My phone')); }
+    catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+  });
+  r.delete('/:id', async (req, res) => {
+    try { res.json({ success: await companion.unpair(knex, req.session.userId, Number(req.params.id)) }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+  });
+  return r;
+})());
+app.use('/api/cloud/status', requireAuth, async (req, res) => res.json({ enabled: await require('../services/cloudPosting').enabled() }));
+app.use('/api/inbox', requireAuth, withWorkspace, injectUserKeys, require('../routes/inbox')(knex, requirePermission));
+app.use('/api/media-library', requireAuth, withWorkspace, require('../routes/mediaLibrary')(knex, requirePermission));
 app.use('/api',        requireAuth, withWorkspace, injectUserKeys, apiRoutes);
 app.use('/api/seo',    requireAuth, withWorkspace, injectUserKeys, seoRoutes);
 app.use('/api/email',  requireAuth, withWorkspace, injectUserKeys, emailRoutes);
@@ -160,6 +216,8 @@ app.get('/app', (req, res) => {
 // ── SPA fallback ──────────────────────────────────────────────────────────────
 
 app.get('*', (req, res) => {
+  // Unknown data addresses get a clear 404, not the app's page
+  if (/^\/(api|auth|users|v1)\//.test(req.path)) return res.status(404).json({ error: 'Not found' });
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
@@ -193,7 +251,17 @@ async function bootstrap() {
     console.log(`║   http://localhost:${PORT}                ║`);
     console.log(`╚════════════════════════════════════════╝\n`);
 
+    require('../services/secrets').start(knex); // encrypt any login still saved in plain text
     scheduler.start();
+    require('../services/tokenRefresher').start(knex); // renews platform logins daily
+    setInterval(() => require('../services/social').cleanupHostedPhotos(knex).catch(() => {}), 3600 * 1000).unref?.(); // hidden FB photos
+    if ((process.env.DB_CLIENT || 'sqlite') === 'sqlite') require('../services/backup').start(knex); // daily backup
+    require('../services/festivals').start(require('../services/license').serverUrl()); // festival calendar updates
+    require('../services/insights').start(knex); // likes, comments and reach, daily
+    require('../services/approvals').start(knex); // answers to client approval links
+    require('../services/inbox').start(knex); // new comments on published posts
+    require('../services/companion').start(knex); // phone companion summaries and actions
+    require('../services/cloudPosting').start(knex); // PC-off safety net (paid editions)
     require('../services/license').start(); // background licence check
 
     // Only auto-open a browser when running standalone. Under Electron the

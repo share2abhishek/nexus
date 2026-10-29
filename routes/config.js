@@ -28,6 +28,8 @@ async function requireAdmin(req, res, next) {
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const { GRAPH } = require('../services/platforms/apiVersions');
+const { reconnectInDays } = require('../services/tokenRefresher');
 
 // ── Ollama endpoints ──────────────────────────────────────────────────────────
 
@@ -151,8 +153,8 @@ router.get('/platforms', async (req, res) => {
 
   // Only accounts with a login token count as connected; the rest need signing in again
   const tokenMap = {};
-  const needsReconnect = new Set();
-  tokens.forEach(t => { if (t.usable) tokenMap[t.platform] = t; else needsReconnect.add(t.platform); });
+  const needsReconnect = new Map(); // platform -> reason (or '')
+  tokens.forEach(t => { if (t.usable) tokenMap[t.platform] = t; else needsReconnect.set(t.platform, t.auth_error || ''); });
 
   const platforms = {
     linkedin: {
@@ -210,6 +212,30 @@ router.get('/platforms', async (req, res) => {
       scopes: 'boards:read, pins:write, user_accounts:read',
       setup_url: 'https://developers.pinterest.com/apps',
     },
+    threads: {
+      label: 'Threads',
+      icon: '🧵',
+      color: '#000000',
+      kind: 'oneclick',
+      credentials: [],
+      configured: true,
+      connected: !!tokenMap.threads,
+      profile: tokenMap.threads?.profile || null,
+      since: tokenMap.threads?.created_at || null,
+      note: 'Threads connects through Radixile\u2019s approved app (Meta only allows secure web sign-in addresses, which an app on your PC doesn\u2019t have). The login lasts 60 days and is renewed automatically.',
+    },
+    bluesky: {
+      label: 'Bluesky',
+      icon: '🦋',
+      color: '#0085ff',
+      kind: 'app_password',
+      credentials: [],
+      configured: true,
+      connected: !!tokenMap.bluesky,
+      profile: tokenMap.bluesky?.profile || null,
+      since: tokenMap.bluesky?.created_at || null,
+      note: 'Use an app password, not your main password: on Bluesky open Settings → Privacy and security → App passwords → Add. You can remove it there any time. Nothing passes through Radixile.',
+    },
     twitter: {
       label: 'Twitter / X',
       icon: '🐦',
@@ -233,7 +259,7 @@ router.get('/platforms', async (req, res) => {
       label: 'Instagram',
       icon: '📸',
       color: '#e1306c',
-      note: 'Connect Instagram here (it signs in through Facebook). Needs a Business or Creator account linked to your Facebook Page, and the Instagram product added to your Facebook app.',
+      note: 'Connect Instagram here (it signs in through Facebook). Needs a Business or Creator account linked to your Facebook Page, and the Instagram product added to your Facebook app. Instagram only takes pictures from a public link: for photos from your media library, Social-Nexus adds the photo to your Facebook Page as a hidden photo for a moment and removes it once Instagram has it.',
       credentials: [],
       configured: !!(env.FACEBOOK_APP_ID && env.FACEBOOK_APP_SECRET),
       connected: !!tokenMap.instagram,
@@ -243,25 +269,6 @@ router.get('/platforms', async (req, res) => {
       oauth_url: '/auth/facebook?instagram=1',
       scopes: 'instagram_basic, instagram_content_publish, business_management',
       setup_url: 'https://developers.facebook.com/apps',
-    },
-    youtube: {
-      label: 'YouTube',
-      icon: '▶️',
-      color: '#ff0000',
-      credentials: [
-        { key: 'GOOGLE_OAUTH_CLIENT_ID',     label: 'Google OAuth Client ID',     type: 'text',     value: env.GOOGLE_OAUTH_CLIENT_ID     || '' },
-        { key: 'GOOGLE_OAUTH_CLIENT_SECRET', label: 'Google OAuth Client Secret', type: 'password', value: maskSecret(env.GOOGLE_OAUTH_CLIENT_SECRET) },
-        { key: 'GOOGLE_CALLBACK_URL',        label: 'Callback URL',               type: 'url',      value: callbackUrl('google'), readonly: true },
-      ],
-      configured: !!(env.GOOGLE_OAUTH_CLIENT_ID && env.GOOGLE_OAUTH_CLIENT_SECRET),
-      connected: !!tokenMap.youtube,
-      profile: tokenMap.youtube?.profile || null,
-      channel_id: tokenMap.youtube?.page_id || null,
-      since: tokenMap.youtube?.created_at || null,
-      oauth_url: '/auth/google',
-      scopes: 'youtube.force-ssl, youtube.upload',
-      setup_url: 'https://console.cloud.google.com/apis/credentials',
-      note: 'YouTube can be connected, but posting is not available yet: the public YouTube API cannot create Community posts.',
     },
     google_business: {
       label: 'Google Business',
@@ -280,25 +287,7 @@ router.get('/platforms', async (req, res) => {
       oauth_url: '/auth/google',
       scopes: 'business.manage',
       setup_url: 'https://console.cloud.google.com/apis/credentials',
-      note: 'Same Google OAuth app as YouTube. Enable "My Business API" in Google Cloud Console.',
-    },
-    tiktok: {
-      label: 'TikTok',
-      icon: '🎵',
-      color: '#010101',
-      credentials: [
-        { key: 'TIKTOK_CLIENT_KEY',    label: 'Client Key',    type: 'text',     value: env.TIKTOK_CLIENT_KEY    || '' },
-        { key: 'TIKTOK_CLIENT_SECRET', label: 'Client Secret', type: 'password', value: maskSecret(env.TIKTOK_CLIENT_SECRET) },
-        { key: 'TIKTOK_CALLBACK_URL',  label: 'Callback URL',  type: 'url',      value: callbackUrl('tiktok'), readonly: true },
-      ],
-      configured: !!(env.TIKTOK_CLIENT_KEY && env.TIKTOK_CLIENT_SECRET),
-      connected: !!tokenMap.tiktok,
-      profile: tokenMap.tiktok?.profile || null,
-      since: tokenMap.tiktok?.created_at || null,
-      oauth_url: '/auth/tiktok',
-      scopes: 'user.info.basic, video.publish, video.upload',
-      setup_url: 'https://developers.tiktok.com/apps',
-      note: 'TikTok posts require a video URL. Text-only posts are not supported.',
+      note: 'Enable the "My Business" APIs in Google Cloud Console for this OAuth app. Google only takes pictures from a public link: for photos from your media library, Social-Nexus adds the photo to your connected Facebook Page as a hidden photo for 2 days, then removes it.',
     },
   };
 
@@ -311,7 +300,15 @@ router.get('/platforms', async (req, res) => {
     p.guide = { ...g, steps: g.steps.map(st => ({ ...st, copy: st.copy ? st.copy.replace('{callback}', cb) : undefined })) };
   }
   for (const [key, p] of Object.entries(platforms)) {
-    if (!p.connected && needsReconnect.has(key)) p.needs_reconnect = true;
+    if (!p.connected && needsReconnect.has(key)) {
+      p.needs_reconnect = true;
+      if (needsReconnect.get(key)) p.reconnect_reason = needsReconnect.get(key);
+    }
+    // Logins the app can't renew by itself: how many days until signing in again
+    if (p.connected) {
+      const days = reconnectInDays(tokenMap[key]);
+      if (days !== null) p.reconnect_in_days = days;
+    }
   }
   res.json(platforms);
 });
@@ -326,9 +323,7 @@ router.post('/platforms/:platform', requireAdmin, (req, res) => {
     instagram:       ['FACEBOOK_APP_ID', 'FACEBOOK_APP_SECRET', 'FACEBOOK_CALLBACK_URL'],
     pinterest:       ['PINTEREST_APP_ID', 'PINTEREST_APP_SECRET', 'PINTEREST_CALLBACK_URL'],
     twitter:         ['TWITTER_API_KEY', 'TWITTER_API_SECRET', 'TWITTER_ACCESS_TOKEN', 'TWITTER_ACCESS_SECRET', 'TWITTER_CALLBACK_URL'],
-    youtube:         ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET', 'GOOGLE_CALLBACK_URL'],
     google_business: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET', 'GOOGLE_CALLBACK_URL'],
-    tiktok:          ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET', 'TIKTOK_CALLBACK_URL'],
   };
 
   const keys = allowed[req.params.platform];
@@ -403,13 +398,35 @@ router.get('/env-status', (req, res) => {
 
 // ── GET /api/config/facebook/pages ───────────────────────────────────────────
 
+// Bluesky: connect with the handle and an app password (checked by signing in once)
+router.post('/bluesky/connect', canManageSocial, async (req, res) => {
+  try {
+    const handle = String(req.body?.handle || '').trim().replace(/^@/, '');
+    const password = String(req.body?.app_password || '').trim();
+    let service = String(req.body?.service || '').trim().replace(/\/$/, '') || require('../services/platforms/bluesky').DEFAULT_SERVICE;
+    if (!handle || !password) return res.status(400).json({ error: 'Enter your Bluesky handle and an app password.' });
+    if (!/^https:\/\//.test(service)) return res.status(400).json({ error: 'The server address must start with https://' });
+    await require('../services/mediaStore').assertPublicUrl(service);
+    const { login } = require('../services/platforms/bluesky');
+    const s = await login(service, handle, password);
+    const repo = require('../repos/socialAccountsRepo')(knexForAdmin);
+    await repo.add(req.workspaceId, {
+      platform: 'bluesky', external_id: s.did, access_token: password,
+      page_id: service, profile: { id: s.did, name: `@${s.handle}`, handle: s.handle },
+    });
+    res.json({ success: true, handle: s.handle });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 router.get('/facebook/pages', canManageSocial, async (req, res) => {
   const knexInstance = require('../services/knex');
   const socialAccountsRepo = require('../repos/socialAccountsRepo')(knexInstance);
   const token = req.workspaceId ? await socialAccountsRepo.getByPlatform(req.workspaceId, 'facebook') : null;
   if (!token) return res.status(401).json({ error: 'Facebook not connected' });
   try {
-    const r = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
+    const r = await axios.get(`${GRAPH}/me/accounts`, {
       params: { access_token: token.access_token, fields: 'id,name,category' },
     });
     // Never send page access tokens to the browser
@@ -429,7 +446,7 @@ router.post('/facebook/set-page', canManageSocial, async (req, res) => {
   // Look the page (and its token) up on Facebook ourselves — the browser only says which page
   let page;
   try {
-    const r = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
+    const r = await axios.get(`${GRAPH}/me/accounts`, {
       params: { access_token: token.access_token, fields: 'id,name,access_token' },
     });
     page = (r.data.data || []).find(p => String(p.id) === String(page_id));
@@ -440,7 +457,7 @@ router.post('/facebook/set-page', canManageSocial, async (req, res) => {
 
   let igId = null;
   try {
-    const r = await axios.get(`https://graph.facebook.com/v18.0/${page.id}`, {
+    const r = await axios.get(`${GRAPH}/${page.id}`, {
       params: { fields: 'instagram_business_account', access_token: page.access_token },
     });
     igId = r.data.instagram_business_account?.id || null;
@@ -456,7 +473,6 @@ router.post('/facebook/set-page', canManageSocial, async (req, res) => {
     external_id: token.external_id,
     access_token: token.access_token,
     refresh_token: token.refresh_token,
-    expires_at: token.expires_at,
     profile: { ...profile, page_name: page.name },
     page_id: page.id,
     page_token: page.access_token,
@@ -467,7 +483,7 @@ router.post('/facebook/set-page', canManageSocial, async (req, res) => {
   let canPostToInstagram = false;
   if (igId) {
     try {
-      const r = await axios.get('https://graph.facebook.com/v18.0/me/permissions', { params: { access_token: token.access_token } });
+      const r = await axios.get(`${GRAPH}/me/permissions`, { params: { access_token: token.access_token } });
       canPostToInstagram = (r.data.data || []).some(p => p.permission === 'instagram_content_publish' && p.status === 'granted');
     } catch {}
   }
@@ -478,10 +494,15 @@ router.post('/facebook/set-page', canManageSocial, async (req, res) => {
       external_id: igId,
       access_token: token.access_token,
       page_token: page.access_token,
+      page_id: page.id,
       ig_account_id: igId,
       profile: { id: igId, name: `${page.name} (Instagram)` },
     });
   }
+
+  // When does the Page login end? (never, when it came from a long-lived sign-in)
+  const saved = await knexForAdmin('social_accounts').where({ workspace_id: req.workspaceId }).whereIn('platform', ['facebook', 'instagram']);
+  await Promise.all(saved.map(acc => require('../services/tokenRefresher').checkFacebook(knexForAdmin, acc)));
 
   res.json({ success: true, page_id: page.id, instagram_detected: !!igId, instagram_connected: !!(igId && canPostToInstagram) });
 });

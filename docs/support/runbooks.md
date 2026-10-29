@@ -349,7 +349,11 @@ ollama list
 
 ## R14. Database backup / restore and moving to a new PC
 
-**Backup**
+**Built in (preferred):** Settings → **Backups** (admin). A backup is made every day (the newest 7 are kept) in `%APPDATA%\Social-Nexus\backups`. **Export a backup file** makes one `.snbackup` file with the database, settings and media library to move to another PC; **Restore from a file…** checks it and swaps it in at the next start (the replaced data is kept in `backups\before-restore-…`). A backup made by a newer Social-Nexus is refused: update first.
+
+Saved logins are encrypted with a key protected by Windows for that user (`datakey.bin`). Daily backups stay encrypted (they only work on the same PC and Windows user). An exported `.snbackup` holds the logins decrypted so the new PC can read them — treat the file like a password vault.
+
+**Manual backup (if the app won't start)**
 1. Tray → **Quit Social-Nexus** (closing the window only hides it).
 2. Check nothing is running: `Get-Process Social-Nexus, node -ErrorAction SilentlyContinue`.
 3. Copy the folder:
@@ -465,6 +469,8 @@ Compromised key: do steps 1–2 urgently **and remove `k1.pem`** from `config/li
 6. Record version, SHA-256 of `Social-Nexus-Setup-<v>.exe` and `Social-Nexus-Portable-<v>.exe`, build commit.
 7. VM tests (Windows 10 + 11): fresh install, upgrade from previous version (data kept, migrations OK), `/__health` licence ≠ `invalid`, activate, publish/schedule on test accounts, offline start, uninstall with **No** keeps data. Optional VirusTotal scan.
 8. Publish installer + checksum on radixile.com; keep the previous installer available for rollback (R20). Tag the commit.
+9. **Automatic update:** upload `Social-Nexus-Setup-<v>.exe`, its `.blockmap` and `latest.yml` from `dist-app` to `https://updates.radixile.com/social-nexus/` (upload the .exe and .blockmap first, `latest.yml` last — apps start downloading as soon as `latest.yml` changes). Installed apps check every 6 hours and install when closed (or "Restart to update" in the tray). The portable .exe does not update itself.
+10. **Code signing (needed for updates):** the installer must be signed with Radixile's code-signing certificate (EV or OV, issued to exactly "Radixile Technology Solutions LLP" — this name is `publisherName` in package.json; apps refuse updates signed by anyone else). Set `CSC_LINK` (path or base64 of the .pfx) and `CSC_KEY_PASSWORD` before `build-win.ps1`; for a USB-token EV certificate use the vendor's signing tool via electron-builder's `win.sign`. Without a certificate, builds work but auto-update fails ("not signed by the application owner") and Windows SmartScreen warns on install.
 
 **Escalate:** any `modified` on a clean VM → stop; engineering.
 
@@ -526,3 +532,27 @@ Compromised key: do steps 1–2 urgently **and remove `k1.pem`** from `config/li
 6. Delete logs/screenshots for that customer from the ticket system; reply with what was deleted and what is retained and why.
 
 **Escalate:** legal questions or requests covering invoices → owner.
+
+---
+
+## R24. Relay services on the licence server (approvals, connect, bio, phone, cloud posting)
+
+The licence server also relays for features the desktop app can't do from a PC behind a router. All run in the one Node process; keep it to **one instance** (cloud posting serves photos to Instagram from memory).
+
+**Settings (production)**
+- `PUBLIC_URL` must be the public **https** address (approval links, connect callbacks, Instagram photo fetches all use it).
+- `BIO_PUBLIC_URL` (recommended): a separate address such as `https://bio.radixile.com` pointing at the same server, so an abusive link-in-bio page can't get the licence/payment domain blocked.
+- `CONNECT_<PLATFORM>_ID/_SECRET` for one-click connect (facebook, linkedin, google, pinterest, threads). Register `<PUBLIC_URL>/connect/callback/<platform>` with each platform.
+- `CLOUD_JOB_KEY` (64 hex). Without it cloud posting isn't offered. Editions allowed: setting `cloud_posting_editions` (default `agency,full`).
+
+**Rotating `CLOUD_JOB_KEY`**: set `CLOUD_JOB_KEYS_OLD="k1:<old hex>"`, a new `CLOUD_JOB_KEY` and `CLOUD_JOB_KEY_ID=k2`, restart. Remove the old key once no `waiting` jobs made before the change remain (at most 48 h, since apps hand jobs over only 48 h ahead).
+
+**Monitoring (alerts)**
+- Cloud jobs `waiting` more than 15 min past `run_at` + 10 min grace (worker stuck): `select count(*) from cloud_jobs where status='waiting' and run_at < extract(epoch from now()) - 1500;`
+- Cloud failure rate per day (`status='failed'`), and `running` jobs older than 25 min (the worker marks them failed automatically — investigate why).
+- Database size (approvals hold encrypted pictures up to ~11 MB each; per-licence cap 300 MB).
+- `/health` and HTTPS certificate expiry.
+
+**Abuse**: link-in-bio pages carry "Report this page" (abuse@radixile.com). Take a page down: `DELETE /admin/api/bio/<name>` (admin session).
+
+**Data breach** (DPDP): relay data is encrypted (approvals/phone: key not on the server; cloud jobs: `CLOUD_JOB_KEY`). If the database or `CLOUD_JOB_KEY` may be exposed: rotate the key, revoke one-click app secrets at each platform (forces customers to reconnect), inform affected customers and the Data Protection Board without delay as the DPDP Rules require, and record the incident.

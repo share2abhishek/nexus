@@ -50,7 +50,7 @@ describe('scheduler — processDueContent', () => {
     const item = await contentRepo.getById(workspaceId, id);
     expect(item.status).toBe('published');
     expect(item.published_at).not.toBeNull();
-    expect(postToPlatform).toHaveBeenCalledWith('linkedin', expect.objectContaining({ access_token: 'token' }), 'Go live', null);
+    expect(postToPlatform).toHaveBeenCalledWith('linkedin', expect.objectContaining({ access_token: 'token' }), 'Go live', null, {});
   });
 
   test('does not post an item that is more than 6 hours overdue (marks it missed)', async () => {
@@ -82,7 +82,7 @@ describe('scheduler — processDueContent', () => {
     await processDueContent(knex, contentRepo);
 
     expect((await contentRepo.getById(workspaceId, id)).status).toBe('published');
-    expect(postToPlatform).toHaveBeenCalledWith('linkedin', expect.objectContaining({ access_token: 'token' }), 'From Compose', null);
+    expect(postToPlatform).toHaveBeenCalledWith('linkedin', expect.objectContaining({ access_token: 'token' }), 'From Compose', null, {});
     const history = await knex('posts').where({ workspace_id: workspaceId, content: 'From Compose' });
     expect(history).toHaveLength(1);
   });

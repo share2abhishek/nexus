@@ -139,6 +139,7 @@
   </div>
   <nav class="toc" id="toc" aria-label="Contents">
     <div class="toc-group">Getting started</div>
+    <a href="#new">What's new</a>
     <a href="#quick-start">Getting started in 10 minutes</a>
     <a href="#help-in-app">Opening help in the app</a>
     <a href="#what">What Social-Nexus is</a>
@@ -157,7 +158,7 @@
     <a href="#p-facebook">Facebook + Instagram</a>
     <a href="#p-pinterest">Pinterest</a>
     <a href="#p-x">X (Twitter)</a>
-    <a href="#p-google">YouTube + Google Business</a>
+    <a href="#p-google">Google Business</a>
     <a href="#p-tiktok">TikTok</a>
     <a href="#connect-errors">Connection errors</a>
     <div class="toc-group">Posting</div>
@@ -195,6 +196,37 @@
     <p>Support: <a href="mailto:support@radixile.com">support@radixile.com</a> · Licences: <a href="https://license.radixile.com" target="_blank" rel="noopener">license.radixile.com</a></p>
   </div>
 
+  <section class="doc" id="new">
+    <h2>What's new</h2>
+    <h3>Posting</h3>
+    <ul>
+      <li><strong>Photos and videos from your PC.</strong> In Create Post, use <em>Upload photo or video</em>, drag a file in, or pick from the <strong>Media library</strong> (More tools). Files stay on your PC.</li>
+      <li><strong>Several photos in one post.</strong> Add up to 10: Instagram makes a carousel; Facebook, LinkedIn and Pinterest post them together; X takes 4. Use ‹ › to change the order.</li>
+      <li><strong>Instagram Reels and Stories</strong> (choose under <em>Instagram: post as</em>), and a <strong>first comment</strong> for Instagram and Facebook — handy for hashtags.</li>
+      <li><strong>Threads and Bluesky.</strong> Bluesky connects with your handle and an app password. Threads connects in one click through Radixile's app.</li>
+      <li><strong>Bulk scheduling.</strong> Calendar → <em>Bulk schedule</em>: a spreadsheet (Excel or CSV) with date, time, text and platforms. You see every row before anything is scheduled.</li>
+      <li><strong>Design in Canva</strong> opens Canva at the right size; download your design and drag it into Create Post. <strong>Copy for WhatsApp</strong> copies the text for your Channel or Status.</li>
+      <li><strong>Logins renew themselves</strong> where the platform allows. If one can't, its card says "Reconnect in N days" well before it stops.</li>
+    </ul>
+    <h3>Clients and teams</h3>
+    <ul>
+      <li><strong>Client approval by link.</strong> In the Calendar, open a post → <em>Get approval link</em>, or <em>Client approval</em> at the top for all draft posts shown. Send it on WhatsApp; your client taps Approve or Ask for changes on their phone, no account needed. Approved posts with a time are scheduled automatically (if you may schedule). The link is encrypted: only people with it can see the post.</li>
+      <li><strong>Inbox.</strong> Comments on your published Facebook, Instagram and Threads posts in one place, with <em>Suggest a reply</em>.</li>
+      <li><strong>Phone companion.</strong> Your name (top right) → <em>Phone companion</em> → Pair my phone. See posts waiting for your OK, failed posts and what's next, and approve from your phone.</li>
+      <li><strong>Client report.</strong> Analytics → choose a month → <em>Client report (PDF)</em>, with your Brand Kit logo and colour. Numbers (likes, comments, reach) are fetched from the platforms daily; <em>Refresh numbers</em> gets them now. Analytics also shows your <strong>best times to post</strong>.</li>
+      <li><strong>Link in bio.</strong> More tools → Link in bio: one page with your links for your Instagram profile. Visits are counted without cookies.</li>
+    </ul>
+    <h3>Safety</h3>
+    <ul>
+      <li><strong>Starts with Windows</strong> (in the tray), because posts only go out while Social-Nexus runs. It warns you before quitting or shutting down when a post is due. Turn it off from the tray icon.</li>
+      <li><strong>Cloud posting</strong> (Agency and Full editions): tick <em>Post from the cloud if this PC is off</em> on a post. If your PC is off at the time, Radixile posts it 10 minutes later and deletes its copy straight after.</li>
+      <li><strong>Backups.</strong> Settings → Backups: a backup every day (7 kept), <em>Back up now</em>, and <em>Export a backup file</em> protected with a passphrase — keep it on a USB stick to move to a new PC.</li>
+      <li><strong>Saved logins are encrypted</strong> with a key protected by Windows. After a Windows password reset or on a new PC, connect your accounts again.</li>
+      <li><strong>Recovery code.</strong> Make one (your name → Recovery code) so you can reset a forgotten password from the sign-in page. After 5 wrong passwords, sign-in pauses for a minute or more.</li>
+      <li><strong>Automatic updates</strong> download in the background and install when you close the app, or choose <em>Restart to update</em> in the tray.</li>
+    </ul>
+  </section>
+
   <section class="doc" id="quick-start">
     <h2>Getting started in 10 minutes</h2>
     <ol>
@@ -226,7 +258,7 @@
     <p>Social-Nexus is a Windows app that helps you run all your social media from one place:</p>
     <ul>
       <li><strong>Write posts with AI</strong> in English and 8 Indian languages.</li>
-      <li><strong>Publish or schedule</strong> to LinkedIn, Facebook, Instagram, Pinterest, X (Twitter), YouTube, Google Business Profile and TikTok.</li>
+      <li><strong>Publish or schedule</strong> to LinkedIn, Facebook, Instagram, Pinterest, X (Twitter) and Google Business Profile. (YouTube and TikTok are coming later; the AI tools can already write for them.)</li>
       <li><strong>Plan on a calendar</strong>, with review and approval for teams, and <strong>Indian festival</strong> reminders.</li>
       <li>Use <strong>templates, a Brand Kit, hashtag research, UTM links, SEO tools, ad copy and email campaigns</strong>.</li>
       <li><strong>Manage several clients</strong> (agencies), each with their own accounts and team.</li>
@@ -414,8 +446,7 @@
       <tr><td>Facebook + Instagram</td><td><code>http://localhost:3000/auth/facebook/callback</code></td></tr>
       <tr><td>Pinterest</td><td><code>http://localhost:3000/auth/pinterest/callback</code></td></tr>
       <tr><td>Twitter / X</td><td><code>http://127.0.0.1:3000/auth/twitter/callback</code> (X needs 127.0.0.1)</td></tr>
-      <tr><td>YouTube + Google Business (one app)</td><td><code>http://localhost:3000/auth/google/callback</code></td></tr>
-      <tr><td>TikTok</td><td><code>http://localhost:3000/auth/tiktok/callback</code></td></tr>
+      <tr><td>Google Business</td><td><code>http://localhost:3000/auth/google/callback</code></td></tr>
     </table></div>
     <p>Card status: 🔴 <strong>Credentials Needed</strong> → 🟠 <strong>Ready to Connect</strong> → 🟢 <strong>Connected</strong> (🔄 Refresh / Disconnect).</p>
     <div class="note">Only the <strong>admin</strong> saves app details, and they're shared by all workspaces. Only workspace <strong>Managers</strong> can connect or disconnect accounts and choose the Facebook Page or Pinterest board. Agencies: switch to the client's workspace (🏢) before clicking Connect.</div>
@@ -535,9 +566,8 @@
   </details>
 
   <details class="platform" id="p-google">
-    <summary>🏢 Google Business Profile + ▶️ YouTube <span class="badge">🟠 Works with limits</span></summary>
+    <summary>🏢 Google Business Profile <span class="badge">🟠 Works with limits</span></summary>
     <div class="body">
-      <p>The <strong>Google Business</strong> and <strong>YouTube</strong> cards share one Google app (same Client ID, Secret and callback address).</p>
       <h3>Google Business Profile <span class="badge">🟠 Works with limits · about 20 minutes, plus Google's approval</span></h3>
       <h4>You need</h4>
       <p>A verified Google Business Profile</p>
@@ -559,7 +589,7 @@
       <h4>Common errors</h4>
       <ul><li><strong>redirect_uri_mismatch</strong>: paste the address with 📋 Copy into the <em>Web application</em> client. <strong>access_denied</strong>: add yourself as a test user. <strong>Fails after a week</strong>: reconnect.</li></ul>
       <h3>YouTube <span class="badge">🔴 Not available yet</span></h3>
-      <p>YouTube's public API can upload videos, but it can't create Community posts (text or image). Social-Nexus doesn't upload videos yet, so YouTube can be connected but not posted to. <strong>Publish to YouTube from YouTube Studio for now.</strong></p>
+      <p>YouTube's public API can upload videos, but it can't create Community posts (text or image). Social-Nexus doesn't upload videos yet, so YouTube isn't offered for posting yet (the AI tools can still write your video descriptions). <strong>Publish to YouTube from YouTube Studio for now.</strong></p>
     </div>
   </details>
 

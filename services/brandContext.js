@@ -25,7 +25,7 @@ async function brandContext(workspaceId, db = null) {
 // Shortest character limit among the chosen platforms (for "one post for all")
 const CHAR_LIMITS = {
   twitter: 280, pinterest: 500, google_business: 1500, instagram: 2200,
-  tiktok: 2200, linkedin: 3000, youtube: 5000, facebook: 63206,
+  tiktok: 2200, linkedin: 3000, youtube: 5000, facebook: 63206, threads: 500, bluesky: 300,
 };
 function shortestLimit(platforms) {
   const limits = (Array.isArray(platforms) ? platforms : []).map(p => CHAR_LIMITS[p]).filter(Boolean);

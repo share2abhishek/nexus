@@ -98,14 +98,17 @@ const getPublicKey = () => Object.keys(getPublicKeys()).length > 0;
 
 // Licence file v2: { v: 2, kid, payload: base64(JSON), sig }. The signature covers
 // the exact payload bytes. Returns the decoded payload, or null if not genuine.
-function verifySignature(file) {
+// doc: other signed files (e.g. festival updates, payload.doc = 'festivals') can
+// never pass as a licence, and a licence never passes as one of them.
+function verifySignature(file, doc = null) {
   if (!file || file.v !== 2 || typeof file.payload !== 'string' || typeof file.sig !== 'string') return null;
   const key = getPublicKeys()[file.kid];
   if (!key) return null;
   try {
     const bytes = Buffer.from(file.payload, 'base64');
     if (!crypto.verify(null, bytes, key, Buffer.from(file.sig, 'base64'))) return null;
-    return JSON.parse(bytes.toString('utf8'));
+    const payload = JSON.parse(bytes.toString('utf8'));
+    return (payload?.doc || null) === doc ? payload : null;
   } catch {
     return null;
   }
@@ -400,5 +403,8 @@ function start() {
 
 module.exports = {
   status, activate, refresh, deactivate, offlineRequest, importLicense, start, ensureFingerprint,
-  LIMITED, RELEASE, _verifySignature: verifySignature,
+  LIMITED, RELEASE, _verifySignature: verifySignature, serverUrl: () => SERVER(),
+  // The signed licence file, sent to Radixile services (approval links, one-click
+  // connect) to show this is a licensed copy. null when not licensed.
+  licenseProof: () => { const st = readStore(); return st.file && status().licensed ? Buffer.from(JSON.stringify(st.file)).toString('base64') : null; },
 };

@@ -1,4 +1,6 @@
 const express = require('express');
+const { checkPlatforms } = require('../services/platforms/available');
+const { cleanOptions } = require('../services/postOptions');
 const contentRepoFactory = require('../repos/contentRepo');
 const { can } = require('../services/rbac');
 
@@ -22,11 +24,55 @@ module.exports = (knex, requirePermission) => {
   const router = express.Router();
   const contentRepo = contentRepoFactory(knex);
 
+  // Bulk scheduling from a CSV or Excel file (raw upload, file name in X-File-Name).
+  // ?dry_run=1 only checks the rows and shows what would happen.
+  router.post('/bulk', requirePermission('content.create'), express.raw({ type: () => true, limit: '10mb' }), async (req, res) => {
+    try {
+      if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'No file was sent.' });
+      let name = String(req.get('X-File-Name') || '');
+      try { name = decodeURIComponent(name); } catch {}
+      const ws = await knex('workspaces').where({ id: req.workspaceId }).first();
+      const timezone = ws?.timezone && ws.timezone !== 'UTC' ? ws.timezone : 'Asia/Kolkata';
+      const assets = await knex('media_assets').where({ workspace_id: req.workspaceId }).select('id', 'original_name');
+      const mediaByName = Object.fromEntries(assets.filter(a => a.original_name).map(a => [a.original_name.toLowerCase(), `media:${a.id}`]));
+      const { parseSheet } = require('../services/bulkImport');
+      const parsed = parseSheet(req.body, { name, timezone, mediaByName });
+
+      // Scheduling straight away needs the right to schedule and approve; otherwise drafts
+      const schedule = can(req.role, 'content.schedule') && can(req.role, 'content.approve');
+      if (req.query.dry_run === '1') return res.json({ ...parsed, will: schedule ? 'schedule' : 'draft', timezone });
+      if (!parsed.counts.ok) return res.status(400).json({ error: 'No rows could be imported. Fix the rows shown and try again.', ...parsed });
+      if (schedule && licenceBlock(res)) return;
+
+      const now = Math.floor(Date.now() / 1000);
+      const ok = parsed.rows.filter(r => r.ok);
+      await knex.transaction(async (trx) => {
+        for (const r of ok) {
+          await trx('content_items').insert({
+            workspace_id: req.workspaceId, body: r.post.body, platforms: JSON.stringify(r.post.platforms),
+            image_url: r.post.image_url, options: r.post.options ? JSON.stringify(r.post.options) : null,
+            social_account_ids: '[]', status: schedule ? 'scheduled' : 'draft', scheduled_at: r.post.scheduled_at,
+            submitted_by: req.session.userId, approved_by: schedule ? req.session.userId : null, created_at: now, updated_at: now,
+          });
+        }
+      });
+      res.json({ imported: ok.length, skipped: parsed.counts.failed, status: schedule ? 'scheduled' : 'draft', rows: parsed.rows.filter(r => !r.ok) });
+    } catch (err) {
+      res.status(err.status || 400).json({ error: err.message });
+    }
+  });
+
   router.post('/', requirePermission('content.create'), async (req, res) => {
-    const { title, body, platforms, image_url, social_account_ids } = req.body;
+    const { title, body, platforms, social_account_ids } = req.body;
+    let image_url = req.body.image_url;
+    let options;
+    try { options = cleanOptions(req.body.options); } catch (err) { return res.status(400).json({ error: err.message }); }
+    if (options?.media?.length) image_url = options.media[0]; // first picture, for older views
     if (!body || !body.trim()) {
       return res.status(400).json({ error: 'body is required' });
     }
+    const unavailable = checkPlatforms(platforms);
+    if (unavailable) return res.status(400).json({ error: unavailable });
     // Optional suggested time (e.g. sent for review from Create Post). It is only a
     // suggestion: nothing is published until someone schedules the post.
     let scheduled_at = null;
@@ -37,7 +83,7 @@ module.exports = (knex, requirePermission) => {
       }
     }
     try {
-      const id = await contentRepo.create(req.workspaceId, req.session.userId, { title, body, platforms, image_url, social_account_ids, scheduled_at });
+      const id = await contentRepo.create(req.workspaceId, req.session.userId, { title, body, platforms, image_url, social_account_ids, scheduled_at, options });
       const item = await contentRepo.getById(req.workspaceId, id);
       res.status(201).json(item);
     } catch (err) {
@@ -99,6 +145,8 @@ module.exports = (knex, requirePermission) => {
       if (req.body.body !== undefined && !req.body.body.trim()) {
         return res.status(400).json({ error: 'body cannot be empty' });
       }
+      const unavailable = checkPlatforms(req.body.platforms);
+      if (unavailable) return res.status(400).json({ error: unavailable });
       // Opened for editing at version X, but someone saved it since: don't overwrite their change
       const expected = req.body.expected_updated_at;
       if (expected !== undefined && Number(expected) !== Number(item.updated_at)) {
@@ -106,6 +154,10 @@ module.exports = (knex, requirePermission) => {
       }
       const changes = { ...req.body };
       delete changes.expected_updated_at;
+      if (changes.options !== undefined) {
+        try { changes.options = cleanOptions(changes.options); } catch (err) { return res.status(400).json({ error: err.message }); }
+        if (changes.options?.media?.length) changes.image_url = changes.options.media[0];
+      }
       // Platforms changed but no accounts given: drop chosen accounts on platforms
       // that were removed, so the post can't still go out there
       if (Array.isArray(changes.platforms) && changes.social_account_ids === undefined
@@ -118,6 +170,12 @@ module.exports = (knex, requirePermission) => {
         if (kept.length !== item.social_account_ids.length) changes.social_account_ids = kept;
       }
       let updated = await contentRepo.update(req.workspaceId, item.id, changes);
+      // Shared with a client by link? They would approve the old version: close the link
+      const changedWhat = (changes.body !== undefined && changes.body !== item.body)
+        || (changes.image_url !== undefined && (changes.image_url || null) !== (item.image_url || null))
+        || (changes.options !== undefined && JSON.stringify(changes.options || null) !== JSON.stringify(item.options || null))
+        || (Array.isArray(changes.platforms) && JSON.stringify(changes.platforms) !== JSON.stringify(item.platforms));
+      if (changedWhat) await require('../services/approvals').postChanged(knex, req.workspaceId, item.id).catch(() => {});
       // An edited post in a repeating series becomes a post of its own
       if (item.series_id) {
         await knex('content_items').where({ id: item.id, workspace_id: req.workspaceId })
@@ -267,6 +325,7 @@ module.exports = (knex, requirePermission) => {
           workspace_id: req.workspaceId, title: item.title || null, body: item.body,
           platforms: JSON.stringify(item.platforms || []), image_url: item.image_url || null,
           social_account_ids: JSON.stringify(item.social_account_ids || []),
+          options: item.options ? JSON.stringify(item.options) : null,
           status: 'scheduled', scheduled_at: Math.floor(d.getTime() / 1000),
           submitted_by: item.submitted_by, approved_by: req.session.userId, ...series, series_index: i + 2,
         }));
@@ -279,6 +338,45 @@ module.exports = (knex, requirePermission) => {
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
+  });
+
+  // Client approval by link (or WhatsApp): needs the right to send for review
+  router.post('/:id/approval-link', requirePermission('content.submit'), async (req, res) => {
+    try {
+      const r = await require('../services/approvals').share(knex, { workspaceId: req.workspaceId, userId: req.session.userId, itemId: Number(req.params.id) });
+      const text = `Please review this post before it goes out: ${r.url}`;
+      res.json({ ...r, whatsapp_url: `https://wa.me/?text=${encodeURIComponent(text)}` });
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
+    }
+  });
+
+  // One link for several posts (e.g. the month's plan): the client answers each
+  router.post('/approval-set', requirePermission('content.submit'), async (req, res) => {
+    try {
+      const ids = Array.isArray(req.body?.item_ids) ? req.body.item_ids : [];
+      const r = await require('../services/approvals').share(knex, { workspaceId: req.workspaceId, userId: req.session.userId, itemIds: ids });
+      const text = `Please review these ${r.count} posts before they go out: ${r.url}`;
+      res.json({ ...r, whatsapp_url: `https://wa.me/?text=${encodeURIComponent(text)}` });
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
+    }
+  });
+
+  router.get('/:id/approval-links', requirePermission('content.view'), async (req, res) => {
+    try {
+      const rows = await knex('approval_links').where({ workspace_id: req.workspaceId, content_item_id: Number(req.params.id) }).orderBy('id', 'desc').limit(10);
+      res.json(rows.map(l => ({ id: l.id, status: l.status, url: l.status === 'open' ? l.url : null, created_at: l.created_at, expires_at: l.expires_at, response_name: l.response_name, response_comment: l.response_comment, responded_at: l.responded_at, set_size: l.set_size })));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  router.delete('/approval-links/:linkId', requirePermission('content.submit'), async (req, res) => {
+    try {
+      const link = await knex('approval_links').where({ id: Number(req.params.linkId), workspace_id: req.workspaceId }).first();
+      if (!link) return res.status(404).json({ error: 'Not found' });
+      await require('../services/approvals').withdraw(knex, link);
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
   router.post('/:id/comments', requirePermission('content.comment'), async (req, res) => {

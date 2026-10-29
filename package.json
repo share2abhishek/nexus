@@ -29,11 +29,13 @@
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^11.3.0",
     "bytenode": "^1.7.0",
+    "chart.js": "^4.4.3",
     "connect-pg-simple": "^10.0.0",
     "connect-sqlite3": "^0.9.15",
     "cors": "^2.8.5",
     "csv-parse": "^5.5.6",
     "dotenv": "^16.4.5",
+    "electron-updater": "^6.8.11",
     "express": "^4.19.2",
     "express-async-errors": "^3.1.1",
     "express-session": "^1.18.0",
@@ -42,6 +44,7 @@
     "multer": "^1.4.5-lts.1",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.10.1",
+    "oauth": "^0.10.2",
     "open": "^10.1.0",
     "passport": "^0.7.0",
     "passport-facebook": "^3.0.0",
@@ -141,7 +144,8 @@
       ],
       "license": "LICENSE.txt",
       "artifactName": "Social-Nexus-Setup-${version}.exe",
-      "include": "build/installer.nsh"
+      "include": "build/installer.nsh",
+      "differentialPackage": true
     },
     "portable": {
       "artifactName": "Social-Nexus-Portable-${version}.exe"
@@ -159,7 +163,13 @@
       "icon": "build/icon.png",
       "category": "Office"
     },
-    "publish": null,
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://updates.radixile.com/social-nexus/",
+        "channel": "latest"
+      }
+    ],
     "npmRebuild": false,
     "buildDependenciesFromSource": false,
     "asar": false,

@@ -9,7 +9,7 @@
 
 const {
   app, BrowserWindow, Tray, Menu, shell, dialog,
-  ipcMain, nativeImage, Notification, powerSaveBlocker,
+  ipcMain, nativeImage, Notification, powerSaveBlocker, safeStorage,
 } = require('electron');
 const path   = require('path');
 const fs     = require('fs');
@@ -131,6 +131,103 @@ let splashWin    = null;
 let tray         = null;
 let serverProc   = null;
 let psBlockerId  = null;
+// Started by Windows at sign-in: stay quietly in the tray
+const START_HIDDEN = process.argv.includes('--hidden');
+let schedule     = { next_at: null, due_1h: 0, due_24h: 0 };
+let updateReady  = null; // version downloaded and waiting to be installed
+
+// ── Automatic updates ─────────────────────────────────────────────────────────
+// Checks Radixile's update server at start-up and every 6 hours, downloads in the
+// background, and installs when the app is next closed (or on "Restart to update"
+// in the tray). Windows only accepts an update signed by Radixile (publisherName),
+// so a tampered download is refused. The portable .exe can't update itself.
+let autoUpdater = null;
+function setupAutoUpdate(refreshTray) {
+  if (!app.isPackaged || process.env.PORTABLE_EXECUTABLE_DIR) return;
+  try { ({ autoUpdater } = require('electron-updater')); } catch { return; }
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = { info: m => serverLog(`UPDATE ${m}`), warn: m => serverLog(`UPDATE WARN ${m}`), error: m => serverLog(`UPDATE ERR ${m}`), debug: () => {} };
+  autoUpdater.on('update-downloaded', info => {
+    updateReady = info.version;
+    refreshTray?.();
+    showTrayNotification(`${APP_NAME} ${info.version} is ready`, 'It installs the next time Social-Nexus closes, or choose "Restart to update" from the tray icon.');
+  });
+  autoUpdater.on('error', err => serverLog(`UPDATE ERR ${err?.message || err}`));
+  const check = () => autoUpdater.checkForUpdates().catch(err => serverLog(`UPDATE ERR ${err.message}`));
+  setTimeout(check, 90 * 1000);
+  setInterval(check, 6 * 3600 * 1000);
+}
+
+function installUpdateNow() {
+  if (!autoUpdater || !updateReady) return;
+  if (schedule.due_1h > 0) {
+    const choice = dialog.showMessageBoxSync({
+      type: 'question', title: APP_NAME, buttons: ['Update now', 'Later'], defaultId: 1, cancelId: 1,
+      message: 'A post is due within the hour', detail: 'Updating takes about a minute. Update now anyway?',
+    });
+    if (choice !== 0) return;
+  }
+  app.isQuiting = true;
+  serverProc?.kill('SIGTERM');
+  autoUpdater.quitAndInstall(true, true); // silent install, then start again
+}
+
+
+// ── Desktop settings (start with Windows) ─────────────────────────────────────
+
+function desktopSettingsFile() { return path.join(DATA_DIR, 'desktop-settings.json'); }
+function readDesktopSettings() {
+  try { return JSON.parse(fs.readFileSync(desktopSettingsFile(), 'utf8')); } catch { return {}; }
+}
+function writeDesktopSettings(s) {
+  try { fs.writeFileSync(desktopSettingsFile(), JSON.stringify(s, null, 2)); } catch {}
+}
+
+// Scheduled posts only go out while the app runs, so it starts with Windows by
+// default (in the tray, no window). The person can switch it off in the tray menu.
+function applyStartWithWindows(enabled) {
+  if (!app.isPackaged) return; // dev runs would register electron.exe
+  app.setLoginItemSettings({ openAtLogin: !!enabled, args: ['--hidden'] });
+}
+function initStartWithWindows() {
+  const s = readDesktopSettings();
+  if (s.startWithWindows === undefined) {
+    s.startWithWindows = true; writeDesktopSettings(s);
+    // Say so once, so it isn't a surprise
+    if (app.isPackaged) setTimeout(() => showTrayNotification(`${APP_NAME} starts with Windows`, 'So scheduled posts go out on time. You can turn this off from the tray icon (right-click → Start with Windows).'), 8000);
+  }
+  applyStartWithWindows(s.startWithWindows);
+}
+function setStartWithWindows(enabled) {
+  writeDesktopSettings({ ...readDesktopSettings(), startWithWindows: !!enabled });
+  applyStartWithWindows(enabled);
+}
+
+// ── Upcoming posts (tray line, quit and shutdown warnings) ────────────────────
+
+function fetchSchedule() {
+  return new Promise(resolve => {
+    const req = http.get(`${APP_URL}/__schedule`, { timeout: 3000 }, res => {
+      let body = '';
+      res.on('data', c => { body += c; });
+      res.on('end', () => { try { schedule = JSON.parse(body); } catch {} resolve(schedule); });
+    });
+    req.on('error', () => resolve(schedule));
+    req.on('timeout', () => { req.destroy(); resolve(schedule); });
+  });
+}
+
+function nextPostLabel() {
+  if (!schedule.next_at) return 'No posts scheduled';
+  const d = new Date(schedule.next_at * 1000);
+  return `Next post: ${d.toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}`;
+}
+
+function dueWarning() {
+  const n = schedule.due_24h;
+  return `${n} scheduled post${n === 1 ? ' is' : 's are'} due in the next 24 hours. Posts only go out while ${APP_NAME} is running.`;
+}
 
 // ── Windows Compatibility Check ───────────────────────────────────────────────
 
@@ -289,6 +386,42 @@ let serverReady = false;
 let serverExited = false;
 const lastServerErr = []; // last few error lines, shown if startup fails
 
+// The key that encrypts saved logins and API keys in the database. Kept in
+// datakey.bin, protected by Windows for this user (DPAPI via safeStorage), so a
+// copy of the data folder on another PC or account can't read the logins.
+function dataKey() {
+  const file = path.join(DATA_DIR, 'datakey.bin');
+  const plainFile = path.join(DATA_DIR, '.data-key'); // made by the server before this existed
+  const canProtect = safeStorage.isEncryptionAvailable();
+  try {
+    if (fs.existsSync(file)) return safeStorage.decryptString(fs.readFileSync(file));
+  } catch (err) {
+    serverLog(`DATA KEY could not be unlocked: ${err.message}`);
+    // e.g. the Windows password was reset by an administrator, or the data folder
+    // was copied from another PC/user: saved logins can't be read any more
+    setTimeout(() => dialog.showMessageBox({
+      type: 'warning', title: APP_NAME, buttons: ['OK'],
+      message: 'Saved logins need signing in again',
+      detail: 'Windows could not unlock the key that protects your saved social media logins (this happens after a Windows password reset or moving to another PC). Your posts are safe. Open Settings → Social Platforms and click Connect on each account.',
+    }), 6000);
+    try { fs.renameSync(file, `${file}.unreadable-${Date.now()}`); } catch {}
+  }
+  let key = null;
+  try { if (fs.existsSync(plainFile)) key = fs.readFileSync(plainFile, 'utf8').trim(); } catch {}
+  if (!key) key = require('crypto').randomBytes(32).toString('base64');
+  if (canProtect) {
+    try {
+      fs.writeFileSync(file, safeStorage.encryptString(key));
+      if (fs.existsSync(plainFile)) fs.unlinkSync(plainFile);
+      return key;
+    } catch {}
+  }
+  // Windows protection isn't available: keep the key in a file next to the data,
+  // so it stays the same from one start to the next
+  try { fs.writeFileSync(plainFile, key, { mode: 0o600 }); } catch {}
+  return key;
+}
+
 function startServer(nodeExe, envFile) {
   serverStartArgs = { nodeExe, envFile };
   const serverFile = path.join(APP_ROOT, 'server', 'index.js');
@@ -302,6 +435,8 @@ function startServer(nodeExe, envFile) {
     // Disable auto-open browser (Electron manages the window)
     NEXUS_NO_BROWSER:   'true',
   };
+  const key = dataKey();
+  if (key) ownEnv.NEXUS_DATA_KEY = key;
   const env = { ...process.env, ...ownEnv };
   // Packaged server: pass on only the variables Windows and networking need.
   // Others (NODE_OPTIONS, NODE_PATH, OPENSSL_CONF, UV_*, LICENSE_*…) could load
@@ -356,6 +491,8 @@ Please reinstall ${APP_NAME}.`
     serverExited = true;
     // Failing during startup is reported by the startup code with the real error
     if (!serverReady) return;
+    // The server asks for a full restart (e.g. to finish restoring a backup)
+    if (code === 75 && !app.isQuiting) { app.relaunch(); app.isQuiting = true; app.quit(); return; }
     if (app.isQuiting || code === 0 || code === null) return;
     console.error(`[Electron] Server exited unexpectedly (code ${code})`);
     // Restart once automatically; after that, tell the user and point to the log
@@ -453,8 +590,19 @@ function createMainWindow() {
 
   mainWindow.once('ready-to-show', () => {
     splashWin?.close(); splashWin = null;
+    if (START_HIDDEN) return; // started with Windows: stay in the tray
     mainWindow.show();
     mainWindow.focus();
+  });
+
+  // Windows is shutting down or signing out while posts are due: ask first.
+  // (Windows shows this app's name and lets the person shut down anyway.)
+  // Only when a post is due within the hour, so Windows isn't held up every day.
+  mainWindow.on('query-session-end', e => {
+    if (schedule.due_1h > 0) {
+      e.preventDefault();
+      showTrayNotification('A post is due within the hour', `Posts only go out while ${APP_NAME} is running. Keep the PC on, or open ${APP_NAME} again after restarting.`);
+    }
   });
 
   // Graceful minimize to tray
@@ -487,12 +635,12 @@ function createMainWindow() {
   // Open all external links in the system browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     // Help & User Guide opens in its own window, next to the app
-    if (url.startsWith(`${APP_URL}/help.html`)) {
+    if (url.startsWith(`${APP_URL}/help.html`) || url.startsWith(`${APP_URL}/api/reports/`)) {
       return {
         action: 'allow',
         overrideBrowserWindowOptions: {
           width: 1100, height: 820, minWidth: 420, autoHideMenuBar: true,
-          title: 'Social-Nexus Help',
+          title: url.includes('/api/reports/') ? 'Social-Nexus report' : 'Social-Nexus Help',
           webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true },
         },
       };
@@ -532,12 +680,30 @@ function createTray() {
     { label: '🌐  Open in Browser',          click: () => shell.openExternal(APP_URL) },
     { label: '📖  Help & Documentation',     click: () => shell.openExternal(`${APP_URL}/help.html`) },
     { type: 'separator' },
+    ...(updateReady ? [{ label: `⬆️  Restart to update (v${updateReady})`, click: installUpdateNow }, { type: 'separator' }] : []),
+    { label: `🗓️  ${nextPostLabel()}`, enabled: false },
+    {
+      label: 'Start with Windows', type: 'checkbox',
+      checked: readDesktopSettings().startWithWindows !== false,
+      visible: app.isPackaged,
+      click: (item) => setStartWithWindows(item.checked),
+    },
+    { type: 'separator' },
     { label: `🟢  Server: localhost:${PORT}`, enabled: false },
     { label: `v${APP_VER} · ${COMPANY}`,     enabled: false },
     { type: 'separator' },
     {
       label: '🚪  Quit Social-Nexus',
-      click: () => {
+      click: async () => {
+        await fetchSchedule();
+        if (schedule.due_24h > 0) {
+          const choice = dialog.showMessageBoxSync({
+            type: 'warning', title: APP_NAME, buttons: ['Keep running', 'Quit anyway'], defaultId: 0, cancelId: 0,
+            message: 'Posts are due soon',
+            detail: `${dueWarning()} If you quit, they wait until you open ${APP_NAME} again.`,
+          });
+          if (choice === 0) return;
+        }
         app.isQuiting = true;
         serverProc?.kill('SIGTERM');
         if (psBlockerId !== null) powerSaveBlocker.stop(psBlockerId);
@@ -547,6 +713,15 @@ function createTray() {
   ]);
 
   tray.setContextMenu(buildMenu());
+  // Keep the next-post line current
+  const refresh = async () => {
+    await fetchSchedule();
+    tray.setContextMenu(buildMenu());
+    tray.setToolTip(`${APP_NAME} — ${nextPostLabel()}`);
+  };
+  refresh();
+  setInterval(refresh, 5 * 60 * 1000);
+  setupAutoUpdate(() => tray.setContextMenu(buildMenu()));
   tray.on('double-click', () => { mainWindow?.show(); mainWindow?.focus(); });
   tray.on('right-click',  () => { tray.popUpContextMenu(buildMenu()); });
 }
@@ -655,8 +830,8 @@ app.whenReady().then(async () => {
   // Prepare data directory and .env
   const { envFile } = prepareDataDir();
 
-  // Show splash
-  createSplashWindow();
+  // Show splash (not when Windows started the app in the tray)
+  if (!START_HIDDEN) createSplashWindow();
 
   // Start server
   startServer(nodeExe, envFile);
@@ -687,6 +862,7 @@ app.whenReady().then(async () => {
   // Create UI
   createMainWindow();
   createTray();
+  initStartWithWindows();
   if (legacyBackup) setTimeout(() => offerLegacyBackupDeletion(legacyBackup), 4000);
 
   // First-run notification

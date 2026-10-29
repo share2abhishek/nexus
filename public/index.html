@@ -8,7 +8,7 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="preload" href="fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="/vendor/chart.umd.js"></script>
 </head>
 <body>
 
@@ -36,6 +36,11 @@
       <a class="nav-item" data-page="calendar" id="nav-calendar">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-calendar-days"/></svg>
         <span class="nav-label">Calendar</span>
+      </a>
+      <a class="nav-item" data-page="inbox" id="nav-inbox">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-message-circle"/></svg>
+        <span class="nav-label">Inbox</span>
+        <span class="nav-badge" id="inbox-badge" style="display:none"></span>
       </a>
       <a class="nav-item" data-page="email" id="nav-email">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-mail"/></svg>
@@ -94,6 +99,14 @@
       <a class="nav-item" data-page="media" id="nav-media">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-image"/></svg>
         <span class="nav-label">AI Media</span>
+      </a>
+      <a class="nav-item" data-page="bio" id="nav-bio">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-link"/></svg>
+        <span class="nav-label">Link in bio</span>
+      </a>
+      <a class="nav-item" data-page="library" id="nav-library">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-image"/></svg>
+        <span class="nav-label">Media library</span>
       </a>
       <a class="nav-item" data-page="utm" id="nav-utm">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-link"/></svg>
@@ -171,6 +184,8 @@
             <div id="user-info-header" style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-muted)"></div>
             <button class="btn" onclick="navigateTo('user-settings');toggleUserMenu()" style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 16px;font-size:13px;color:var(--text-primary)">⚙️ My API Keys</button>
             <button class="btn" onclick="navigateTo('tools-directory');toggleUserMenu()" style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 16px;font-size:13px;color:var(--text-primary)">🛠️ AI Tools Directory</button>
+            <button class="btn" onclick="openRecoveryCode();toggleUserMenu()" style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 16px;font-size:13px;color:var(--text-primary)">🔑 Recovery code</button>
+            <button class="btn" onclick="openCompanion();toggleUserMenu()" style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 16px;font-size:13px;color:var(--text-primary)">📱 Phone companion</button>
             <div style="height:1px;background:var(--border)"></div>
             <button class="btn btn-danger" onclick="doLogout()" style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 16px;font-size:13px">🚪 Sign Out</button>
           </div>
@@ -198,6 +213,7 @@
           <span class="stat-icon">⏰</span>
           <div class="stat-value" id="stat-scheduled">0</div>
           <div class="stat-label">Scheduled</div>
+          <div class="stat-sub" id="stat-next-post"></div>
         </div>
         <div class="stat-card">
           <span class="stat-icon">✨</span>
@@ -206,7 +222,7 @@
         </div>
         <div class="stat-card">
           <span class="stat-icon">🔗</span>
-          <div class="stat-value" id="stat-platforms">0/5</div>
+          <div class="stat-value" id="stat-platforms">0/6</div>
           <div class="stat-label">Platforms Connected</div>
         </div>
       </div>
@@ -474,8 +490,18 @@
               </div>
 
               <div class="form-group">
-                <label class="form-label">Image URL (optional)</label>
-                <input type="url" class="form-input" id="compose-image" placeholder="https://example.com/image.jpg" oninput="updateComposeCharCount()" />
+                <label class="form-label">Photo or video (optional)</label>
+                <div class="media-pick" id="compose-media-box" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="composeMediaDrop(event)">
+                  <div class="media-preview" id="compose-media-preview" style="display:none"></div>
+                  <div class="media-pick-row">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('compose-file').click()">⬆ Upload photo or video</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="openMediaLibrary('pick')">🖼 Media library</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="designInCanva()" title="Opens Canva at the right size; drag the downloaded design here">🎨 Design in Canva</button>
+                    <span class="media-pick-hint">or drag a file here</span>
+                    <input type="file" id="compose-file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime" hidden onchange="uploadComposeFile(this.files[0]); this.value=''" />
+                  </div>
+                  <input type="text" class="form-input" id="compose-image" placeholder="…or paste a link to a picture (https://…)" oninput="updateComposeCharCount()" />
+                </div>
               </div>
 
               <div class="form-group">
@@ -486,10 +512,32 @@
                   <label class="platform-toggle instagram" data-platform="instagram">📸 Instagram</label>
                   <label class="platform-toggle pinterest" data-platform="pinterest">📌 Pinterest</label>
                   <label class="platform-toggle twitter" data-platform="twitter">🐦 Twitter/X</label>
-                  <label class="platform-toggle youtube" data-platform="youtube">▶️ YouTube</label>
                   <label class="platform-toggle google_business" data-platform="google_business">🏢 Google Biz</label>
-                  <label class="platform-toggle tiktok" data-platform="tiktok">🎵 TikTok</label>
+                  <label class="platform-toggle threads" data-platform="threads">🧵 Threads</label>
+                  <label class="platform-toggle bluesky" data-platform="bluesky">🦋 Bluesky</label>
                 </div>
+              </div>
+
+              <div class="form-group" id="compose-post-options" style="display:none">
+                <div id="compose-ig-options" style="display:none;margin-bottom:12px">
+                  <label class="form-label" for="compose-ig-format">Instagram: post as</label>
+                  <select class="form-select" id="compose-ig-format" onchange="updateComposeCharCount()">
+                    <option value="feed">Feed post (photo, video or carousel)</option>
+                    <option value="reel">Reel (video)</option>
+                    <option value="story">Story (shown for 24 hours)</option>
+                  </select>
+                </div>
+                <label class="form-label" for="compose-first-comment">First comment (Instagram and Facebook, optional)</label>
+                <textarea class="form-textarea" id="compose-first-comment" maxlength="2200" style="min-height:60px" placeholder="Added right after the post goes out, e.g. hashtags or “Order on WhatsApp: …”" oninput="updateComposeCharCount()"></textarea>
+              </div>
+              <div class="form-group">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="shareToWhatsApp()" title="WhatsApp has no way for apps to post to Channels or Status: this copies the text and opens WhatsApp">💬 Copy for WhatsApp (Channel or Status)</button>
+              </div>
+              <div class="form-group" id="compose-cloud-wrap" style="display:none">
+                <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer">
+                  <input type="checkbox" id="compose-cloud" onchange="updateComposeCharCount()" style="margin-top:3px" />
+                  <span>☁ Post from the cloud if this PC is off at the time<br><span style="font-size:11.5px;color:var(--text-muted)">Radixile keeps an encrypted copy (with the login needed to post) and posts it 10 minutes after the time only if this PC didn’t. The copy is erased right after. Facebook, Instagram, LinkedIn, Pinterest; JPG/PNG photos.</span></span>
+                </label>
               </div>
             </div>
           </div>
@@ -582,7 +630,11 @@
           <div class="section-title">Calendar</div>
           <div class="section-desc">Plan, review and schedule your posts by date.</div>
         </div>
-        <button class="btn btn-primary" onclick="openNewContentModal()">✏️ New Post</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="shareMonthForApproval(this)" title="One link for your client to approve all draft and waiting posts shown">🔗 Client approval</button>
+          <button class="btn btn-secondary" onclick="openBulkImport()">📥 Bulk schedule</button>
+          <button class="btn btn-primary" onclick="openNewContentModal()">✏️ New Post</button>
+        </div>
       </div>
 
       <div class="card" style="margin-bottom:20px">
@@ -724,10 +776,15 @@
       <div class="section-header">
         <div>
           <div class="section-title">📊 Analytics</div>
-          <div class="section-desc">Track your content performance across all platforms.</div>
+          <div class="section-desc">Likes, comments, shares and reach of posts from the last 30 days, fetched from the platforms once a day.</div>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="simulateAnalytics()" title="Fills the charts with made-up numbers so you can see how they look">🎲 Show sample data (demo)</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="month" class="form-input" id="report-month" style="width:auto;padding:6px 10px" aria-label="Report month" />
+          <button class="btn btn-secondary btn-sm" onclick="openClientReport()">📄 Client report (PDF)</button>
+          <button class="btn btn-secondary btn-sm" id="btn-analytics-refresh" onclick="refreshAnalytics(this)">🔄 Refresh numbers</button>
+        </div>
       </div>
+      <div class="admin-note" style="margin-bottom:16px">Numbers come from Facebook, Instagram, Pinterest and X. LinkedIn and Google Business don't share numbers for these posts through their APIs, so they aren't counted here. Reach on Facebook and Instagram needs the insights permission (sign in again on the card if it is missing).</div>
 
       <div class="stats-grid" id="analytics-stats">
         <div class="stat-card">
@@ -771,6 +828,11 @@
         </div>
       </div>
 
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><div class="card-title">⏰ Best times to post (from your results)</div></div>
+        <div class="card-body" id="best-times-body"><span class="spinner"></span></div>
+      </div>
+
       <div class="card">
         <div class="card-header"><div class="card-title">📋 Platform Breakdown</div></div>
         <div class="card-body" style="padding:0">
@@ -787,7 +849,7 @@
               </tr>
             </thead>
             <tbody id="analytics-table-body">
-              <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:30px">No data yet. Simulate data to see charts.</td></tr>
+              <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:30px">No numbers yet. They appear after your first published posts (Refresh numbers fetches them now).</td></tr>
             </tbody>
           </table>
         </div>
@@ -810,8 +872,16 @@
         <button class="btn btn-secondary btn-sm settings-tab-btn" data-tab="license" onclick="switchSettingsTab('license',this)">🔑 Licence</button>
         <button class="btn btn-secondary btn-sm settings-tab-btn" data-tab="ai" onclick="switchSettingsTab('ai',this)">🤖 AI</button>
         <button class="btn btn-secondary btn-sm settings-tab-btn" onclick="switchSettingsTab('smtp',this)">📧 Email / SMTP</button>
+        <button class="btn btn-secondary btn-sm settings-tab-btn" data-tab="backups" onclick="switchSettingsTab('backups',this)">💾 Backups</button>
         <button class="btn btn-secondary btn-sm settings-tab-btn" onclick="switchSettingsTab('about',this)">ℹ️ About</button>
         <button class="btn btn-secondary btn-sm settings-tab-btn agency-only" data-tab="members" onclick="switchSettingsTab('members',this)">👥 Members</button>
+      </div>
+
+      <div class="settings-panel" id="settings-panel-backups" style="display:none">
+        <div class="settings-section">
+          <div class="settings-section-header"><div class="settings-section-title">💾 Backups</div></div>
+          <div id="backups-panel" style="padding:16px"></div>
+        </div>
       </div>
 
       <!-- ── Licence Panel ───────────────────────────────────────────────────── -->
@@ -1046,7 +1116,7 @@
             <span class="badge badge-purple">v2.0.0</span>
           </div>
           <div class="settings-row">
-            <div class="settings-row-info"><div class="settings-row-title">Platforms Supported</div><div class="settings-row-desc">LinkedIn · Facebook · Instagram · Pinterest · Twitter/X · YouTube · Google Business · TikTok</div></div>
+            <div class="settings-row-info"><div class="settings-row-title">Platforms Supported</div><div class="settings-row-desc">LinkedIn · Facebook · Instagram · Threads · Pinterest · Twitter/X · Bluesky · Google Business</div></div>
           </div>
           <div class="settings-row">
             <div class="settings-row-info"><div class="settings-row-title">AI Engines</div><div class="settings-row-desc">Google Gemini · Anthropic Claude · Stability AI · OpenAI GPT Image · Luma · Runway</div></div>
@@ -1388,6 +1458,66 @@
     </section>
 
     <!-- ── AI Media Creator ───────────────────────────────────────────────────── -->
+    <section class="page" id="page-inbox">
+      <div class="section-header">
+        <div>
+          <div class="section-title">💬 Inbox</div>
+          <div class="section-desc">Comments on your posts from Facebook, Instagram and Threads, checked every 10 minutes. Answer them here.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select class="form-select" id="inbox-filter" style="width:auto" onchange="loadInbox()">
+            <option value="">All</option><option value="unread">Unread</option><option value="unanswered">Not answered</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="refreshInbox(this)">🔄 Check now</button>
+          <button class="btn btn-secondary btn-sm" onclick="markInboxRead()">Mark all read</button>
+        </div>
+      </div>
+      <div id="inbox-list"></div>
+      <p style="font-size:12px;color:var(--text-muted)">Private messages (Messenger, Instagram DMs) come later: Meta must first approve Radixile's app for them.</p>
+    </section>
+
+    <section class="page" id="page-bio">
+      <div class="section-header">
+        <div>
+          <div class="section-title">🔗 Link in bio</div>
+          <div class="section-desc">One simple page with all your links, for the link in your Instagram (or any) profile. Visits are counted without cookies.</div>
+        </div>
+      </div>
+      <div class="bio-layout">
+        <div class="card"><div class="card-body">
+          <div class="form-group"><label class="form-label" for="bio-slug">Page name</label>
+            <div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;color:var(--text-muted)" id="bio-base">…/b/</span><input class="form-input" id="bio-slug" placeholder="chai-point" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'');renderBioPreview()" /></div></div>
+          <div class="form-group"><label class="form-label" for="bio-title">Title</label><input class="form-input" id="bio-title" maxlength="80" placeholder="Chai Point Cafe" oninput="renderBioPreview()" /></div>
+          <div class="form-group"><label class="form-label" for="bio-text">Short bio</label><textarea class="form-textarea" id="bio-text" maxlength="300" rows="2" placeholder="Fresh chai & snacks in Pune ☕" oninput="renderBioPreview()"></textarea></div>
+          <div class="form-group" style="display:flex;gap:12px;align-items:center">
+            <div><label class="form-label">Colour</label><input type="color" id="bio-color" value="#7c3aed" oninput="renderBioPreview()" /></div>
+            <div><label class="form-label">Picture</label><button class="btn btn-secondary btn-sm" onclick="pickBioAvatar()">Choose from library</button> <span id="bio-avatar-name" style="font-size:12px;color:var(--text-muted)"></span></div>
+          </div>
+          <label class="form-label">Links</label>
+          <div id="bio-links"></div>
+          <button class="btn btn-secondary btn-sm" onclick="addBioLink()">+ Add a link</button>
+          <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="publishBio(this)">Publish page</button>
+            <button class="btn btn-secondary" id="bio-unpublish" style="display:none" onclick="unpublishBio()">Take offline</button>
+          </div>
+          <div id="bio-status" style="margin-top:12px;font-size:13px"></div>
+        </div></div>
+        <div class="bio-phone"><div id="bio-preview"></div></div>
+      </div>
+    </section>
+
+    <section class="page" id="page-library">
+      <div class="section-header">
+        <div>
+          <div class="section-title">🖼 Media library</div>
+          <div class="section-desc">Photos and videos for your posts. They stay on this PC, in the Social-Nexus data folder.</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="document.getElementById('library-file').click()">⬆ Upload</button>
+        <input type="file" id="library-file" multiple accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime" hidden onchange="uploadLibraryFiles(this.files); this.value=''" />
+      </div>
+      <div class="media-grid" id="library-grid" ondragover="event.preventDefault()" ondrop="event.preventDefault(); uploadLibraryFiles(event.dataTransfer.files)"></div>
+    </section>
+
     <section class="page" id="page-media">
       <div class="section-header">
         <div><div class="section-title">🎨 AI Media Creator</div><div class="section-desc">Generate images, videos, and animations for your posts.</div></div>
@@ -1987,6 +2117,66 @@
 </div>
 
 <!-- ── Save Template Modal ────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="media-library-modal" style="display:none" onclick="if(event.target===this)closeMediaLibrary()">
+  <div class="modal modal-wide" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">🖼 Choose a photo or video</div>
+      <button class="modal-close" onclick="closeMediaLibrary()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="media-grid" id="media-modal-grid"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('media-modal-file').click()">⬆ Upload new</button>
+      <input type="file" id="media-modal-file" multiple accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime" hidden onchange="uploadLibraryFiles(this.files, true); this.value=''" />
+      <button class="btn btn-secondary" onclick="closeMediaLibrary()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="bulk-import-modal" style="display:none" onclick="if(event.target===this)closeBulkImport()">
+  <div class="modal modal-wide" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">📥 Schedule many posts from a spreadsheet</div>
+      <button class="modal-close" onclick="closeBulkImport()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-top:0;color:var(--text-secondary);font-size:13px">
+        One row per post, in Excel (.xlsx) or CSV. Columns: <strong>date</strong>, <strong>time</strong>, <strong>text</strong>, <strong>platforms</strong>,
+        and optionally <strong>image</strong> (a web link or the name of a file in your media library), <strong>first comment</strong>, <strong>instagram</strong> (feed, reel or story).
+        Times are India time. <a href="#" onclick="downloadBulkTemplate();return false">Download a template</a>.
+      </p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="document.getElementById('bulk-file').click()">Choose file…</button>
+        <span id="bulk-file-name" style="font-size:13px;color:var(--text-muted)">No file chosen</span>
+        <input type="file" id="bulk-file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onchange="previewBulkImport(this.files[0]); this.value=''" />
+      </div>
+      <div id="bulk-preview" style="margin-top:16px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeBulkImport()">Cancel</button>
+      <button class="btn btn-primary" id="bulk-import-btn" disabled onclick="runBulkImport()">Import</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="recovery-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">🔑 Recovery code</div>
+      <button class="modal-close" onclick="document.getElementById('recovery-modal').style.display='none'" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="recovery-body">
+      <p style="margin-top:0;font-size:13px;color:var(--text-secondary)">A recovery code lets you set a new password if you forget it (Social-Nexus can't email you a reset link). Making a new one replaces any old code.</p>
+      <div class="form-group"><label class="form-label" for="recovery-password">Your current password</label><input type="password" class="form-input" id="recovery-password" autocomplete="current-password" /></div>
+    </div>
+    <div class="modal-footer" id="recovery-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('recovery-modal').style.display='none'">Cancel</button>
+      <button class="btn btn-primary" onclick="makeRecoveryCode(this)">Make my code</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="save-template-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
@@ -2060,6 +2250,9 @@
     <!-- Error message (if status failed) -->
     <div id="detail-error-container" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:12px;color:#f87171;font-size:12.5px;line-height:1.5;margin-bottom:16px;display:none"></div>
     
+    <!-- Client approval by link -->
+    <div id="detail-approval" style="margin-bottom:16px"></div>
+
     <!-- Audit Logs -->
     <div class="audit-logs" id="detail-audit-logs"></div>
     
@@ -2222,7 +2415,16 @@
   </div>
 </div>
 
-<script src="app.js"></script>
+<script src="js/01-core.js"></script>
+<script src="js/02-dashboard.js"></script>
+<script src="js/03-compose.js"></script>
+<script src="js/04-calendar.js"></script>
+<script src="js/05-analytics.js"></script>
+<script src="js/06-settings.js"></script>
+<script src="js/07-tools.js"></script>
+<script src="js/08-account.js"></script>
+<script src="js/09-features.js"></script>
+<script src="js/10-media-and-more.js"></script>
 
 </body>
 </html>

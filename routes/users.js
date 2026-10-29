@@ -4,6 +4,22 @@ const bcrypt   = require('bcryptjs');
 const { requireAuth } = require('../middleware/auth');
 const knexInstance = require('../services/knex');
 const usersRepo    = require('../repos/usersRepo')(knexInstance);
+const loginGuard   = require('../services/loginGuard');
+const crypto       = require('crypto');
+
+// Recovery code: 20 letters/digits in 4 groups, without look-alikes (0/O, 1/I/L)
+const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function newRecoveryCode() {
+  const bytes = crypto.randomBytes(20);
+  const raw = Array.from(bytes, b => CODE_CHARS[b % CODE_CHARS.length]).join('');
+  return raw.match(/.{5}/g).join('-');
+}
+const normCode = (c) => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+async function setRecoveryCode(userId) {
+  const code = newRecoveryCode();
+  await knexInstance('users').where({ id: userId }).update({ recovery_hash: await bcrypt.hash(normCode(code), 10) });
+  return code;
+}
 
 // ── Registration mode check ───────────────────────────────────────────────────
 
@@ -69,7 +85,8 @@ router.post('/register', async (req, res) => {
     req.session.userName  = name?.trim() || email.split('@')[0];
     req.session.userRole  = role;
 
-    res.json({ success: true, user: { id, email, name: req.session.userName, role } });
+    const recovery_code = await setRecoveryCode(id);
+    res.json({ success: true, user: { id, email, name: req.session.userName, role }, recovery_code });
   } catch (err) {
     if (err.message?.includes('UNIQUE') || err.message?.includes('unique')) return res.status(409).json({ error: 'Email already registered' });
     res.status(500).json({ error: err.message });
@@ -81,13 +98,16 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+  const wait = loginGuard.check(email);
+  if (wait) return res.status(429).json({ error: wait });
 
   try {
     const user = await usersRepo.findByEmail(email.toLowerCase().trim());
-    if (!user) return res.status(401).json({ error: 'Invalid email or password' });
+    if (!user) { loginGuard.failed(email); return res.status(401).json({ error: 'Invalid email or password' }); }
 
     const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
+    if (!valid) { loginGuard.failed(email); return res.status(401).json({ error: 'Invalid email or password' }); }
+    loginGuard.succeeded(email);
 
     if (user.status === 'suspended') return res.status(403).json({ error: 'Your account has been suspended. Contact the admin.' });
 
@@ -98,6 +118,43 @@ router.post('/login', async (req, res) => {
 
     usersRepo.updateLastActive(user.id).catch(() => {});
     res.json({ success: true, user: { id: user.id, email: user.email, name: req.session.userName, role: user.role } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Forgotten password: reset with the recovery code ─────────────────────────
+router.post('/recover', async (req, res) => {
+  const { email, code, password } = req.body || {};
+  if (!email || !code || !password) return res.status(400).json({ error: 'Email, recovery code and a new password are needed.' });
+  if (String(password).length < 6) return res.status(400).json({ error: 'The new password needs at least 6 characters.' });
+  const wait = loginGuard.check(email);
+  if (wait) return res.status(429).json({ error: wait });
+  try {
+    const user = await usersRepo.findByEmail(String(email).toLowerCase().trim());
+    const ok = user?.recovery_hash && await bcrypt.compare(normCode(code), user.recovery_hash);
+    if (!ok) {
+      loginGuard.failed(email);
+      return res.status(401).json({ error: 'That email and recovery code don\u2019t match. Ask your admin to reset your password if you don\u2019t have the code.' });
+    }
+    loginGuard.succeeded(email);
+    await knexInstance('users').where({ id: user.id }).update({ password_hash: await bcrypt.hash(String(password), 10) });
+    // The code is used up: give a new one
+    const recovery_code = await setRecoveryCode(user.id);
+    res.json({ success: true, recovery_code });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// A new recovery code for the signed-in user (needs the current password)
+router.post('/recovery-code', requireAuth, async (req, res) => {
+  try {
+    const user = await knexInstance('users').where({ id: req.session.userId }).first('id', 'password_hash');
+    if (!user || !(await bcrypt.compare(String(req.body?.password || ''), user.password_hash))) {
+      return res.status(401).json({ error: 'Your current password is not right.' });
+    }
+    res.json({ recovery_code: await setRecoveryCode(user.id) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -119,7 +176,7 @@ router.get('/me', async (req, res) => {
     if (user.status === 'suspended') { req.session.destroy(); return res.json({ authenticated: false, error: 'suspended' }); }
     res.json({
       authenticated: true,
-      user: { id: user.id, email: user.email, name: user.name || user.email.split('@')[0], role: user.role },
+      user: { id: user.id, email: user.email, name: user.name || user.email.split('@')[0], role: user.role, has_recovery_code: !!(await knexInstance('users').where({ id: user.id }).first('recovery_hash'))?.recovery_hash },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

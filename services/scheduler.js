@@ -3,6 +3,9 @@ const { postToPlatform } = require('./social');
 const knex = require('./knex');
 const contentRepoFactory = require('../repos/contentRepo');
 const postsRepoFactory = require('../repos/postsRepo');
+const { isPublishable, notAvailableMessage } = require('./platforms/available');
+const { ensureFresh } = require('./tokenRefresher');
+const socialAccountsRepo = require('../repos/socialAccountsRepo');
 
 const contentRepo = contentRepoFactory(knex);
 
@@ -33,16 +36,22 @@ async function publishItem(db, repo, item) {
   // Compose name platforms only). Always scoped to the item's own workspace.
   const targets = [];
   let missingAccounts = 0;
+  // Copies handed to the cloud (PC-off safety net): take them back; any the cloud
+  // already posted are not posted again
+  const cloudHandled = await require('./cloudPosting').takeOver(db, item).catch(() => ({}));
   for (const accountId of item.social_account_ids || []) {
     const account = await db('social_accounts').where({ id: accountId, workspace_id: item.workspace_id }).first();
     // No login token: leave it to the platform lookup below, which explains it
-    if (account?.access_token) targets.push(account);
+    if (account?.access_token && !account.auth_error && isPublishable(account.platform) && !cloudHandled[account.platform]) targets.push(account);
     else if (!account) missingAccounts++; // reconnected since? the platform lookup below finds the new one
   }
+  for (const r of Object.values(cloudHandled)) results.push(r);
   for (const platform of item.platforms || []) {
+    if (cloudHandled[platform]) continue;
+    if (!isPublishable(platform)) { results.push({ platform, success: false, error: notAvailableMessage(platform) }); continue; }
     if (targets.some(a => a.platform === platform)) continue;
-    const account = await db('social_accounts').where({ workspace_id: item.workspace_id, platform }).first();
-    if (account && account.access_token) targets.push(account);
+    const account = await socialAccountsRepo(db).getByPlatform(item.workspace_id, platform);
+    if (account?.access_token && !account.auth_error) targets.push(account);
     else results.push({ platform, success: false, error: notConnectedError(platform, account) });
   }
 
@@ -52,6 +61,7 @@ async function publishItem(db, repo, item) {
 
   for (const account of targets) {
     try {
+      await ensureFresh(db, account); // renews a login that is about to run out
       const tokenData = {
         access_token: account.access_token,
         refresh_token: account.refresh_token,
@@ -62,7 +72,8 @@ async function publishItem(db, repo, item) {
         external_id: account.external_id,
         workspace_id: account.workspace_id,
       };
-      const result = await postToPlatform(account.platform, tokenData, item.body, item.image_url);
+      const opts = typeof item.options === 'string' ? JSON.parse(item.options || '{}') : (item.options || {});
+      const result = await postToPlatform(account.platform, tokenData, item.body, item.image_url, opts);
       results.push({ platform: account.platform, ...result });
     } catch (err) {
       console.error(`[Scheduler] Content #${item.id} failed on ${account.platform}:`, err.message);
@@ -127,11 +138,13 @@ async function processDueScheduled(db) {
 
     for (const platform of platforms) {
       try {
-        const account = await db('social_accounts').where({ workspace_id: post.workspace_id, platform }).first();
-        if (!account || !account.access_token) {
+        if (!isPublishable(platform)) { results.push({ platform, success: false, error: notAvailableMessage(platform) }); continue; }
+        const account = await socialAccountsRepo(db).getByPlatform(post.workspace_id, platform);
+        if (!account?.access_token || account.auth_error) {
           results.push({ platform, success: false, error: notConnectedError(platform, account) });
           continue;
         }
+        await ensureFresh(db, account);
         const result = await postToPlatform(platform, account, post.content, post.image_url);
         results.push({ platform, ...result });
       } catch (err) {

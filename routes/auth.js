@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
+const { GRAPH, FB_DIALOG } = require('../services/platforms/apiVersions');
 const crypto = require('crypto');
 
 const knexInstance = require('../services/knex');
@@ -8,6 +9,9 @@ const socialAccountsRepo = require('../repos/socialAccountsRepo')(knexInstance);
 const membershipsRepo = require('../repos/membershipsRepo')(knexInstance);
 const { can } = require('../services/rbac');
 const { callbackUrl } = require('../services/platforms/callback');
+const { PUBLISHABLE } = require('../services/platforms/available');
+const { reconnectInDays } = require('../services/tokenRefresher');
+const connectAccounts = require('../services/platforms/connectAccounts');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -79,7 +83,7 @@ async function workspaceId(req, permission = 'social.manage', preferred = null) 
 }
 
 function emptyStatus() {
-  const platforms = ['linkedin', 'facebook', 'instagram', 'pinterest', 'twitter', 'youtube', 'google_business', 'tiktok'];
+  const platforms = PUBLISHABLE;
   const status = {};
   for (const p of platforms) status[p] = { connected: false };
   return status;
@@ -93,13 +97,13 @@ router.get('/status', async (req, res) => {
     if (!wsId) return res.json(emptyStatus());
 
     const connected = await socialAccountsRepo.list(wsId);
-    const platforms = ['linkedin', 'facebook', 'instagram', 'pinterest', 'twitter', 'youtube', 'google_business', 'tiktok'];
+    const platforms = PUBLISHABLE;
     const status = {};
 
     for (const p of platforms) {
       const token = connected.find(t => t.platform === p && t.usable);
       status[p] = token
-        ? { connected: true, profile: token.profile, since: token.created_at, page_id: token.page_id, board_id: token.board_id, ig_account_id: token.ig_account_id }
+        ? { connected: true, profile: token.profile, since: token.created_at, page_id: token.page_id, board_id: token.board_id, ig_account_id: token.ig_account_id, reconnect_in_days: reconnectInDays(token) }
         : { connected: false, ...(connected.some(t => t.platform === p) ? { needs_reconnect: true } : {}) };
     }
 
@@ -149,20 +153,7 @@ router.get('/linkedin/callback', async (req, res) => {
       },
     });
 
-    const { access_token, expires_in } = tokenRes.data;
-    // OpenID Connect profile: "sub" is the member id used to post (urn:li:person:<sub>)
-    const me = (await axios.get('https://api.linkedin.com/v2/userinfo', {
-      headers: { Authorization: `Bearer ${access_token}` },
-    })).data;
-
-    await socialAccountsRepo.add(wsId, {
-      platform: 'linkedin',
-      external_id: me.sub,
-      access_token,
-      expires_at: Math.floor(Date.now() / 1000) + expires_in,
-      profile: { id: me.sub, name: me.name || [me.given_name, me.family_name].filter(Boolean).join(' '), picture: me.picture || null },
-    });
-
+    await connectAccounts.completeLinkedIn(knexInstance, wsId, tokenRes.data);
     res.redirect('/?connected=linkedin');
   } catch (err) {
     console.error('[Auth] LinkedIn error:', err.response?.data || err.message);
@@ -179,14 +170,15 @@ router.get('/facebook', async (req, res) => {
     // Browser navigation, not an API call: send the user back with a readable message
     return res.redirect('/?error=not_configured&platform=facebook');
   }
-  const url = buildOAuthUrl('https://www.facebook.com/v18.0/dialog/oauth', {
+  const url = buildOAuthUrl(FB_DIALOG, {
     client_id: process.env.FACEBOOK_APP_ID,
     redirect_uri: callbackUrl('facebook'),
     // Instagram permissions only when connecting Instagram (?instagram=1): Facebook
     // rejects the whole sign-in ("Invalid Scopes") if the Facebook app has no
     // Instagram product, which would also block plain Facebook Page posting.
-    scope: 'public_profile,email,pages_show_list,pages_read_engagement,pages_manage_posts,business_management' +
-      (req.query.instagram === '1' ? ',instagram_basic,instagram_content_publish' : ''),
+    // read_insights: reach numbers in Analytics; pages_manage_engagement: first comment
+    scope: 'public_profile,email,pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_posts,pages_manage_engagement,read_insights,business_management' +
+      (req.query.instagram === '1' ? ',instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights' : ''),
     state: issueState(req, 'facebook', startWs, { instagram: req.query.instagram === '1' }),
   });
   res.redirect(url);
@@ -202,7 +194,7 @@ router.get('/facebook/callback', async (req, res) => {
   if (!wsId) return res.redirect('/?error=not_allowed');
 
   try {
-    const tokenRes = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
+    const tokenRes = await axios.get(`${GRAPH}/oauth/access_token`, {
       params: {
         client_id: process.env.FACEBOOK_APP_ID,
         client_secret: process.env.FACEBOOK_APP_SECRET,
@@ -211,59 +203,27 @@ router.get('/facebook/callback', async (req, res) => {
       },
     });
 
-    const { access_token } = tokenRes.data;
-
-    const profileRes = await axios.get('https://graph.facebook.com/v18.0/me', {
-      params: { fields: 'id,name,picture', access_token },
-    });
-
-    // Get pages
-    const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
-      params: { access_token },
-    });
-
-    // Auto-select only when there is exactly one page. With several pages keep the
-    // page chosen before (signing in again must not lose it); otherwise the user
-    // chooses in Settings → Facebook → Select page (no silent pages[0] pick).
-    const pages = pagesRes.data.data || [];
-    const previous = await socialAccountsRepo.getByPlatform(wsId, 'facebook');
-    const page = pages.length === 1 ? pages[0]
-      : (previous?.page_id && pages.find(p => String(p.id) === String(previous.page_id))) || null;
-
-    let igAccountId = null;
-    if (page) {
-      try {
-        const igRes = await axios.get(`https://graph.facebook.com/v18.0/${page.id}`, {
-          params: { fields: 'instagram_business_account', access_token: page.access_token },
-        });
-        igAccountId = igRes.data.instagram_business_account?.id || null;
-      } catch {}
-    }
-
-    await socialAccountsRepo.add(wsId, {
-      platform: 'facebook',
-      external_id: profileRes.data.id,
-      access_token,
-      page_id: page?.id || null,
-      page_token: page?.access_token || null,
-      profile: { id: profileRes.data.id, name: profileRes.data.name, page_name: page?.name },
-    });
-
-    // Only when this sign-in asked for Instagram permissions: a Facebook-only
-    // reconnect must not replace a working Instagram login with one that can't post
-    if (igAccountId && savedState.instagram) {
-      await socialAccountsRepo.add(wsId, {
-        platform: 'instagram',
-        external_id: igAccountId,
-        access_token,
-        page_token: page.access_token,
-        ig_account_id: igAccountId,
-        profile: { id: igAccountId, name: `${profileRes.data.name} (Instagram)` },
+    // Swap the 1-2 hour login for a 60-day one. Page tokens taken from a long-lived
+    // login don't expire, so posts scheduled days ahead still go out.
+    let access_token = tokenRes.data.access_token;
+    try {
+      const longRes = await axios.get(`${GRAPH}/oauth/access_token`, {
+        params: {
+          grant_type: 'fb_exchange_token',
+          client_id: process.env.FACEBOOK_APP_ID,
+          client_secret: process.env.FACEBOOK_APP_SECRET,
+          fb_exchange_token: access_token,
+        },
       });
+      if (longRes.data?.access_token) access_token = longRes.data.access_token;
+    } catch (err) {
+      console.warn('[Auth] Facebook long-lived login not available, using the short one:', err.response?.data?.error?.message || err.message);
     }
 
-    if (!page && pages.length > 1) return res.redirect(`/?connected=facebook&select_page=1${savedState.instagram ? '&instagram=1' : ''}`);
-    if (savedState.instagram && !igAccountId) return res.redirect('/?connected=facebook&error=instagram_not_found');
+    const done = await connectAccounts.completeFacebook(knexInstance, wsId, { access_token }, { instagram: !!savedState.instagram });
+
+    if (done.selectPage) return res.redirect(`/?connected=facebook&select_page=1${savedState.instagram ? '&instagram=1' : ''}`);
+    if (done.instagramMissing) return res.redirect('/?connected=facebook&error=instagram_not_found');
     res.redirect(savedState.instagram ? '/?connected=instagram' : '/?connected=facebook');
   } catch (err) {
     console.error('[Auth] Facebook error:', err.response?.data || err.message);
@@ -308,26 +268,7 @@ router.get('/pinterest/callback', async (req, res) => {
       }
     );
 
-    const { access_token } = tokenRes.data;
-
-    const profileRes = await axios.get('https://api.pinterest.com/v5/user_account', {
-      headers: { Authorization: `Bearer ${access_token}` },
-    });
-
-    // Get first board
-    const boardsRes = await axios.get('https://api.pinterest.com/v5/boards', {
-      headers: { Authorization: `Bearer ${access_token}` },
-    });
-
-    const firstBoard = boardsRes.data.items?.[0];
-
-    await socialAccountsRepo.add(wsId, {
-      platform: 'pinterest',
-      external_id: profileRes.data.username,
-      access_token,
-      board_id: firstBoard?.id || null,
-      profile: { id: profileRes.data.username, name: profileRes.data.username },
-    });
+    await connectAccounts.completePinterest(knexInstance, wsId, tokenRes.data);
 
     res.redirect('/?connected=pinterest');
   } catch (err) {
@@ -428,8 +369,6 @@ router.get('/google', async (req, res) => {
   const scopes = [
     'https://www.googleapis.com/auth/userinfo.profile',
     'https://www.googleapis.com/auth/userinfo.email',
-    'https://www.googleapis.com/auth/youtube.force-ssl',
-    'https://www.googleapis.com/auth/youtube.upload',
     'https://www.googleapis.com/auth/business.manage',
   ].join(' ');
 
@@ -463,70 +402,7 @@ router.get('/google/callback', async (req, res) => {
       grant_type: 'authorization_code',
     });
 
-    const { access_token, refresh_token, expires_in } = tokenRes.data;
-
-    const profileRes = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: { Authorization: `Bearer ${access_token}` },
-    });
-
-    const profile = { id: profileRes.data.id, name: profileRes.data.name, email: profileRes.data.email, picture: profileRes.data.picture };
-
-    // Try to get YouTube channel info
-    let youtubeChannelId = null;
-    let youtubeChannelTitle = null;
-    try {
-      const ytRes = await axios.get('https://www.googleapis.com/youtube/v3/channels', {
-        params: { part: 'snippet', mine: true },
-        headers: { Authorization: `Bearer ${access_token}` },
-      });
-      const channel = ytRes.data.items?.[0];
-      if (channel) {
-        youtubeChannelId = channel.id;
-        youtubeChannelTitle = channel.snippet?.title;
-      }
-    } catch {}
-
-    // Try to get Google Business Profile account
-    let gmbAccountName = null;
-    try {
-      const gmbRes = await axios.get('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
-        headers: { Authorization: `Bearer ${access_token}` },
-      });
-      gmbAccountName = gmbRes.data.accounts?.[0]?.name || null;
-    } catch {}
-
-    await socialAccountsRepo.add(wsId, {
-      platform: 'google',
-      external_id: profileRes.data.id,
-      access_token,
-      refresh_token,
-      expires_at: Math.floor(Date.now() / 1000) + (expires_in || 3600),
-      profile,
-    });
-
-    if (youtubeChannelId) {
-      await socialAccountsRepo.add(wsId, {
-        platform: 'youtube',
-        external_id: youtubeChannelId,
-        access_token,
-        refresh_token,
-        expires_at: Math.floor(Date.now() / 1000) + (expires_in || 3600),
-        profile: { id: youtubeChannelId, name: youtubeChannelTitle || profile.name },
-        page_id: youtubeChannelId,
-      });
-    }
-
-    if (gmbAccountName) {
-      await socialAccountsRepo.add(wsId, {
-        platform: 'google_business',
-        external_id: gmbAccountName,
-        access_token,
-        refresh_token,
-        expires_at: Math.floor(Date.now() / 1000) + (expires_in || 3600),
-        profile: { id: gmbAccountName, name: profile.name },
-        page_id: gmbAccountName,
-      });
-    }
+    await connectAccounts.completeGoogle(knexInstance, wsId, tokenRes.data);
 
     res.redirect('/?connected=google');
   } catch (err) {
@@ -538,6 +414,7 @@ router.get('/google/callback', async (req, res) => {
 // ── TikTok OAuth ──────────────────────────────────────────────────────────────
 
 router.get('/tiktok', async (req, res) => {
+  if (!require('../services/platforms/available').isPublishable('tiktok')) return res.redirect('/?error=not_available&platform=tiktok');
   const startWs = await workspaceId(req);
   if (!startWs) return res.redirect('/?error=not_allowed');
   if (!process.env.TIKTOK_CLIENT_KEY) {
@@ -596,6 +473,33 @@ router.get('/tiktok/callback', async (req, res) => {
   }
 });
 
+// ── One-click connect (Radixile's approved apps) ─────────────────────────────
+
+router.get('/connect/platforms', async (req, res) => {
+  res.json({ platforms: await require('../services/connectBroker').platforms() });
+});
+
+router.post('/connect/:platform/start', async (req, res) => {
+  const wsId = await workspaceId(req, 'social.manage');
+  if (!wsId) return res.status(403).json({ error: 'You do not have permission to manage social accounts in this workspace.' });
+  try {
+    res.json(await require('../services/connectBroker').start({ wsId, platform: req.params.platform }));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.get('/connect/session/:id', async (req, res) => {
+  const wsId = await workspaceId(req, 'social.manage');
+  if (!wsId) return res.status(403).json({ error: 'Not allowed' });
+  try {
+    res.json(await require('../services/connectBroker').check(knexInstance, req.params.id, wsId));
+  } catch (err) {
+    console.error('[Auth] One-click connect:', err.response?.data || err.message);
+    res.json({ status: 'error', error: 'The account could not be saved. Click Connect to try again.' });
+  }
+});
+
 // ── Refresh & Trigger Connection ──────────────────────────────────────────────
 
 router.post('/refresh/:platform', async (req, res) => {
@@ -612,10 +516,10 @@ router.post('/refresh/:platform', async (req, res) => {
 
     // Live verification & auto-healing per platform
     if (platform === 'facebook') {
-      const meRes = await axios.get('https://graph.facebook.com/v18.0/me', {
+      const meRes = await axios.get(`${GRAPH}/me`, {
         params: { fields: 'id,name', access_token: token.access_token },
       });
-      const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
+      const pagesRes = await axios.get(`${GRAPH}/me/accounts`, {
         params: { access_token: token.access_token },
       });
 
@@ -626,7 +530,7 @@ router.post('/refresh/:platform', async (req, res) => {
       let igAccountId = token.ig_account_id || null;
       if (selectedPage) {
         try {
-          const igRes = await axios.get(`https://graph.facebook.com/v18.0/${selectedPage.id}`, {
+          const igRes = await axios.get(`${GRAPH}/${selectedPage.id}`, {
             params: { fields: 'instagram_business_account', access_token: selectedPage.access_token },
           });
           igAccountId = igRes.data.instagram_business_account?.id || igAccountId;
@@ -653,11 +557,14 @@ router.post('/refresh/:platform', async (req, res) => {
           external_id: igAccountId,
           access_token: token.access_token,
           page_token: selectedPage?.access_token || token.page_token,
+          page_id: selectedPage?.id || token.page_id || null,
           ig_account_id: igAccountId,
           profile: { id: igAccountId, name: `${meRes.data.name || 'Facebook'} (Instagram)` },
         });
       }
 
+      const healed = await knexInstance('social_accounts').where({ workspace_id: wsId }).whereIn('platform', ['facebook', 'instagram']);
+      await Promise.all(healed.map(acc => require('../services/tokenRefresher').checkFacebook(knexInstance, acc)));
       return res.json({ success: true, connected: true, platform, page_id: selectedPage?.id, ig_account_id: igAccountId });
     }
 
@@ -724,14 +631,14 @@ router.post('/manual-token/:platform', async (req, res) => {
     if (platform === 'facebook') {
       // Verify token and get profile
       try {
-        const me = await axios.get('https://graph.facebook.com/v18.0/me', {
+        const me = await axios.get(`${GRAPH}/me`, {
           params: { fields: 'id,name,picture', access_token },
         });
         profile = { id: me.data.id, name: me.data.name };
 
         // Auto-fetch pages if no page_id provided
         if (!page_id) {
-          const pages = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
+          const pages = await axios.get(`${GRAPH}/me/accounts`, {
             params: { access_token },
           });
           const firstPage = pages.data.data?.[0];
@@ -747,7 +654,7 @@ router.post('/manual-token/:platform', async (req, res) => {
 
             // Check for Instagram
             try {
-              const igRes = await axios.get(`https://graph.facebook.com/v18.0/${firstPage.id}`, {
+              const igRes = await axios.get(`${GRAPH}/${firstPage.id}`, {
                 params: { fields: 'instagram_business_account', access_token: firstPage.access_token },
               });
               igAccountId = igRes.data.instagram_business_account?.id;
@@ -757,6 +664,7 @@ router.post('/manual-token/:platform', async (req, res) => {
                   external_id: igAccountId,
                   access_token,
                   page_token: firstPage.access_token,
+                  page_id: firstPage.id,
                   ig_account_id: igAccountId,
                   profile: { id: igAccountId, name: `${profile.name} (Instagram)` },
                 });

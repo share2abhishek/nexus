@@ -1,3 +1,6 @@
+// Personal API keys are stored encrypted (services/secrets.js)
+const { seal, SEALED_COLUMNS } = require('../services/secrets');
+const sealKeys = (data) => Object.fromEntries(Object.entries(data || {}).map(([k, v]) => [k, SEALED_COLUMNS.user_settings.cols.includes(k) ? seal(v) : v]));
 // repos/usersRepo.js — Knex-based user, settings, config, and invite code operations
 // Replaces the synchronous better-sqlite3 calls in services/database.js for
 // users/user_settings/platform_config/invite_codes tables.
@@ -94,9 +97,9 @@ module.exports = (knex) => {
   async function saveSettings(userId, data) {
     const existing = await knex('user_settings').where({ user_id: userId }).first();
     if (existing) {
-      return knex('user_settings').where({ user_id: userId }).update({ ...data, updated_at: epochNow() });
+      return knex('user_settings').where({ user_id: userId }).update({ ...sealKeys(data), updated_at: epochNow() });
     } else {
-      return knex('user_settings').insert({ user_id: userId, ...data, updated_at: epochNow() });
+      return knex('user_settings').insert({ user_id: userId, ...sealKeys(data), updated_at: epochNow() });
     }
   }
 

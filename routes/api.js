@@ -1,4 +1,5 @@
 const express = require('express');
+const { checkPlatforms } = require('../services/platforms/available');
 const router = express.Router();
 const { requirePermission } = require('../middleware/tenancy');
 const { requirePublishLicense } = require('../middleware/license');
@@ -12,6 +13,7 @@ const aiAssist = require('../services/aiAssist');
 const { brandContext, shortestLimit } = require('../services/brandContext');
 const indianHolidays = require('../services/indianHolidays');
 const knexInstance = require('../services/knex');
+const { ensureFresh } = require('../services/tokenRefresher');
 const postsRepo     = require('../repos/postsRepo')(knexInstance);
 const scheduledRepo = require('../repos/scheduledRepo')(knexInstance);
 const socialRepo    = require('../repos/socialAccountsRepo')(knexInstance);
@@ -105,7 +107,7 @@ router.post('/generate', async (req, res) => {
     // If a holiday is passed, prepend holiday context
     let finalPrompt = prompt;
     if (holiday) {
-      const h = indianHolidays.INDIAN_HOLIDAYS_2026.find(x => x.date === holiday || x.name === holiday);
+      const h = indianHolidays.all().find(x => x.date === holiday || x.name === holiday);
       if (h) systemPrompt += `\n\nThis content is for ${h.name} (${h.emoji}) celebrated on ${h.date}. Make it festive and relevant for Indian audiences.`;
     }
 
@@ -268,7 +270,7 @@ router.get('/holidays', (req, res) => {
   res.json({
     today:    indianHolidays.getTodayHolidays(),
     upcoming: indianHolidays.getUpcomingHolidays(7),
-    all:      indianHolidays.INDIAN_HOLIDAYS_2026,
+    all:      indianHolidays.all(),
   });
 });
 
@@ -279,17 +281,20 @@ router.post('/post/now', canPublish, async (req, res) => {
 
   if (!content) return res.status(400).json({ error: 'content is required' });
   if (!platforms || !platforms.length) return res.status(400).json({ error: 'platforms array is required' });
+  const unavailable = checkPlatforms(platforms);
+  if (unavailable) return res.status(400).json({ error: unavailable });
 
   const results = [];
 
   for (const platform of platforms) {
     try {
       const tokenData = await socialRepo.getByPlatform(req.workspaceId, platform);
-      if (!tokenData) {
-        results.push({ platform, success: false, error: `${platform} is not connected` });
+      if (!tokenData?.access_token || tokenData.auth_error) {
+        results.push({ platform, success: false, error: tokenData ? `${platform} needs signing in again. Click Connect in Settings → Social Platforms.` : `${platform} is not connected` });
         continue;
       }
 
+      await ensureFresh(knexInstance, tokenData);
       const result = await postToPlatform(platform, tokenData, content, image_url);
       results.push(result);
     } catch (err) {
@@ -315,6 +320,8 @@ router.post('/post/schedule', canPublish, async (req, res) => {
 
   if (!content) return res.status(400).json({ error: 'content is required' });
   if (!platforms?.length) return res.status(400).json({ error: 'platforms array is required' });
+  const unavailable = checkPlatforms(platforms);
+  if (unavailable) return res.status(400).json({ error: unavailable });
   if (!scheduled_at) return res.status(400).json({ error: 'scheduled_at is required (ISO 8601 or Unix timestamp)' });
 
   const ts = typeof scheduled_at === 'number'
@@ -433,26 +440,33 @@ router.get('/analytics', async (req, res) => {
   }
 });
 
-// ─── Simulate Analytics (for demo) ───────────────────────────────────────────
-
-router.post('/analytics/simulate', async (req, res) => {
-  const posts = await postsRepo.history(req.workspaceId, 10);
-
-  for (const post of posts) {
-    for (const platform of post.platforms) {
-      await analyticsRepo.save(req.workspaceId, {
-        post_id:     post.id,
-        platform,
-        likes:       Math.floor(Math.random() * 200),
-        comments:    Math.floor(Math.random() * 50),
-        shares:      Math.floor(Math.random() * 80),
-        impressions: Math.floor(Math.random() * 5000) + 100,
-        clicks:      Math.floor(Math.random() * 200),
-      });
-    }
+// Fetch the latest numbers from the platforms now (also done once a day)
+router.post('/analytics/refresh', async (req, res) => {
+  try {
+    const r = await require('../services/insights').refresh(knexInstance, { workspaceId: req.workspaceId });
+    res.json({ ...r, checked_at: Math.floor(Date.now() / 1000) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+});
 
-  res.json({ success: true, message: 'Analytics data simulated' });
+// Best times to post, from this workspace's own results
+router.get('/analytics/best-times', async (req, res) => {
+  try { res.json(await require('../services/insights').bestTimes(knexInstance, req.workspaceId)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Monthly client report (HTML page with "Save as PDF")
+router.get('/reports/monthly', async (req, res) => {
+  try {
+    const reports = require('../services/reports');
+    const data = await reports.monthlyData(knexInstance, req.workspaceId, String(req.query.month || ''));
+    const best = await require('../services/insights').bestTimes(knexInstance, req.workspaceId).catch(() => null);
+    res.set('Content-Security-Policy', "default-src 'none'; img-src 'self' https: data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'");
+    res.type('html').send(reports.renderHtml(data, { bestTimes: best }));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
 });
 
 // ── Local Folder ──────────────────────────────────────────────────────────────
