@@ -24,8 +24,8 @@ async function generateOutreachSequence({ product, company, contact }, aiOpts = 
 Your task is to write a personalized, highly effective 3-step cold email sequence from our company to a prospective decision-maker.
 
 Our Product/Service:
-- Name / Description: ${product.name || 'Urban Society'} (${product.description || 'All-in-one smart society management, automated maintenance billing, digital passes, and financial transparency platform'})
-- Website: ${product.url || 'https://www.urbansociety.in/'}
+- Name / Description: ${product.name || 'our business'} (${product.description || 'see the websitecial transparency platform'})
+- Website: ${product.url || '(not given)'}
 
 Prospect Information:
 - Company Name: ${company.name} (${company.domain})
@@ -87,7 +87,7 @@ Format:
       step: 1,
       delay_days: 0,
       subject: `Question regarding ${company.name}'s ${signal}`,
-      body: `Hi ${firstName},\n\nI noticed ${company.name}'s focus on ${signal} and wanted to reach out.\n\nWe built ${product.name || 'Urban Society'} to help teams automate daily management, accounting reconciliation, and member communications without manual spreadsheet tracking.\n\nWould you be open to a 5-minute chat this week to see how other organizations streamlined this?\n\nBest regards,\nGrowth Team`,
+      body: `Hi ${firstName},\n\nI noticed ${company.name}'s focus on ${signal} and wanted to reach out.\n\nWe built ${product.name || 'our business'} to help teams automate daily management, accounting reconciliation, and member communications without manual spreadsheet tracking.\n\nWould you be open to a 5-minute chat this week to see how other organizations streamlined this?\n\nBest regards,\nGrowth Team`,
     },
     {
       step: 2,
@@ -99,7 +99,7 @@ Format:
       step: 3,
       delay_days: 7,
       subject: `Closing the loop: ${company.name}`,
-      body: `Hi ${firstName},\n\nI understand you are busy running operations at ${company.name}. I won't crowd your inbox further.\n\nIf upgrading your management infrastructure ever becomes a priority down the line, feel free to check out ${product.url || 'https://www.urbansociety.in/'} anytime.\n\nWish you and the team continued success!\n\nBest,\nGrowth Team`,
+      body: `Hi ${firstName},\n\nI understand you are busy running operations at ${company.name}. I won't crowd your inbox further.\n\nIf upgrading your management infrastructure ever becomes a priority down the line, feel free to check out ${product.url || 'our website'} anytime.\n\nWish you and the team continued success!\n\nBest,\nGrowth Team`,
     },
   ];
 }
@@ -137,7 +137,7 @@ async function draftReplyResponse({ originalMessage, intent, product }, aiOpts =
   const prompt = `You are an executive sales assistant replying to a prospect response.
 Prospect Message: "${originalMessage}"
 Detected Intent: ${intent}
-Our Product: ${product.name || 'Urban Society'} (${product.url || 'https://www.urbansociety.in/'})
+Our Product: ${product.name || 'our business'} (${product.url || 'website not given'})
 
 Write a courteous, concise, high-converting reply (under 80 words).
 - If interested: Offer 2 specific time slots or invite them to pick a time.

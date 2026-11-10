@@ -61,7 +61,11 @@ if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
 // The UI is served from this same server, so no other website may call the API.
 // (cors() with no options allowed every origin.)
 app.use(cors({ origin: false }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({
+  limit: '10mb',
+  // Meta signs the exact bytes it sends: keep them for the webhook signature check
+  verify: (req, res, buf) => { if (req.url.startsWith('/api/webhooks/')) req.rawBody = buf; },
+}));
 app.use(express.urlencoded({ extended: true }));
 
 let sessionStore;
@@ -268,7 +272,7 @@ async function bootstrap() {
     require('../services/license').start(); // background licence check
 
     // Automated Webhook & Tunnel Manager:
-    // When on Server (PUBLIC_URL or APP_URL): binds public domain (e.g. urbansociety.in)
+    // When on Server (PUBLIC_URL or APP_URL): binds public domain (e.g. app.yourbusiness.com)
     // When on Localhost: provisions zero-config Cloudflare HTTPS tunnel for Meta Webhook ingestion
     try {
       const tunnelManager = require('../services/leadPipeline/tunnelManager');

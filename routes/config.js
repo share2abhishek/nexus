@@ -11,10 +11,10 @@ const canManageSocial = requirePermission('social.manage');
 const knexForAdmin = require('../services/knex');
 // What each admin-only setting is, so a non-admin is told what to do instead
 const ADMIN_ONLY_HINT = {
-  platforms: 'Only the admin of this installation can add the app keys for a platform (Client ID and Secret). Ask them to add them in Settings → Social Platforms; then you can click Connect to link your own account.',
-  smtp: 'Only the admin of this installation can change the email (SMTP) settings. Ask them to set it up in Settings → Email / SMTP.',
-  'ai-keys': 'Only the admin can change the shared AI keys. You can add your own in your profile menu → My API Keys.',
-  ollama: 'Only the admin can change the Local AI (Ollama) settings. Ask them, or add your own AI key in your profile menu → My API Keys.',
+  platforms: 'Only the admin of this installation can add the app keys for a platform (Client ID and Secret). Ask them to add them in Settings → Connected accounts; then you can click Connect to link your own account.',
+  smtp: 'Only the admin of this installation can change the email (SMTP) settings. Ask them to set it up in Settings → Email sending.',
+  'ai-keys': 'Only the admin can change the shared AI keys. You can add your own in Settings → AI.',
+  ollama: 'Only the admin can change the Local AI (Ollama) settings. Ask them, or add your own AI key in Settings → AI.',
   'content-folder': 'Only the admin can change the content folder.',
 };
 async function requireAdmin(req, res, next) {
@@ -122,7 +122,8 @@ function writeEnvValue(key, value) {
   let content = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
   const regex = new RegExp(`^${key}=.*$`, 'm');
   if (regex.test(content)) {
-    content = content.replace(regex, `${key}=${value}`);
+    // A function, so "$" in a password isn't read as a replace pattern ("$$" → "$")
+    content = content.replace(regex, () => `${key}=${value}`);
   } else {
     content = content.trimEnd() + `\n${key}=${value}\n`;
   }
@@ -365,11 +366,31 @@ router.get('/content-folder', (req, res) => {
   res.json({ folder: process.env.CONTENT_FOLDER || 'D:/social' });
 });
 
+// Saved email settings for the form (never the password itself)
+router.get('/smtp', requireAdmin, (req, res) => {
+  const env = readEnv();
+  res.json({
+    SMTP_HOST: env.SMTP_HOST || '', SMTP_PORT: env.SMTP_PORT || '587', SMTP_USER: env.SMTP_USER || '',
+    SMTP_FROM: env.SMTP_FROM || '', SMTP_FROM_NAME: env.SMTP_FROM_NAME || '',
+    pass_set: !!env.SMTP_PASS,
+    configured: !!(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS),
+  });
+});
+
 router.post('/smtp', requireAdmin, (req, res) => {
   const fields = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM', 'SMTP_FROM_NAME'];
-  for (const f of fields) {
-    const val = req.body[f];
-    if (val && !val.includes('••••')) writeEnvValue(f, val);
+  try {
+    for (const f of fields) {
+      const val = req.body[f] == null ? '' : String(req.body[f]);
+      if (val && !val.includes('••••')) writeEnvValue(f, f === 'SMTP_PASS' ? val : val.trim());
+    }
+    // Port 465 needs a secure connection from the start; 587/25 upgrade later.
+    // The form has no such switch, so follow the port unless it was sent.
+    if (req.body.SMTP_PORT && req.body.SMTP_SECURE == null) {
+      writeEnvValue('SMTP_SECURE', String(req.body.SMTP_PORT).trim() === '465' ? 'true' : 'false');
+    }
+  } catch (err) {
+    return res.status(400).json({ error: 'A value contains a line break. Check what you pasted and try again.' });
   }
   res.json({ success: true });
 });

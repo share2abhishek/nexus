@@ -15,6 +15,10 @@ const whatsappCloud = require('../services/leadPipeline/whatsappCloud');
 
 jest.mock('axios');
 
+// This test's own made-up account (the app has no built-in one)
+const TEST_PHONE_ID = '111122223333444';
+const TEST_WABA_ID = '555566667777888';
+
 describe('Lead Pipeline WhatsApp & Meta OBA Express Route Endpoints', () => {
   let knex;
   let repo;
@@ -42,8 +46,8 @@ describe('Lead Pipeline WhatsApp & Meta OBA Express Route Endpoints', () => {
     await repo.getOrCreateConfig(workspaceId);
     await repo.updateConfig(workspaceId, {
       whatsapp_access_token: 'EAAG_test_permanent_token_123',
-      whatsapp_phone_number_id: whatsappCloud.DEFAULT_PHONE_NUMBER_ID, // '1368551949674659'
-      whatsapp_business_account_id: whatsappCloud.DEFAULT_WABA_ID, // '2475742706580340'
+      whatsapp_phone_number_id: TEST_PHONE_ID,
+      whatsapp_business_account_id: TEST_WABA_ID,
     });
 
     const requirePermission = () => (req, res, next) => next();
@@ -65,7 +69,7 @@ describe('Lead Pipeline WhatsApp & Meta OBA Express Route Endpoints', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    whatsappCloud.clearTemplateCache(whatsappCloud.DEFAULT_WABA_ID);
+    whatsappCloud.clearTemplateCache(TEST_WABA_ID);
   });
 
   // ── 1. POST /api/lead-pipeline/whatsapp/send ────────────────────────────────
@@ -94,7 +98,7 @@ describe('Lead Pipeline WhatsApp & Meta OBA Express Route Endpoints', () => {
 
       // Verify Graph API v21.0 payload
       expect(axios.post).toHaveBeenCalledWith(
-        `https://graph.facebook.com/v21.0/${whatsappCloud.DEFAULT_PHONE_NUMBER_ID}/messages`,
+        `https://graph.facebook.com/v21.0/${TEST_PHONE_ID}/messages`,
         expect.objectContaining({
           type: 'template',
           template: expect.objectContaining({
@@ -149,7 +153,7 @@ describe('Lead Pipeline WhatsApp & Meta OBA Express Route Endpoints', () => {
       // Verify first contact call
       expect(axios.post).toHaveBeenNthCalledWith(
         1,
-        `https://graph.facebook.com/v21.0/${whatsappCloud.DEFAULT_PHONE_NUMBER_ID}/messages`,
+        `https://graph.facebook.com/v21.0/${TEST_PHONE_ID}/messages`,
         expect.objectContaining({
           template: expect.objectContaining({
             name: 'society_demo_outreach',
@@ -170,7 +174,7 @@ describe('Lead Pipeline WhatsApp & Meta OBA Express Route Endpoints', () => {
       // Verify second contact call
       expect(axios.post).toHaveBeenNthCalledWith(
         2,
-        `https://graph.facebook.com/v21.0/${whatsappCloud.DEFAULT_PHONE_NUMBER_ID}/messages`,
+        `https://graph.facebook.com/v21.0/${TEST_PHONE_ID}/messages`,
         expect.objectContaining({
           template: expect.objectContaining({
             name: 'society_demo_outreach',
@@ -237,7 +241,7 @@ describe('Lead Pipeline WhatsApp & Meta OBA Express Route Endpoints', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(axios.post).toHaveBeenCalledWith(
-        `https://graph.facebook.com/v21.0/${whatsappCloud.DEFAULT_PHONE_NUMBER_ID}/register`,
+        `https://graph.facebook.com/v21.0/${TEST_PHONE_ID}/register`,
         { messaging_product: 'whatsapp', pin: '963700' },
         expect.any(Object)
       );
@@ -280,7 +284,7 @@ describe('Lead Pipeline WhatsApp & Meta OBA Express Route Endpoints', () => {
         .mockResolvedValueOnce({
           status: 200,
           data: {
-            id: whatsappCloud.DEFAULT_WABA_ID,
+            id: TEST_WABA_ID,
             business_verification_status: 'verified',
           },
         });
@@ -311,7 +315,7 @@ describe('Lead Pipeline WhatsApp & Meta OBA Express Route Endpoints', () => {
         .mockResolvedValueOnce({
           status: 200,
           data: {
-            id: whatsappCloud.DEFAULT_WABA_ID,
+            id: TEST_WABA_ID,
             business_verification_status: 'verified',
           },
         });

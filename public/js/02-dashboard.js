@@ -25,7 +25,7 @@ function renderDashboardPlatforms() {
     const connected = status?.connected;
     const name = status?.profile?.name || cfg.label;
     return `
-      <div class="platform-card ${connected ? 'connected' : ''}" onclick="navigateTo('settings')">
+      <div class="platform-card ${connected ? 'connected' : ''}" onclick="openSettings('platforms')" role="button" tabindex="0" title="${connected ? 'Manage' : 'Connect'} ${escapeHtml(cfg.label)}">
         <div class="platform-icon ${cfg.class}">${cfg.icon}</div>
         <div class="platform-info">
           <div class="platform-name">${cfg.label}</div>
@@ -47,14 +47,15 @@ function updateStatPlatforms() {
   setEl('stat-platforms', `${count}/${all.length || Object.values(PLATFORMS).filter(p => !p.hidden).length}`);
 }
 
+// Sidebar: a small count on Settings when an account needs signing in again
 function updateSettingsBadges() {
-  Object.keys(PLATFORMS).forEach(platform => {
-    const status = State.platformStatus[platform];
-    const row = document.getElementById(`setting-${platform === 'instagram' ? 'facebook' : platform}`);
-    if (!row) return;
-    const connected = status?.connected;
-    // Visual indicator could be added here
-  });
+  const st = State.platformStatus || {};
+  const n = Object.values(st).filter(s => s?.needs_reconnect || (s?.connected && s.reconnect_in_days != null && s.reconnect_in_days <= 3)).length;
+  const badge = document.getElementById('settings-attention-badge');
+  if (!badge) return;
+  badge.textContent = n ? String(n) : '';
+  badge.style.display = n ? '' : 'none';
+  badge.title = n ? `${n} account${n === 1 ? '' : 's'} need${n === 1 ? 's' : ''} signing in again` : '';
 }
 
 async function loadDashboard() {

@@ -4,7 +4,8 @@
 const express = require('express');
 const router = express.Router();
 const leadPipelineRepoFactory = require('../repos/leadPipelineRepo');
-const { fetchMetaLeadDetails } = require('../services/leadPipeline/metaWebhook');
+const { fetchMetaLeadDetails, verifyMetaSignature } = require('../services/leadPipeline/metaWebhook');
+const { handleInboundWhatsApp } = require('../services/leadPipeline/inbound');
 const { qualifyLead } = require('../services/leadPipeline/leadQualifier');
 const { forwardToN8n } = require('../services/leadPipeline/n8nForwarder');
 const { syncContactToChatwoot } = require('../services/leadPipeline/chatwootClient');
@@ -34,6 +35,21 @@ module.exports = (knex) => {
 
   // ── Meta Webhook Ingestion (POST) ──────────────────────────────────────────
   router.post('/meta', express.json(), async (req, res) => {
+    // Only Meta may post here: check its signature with the app secret (when one
+    // is saved). Without this, anyone who knows the address could add fake chats.
+    const secrets = [...new Set([
+      ...(await knex('meta_lead_configs').whereNotNull('app_secret').pluck('app_secret').catch(() => [])),
+      process.env.FACEBOOK_APP_SECRET,
+    ].filter(Boolean))];
+    if (secrets.length) {
+      const sig = req.get('X-Hub-Signature-256');
+      const raw = req.rawBody || Buffer.from(JSON.stringify(req.body || {}));
+      if (!secrets.some(sec => verifyMetaSignature(raw, sig, sec))) {
+        console.warn('[Meta Webhook] Ignored a request with a missing or wrong signature');
+        return res.status(401).send('Invalid signature');
+      }
+    }
+
     // Immediately acknowledge Meta with 200 OK so Meta doesn't retry or drop webhook
     res.status(200).send('EVENT_RECEIVED');
 
@@ -50,71 +66,20 @@ module.exports = (knex) => {
           (await knex('meta_lead_configs').where({ whatsapp_business_account_id: wabaId }).first()) ||
           (await knex('meta_lead_configs').first());
         if (!config) continue;
-        const workspaceId = config.workspace_id;
 
         for (const change of entry.changes || []) {
-          if (change.field === 'messages' && change.value) {
-            const val = change.value;
-            const contacts = val.contacts || [];
-            const messages = val.messages || [];
-
-            for (const msg of messages) {
-              const cleanPhone = String(msg.from || '').replace(/[^0-9]/g, '');
-              if (!cleanPhone) continue;
-
-              const contact = contacts.find((c) => c.wa_id === msg.from) || {};
-              const senderName = contact.profile?.name || 'WhatsApp Contact';
-
-              let messageText = '';
-              if (msg.type === 'text') {
-                messageText = msg.text?.body || '';
-              } else if (msg.type === 'button') {
-                messageText = msg.button?.text || '';
-              } else if (msg.type === 'interactive') {
-                messageText = msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || '';
-              }
-
-              if (!messageText) continue;
-
-              let lead = await repo.findLeadByPhone(workspaceId, cleanPhone);
-              if (!lead) {
-                lead = await repo.addLeadEvent(workspaceId, {
-                  full_name: senderName,
-                  phone_number: '+' + cleanPhone,
-                  form_id: 'whatsapp_cloud_inbound',
-                  intent_summary: `Direct incoming WhatsApp inquiry from ${senderName}`,
-                  status: 'new',
-                  lead_score: 90,
-                });
-              }
-
-              await repo.addLeadMessage(workspaceId, lead.id, {
-                sender_type: 'lead',
-                sender_name: senderName,
-                message_text: messageText,
-                channel: 'whatsapp',
-              });
-
-              if (config.auto_qualify_ai) {
-                try {
-                  const aiQual = await qualifyLead({
-                    full_name: senderName,
-                    phone_number: cleanPhone,
-                    custom_answers: { 'WhatsApp Inquiry': messageText },
-                  }, {});
-                  if (aiQual && (aiQual.suggested_reply || aiQual.suggestedReply)) {
-                    await repo.updateLeadEvent(workspaceId, lead.id, {
-                      lead_score: aiQual.score || aiQual.leadScore || 90,
-                      intent_summary: aiQual.intent_summary || aiQual.intentSummary || `Inquiry: ${messageText.slice(0, 80)}`,
-                      suggested_reply: aiQual.suggested_reply || aiQual.suggestedReply,
-                    });
-                  }
-                } catch (aiErr) {
-                  console.warn('[WhatsApp Cloud Webhook] AI qual note:', aiErr.message);
-                }
-              }
-
-              console.log(`[Meta WhatsApp Webhook] Ingested message from ${senderName} (+${cleanPhone}): "${messageText}"`);
+          if (change.field !== 'messages' || !change.value) continue;
+          const contacts = change.value.contacts || [];
+          for (const msg of change.value.messages || []) {
+            const contact = contacts.find((c) => c.wa_id === msg.from) || {};
+            const text = msg.type === 'text' ? msg.text?.body
+              : msg.type === 'button' ? msg.button?.text
+              : msg.type === 'interactive' ? (msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title)
+              : '';
+            try {
+              await handleInboundWhatsApp(knex, { config, phone: msg.from, name: contact.profile?.name, text: text || '', source: 'cloud_api' });
+            } catch (err) {
+              console.error('[Meta WhatsApp Webhook] Could not save a message:', err.message);
             }
           }
         }
@@ -249,6 +214,27 @@ module.exports = (knex) => {
           }
         }
       }
+    }
+  });
+
+  // ── WhatsApp Web (Evolution API) Inbound ──────────────────────────────────
+  // Evolution calls this from outside the app (no sign-in), so the address has
+  // the workspace's random verify token in it instead.
+  router.post('/evolution/:token', express.json({ limit: '2mb' }), async (req, res) => {
+    const config = await repo.getConfigByVerifyToken(String(req.params.token || '')).catch(() => null);
+    if (!config) return res.status(404).json({ error: 'Unknown address' });
+    res.status(200).json({ status: 'received' });
+    try {
+      const body = req.body || {};
+      if ((body.event || body.type) !== 'messages.upsert' || !body.data) return;
+      const key = body.data.key || {};
+      if (key.fromMe || !key.remoteJid || /@g.us$/.test(key.remoteJid)) return; // own messages and groups
+      const m = body.data.message || {};
+      const text = m.conversation || m.extendedTextMessage?.text || m.imageMessage?.caption
+        || m.buttonsResponseMessage?.selectedDisplayText || m.listResponseMessage?.title || '';
+      await handleInboundWhatsApp(knex, { config, phone: key.remoteJid.split('@')[0], name: body.data.pushName, text, source: 'evolution' });
+    } catch (err) {
+      console.warn('[Evolution Webhook] Could not save a message:', err.message);
     }
   });
 

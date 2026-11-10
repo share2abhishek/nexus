@@ -21,41 +21,41 @@ describe('Meta Verification Hub & Official WhatsApp Suite Audit', () => {
       expect(html).toContain('Meta WhatsApp Verification &amp; Official Green/Blue Tick Hub');
     });
 
-    test('1.2 Modal header displays Urban Society business credentials (WABA & Phone Profile ID)', () => {
-      expect(html).toContain('Business: Urban Society (urbansociety.in)');
-      expect(html).toContain('2475742706580340'); // WABA ID
-      expect(html).toContain('1368551949674659'); // Phone Profile ID
-      expect(html).toContain('+91 96370 00102');
-      expect(html).toContain('692261563155254');  // Business ID
+    test('1.2 Modal header shows this business’s own details, never another business’s', () => {
+      expect(html).toContain('id="meta-ver-business"');
+      expect(html).toContain('id="meta-ver-ids"');
+      // The app used to ship one company's IDs, phone number and website here
+      for (const other of ['Urban Society', 'urbansociety.in', '2475742706580340', '1368551949674659', '+91 96370 00102', '692261563155254']) {
+        expect(html).not.toContain(other);
+      }
     });
 
-    test('1.3 Step 1: Meta Developer App is present and verified', () => {
+    test('1.3 Step 1: Meta Developer App is a check, not a claim', () => {
       expect(html).toContain('Meta Developer App');
-      expect(html).toContain('App ID &amp; Secret active in .env');
+      expect(html).not.toContain('App ID &amp; Secret active in .env');
     });
 
-    test('1.4 Step 2: WABA (2475742706580340) and Phone Profile (1368551949674659) connected', () => {
+    test('1.4 Step 2: WhatsApp Business Account points to WhatsApp setup; no built-in IDs', () => {
       expect(html).toContain('WhatsApp Business Account (WABA)');
-      expect(html).toContain('Phone Profile ID 1368551949674659 connected');
-      expect(waCloud.DEFAULT_PHONE_NUMBER_ID).toBe('1368551949674659');
-      expect(waCloud.DEFAULT_WABA_ID).toBe('2475742706580340');
+      expect(html).toContain('Your number in WhatsApp → Setup');
+      expect(waCloud.DEFAULT_PHONE_NUMBER_ID).toBe('');
+      expect(waCloud.DEFAULT_WABA_ID).toBe('');
     });
 
-    test('1.5 Step 3: Domain urbansociety.in inspection link configured', () => {
-      expect(html).toContain('Official Domain (urbansociety.in)');
-      expect(html).toContain('https://urbansociety.in');
-      expect(html).toContain('Inspect Footer &amp; Privacy Policy ↗');
+    test('1.5 Step 3: Your own website', () => {
+      expect(html).toContain('Your website');
+      expect(html).toContain('privacy policy');
     });
 
-    test('1.6 Step 4: Business Legal Verification (GST/COI in Security Center)', () => {
+    test('1.6 Step 4: Business Legal Verification opens Meta Security Center (no business ID built in)', () => {
       expect(html).toContain('Business Legal Verification');
-      expect(html).toContain('https://business.facebook.com/latest/settings/security_center?business_id=692261563155254');
+      expect(html).toContain('https://business.facebook.com/latest/settings/security_center"');
       expect(html).toContain('Upload GST / COI in Security Center ↗');
     });
 
-    test('1.7 Step 5: Address Proof in Meta Legal Info', () => {
+    test('1.7 Step 5: Address Proof in Meta business info', () => {
       expect(html).toContain('Registered Address Proof');
-      expect(html).toContain('https://business.facebook.com/latest/settings/legal_info?business_id=692261563155254');
+      expect(html).toContain('https://business.facebook.com/latest/settings/business_info"');
       expect(html).toContain('Upload Bank / Utility Proof ↗');
     });
 
@@ -71,7 +71,7 @@ describe('Meta Verification Hub & Official WhatsApp Suite Audit', () => {
     test('1.9 Step 7: Official Blue/Green Tick Badge (OBA Application)', () => {
       expect(html).toContain('Official Blue/Green Tick Badge');
       expect(html).toContain('Submit OBA Application ↗');
-      expect(html).toContain('whatsapp_business_presence/?business_id=692261563155254&selected_asset_id=2475742706580340');
+      expect(html).toContain('https://business.facebook.com/latest/whatsapp_manager/phone_numbers');
     });
 
     test('1.10 Business Profile Sync & Live Meta Audit handlers exist', () => {
@@ -164,15 +164,15 @@ describe('Meta Verification Hub & Official WhatsApp Suite Audit', () => {
       expect(css).toContain('color: #38bdf8 !important');
     });
 
-    test('3.6 #modal-team-seats displays 6 team member slots with high contrast', () => {
+    test('3.6 #modal-team-seats lists the workspace’s real members (no made-up people)', () => {
       expect(html).toContain('id="modal-team-seats"');
-      expect(html).toContain('Abhishek Gautam (Admin)');
-      expect(html).toContain('Priya Gautam');
-      expect(html).toContain('Rohit Verma');
-      expect(html).toContain('Sneha Kulkarni');
-      expect(html).toContain('Amit Saxena');
-      expect(html).toContain('Neha Deshmukh');
-      expect(html).toContain('assignWhatsAppAgent');
+      expect(html).toContain('id="team-seats-list"');
+      for (const madeUp of ['Abhishek Gautam', 'Priya Gautam', 'Rohit Verma', 'Sneha Kulkarni', 'Amit Saxena', 'Neha Deshmukh']) {
+        expect(html).not.toContain(madeUp);
+      }
+      const js = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'js', '13-lead-pipeline.js'), 'utf8');
+      expect(js).toContain('/members');
+      expect(js).toContain('assignWhatsAppAgent');
     });
 
     test('3.7 navigateTo(page) in public/js/01-core.js resets scroll on window, document, body, and .main container', () => {

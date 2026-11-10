@@ -18,7 +18,7 @@ exports.up = async function (knex) {
       t.boolean('meta_two_step_pin_set').defaultTo(false);
       t.string('meta_registered_phone', 50).nullable();
       t.string('razorpay_key_id', 100).nullable();
-      t.string('upi_vpa', 100).nullable(); // e.g. urbansociety@upi
+      t.string('upi_vpa', 100).nullable(); // e.g. yourbusiness@upi
       t.float('free_credits_balance').defaultTo(550.0);
     });
   }

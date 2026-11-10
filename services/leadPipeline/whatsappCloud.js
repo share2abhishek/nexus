@@ -7,10 +7,11 @@ const axios = require('axios');
 const GRAPH_API_VERSION = 'v21.0';
 const GRAPH_BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
-// Default real phone profile ID for Urban Society (+91 96370 00102) and WABA ID
-const DEFAULT_PHONE_NUMBER_ID = '1368551949674659';
-const DEFAULT_WABA_ID = '2475742706580340';
-const DEFAULT_TEST_RECIPIENT = '918149498945';
+// No built-in account: every business uses its own number and account (WhatsApp → Setup).
+// Kept as exports for older callers; empty on purpose.
+const DEFAULT_PHONE_NUMBER_ID = '';
+const DEFAULT_WABA_ID = '';
+const DEFAULT_TEST_RECIPIENT = '';
 
 // Supported template language codes for Meta WhatsApp Cloud API
 const SUPPORTED_LANGUAGE_CODES = [
@@ -187,12 +188,15 @@ async function getMessageTemplates(wabaId = DEFAULT_WABA_ID, accessToken, option
     }
   }
 
-  const candidateWabas = [wabaId, '696830193454621', '2475742706580340'].filter(Boolean);
+  // Only this business's own account (other businesses' IDs used to be tried too,
+  // which hid "wrong account ID" errors)
+  if (!wabaId) return { success: false, templates: [], error: 'Add your WhatsApp Business Account ID in WhatsApp → Setup.' };
+  const candidateWabas = [wabaId];
   let lastError = null;
 
   for (const candWaba of candidateWabas) {
     try {
-      const endpoint = `${GRAPH_BASE_URL}/${candWaba}/message_templates?fields=name,status,category,language,components,quality_score&limit=100`;
+      const endpoint = `${GRAPH_BASE_URL}/${candWaba}/message_templates?fields=name,status,category,language,components,quality_score,rejected_reason&limit=200`;
       const res = await axios.get(endpoint, {
         headers: { Authorization: `Bearer ${accessToken}` },
         timeout: 10000,
@@ -217,6 +221,9 @@ async function getMessageTemplates(wabaId = DEFAULT_WABA_ID, accessToken, option
           variable_count: variableMatches.length,
           variable_placeholders: variableMatches,
           quality_score: t.quality_score?.score || 'UNKNOWN',
+          rejected_reason: t.rejected_reason && t.rejected_reason !== 'NONE' ? t.rejected_reason : null,
+          footer_text: ((t.components || []).find((c) => String(c.type).toUpperCase() === 'FOOTER') || {}).text || '',
+          buttons: (buttonsComp.buttons || []).map((b) => ({ type: b.type, text: b.text, url: b.url, phone_number: b.phone_number })),
           components: t.components,
         };
       });
@@ -262,7 +269,7 @@ async function sendWhatsAppMessage({
   const cleanTo = String(to).replace(/[^0-9]/g, '');
 
   if (!accessToken) {
-    const bridgeUrl = `https://wa.me/${cleanTo}?text=${encodeURIComponent(text || 'Hello from Urban Society!')}`;
+    const bridgeUrl = `https://wa.me/${cleanTo}?text=${encodeURIComponent(text || 'Hello!')}`;
     return {
       success: false,
       mode: 'token_missing',
@@ -272,6 +279,11 @@ async function sendWhatsAppMessage({
       message: 'WhatsApp Access Token missing — fallback WhatsApp Web bridge prepared.',
     };
   }
+
+  if (!phoneNumberId) {
+    return { success: false, mode: 'not_configured', recipient: cleanTo, error: 'Add your Phone number ID in WhatsApp → Setup.' };
+  }
+  if (!cleanTo) return { success: false, mode: 'no_recipient', error: 'Type the WhatsApp number to send to.' };
 
   const endpoint = `${GRAPH_BASE_URL}/${phoneNumberId}/messages`;
   let currentLang = normalizeLanguageCode(languageCode);
@@ -322,7 +334,7 @@ async function sendWhatsAppMessage({
       type: 'text',
       text: {
         preview_url: false,
-        body: text || 'Hello! Thank you for inquiring with Urban Society.',
+        body: text || 'Hello!',
       },
     };
   };
@@ -424,86 +436,11 @@ async function sendWhatsAppMessage({
           // Continue to next candidate
         }
       }
-      // 3. Fallback to approved WABA templates if the requested template is completely missing
-      if (accessToken) {
-        const candidateWabas = [wabaId, '696830193454621', '2475742706580340'].filter(Boolean);
-        for (const targetWaba of candidateWabas) {
-          try {
-            const liveSync = await getMessageTemplates(targetWaba, accessToken);
-            if (liveSync.success && Array.isArray(liveSync.templates)) {
-              const approvedList = liveSync.templates.filter((t) => t.status === 'APPROVED' && t.name !== templateName);
-              for (const approvedTmpl of approvedList) {
-                try {
-                  const tmplLang = approvedTmpl.language || 'en_US';
-                  let fallbackComponents;
-                  if (approvedTmpl.name === 'withoutlink_en_message') {
-                    fallbackComponents = [
-                      { type: 'header', parameters: [{ type: 'text', text: 'Urban Society' }] },
-                      { type: 'body', parameters: [{ type: 'text', text: text || 'Welcome to Urban Society! Meta Cloud API verification ping.' }] },
-                    ];
-                  } else if (approvedTmpl.name === 'transaction_message') {
-                    fallbackComponents = [
-                      {
-                        type: 'body',
-                        parameters: [
-                          { type: 'text', text: 'Urban Society Co-Op HSG SOC' },
-                          { type: 'text', text: 'TXN-' + Date.now().toString().slice(-6) },
-                          { type: 'text', text: '500.00' },
-                          { type: 'text', text: 'Urban Society Admin' },
-                          { type: 'text', text: 'Radixile Technology Solutions LLP' },
-                        ],
-                      },
-                    ];
-                  }
-
-                  const retryPayload = {
-                    messaging_product: 'whatsapp',
-                    recipient_type: 'individual',
-                    to: cleanTo,
-                    type: 'template',
-                    template: {
-                      name: approvedTmpl.name,
-                      language: { code: tmplLang },
-                      ...(fallbackComponents ? { components: fallbackComponents } : {}),
-                    },
-                  };
-
-                  const retryRes = await axios.post(endpoint, retryPayload, {
-                    headers,
-                    timeout: 15000,
-                  });
-
-                  console.info(
-                    `[WhatsApp Cloud API] Auto-healed Error #132001! Dispatched approved template '${approvedTmpl.name}' (${tmplLang}) in place of missing '${templateName}'.`
-                  );
-
-                  return {
-                    success: true,
-                    mode: 'cloud_api',
-                    message_id: retryRes.data?.messages?.[0]?.id,
-                    recipient: cleanTo,
-                    auto_healed_132001: true,
-                    original_template: templateName,
-                    resolved_template: approvedTmpl.name,
-                    resolved_language: tmplLang,
-                    response: retryRes.data,
-                    message: `WhatsApp template '${approvedTmpl.name}' dispatched successfully to +${cleanTo} via Cloud API (auto-healed from missing '${templateName}')!`,
-                  };
-                } catch (approvedErr) {
-                  // Try next approved template
-                }
-              }
-            }
-          } catch (syncErr) {
-            // Try next candidate WABA
-          }
-        }
-      }
     }
 
     console.warn('[WhatsApp Cloud API] Direct API call warning:', errMsg, `(code ${errCode}, subcode ${errSubcode})`);
 
-    const bridgeUrl = `https://wa.me/${cleanTo}?text=${encodeURIComponent(text || 'Hello from Urban Society!')}`;
+    const bridgeUrl = `https://wa.me/${cleanTo}?text=${encodeURIComponent(text || 'Hello!')}`;
     return {
       success: false,
       mode: 'fallback_bridge',
@@ -540,7 +477,7 @@ async function verifyWhatsAppCredentials(phoneNumberId = DEFAULT_PHONE_NUMBER_ID
     return {
       valid: true,
       data: res.data,
-      verified_name: res.data.verified_name || res.data.display_phone_number || 'urbansociety2.0',
+      verified_name: res.data.verified_name || res.data.display_phone_number || '',
       display_phone_number: res.data.display_phone_number,
       quality_rating: res.data.quality_rating || 'GREEN',
       name_status: res.data.name_status || 'APPROVED',
@@ -748,15 +685,17 @@ async function sendPaymentMessage({
   wabaId = DEFAULT_WABA_ID,
   accessToken,
   to = DEFAULT_TEST_RECIPIENT,
-  title = 'Urban Society Maintenance & Amenities',
+  title = 'Payment',
   amount = 0,
-  upiVpa = 'urbansociety@upi',
+  upiVpa,
+  payeeName = '',
 }) {
+  if (!upiVpa) return { success: false, error: 'Add your UPI ID first (it’s where the money goes).' };
   const amtFormatted = Number(amount || 0).toFixed(2);
-  const upiUrl = `upi://pay?pa=${encodeURIComponent(upiVpa)}&pn=Urban%20Society&am=${amtFormatted}&cu=INR&tn=${encodeURIComponent(title)}`;
+  const upiUrl = `upi://pay?pa=${encodeURIComponent(upiVpa)}${payeeName ? `&pn=${encodeURIComponent(payeeName)}` : ''}&am=${amtFormatted}&cu=INR&tn=${encodeURIComponent(title)}`;
 
   const paymentMessage =
-    `💳 *Urban Society Payment Request*\n\n` +
+    `💳 *${payeeName ? `${payeeName} – ` : ''}Payment request*\n\n` +
     `🏢 *Bill/Service:* ${title}\n` +
     `💰 *Amount Due:* ₹${amtFormatted}\n` +
     `⚡ *Pay via UPI (GPay, PhonePe, Paytm, BHIM):*\n` +
@@ -772,7 +711,103 @@ async function sendPaymentMessage({
   });
 }
 
+// ── Templates: create and delete ───────────────────────────────────────────
+// Meta's rules are checked here first, so the user gets a plain message now
+// instead of a rejection a day later.
+const TEMPLATE_LIMITS = { name: 512, header: 60, body: 1024, footer: 60, button: 25, buttons: 3 };
+
+function validateTemplate(t) {
+  const errors = [];
+  if (!/^[a-z0-9_]{1,512}$/.test(t.name || '')) errors.push('Give the template a name (letters and numbers).');
+  if (!['MARKETING', 'UTILITY'].includes(t.category)) errors.push('Choose what the message is for.');
+  if (!SUPPORTED_LANGUAGE_CODES.includes(t.language)) errors.push('Choose the language.');
+  const body = String(t.body || '').trim();
+  if (!body) errors.push('Write the message.');
+  if (body.length > TEMPLATE_LIMITS.body) errors.push(`The message is too long (${body.length} of ${TEMPLATE_LIMITS.body} characters).`);
+  if (/^\{\{\d+\}\}/.test(body) || /\{\{\d+\}\}[.!?\s]*$/.test(body)) {
+    errors.push('WhatsApp doesn’t allow a message to start or end with a fill-in (like the customer’s name). Add a word before or after it.');
+  }
+  if (/\{\{\d+\}\}\s*\{\{\d+\}\}/.test(body)) errors.push('Put a word between two fill-ins.');
+  const vars = [...new Set(body.match(/\{\{(\d+)\}\}/g) || [])];
+  vars.forEach((v, i) => { if (v !== `{{${i + 1}}}`) errors.push('Fill-ins must be numbered {{1}}, {{2}}… in order.'); });
+  const examples = Array.isArray(t.examples) ? t.examples.map((e) => String(e || '').trim()) : [];
+  if (vars.length && (examples.length < vars.length || examples.slice(0, vars.length).some((e) => !e))) {
+    errors.push('Give an example for each fill-in (Meta checks the message with it).');
+  }
+  if (t.header && String(t.header).length > TEMPLATE_LIMITS.header) errors.push(`The title is too long (max ${TEMPLATE_LIMITS.header} characters).`);
+  if (t.header && /\{\{/.test(t.header)) errors.push('The title can’t have fill-ins.');
+  if (t.footer && String(t.footer).length > TEMPLATE_LIMITS.footer) errors.push(`The small print is too long (max ${TEMPLATE_LIMITS.footer} characters).`);
+  const buttons = Array.isArray(t.buttons) ? t.buttons.filter((b) => b && String(b.text || '').trim()) : [];
+  if (buttons.length > TEMPLATE_LIMITS.buttons) errors.push(`At most ${TEMPLATE_LIMITS.buttons} buttons.`);
+  for (const b of buttons) {
+    if (String(b.text).length > TEMPLATE_LIMITS.button) errors.push(`Button “${b.text}” is too long (max ${TEMPLATE_LIMITS.button} characters).`);
+    if (b.type === 'URL' && !/^https:\/\/\S+\.\S+/.test(b.url || '')) errors.push(`Button “${b.text}” needs a web address starting with https://`);
+    if (b.type === 'PHONE_NUMBER' && !/^\+?\d{8,15}$/.test(String(b.phone_number || '').replace(/[\s-]/g, ''))) {
+      errors.push(`Button “${b.text}” needs a phone number with the country code.`);
+    }
+  }
+  return { errors: [...new Set(errors)], vars, examples, buttons, body };
+}
+
+function buildTemplatePayload(t) {
+  const v = validateTemplate(t);
+  if (v.errors.length) throw Object.assign(new Error(v.errors.join(' ')), { status: 400, errors: v.errors });
+  const components = [];
+  if (t.header && String(t.header).trim()) components.push({ type: 'HEADER', format: 'TEXT', text: String(t.header).trim() });
+  components.push({ type: 'BODY', text: v.body, ...(v.vars.length ? { example: { body_text: [v.examples.slice(0, v.vars.length)] } } : {}) });
+  if (t.footer && String(t.footer).trim()) components.push({ type: 'FOOTER', text: String(t.footer).trim() });
+  if (v.buttons.length) {
+    components.push({
+      type: 'BUTTONS',
+      buttons: v.buttons.map((b) => (b.type === 'URL' ? { type: 'URL', text: String(b.text).trim(), url: b.url }
+        : b.type === 'PHONE_NUMBER' ? { type: 'PHONE_NUMBER', text: String(b.text).trim(), phone_number: String(b.phone_number).replace(/[\s-]/g, '') }
+        : { type: 'QUICK_REPLY', text: String(b.text).trim() })),
+    });
+  }
+  return { name: t.name, category: t.category, language: t.language, components };
+}
+
+async function createMessageTemplate(wabaId, accessToken, t) {
+  if (!accessToken || !wabaId) {
+    throw Object.assign(new Error('Connect WhatsApp first (WhatsApp → Setup): the access token and the Business Account ID are needed.'), { status: 400 });
+  }
+  const payload = buildTemplatePayload(t);
+  try {
+    const res = await axios.post(`${GRAPH_BASE_URL}/${wabaId}/message_templates`, payload, {
+      headers: { Authorization: `Bearer ${accessToken}` }, timeout: 15000,
+    });
+    clearTemplateCache(wabaId);
+    return { success: true, id: res.data?.id, status: res.data?.status || 'PENDING', category: res.data?.category || t.category };
+  } catch (err) {
+    const e = err.response?.data?.error || {};
+    const msg = e.error_user_msg || e.message || err.message;
+    throw Object.assign(new Error(/already exists|duplicate/i.test(msg)
+      ? 'A template with this name already exists in this language. Choose another name.'
+      : `Meta didn’t accept the template: ${msg}`), { status: 400 });
+  }
+}
+
+async function deleteMessageTemplate(wabaId, accessToken, name, id) {
+  if (!accessToken || !wabaId) throw Object.assign(new Error('Connect WhatsApp first (WhatsApp → Setup).'), { status: 400 });
+  try {
+    await axios.delete(`${GRAPH_BASE_URL}/${wabaId}/message_templates`, {
+      params: { name, ...(id ? { hsm_id: id } : {}) },
+      headers: { Authorization: `Bearer ${accessToken}` }, timeout: 15000,
+    });
+    clearTemplateCache(wabaId);
+    return { success: true };
+  } catch (err) {
+    const e = err.response?.data?.error || {};
+    throw Object.assign(new Error(`Meta didn’t delete it: ${e.error_user_msg || e.message || err.message}`), { status: 400 });
+  }
+}
+
 module.exports = {
+  validateTemplate,
+  buildTemplatePayload,
+  createMessageTemplate,
+  deleteMessageTemplate,
+  TEMPLATE_LIMITS,
   sendWhatsAppMessage,
   verifyWhatsAppCredentials,
   registerTwoStepPin,

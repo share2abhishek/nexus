@@ -34,8 +34,11 @@ class TunnelManager {
       };
     }
 
-    // Explicit disable flag
-    if (process.env.AUTO_TUNNEL === 'false' || process.env.DISABLE_TUNNEL === 'true') {
+    // A public tunnel puts this PC's Social-Nexus on the internet, so it only
+    // starts when the user turned it on (WhatsApp setup → Start tunnel, or
+    // AUTO_TUNNEL=true). It used to start on every launch, via `npx cloudflared`
+    // (downloaded at run time), without asking.
+    if (process.env.AUTO_TUNNEL !== 'true' || process.env.DISABLE_TUNNEL === 'true') {
       return {
         isServer: false,
         disabled: true,
@@ -51,13 +54,15 @@ class TunnelManager {
   /**
    * Start tunnel or bind server mode
    */
-  async start(port = 3000) {
+  // force: the user pressed "Start tunnel" (an explicit choice, so the default-off rule doesn't apply)
+  async start(port = 3000, { force = false } = {}) {
     this.port = Number(port) || 3000;
     this.isStopping = false;
 
     const env = this.resolveEnvironment();
+    if (force && env.disabled && process.env.DISABLE_TUNNEL !== 'true') env.disabled = false;
 
-    // SITUATION B: Running on Server with a public domain (e.g. urbansociety.in)
+    // SITUATION B: Running on Server with a public domain (e.g. app.yourbusiness.com)
     if (env.isServer) {
       this.mode = 'server';
       this.status = 'server_ready';
@@ -76,7 +81,7 @@ class TunnelManager {
       this.status = 'disabled';
       this.provider = 'none';
       this.publicUrl = `http://localhost:${this.port}`;
-      console.log(`[TunnelManager] ℹ️ Auto-Tunnel is disabled via environment.`);
+      console.log('[TunnelManager] Public tunnel is off (turn it on in WhatsApp setup when you need Meta webhooks).');
       this._notify();
       return this.getStatus();
     }
@@ -203,14 +208,14 @@ class TunnelManager {
     this.restartAttempts = 0;
     this.stop();
     await new Promise((r) => setTimeout(r, 600));
-    return this.start(this.port);
+    return this.start(this.port, { force: true });
   }
 
   /**
    * Get active webhook URL based on resolved public URL or fallback
    */
   getWebhookUrl() {
-    const base = this.publicUrl || (this.mode === 'server' ? 'https://urbansociety.in' : `http://localhost:${this.port}`);
+    const base = this.publicUrl || `http://localhost:${this.port}`;
     return `${base.replace(/\/+$/, '')}/api/webhooks/meta`;
   }
 

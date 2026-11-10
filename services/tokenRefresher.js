@@ -122,13 +122,13 @@ async function ensureFresh(db, acc, { within = RENEW_BEFORE } = {}) {
     console.log(`[Logins] Renewed ${acc.platform} login (workspace ${acc.workspace_id})`);
   } catch (err) {
     if (isBadAppKeys(err)) {
-      throw new Error(`${acc.platform.replace('_', ' ')} refused Social-Nexus's app keys while renewing the login. Check the app ID and secret in Settings → Social Platforms (an admin can fix this), then press Retry.`);
+      throw new Error(`${acc.platform.replace('_', ' ')} refused Social-Nexus's app keys while renewing the login. Check the app ID and secret in Settings → Connected accounts (an admin can fix this), then press Retry.`);
     }
     if (isRevoked(err)) {
       const hint = acc.platform === 'google_business' ? ' (A Google app still in "Testing" mode ends logins after 7 days: publish the app in Google Cloud Console.)' : '';
       const msg = `The ${acc.platform.replace('_', ' ')} login was cancelled or has run out (${reason(err)}).${hint}`;
       await save(db, acc, { auth_error: msg, checked_at: now() });
-      throw new Error(`${msg} Click Connect in Settings → Social Platforms to sign in again, then press Retry.`);
+      throw new Error(`${msg} Click Connect in Settings → Connected accounts to sign in again, then press Retry.`);
     }
     // Network trouble: keep the old login and try again later
     console.warn(`[Logins] Could not renew ${acc.platform} yet:`, reason(err));

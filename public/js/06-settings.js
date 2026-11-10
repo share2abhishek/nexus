@@ -1,56 +1,24 @@
-// Social-Nexus app — Settings, help, admin, theme, sign-in returns, AI model picker.
+/// Social-Nexus app — Settings, admin, theme, sign-in returns, AI model picker.
 // One of the files in public/js, loaded in order by index.html (they share one
 // global scope, like the single app.js they came from).
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Settings
 // ─────────────────────────────────────────────────────────────────────────────
+// Sections: platforms (Connected accounts), ai, smtp (Email sending), backups,
+// license, members (Team, agency mode), account (My account & app).
+// There is no separate help screen: each section explains itself.
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ❓ Help & User Guide (public/help.html; opens in its own window in the desktop app)
-// ─────────────────────────────────────────────────────────────────────────────
+const SETTINGS_TABS = ['platforms', 'ai', 'smtp', 'backups', 'license', 'members', 'account'];
+// Old names still used by links elsewhere in the app
+const SETTINGS_TAB_ALIASES = { accounts: 'platforms', social: 'platforms', email: 'smtp', team: 'members', about: 'account', keys: 'ai' };
 
-// Help section for each screen (ids in public/help.html)
-const HELP_TOPICS = {
-  dashboard: 'tour', compose: 'write', generate: 'write', calendar: 'schedule', history: 'failed',
-  templates: 'templates', brand: 'templates', hashtags: 'hashtags', utm: 'hashtags', seo: 'seo', aso: 'seo',
-  adcopy: 'seo', media: 'ai-keys', email: 'email', clients: 'clients', analytics: 'tour', files: 'data',
-  admin: 'team', 'tools-directory': 'ai-keys',
-  sellbird: 'sellbird', 'lead-ads': 'lead-pipeline', 'leads-inbox': 'lead-pipeline',
-  'leads-broadcast': 'lead-pipeline', 'leads-settings': 'lead-pipeline',
-  // Settings tabs
-  'settings:platforms': 'connect', 'settings:license': 'licence', 'settings:ai': 'ai-keys',
-  'settings:smtp': 'email',
-  'settings:members': 'team', 'settings:about': 'support',
-};
-
-function helpTopicForPage() {
-  const page = document.querySelector('.page.active')?.id?.replace(/^page-/, '') || '';
-  if (page === 'settings') {
-    const panel = [...document.querySelectorAll('.settings-panel')].find(p => p.style.display !== 'none');
-    const tab = panel?.id?.replace(/^settings-panel-/, '');
-    if (tab && HELP_TOPICS[`settings:${tab}`]) return HELP_TOPICS[`settings:${tab}`];
-  }
-  return HELP_TOPICS[page] || '';
-}
-
-function openHelp(topic = '') {
-  const url = `/help.html${topic ? `#${encodeURIComponent(topic)}` : ''}`;
-  const win = window.open(url, 'social-nexus-help');
-  if (!win) location.href = url; // pop-ups blocked: open it here instead
-}
-
-// F1 opens help for the current screen, like other Windows apps
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'F1') { e.preventDefault(); openHelp(helpTopicForPage()); }
-});
-
-// Settings tabs that change things for everyone on this PC: only the admin can
+// Settings sections that change things for everyone on this PC: only the admin can
 // edit them. Others see a short note and read-only controls instead of a form
 // that would only fail when saved.
 const ADMIN_ONLY_TABS = {
-  smtp: 'Email sending (SMTP) is set up once for everyone by the admin of this installation. Ask them if emails are not going out.',
-  ai: 'Local AI and the default model are set up for everyone by the admin of this installation. You can still save your own API keys below — they are stored on your account only.',
+  smtp: 'Email sending is set up once for everyone by the admin of this installation. Ask them if emails are not going out.',
+  ai: 'Local AI is set up for everyone by the admin of this installation. You can still add your own online AI keys below — they are saved to your account only.',
 };
 function applyAdminOnly(tab) {
   const panel = document.getElementById(`settings-panel-${tab}`);
@@ -61,7 +29,7 @@ function applyAdminOnly(tab) {
     note = document.createElement('div');
     note.className = 'admin-note';
     note.textContent = '🔒 ' + ADMIN_ONLY_TABS[tab];
-    panel.prepend(note);
+    panel.querySelector('.panel-intro')?.after(note) || panel.prepend(note);
   }
   if (isAdmin && note) note.remove();
   panel.querySelectorAll('input, select, textarea, button').forEach(el => {
@@ -72,17 +40,37 @@ function applyAdminOnly(tab) {
 }
 
 function switchSettingsTab(tab, btn) {
-  document.querySelectorAll('.settings-panel').forEach(p => p.style.display = 'none');
-  document.getElementById(`settings-panel-${tab}`).style.display = '';
-  document.querySelectorAll('.settings-tab-btn').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-secondary'); });
-  if (btn) { btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary'); }
+  tab = SETTINGS_TAB_ALIASES[tab] || tab;
+  if (!SETTINGS_TABS.includes(tab)) tab = 'platforms';
+  const panel = document.getElementById(`settings-panel-${tab}`);
+  if (!panel) return;
+  document.querySelectorAll('.settings-panel').forEach(p => { p.style.display = 'none'; });
+  panel.style.display = '';
+  btn = btn || document.querySelector(`.settings-tab-btn[data-tab="${tab}"]`);
+  document.querySelectorAll('.settings-tab-btn').forEach(b => { b.classList.remove('active'); b.removeAttribute('aria-current'); });
+  if (btn) { btn.classList.add('active'); btn.setAttribute('aria-current', 'page'); }
+  State.settingsTab = tab;
   if (tab === 'members') loadMembers();
   if (tab === 'backups') loadBackups();
+  if (tab === 'ai') { loadUserSettings(); checkOllamaStatus(); refreshAiStatus(); }
+  if (tab === 'smtp') loadSMTPSettings();
+  if (tab === 'account') loadAccountPanel();
   applyAdminOnly(tab);
   if (tab === 'license') { if (State.license) renderLicensePanel(State.license); loadLicense(); }
 }
 
+// Open Settings at one section, from anywhere in the app
+function openSettings(tab = 'platforms') {
+  State.pendingSettingsTab = tab;
+  navigateTo('settings');
+}
+window.openSettings = openSettings;
+
 async function loadSettings() {
+  // Show the section asked for (or the one last open)
+  const tab = State.pendingSettingsTab || State.settingsTab || 'platforms';
+  State.pendingSettingsTab = null;
+  switchSettingsTab(tab);
   try {
     // Platforms Radixile offers one-click connect for (empty when offline)
     State.oneClick = await fetch('/auth/connect/platforms').then(r => r.json()).then(d => d.platforms || []).catch(() => []);
@@ -90,197 +78,190 @@ async function loadSettings() {
     renderPlatformCards(platforms);
   } catch (err) {
     document.getElementById('platform-cards-container').innerHTML =
-      `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`;
+      `<div class="state-error">Couldn’t load your accounts: ${escapeHtml(err.message)} <button class="btn btn-secondary btn-sm" onclick="loadSettings()">Try again</button></div>`;
   }
-  try {
-    const envStatus = await api('GET', '/api/config/env-status');
-    const el = document.getElementById('setting-default-model');
-    if (el && envStatus.default_text_model) {
-      el.value = envStatus.default_text_model;
-    }
-  } catch {}
-  checkOllamaStatus();
+  refreshAiStatus();
   loadContentFolderSetting();
+  updateSettingsNavStatus();
+}
+
+// ── Connected accounts ───────────────────────────────────────────────────────
+
+const PLATFORM_ORDER = ['facebook', 'instagram', 'linkedin', 'threads', 'bluesky', 'pinterest', 'twitter', 'google_business'];
+
+// One plain status per platform: what it means and what to do
+function platformState(key, p) {
+  const isAdmin = State.user?.role === 'admin';
+  const oneClick = (State.oneClick || []).includes(key);
+  const days = p.reconnect_in_days;
+  if (p.connected && days != null && days <= 14) {
+    return { tone: 'warn', label: days === 0 ? 'Sign in again today' : `Sign in again within ${days} day${days === 1 ? '' : 's'}`, group: 'attention' };
+  }
+  if (p.connected) return { tone: 'ok', label: 'Connected', group: 'connected' };
+  if (p.needs_reconnect) return { tone: 'warn', label: 'Needs signing in again', group: 'attention' };
+  if (p.kind === 'oneclick' && !oneClick) return { tone: 'off', label: 'Coming soon', group: 'unavailable' };
+  if (p.configured || oneClick || p.kind === 'app_password') return { tone: 'off', label: 'Not connected', group: 'ready' };
+  return { tone: 'off', label: isAdmin ? 'Needs a one-time setup' : 'Waiting for your admin', group: 'setup' };
+}
+
+function renderAccountsSummary(platforms) {
+  const box = document.getElementById('accounts-summary');
+  if (!box) return;
+  const counts = { connected: 0, attention: 0 };
+  for (const key of PLATFORM_ORDER) {
+    if (!platforms[key]) continue;
+    const g = platformState(key, platforms[key]).group;
+    if (g in counts) counts[g]++;
+  }
+  box.innerHTML = `
+    <div class="summary-chip ${counts.connected ? 'ok' : ''}"><span class="status-dot-sm ok"></span><b>${counts.connected}</b> connected</div>
+    ${counts.attention ? `<div class="summary-chip warn"><span class="status-dot-sm warn"></span><b>${counts.attention}</b> need${counts.attention === 1 ? 's' : ''} attention</div>` : ''}
+    ${!counts.connected ? '<div class="summary-hint">Start with the account you post to most. Facebook + Instagram is the usual first step.</div>' : ''}`;
 }
 
 function renderPlatformCards(platforms) {
-  const ORDER = ['linkedin','facebook','instagram','threads','pinterest','twitter','bluesky','google_business'];
+  State.platformConfig = platforms;
   const container = document.getElementById('platform-cards-container');
+  const isAdminUser = State.user?.role === 'admin';
+  renderAccountsSummary(platforms);
 
-  container.innerHTML = ORDER.map(key => {
+  // Accounts needing attention first, then connected, then the rest
+  const rank = { attention: 0, connected: 1, ready: 2, setup: 3, unavailable: 4 };
+  const keys = PLATFORM_ORDER.filter(k => platforms[k])
+    .sort((a, b) => rank[platformState(a, platforms[a]).group] - rank[platformState(b, platforms[b]).group]);
+
+  container.innerHTML = keys.map(key => {
     const p = platforms[key];
-    if (!p) return '';
-
+    const st = platformState(key, p);
+    const label = escapeHtml(p.label || PLATFORMS[key]?.label || key);
     const isConnected = p.connected;
     const isConfigured = p.configured;
-    const profileName = p.profile?.name || p.profile?.id || '';
-    const profilePic  = p.profile?.picture || null;
-    const since       = p.since ? new Date(p.since * 1000).toLocaleDateString() : null;
+    const oneClick = (State.oneClick || []).includes(key);
+    const profileName = p.profile?.page_name || p.profile?.name || p.profile?.handle || '';
+    const since = p.since ? new Date(p.since * 1000).toLocaleDateString() : null;
 
-    const days = p.reconnect_in_days;
-    const statusBadge = isConnected
-      ? (days != null && days <= 14
-          ? `<span class="badge badge-orange" style="font-size:11px" title="${escapeHtml(PLATFORMS[key]?.label || key)} lets this login last a limited time. Click Connect before then so scheduled posts keep going out.">● Reconnect ${days === 0 ? 'today' : `in ${days} day${days === 1 ? '' : 's'}`}</span>`
-          : `<span class="badge badge-green" style="font-size:11px">● Connected</span>`)
-      : p.needs_reconnect
-        ? `<span class="badge badge-orange" style="font-size:11px" title="${escapeHtml(p.reconnect_reason || 'The saved sign-in can’t be used to post.')} Click Connect to sign in again.">● Sign in again</span>`
-      : p.kind === 'oneclick' && !(State.oneClick || []).includes(key)
-        ? `<span class="badge" style="font-size:11px">● Not available yet</span>`
-      : isConfigured
-        ? `<span class="badge badge-orange" style="font-size:11px">● Ready to Connect</span>`
-        : State.user?.role === 'admin' ? `<span class="badge badge-red" style="font-size:11px">● Credentials Needed</span>` : `<span class="badge badge-orange" style="font-size:11px">● Waiting for admin</span>`;
+    // What the status means, in one line
+    const detail = isConnected
+      ? `${profileName ? `Posting as <b>${escapeHtml(profileName)}</b>` : 'Ready to post'}${since ? ` · since ${escapeHtml(since)}` : ''}`
+      : st.group === 'attention'
+        ? escapeHtml(p.reconnect_reason || 'The saved sign-in stopped working. Click Reconnect and sign in again; your posts are kept.')
+      : st.group === 'setup' && isAdminUser
+        ? (key === 'instagram' ? 'Instagram connects through Facebook. Set up Facebook + Instagram first, then click Connect here.' : `${label} needs your own developer app first${p.guide?.time && p.guide.time !== '—' ? ` (${escapeHtml(p.guide.time.toLowerCase())})` : ''}. Click <b>Set up</b> for the steps.`)
+      : st.group === 'setup'
+        ? `Your admin needs to set up ${label} once. Then you can connect it here.`
+      : st.group === 'unavailable' ? 'Not available yet.'
+      : p.kind === 'app_password' ? 'Sign in with your handle and an app password.'
+      : 'Click Connect and sign in. It takes about a minute.';
 
-    const profileHtml = isConnected ? `
-      <div style="display:flex;align-items:center;gap:10px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:10px 14px;margin-bottom:12px">
-        ${profilePic ? `<img src="${escapeHtml(profilePic)}" style="width:36px;height:36px;border-radius:50%;object-fit:cover" />` : `<div style="width:36px;height:36px;border-radius:50%;background:${escapeHtml(p.color)};display:flex;align-items:center;justify-content:center;font-size:18px">${p.icon}</div>`}
-        <div>
-          <div style="font-size:13px;font-weight:600;color:var(--text-primary)">${escapeHtml(profileName)}</div>
-          ${since ? `<div style="font-size:11px;color:var(--text-muted)">Connected ${since}</div>` : ''}
-          ${p.page_id ? `<div style="font-size:11px;color:var(--text-muted)">Page ID: ${escapeHtml(p.page_id)}</div>` : ''}
-          ${p.ig_account_id ? `<div style="font-size:11px;color:#e1306c">Instagram: ${escapeHtml(p.ig_account_id)}</div>` : ''}
-          ${p.channel_id ? `<div style="font-size:11px;color:#ff0000">Channel: ${escapeHtml(p.channel_id)}</div>` : ''}
-          ${p.board_id ? `<div style="font-size:11px;color:#e60023">Board: ${escapeHtml(p.board_id)}</div>` : ''}
-        </div>
+    // The one main action for this card
+    let action = '';
+    if (isConnected) {
+      action = `<button class="btn btn-secondary btn-sm" onclick="triggerPlatformConnection('${key}', event)" title="Check the sign-in still works">Check</button>
+        ${st.group === 'attention' ? `<a class="btn btn-primary btn-sm" href="${escapeHtml(p.oauth_url || '#')}" ${oneClick ? `onclick="event.preventDefault();connectOneClick('${key}', this)"` : ''}>Reconnect</a>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="disconnect('${key}')">Disconnect</button>`;
+    } else if (p.kind === 'app_password') {
+      action = `<button class="btn btn-primary btn-sm" onclick="connectBluesky('${key}', this)">${p.needs_reconnect ? 'Reconnect' : 'Connect'}</button>`;
+    } else if (st.group === 'unavailable') {
+      action = '';
+    } else if (oneClick) {
+      action = `<button class="btn btn-primary btn-sm" onclick="connectOneClick('${key}', this)">${p.needs_reconnect ? 'Reconnect' : 'Connect'}</button>`;
+    } else if (isConfigured) {
+      action = `<a href="${escapeHtml(p.oauth_url)}" class="btn btn-primary btn-sm">${p.needs_reconnect ? 'Reconnect' : 'Connect'}</a>`;
+    } else if (isAdminUser && p.credentials?.length) {
+      action = `<button class="btn btn-secondary btn-sm" onclick="openPlatformSetup('${key}')">Set up</button>`;
+    }
+
+    const formHtml = !isConnected && p.kind === 'app_password' ? `
+      <div class="pcard-form">
+        <label class="form-label" for="bsky-handle-${key}">Your handle</label>
+        <input class="form-input" id="bsky-handle-${key}" placeholder="yourname.bsky.social" autocomplete="off" />
+        <label class="form-label" for="bsky-pass-${key}">App password</label>
+        <input class="form-input" id="bsky-pass-${key}" type="password" placeholder="xxxx-xxxx-xxxx-xxxx" autocomplete="off" />
+        <div class="form-hint">On Bluesky: Settings → Privacy and security → App passwords → Add. Not your main password.</div>
+        <details class="settings-more"><summary>Own server (optional)</summary>
+          <input class="form-input" id="bsky-service-${key}" placeholder="https://bsky.social" style="margin-top:6px" /></details>
       </div>` : '';
 
-    // App keys are shared by everyone on this PC, so only the admin enters them
-    const isAdminUser = State.user?.role === 'admin';
-    const credentialsHtml = !p.credentials?.length ? '' : !isAdminUser ? `
-      <div class="admin-note">
-        ${isConfigured
-          ? `✅ Your admin has set up ${escapeHtml(p.label || key)}. Click <strong>Connect</strong> to link your own account.`
-          : `🔒 Your admin needs to add the ${escapeHtml(p.label || key)} app keys first (Settings → Social Platforms). Then you can click <strong>Connect</strong> here.`}
-      </div>` : p.credentials?.length ? `
-      <details style="margin-bottom:12px" ${!isConfigured ? 'open' : ''}>
-        <summary style="font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;padding:4px 0">
-          🔑 API Credentials ${isConfigured ? '<span class="badge badge-green" style="font-size:10px">Saved</span>' : '<span class="badge badge-orange" style="font-size:10px">Required</span>'}
-        </summary>
-        <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
-          ${p.credentials.map(c => `
-            <div>
-              <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">${escapeHtml(c.label)}</label>
-              <div style="display:flex;gap:6px;margin-top:4px">
-                <input type="${c.type === 'password' ? 'password' : 'text'}"
-                  class="form-input" id="cred-${key}-${c.key}"
-                  value="${escapeHtml(c.value)}"
-                  placeholder="${c.readonly ? '' : `Enter ${escapeHtml(c.label)}…`}"
-                  ${c.readonly ? 'readonly style="opacity:0.6;cursor:default"' : ''}
-                  style="flex:1;font-size:13px" />
-                ${c.type === 'password' && c.value ? `<button class="btn btn-secondary btn-sm btn-icon" onclick="togglePasswordVisibility('cred-${key}-${c.key}')" title="Show/hide">👁</button>` : ''}
-              </div>
-            </div>`).join('')}
-          <button class="btn btn-primary btn-sm" onclick="savePlatformCredentials('${key}')" style="align-self:flex-start;margin-top:4px">
-            💾 Save Credentials
-          </button>
-          ${p.setup_url ? `<a href="${escapeHtml(p.setup_url)}" target="_blank" class="btn btn-secondary btn-sm" style="align-self:flex-start">🔗 Get Credentials</a>` : ''}
-          ${p.scopes ? `<div style="font-size:11px;color:var(--text-muted)">Required scopes: <code>${escapeHtml(p.scopes)}</code></div>` : ''}
+    const choosersHtml = isConnected && key === 'facebook' ? `
+      <div class="pcard-extra">
+        <button class="btn btn-secondary btn-sm" onclick="loadFBPages()">Choose Facebook Page</button>
+        <div id="fb-page-selector" style="display:none;margin-top:8px"></div>
+      </div>`
+      : isConnected && key === 'pinterest' ? `
+      <div class="pcard-extra">
+        <button class="btn btn-secondary btn-sm" onclick="loadPinterestBoards()">Choose board</button>
+        <div id="pinterest-board-selector" style="display:none;margin-top:8px"></div>
+      </div>` : '';
+
+    // If sign-in fails: paste a token (Facebook only)
+    const manualTokenHtml = !isConnected && isConfigured && key === 'facebook' ? `
+      <details class="settings-more">
+        <summary>Sign-in window not working? Paste a token instead</summary>
+        <div class="pcard-form">
+          <div class="form-hint">In <a href="https://developers.facebook.com/tools/explorer" target="_blank" rel="noopener">Graph API Explorer</a>, choose your app → Generate Access Token → copy it here.</div>
+          <input type="text" class="form-input" id="manual-token-${key}" placeholder="Paste your access token" style="font-family:monospace" />
+          <button class="btn btn-secondary btn-sm" onclick="saveManualToken('${key}')" style="align-self:flex-start">Connect with token</button>
         </div>
       </details>` : '';
 
-    // Step-by-step guide (open by default until the platform is connected)
+    // Admin: one-time developer app setup (guide + keys), folded away once done
     const g = p.guide;
-    const availBadge = !g ? '' : g.availability === 'unavailable'
-      ? '<span class="badge badge-red" style="font-size:10px">Not available yet</span>'
-      : g.availability === 'limited' ? '<span class="badge badge-orange" style="font-size:10px">Works with limits</span>' : '';
-    const guideHtml = !g ? '' : `
-      <details style="margin-bottom:12px" ${!isConnected && isAdminUser && g.availability !== 'unavailable' ? 'open' : ''}>
-        <summary style="font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;padding:4px 0">
-          📘 Setup guide ${g.time && g.time !== '—' ? `<span style="font-weight:400;color:var(--text-muted)">· ${escapeHtml(g.time)}</span>` : ''} ${availBadge}
-        </summary>
-        <div style="font-size:13px;margin-top:8px">
-          <div style="color:var(--text-muted);margin-bottom:6px">You need: ${g.needs.map(n => escapeHtml(n)).join(' · ')}</div>
-          <ol style="margin:0 0 0 18px;padding:0;display:flex;flex-direction:column;gap:6px">
-            ${g.steps.map(st => `<li>${escapeHtml(st.text)}
-              ${st.link ? ` <a href="${escapeHtml(st.link)}" target="_blank" rel="noopener" style="color:#60a5fa">Open ↗</a>` : ''}
-              ${st.copy ? `<div style="display:flex;gap:6px;margin-top:4px"><code style="flex:1;padding:6px 8px;background:var(--glass);border-radius:6px;font-size:12px;word-break:break-all">${escapeHtml(st.copy)}</code><button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(${jsAttr(st.copy)});toast('Copied — paste it into the developer portal','success')">📋 Copy</button></div>` : ''}
+    const setupHtml = !isAdminUser || !p.credentials?.length || (isConnected && isConfigured) ? '' : `
+      <details class="settings-more pcard-setup" id="setup-${key}" ${!isConfigured && !oneClick ? '' : ''}>
+        <summary>${isConfigured ? 'Developer app details (done)' : 'Set up — one time, by the admin'}</summary>
+        ${g ? `
+        <div class="pcard-guide">
+          ${g.needs?.length ? `<div class="form-hint">You need: ${g.needs.map(n => escapeHtml(n)).join(' · ')}</div>` : ''}
+          <ol>
+            ${g.steps.map(s => `<li>${escapeHtml(s.text)}
+              ${s.link ? ` <a href="${escapeHtml(s.link)}" target="_blank" rel="noopener">Open ↗</a>` : ''}
+              ${s.copy ? `<div class="copy-row"><code>${escapeHtml(s.copy)}</code><button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(${jsAttr(s.copy)});toast('Copied','success')">Copy</button></div>` : ''}
             </li>`).join('')}
           </ol>
-          ${g.notes?.length ? `<div style="margin-top:8px;color:var(--text-muted);font-size:12px">${g.notes.map(n => `ℹ️ ${escapeHtml(n)}`).join('<br>')}</div>` : ''}
+          ${g.notes?.length ? `<div class="form-hint">${g.notes.map(n => escapeHtml(n)).join('<br>')}</div>` : ''}
+        </div>` : ''}
+        <div class="pcard-form">
+          ${p.credentials.filter(c => !c.readonly).map(c => `
+            <label class="form-label" for="cred-${key}-${c.key}">${escapeHtml(c.label)}</label>
+            <input type="${c.type === 'password' ? 'password' : 'text'}" class="form-input" id="cred-${key}-${c.key}"
+              value="${escapeHtml(c.value)}" placeholder="Paste ${escapeHtml(c.label)}" autocomplete="off" />`).join('')}
+          <button class="btn btn-primary btn-sm" onclick="savePlatformCredentials('${key}')" style="align-self:flex-start">Save</button>
         </div>
       </details>`;
 
-    const noteHtml = p.note ? `<div style="font-size:11px;color:var(--text-muted);background:rgba(255,255,255,0.03);border-radius:6px;padding:8px;margin-bottom:10px">💡 ${escapeHtml(p.note)}</div>` : '';
-
-    const manualTokenHtml = !isConnected && isConfigured && key === 'facebook' ? `
-      <details style="margin-top:8px">
-        <summary style="font-size:12px;color:var(--accent-blue);cursor:pointer;padding:4px 0">🔑 Paste token manually (if OAuth fails)</summary>
-        <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
-          <div style="font-size:11px;color:var(--text-muted)">Get a token from <a href="https://developers.facebook.com/tools/explorer" target="_blank" style="color:#60a5fa">Graph API Explorer</a> → select your app → Generate Access Token → copy it here</div>
-          <input type="text" class="form-input" id="manual-token-${key}" placeholder="Paste your access token here…" style="font-size:12px;font-family:monospace" />
-          <button class="btn btn-primary btn-sm" onclick="saveManualToken('${key}')" style="align-self:flex-start">✅ Connect with Token</button>
-        </div>
-      </details>` : '';
-
-    const subConfigHtml = isConnected && key === 'facebook' ? `
-      <div style="margin-top:8px;display:flex;gap:6px">
-        <button class="btn btn-secondary btn-sm" onclick="loadFBPages('${key}')">📄 Select Facebook Page</button>
-      </div>
-      <div id="fb-page-selector" style="display:none;margin-top:8px"></div>` : '';
-
-    const pinterestConfigHtml = isConnected && key === 'pinterest' ? `
-      <div style="margin-top:8px;display:flex;gap:6px">
-        <button class="btn btn-secondary btn-sm" onclick="loadPinterestBoards()">📌 Select Board</button>
-      </div>
-      <div id="pinterest-board-selector" style="display:none;margin-top:8px"></div>` : '';
-
-    // Bluesky: handle + app password form; Threads: one-click only
-    if (!isConnected && p.kind === 'app_password') {
-      p._formHtml = `
-        <div class="bsky-form" style="display:grid;gap:8px;margin:10px 0">
-          <input class="form-input" id="bsky-handle-${key}" placeholder="yourname.bsky.social" autocomplete="off" />
-          <input class="form-input" id="bsky-pass-${key}" type="password" placeholder="App password (xxxx-xxxx-xxxx-xxxx)" autocomplete="off" />
-          <details><summary style="font-size:12px;color:var(--text-muted);cursor:pointer">Own server (optional)</summary>
-            <input class="form-input" id="bsky-service-${key}" placeholder="https://bsky.social" style="margin-top:6px" /></details>
-        </div>`;
-    }
-    const connectBtn = isConnected
-      ? `<div style="display:flex;gap:6px">
-          <button class="btn btn-secondary btn-sm" onclick="triggerPlatformConnection('${key}', event)" title="Refresh & re-verify status">🔄 Refresh</button>
-          <button class="btn btn-danger btn-sm" onclick="disconnect('${key}')">Disconnect</button>
-         </div>`
-      : p.kind === 'app_password'
-        ? `<button class="btn btn-primary btn-sm" onclick="connectBluesky('${key}', this)">Connect</button>`
-      : p.kind === 'oneclick' && !(State.oneClick || []).includes(key)
-        ? `<span style="font-size:12px;color:var(--text-muted)">Coming soon</span>`
-      : (State.oneClick || []).includes(key)
-        // Radixile's approved app: no developer app or keys needed
-        ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
-            <button class="btn btn-primary btn-sm" onclick="connectOneClick('${key}', this)">⚡ Connect in one click</button>
-            <a href="${escapeHtml(p.oauth_url)}" class="btn btn-secondary btn-sm" title="Use your own developer app (keys below)" ${!isConfigured ? 'style="display:none"' : ''}>Own app</a>
-           </div>`
-        : `<div style="display:flex;gap:6px">
-          <button class="btn btn-secondary btn-sm" onclick="triggerPlatformConnection('${key}', event)" title="Check or trigger connection">🔄 Refresh</button>
-          <a href="${escapeHtml(p.oauth_url)}" class="btn btn-${isConfigured ? 'primary' : 'secondary'} btn-sm" ${!isConfigured ? 'title="Save credentials first"' : ''}>Connect</a>
-         </div>`;
+    const noteHtml = p.note && !isConnected && p.kind !== 'app_password' && st.group !== 'setup' ? `<div class="form-hint pcard-note">${escapeHtml(p.note)}</div>` : '';
 
     return `
-      <div class="platform-config-card" id="pcard-${key}" style="border-left:3px solid ${p.color}">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:40px;height:40px;border-radius:10px;background:${p.color}22;display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid ${p.color}44">${p.icon}</div>
-            <div>
-              <div style="font-size:15px;font-weight:700;color:var(--text-primary)">${p.label}</div>
-              <div>${statusBadge}</div>
-            </div>
+      <div class="pcard pcard-${st.tone}" id="pcard-${key}">
+        <div class="pcard-head">
+          <div class="pcard-icon" style="background:${escapeHtml(p.color)}1a;border-color:${escapeHtml(p.color)}40">${p.icon}</div>
+          <div class="pcard-title">
+            <div class="pcard-name">${label}</div>
+            <span class="status-pill ${st.tone}"><span class="status-dot-sm ${st.tone}"></span>${escapeHtml(st.label)}</span>
           </div>
-          <div>${connectBtn}</div>
+          <div class="pcard-actions">${action}</div>
         </div>
-        ${profileHtml}
-        ${guideHtml}
+        <div class="pcard-detail">${detail}</div>
+        ${formHtml}
+        ${choosersHtml}
         ${noteHtml}
-        ${p._formHtml || ''}
-        ${credentialsHtml}
         ${manualTokenHtml}
-        ${subConfigHtml}
-        ${pinterestConfigHtml}
+        ${setupHtml}
       </div>`;
   }).join('');
+}
+
+function openPlatformSetup(key) {
+  const d = document.getElementById(`setup-${key}`);
+  if (!d) return;
+  d.open = true;
+  d.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function saveManualToken(platform) {
   const input = document.getElementById(`manual-token-${platform}`);
   const token = input?.value.trim();
-  if (!token) return toast('Please paste your access token first', 'warning');
+  if (!token) return toast('Paste your access token first', 'warning');
 
   const btn = input.nextElementSibling;
   btn.disabled = true;
@@ -288,7 +269,7 @@ async function saveManualToken(platform) {
 
   try {
     const result = await api('POST', `/auth/manual-token/${platform}`, { access_token: token });
-    toast(`${platform} connected! ${result.instagram_detected ? '+ Instagram detected ✅' : '✅'}`, 'success');
+    toast(`${PLATFORMS[platform]?.label || platform} connected${result.instagram_detected ? ', and Instagram too' : ''}.`, 'success');
     input.value = '';
     await refreshStatus();
     loadSettings();
@@ -296,7 +277,7 @@ async function saveManualToken(platform) {
     toast(err.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '✅ Connect with Token';
+    btn.textContent = 'Connect with token';
   }
 }
 
@@ -309,9 +290,10 @@ async function savePlatformCredentials(platform) {
     const val = input.value.trim();
     if (val && !input.readOnly) body[key] = val;
   });
+  if (!Object.keys(body).length) return toast('Paste the details first', 'warning');
   try {
     await api('POST', `/api/config/platforms/${platform}`, body);
-    toast(`${platform} credentials saved! ✅`, 'success');
+    toast(`Saved. Now click Connect on ${PLATFORMS[platform]?.label || platform}.`, 'success');
     loadSettings();
   } catch (err) { toast(err.message, 'error'); }
 }
@@ -324,26 +306,24 @@ function togglePasswordVisibility(inputId) {
 async function loadFBPages() {
   const container = document.getElementById('fb-page-selector');
   container.style.display = 'block';
-  container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)"><span class="spinner"></span> Loading pages…</div>';
+  container.innerHTML = '<div class="form-hint"><span class="spinner"></span> Loading your Pages…</div>';
   try {
     const pages = await api('GET', '/api/config/facebook/pages');
-    if (!pages.length) { container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">No pages found. Make sure your Facebook Page is connected to your account.</div>'; return; }
-    container.innerHTML = `<div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px">Select a page to post from:</div>
-      <div style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto">
+    if (!pages.length) { container.innerHTML = '<div class="form-hint">No Pages found. Make sure you are an admin of a Facebook Page, then click Check.</div>'; return; }
+    container.innerHTML = `<div class="form-hint">Which Page should Social-Nexus post to?</div>
+      <div class="choice-list">
         ${pages.map(pg => `
-          <button class="btn btn-secondary btn-sm" onclick="setFBPage(${jsAttr(pg.id)},${jsAttr(pg.name)})" style="justify-content:flex-start;text-align:left">
-            📄 ${escapeHtml(pg.name)} <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${escapeHtml(pg.id)}</span>
-          </button>`).join('')}
+          <button class="btn btn-secondary btn-sm" onclick="setFBPage(${jsAttr(pg.id)},${jsAttr(pg.name)})">${escapeHtml(pg.name)}</button>`).join('')}
       </div>`;
-  } catch (err) { container.innerHTML = `<div style="color:#ef4444;font-size:12px">${escapeHtml(err.message)}</div>`; }
+  } catch (err) { container.innerHTML = `<div class="state-error">${escapeHtml(err.message)}</div>`; }
 }
 
 async function setFBPage(id, name) {
   try {
     const result = await api('POST', '/api/config/facebook/set-page', { page_id: id });
-    const msg = result.instagram_connected ? `Page "${name}" set, and its Instagram account is connected too. ✅`
-      : result.instagram_detected ? `Page "${name}" set. ✅ To post to its linked Instagram, click Connect on the Instagram card.`
-      : `Page "${name}" set as default. ✅`;
+    const msg = result.instagram_connected ? `Posting to “${name}”, and its Instagram account is connected too.`
+      : result.instagram_detected ? `Posting to “${name}”. To post to its Instagram as well, click Connect on the Instagram card.`
+      : `Posting to “${name}”.`;
     toast(msg, 'success');
     document.getElementById('fb-page-selector').style.display = 'none';
     loadSettings();
@@ -353,76 +333,74 @@ async function setFBPage(id, name) {
 async function loadPinterestBoards() {
   const container = document.getElementById('pinterest-board-selector');
   container.style.display = 'block';
-  container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)"><span class="spinner"></span> Loading boards…</div>';
+  container.innerHTML = '<div class="form-hint"><span class="spinner"></span> Loading boards…</div>';
   try {
     const boards = await api('GET', '/api/config/pinterest/boards');
-    if (!boards.length) { container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">No boards found.</div>'; return; }
-    container.innerHTML = `<div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px">Select a board:</div>
-      <div style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto">
+    if (!boards.length) { container.innerHTML = '<div class="form-hint">No boards found. Create a board on Pinterest first.</div>'; return; }
+    container.innerHTML = `<div class="form-hint">Which board should pins go to?</div>
+      <div class="choice-list">
         ${boards.map(b => `
-          <button class="btn btn-secondary btn-sm" onclick="setPinterestBoard(${jsAttr(b.id)},${jsAttr(b.name)})" style="justify-content:flex-start">
-            📌 ${escapeHtml(b.name)}
-          </button>`).join('')}
+          <button class="btn btn-secondary btn-sm" onclick="setPinterestBoard(${jsAttr(b.id)},${jsAttr(b.name)})">${escapeHtml(b.name)}</button>`).join('')}
       </div>`;
-  } catch (err) { container.innerHTML = `<div style="color:#ef4444;font-size:12px">${escapeHtml(err.message)}</div>`; }
+  } catch (err) { container.innerHTML = `<div class="state-error">${escapeHtml(err.message)}</div>`; }
 }
 
 async function setPinterestBoard(id, name) {
   try {
     await api('POST', '/api/config/pinterest/set-board', { board_id: id, board_name: name });
-    toast(`Board "${name}" set as default. ✅`, 'success');
+    toast(`Pins will go to “${name}”.`, 'success');
     document.getElementById('pinterest-board-selector').style.display = 'none';
     loadSettings();
   } catch (err) { toast(err.message, 'error'); }
 }
 
+// ── AI status ────────────────────────────────────────────────────────────────
+
+// Which AI will write posts for this person, in one line
+async function refreshAiStatus() {
+  const card = document.getElementById('ai-status-card');
+  try {
+    const [keys, ollama] = await Promise.all([
+      api('GET', '/users/settings').catch(() => ({})),
+      api('GET', '/api/config/ollama/status').catch(() => ({ running: false })),
+    ]);
+    const names = { google_ai_key: 'Google Gemini', groq_key: 'Groq', openrouter_key: 'OpenRouter', mistral_key: 'Mistral', anthropic_key: 'Claude' };
+    const online = Object.entries(names).filter(([k]) => keys[k]).map(([, n]) => n);
+    // Admins also use the shared keys of this installation
+    if (State.user?.role === 'admin') {
+      const env = await api('GET', '/api/config/env-status').catch(() => ({}));
+      if (env.google_ai && !online.includes('Google Gemini')) online.push('Google Gemini');
+      if (env.anthropic && !online.includes('Claude')) online.push('Claude');
+    }
+    const localReady = ollama.running && ollama.enabled && (ollama.models || []).length > 0;
+    const ready = localReady || online.length > 0;
+    State.aiReady = ready;
+    if (card) {
+      card.className = `ai-status-card ${ready ? 'ok' : 'warn'}`;
+      card.innerHTML = ready
+        ? `<span class="status-dot-sm ok"></span><span><b>AI is ready.</b> ${[localReady ? `Local AI (${escapeHtml(ollama.current || '')})` : '', ...online.map(escapeHtml)].filter(Boolean).join(', ')}</span>`
+        : `<span class="status-dot-sm warn"></span><span><b>AI isn't set up yet.</b> The quickest way: get a free Google Gemini key and paste it below.</span>`;
+    }
+    updateSettingsNavStatus();
+  } catch { /* status only */ }
+}
+
 async function saveDefaultModelSetting() {
-  const model = document.getElementById('setting-default-model').value;
+  const model = document.getElementById('setting-default-model')?.value;
+  if (!model) return;
   try {
     await api('POST', '/api/config/ai-keys', { DEFAULT_TEXT_MODEL: model });
-    toast('✅ Default AI model saved!', 'success');
-    loadSettings();
+    toast('Saved', 'success');
     loadModels();
   } catch (err) { toast(err.message, 'error'); }
 }
 
-// All AI and media keys are saved to the signed-in user's own account
-// (POST /users/settings) — never shared with other users of this PC.
-const ENV_TO_USER_SETTING = {
-  GOOGLE_AI_KEY: 'google_ai_key', ANTHROPIC_API_KEY: 'anthropic_key',
-  STABILITY_API_KEY: 'stability_key', OPENAI_API_KEY: 'openai_key',
-  LUMA_API_KEY: 'luma_key', RUNWAY_API_KEY: 'runway_key',
-};
-
-async function saveUserKey(settingKey, value, label) {
-  if (!value) return toast(`Please enter your ${label}`, 'warning');
-  try {
-    await api('POST', '/users/settings', { [settingKey]: value });
-    toast(`✅ ${label} saved to your account`, 'success');
-    loadModels?.();
-  } catch (err) { toast(err.message, 'error'); }
-}
-
-function saveApiKey() {
-  return saveUserKey('google_ai_key', document.getElementById('setting-anthropic-key').value.trim(), 'Google Gemini API key');
-}
-
-function saveClaudeKey() {
-  return saveUserKey('anthropic_key', document.getElementById('setting-claude-key').value.trim(), 'Anthropic API key');
-}
-
-async function saveMediaKey(envKey, inputId) {
-  const settingKey = ENV_TO_USER_SETTING[envKey];
-  if (!settingKey) return toast('Unknown key type', 'error');
-  return saveUserKey(settingKey, document.getElementById(inputId)?.value.trim(), 'key');
-}
-
 async function saveContentFolder() {
   const folder = document.getElementById('setting-content-folder')?.value.trim();
-  if (!folder) return toast('Please enter a folder path', 'warning');
+  if (!folder) return toast('Type a folder, for example D:/social', 'warning');
   try {
     await api('POST', '/api/config/content-folder', { folder });
-    toast(`✅ Content folder set to: ${folder}`, 'success');
+    toast(`Folder set to ${folder}`, 'success');
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -430,58 +408,120 @@ async function loadContentFolderSetting() {
   try {
     const data = await api('GET', '/api/config/content-folder');
     const el = document.getElementById('setting-content-folder');
-    if (el) el.value = data.folder || 'D:/social';
+    if (el) el.value = data.folder || '';
   } catch {}
 }
 
-async function saveSMTPSettings() {
+// ── Email sending (SMTP) ─────────────────────────────────────────────────────
+
+async function loadSMTPSettings() {
+  try {
+    const s = await api('GET', '/api/config/smtp');
+    const set = (id, v) => { const el = document.getElementById(id); if (el && v != null && v !== '') el.value = v; };
+    set('smtp-host', s.SMTP_HOST); set('smtp-port', s.SMTP_PORT); set('smtp-user', s.SMTP_USER);
+    set('smtp-from', s.SMTP_FROM); set('smtp-from-name', s.SMTP_FROM_NAME);
+    const pass = document.getElementById('smtp-pass');
+    if (pass) { pass.value = ''; pass.placeholder = s.pass_set ? 'Saved — leave empty to keep it' : 'App password'; }
+    State.smtpReady = !!s.configured;
+    updateSettingsNavStatus();
+  } catch { /* non-admins can't read it; the panel says so */ }
+}
+
+async function saveSMTPSettings(btn) {
+  const val = id => document.getElementById(id).value.trim();
+  const user = val('smtp-user');
+  if (!user || !val('smtp-host')) return toast('Fill in your email address and the mail server', 'warning');
+  if (btn) btn.disabled = true;
   try {
     await api('POST', '/api/config/smtp', {
-      SMTP_HOST: document.getElementById('smtp-host').value.trim(),
-      SMTP_PORT: document.getElementById('smtp-port').value.trim(),
-      SMTP_USER: document.getElementById('smtp-user').value.trim(),
-      SMTP_PASS: document.getElementById('smtp-pass').value.trim(),
-      SMTP_FROM: document.getElementById('smtp-from').value.trim(),
-      SMTP_FROM_NAME: document.getElementById('smtp-from-name').value.trim(),
+      SMTP_HOST: val('smtp-host'), SMTP_PORT: val('smtp-port') || '587', SMTP_USER: user,
+      SMTP_PASS: document.getElementById('smtp-pass').value, // spaces can be part of an app password
+      SMTP_FROM: val('smtp-from') || user, SMTP_FROM_NAME: val('smtp-from-name'),
     });
-    toast('✅ SMTP settings saved!', 'success');
+    toast('Email settings saved', 'success');
+    loadSMTPSettings();
   } catch (err) { toast(err.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+// ── My account & app ─────────────────────────────────────────────────────────
+
+async function loadAccountPanel() {
+  const u = State.user || {};
+  setEl('account-signed-in', u.email ? `${u.name ? `${u.name} · ` : ''}${u.email}${u.role === 'admin' ? ' · admin of this installation' : ''}` : '—');
+  try {
+    const h = await fetch('/__health').then(r => r.json());
+    setEl('app-version-badge', h.version ? `v${h.version}` : '—');
+  } catch {}
+}
+
+// ── Status dots in the Settings list and the sidebar ─────────────────────────
+
+function updateSettingsNavStatus() {
+  const dot = (id, tone, title) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = `status-dot-sm ${tone || ''}`;
+    el.title = title || '';
+  };
+  const pc = State.platformConfig;
+  if (pc) {
+    const groups = PLATFORM_ORDER.filter(k => pc[k]).map(k => platformState(k, pc[k]).group);
+    const attention = groups.includes('attention');
+    const any = groups.includes('connected') || attention;
+    dot('snav-status-platforms', attention ? 'warn' : any ? 'ok' : 'off', attention ? 'An account needs signing in again' : any ? 'Connected' : 'Nothing connected yet');
+  }
+  if (State.aiReady !== undefined) dot('snav-status-ai', State.aiReady ? 'ok' : 'warn', State.aiReady ? 'AI is ready' : 'AI is not set up');
+  if (State.smtpReady !== undefined) dot('snav-status-smtp', State.smtpReady ? 'ok' : 'off', State.smtpReady ? 'Set up' : 'Not set up');
+  const lic = State.license;
+  if (lic) dot('snav-status-license', lic.can_publish ? 'ok' : 'warn', lic.can_publish ? 'Active' : 'Not active');
 }
 
 async function triggerPlatformConnection(platform, evt) {
   const btn = evt?.currentTarget || (evt?.target?.tagName === 'BUTTON' ? evt.target : null);
-  const origHtml = btn ? btn.innerHTML : '🔄 Refresh';
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Verifying…'; }
+  const origHtml = btn ? btn.innerHTML : 'Check';
+  const name = PLATFORMS[platform]?.label || platform;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Checking…'; }
 
   try {
     const res = await api('POST', `/auth/refresh/${platform}`);
     if (res.connected) {
-      toast(`✅ ${platform} connection verified & refreshed!`, 'success');
+      toast(`${name} is working.`, 'success');
       await refreshStatus();
       loadSettings();
-      renderDashboardPlatforms();
     } else if (res.oauth_url) {
-      toast(`Starting ${platform} authorization…`, 'info');
+      toast(`Opening ${name} sign-in…`, 'info');
       window.location.href = res.oauth_url;
     }
   } catch (err) {
-    toast(err.message, 'warning');
-    const oauthUrl = `/auth/${platform}`;
-    if (confirm(`${err.message}\n\nWould you like to connect ${platform} now?`)) {
-      window.location.href = oauthUrl;
+    if (await askConfirm(`${name} needs signing in again. ${err.message}\n\nSign in now?`, 'Sign in')) {
+      // Same way in as the card's Connect button
+      const p = State.platformConfig?.[platform] || {};
+      if ((State.oneClick || []).includes(platform)) connectOneClick(platform, btn);
+      else if (p.kind === 'app_password') { loadSettings(); toast('Enter your handle and app password on the card, then click Reconnect.', 'info'); }
+      else window.location.href = p.oauth_url || `/auth/${platform}`;
+    } else {
+      loadSettings();
     }
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
   }
 }
 
+// Confirm dialog (falls back to the browser's when the app dialog isn't loaded)
+async function askConfirm(message, okLabel = 'OK') {
+  if (typeof window.confirmDialog === 'function') return window.confirmDialog(message, okLabel);
+  return confirm(message);
+}
+
 async function disconnect(platform) {
-  if (!confirm(`Disconnect ${platform}?`)) return;
+  const name = PLATFORMS[platform]?.label || platform;
+  const extra = platform === 'facebook' ? ' Instagram (connected through Facebook) is disconnected too.' : '';
+  if (!(await askConfirm(`Disconnect ${name}? Scheduled posts to it won't go out until you connect it again.${extra}`, 'Disconnect'))) return;
   try {
     await api('POST', `/auth/disconnect/${platform}`);
-    toast(`${platform} disconnected`, 'info');
+    toast(`${name} disconnected`, 'info');
     await refreshStatus();
-    renderDashboardPlatforms();
     loadSettings();
   } catch (err) { toast(err.message, 'error'); }
 }
@@ -605,11 +645,7 @@ async function adminCreateUser() {
   const role     = document.getElementById('new-user-role')?.value;
   if (!email || !password) return toast('Email and password are required', 'warning');
   try {
-    const r = await fetch('/admin/users/create', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name, role }),
-    }).then(r => r.json());
-    if (r.error) return toast(r.error, 'error');
+    await api('POST', '/admin/users/create', { email, password, name, role });
     toast(`✅ User created: ${email}`, 'success');
     document.getElementById('new-user-email').value    = '';
     document.getElementById('new-user-password').value = '';
@@ -623,24 +659,31 @@ async function adminResetPassword(id, email) {
   if (!pwd) return;
   if (pwd.length < 6) return toast('Password must be at least 6 characters', 'warning');
   try {
-    await fetch(`/admin/users/${id}/password`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pwd }),
-    });
+    await api('PATCH', `/admin/users/${id}/password`, { password: pwd });
     toast(`Password reset for ${email}`, 'success');
   } catch (err) { toast(err.message, 'error'); }
 }
 
-async function makeAdmin(id)    { await fetch(`/admin/users/${id}/role`,   { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ role: 'admin' }) }); toast('User promoted to Admin', 'success'); loadAdminUsers(); }
-async function removeAdmin(id)  { await fetch(`/admin/users/${id}/role`,   { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ role: 'user' }) });  toast('Admin rights removed', 'info');    loadAdminUsers(); }
-async function suspendUser(id)  { if (!confirm('Suspend this user?')) return; await fetch(`/admin/users/${id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status: 'suspended' }) }); toast('User suspended', 'warning'); loadAdminUsers(); }
-async function activateUser(id) { await fetch(`/admin/users/${id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status: 'active' }) });   toast('User activated', 'success');  loadAdminUsers(); }
-async function deleteUser(id, email) {
-  if (!confirm(`Permanently delete ${email} and ALL their data? This cannot be undone.`)) return;
-  await fetch(`/admin/users/${id}`, { method: 'DELETE' });
-  toast(`${email} deleted`, 'info');
+// Each action reports the server's answer (e.g. "you can't remove your own admin
+// role") instead of always saying it worked.
+async function adminUserAction(method, path, body, okMsg, okType = 'success') {
+  try {
+    await api(method, path, body);
+    toast(okMsg, okType);
+  } catch (err) { toast(err.message, 'error'); }
   loadAdminUsers();
   loadAdminDashboard();
+}
+function makeAdmin(id)    { return adminUserAction('PATCH', `/admin/users/${id}/role`, { role: 'admin' }, 'Now an admin'); }
+function removeAdmin(id)  { return adminUserAction('PATCH', `/admin/users/${id}/role`, { role: 'user' }, 'Admin rights removed', 'info'); }
+async function suspendUser(id) {
+  if (!(await askConfirm('Suspend this user? They can’t sign in until you activate them again.', 'Suspend'))) return;
+  return adminUserAction('PATCH', `/admin/users/${id}/status`, { status: 'suspended' }, 'User suspended', 'warning');
+}
+function activateUser(id) { return adminUserAction('PATCH', `/admin/users/${id}/status`, { status: 'active' }, 'User activated'); }
+async function deleteUser(id, email) {
+  if (!(await askConfirm(`Permanently delete ${email} and all their data? This can’t be undone.`, 'Delete'))) return;
+  return adminUserAction('DELETE', `/admin/users/${id}`, null, `${email} deleted`, 'info');
 }
 
 async function generateInviteCode() {
@@ -650,11 +693,7 @@ async function generateInviteCode() {
   const resultEl = document.getElementById('new-invite-result');
 
   try {
-    const data = await fetch('/admin/invite-codes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ note, expires_hours: expires, max_uses: maxUses }),
-    }).then(r => r.json());
+    const data = await api('POST', '/admin/invite-codes', { note, expires_hours: expires, max_uses: maxUses });
 
     const shareUrl = `${window.location.origin}/login.html?invite=${data.code}`;
     resultEl.style.display = 'block';
@@ -707,8 +746,10 @@ async function loadInviteCodes() {
 }
 
 async function revokeInvite(id) {
-  await fetch(`/admin/invite-codes/${id}`, { method: 'DELETE' });
-  toast('Invite code revoked', 'info');
+  try {
+    await api('DELETE', `/admin/invite-codes/${id}`);
+    toast('Invite code revoked', 'info');
+  } catch (err) { toast(err.message, 'error'); }
   loadInviteCodes();
 }
 
@@ -745,15 +786,11 @@ async function loadAdminConfig() {
 
 async function saveAdminConfig() {
   try {
-    await fetch('/admin/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        registration_mode: document.getElementById('admin-reg-mode').value,
-        app_name:          document.getElementById('admin-app-name').value,
-      }),
+    await api('POST', '/admin/config', {
+      registration_mode: document.getElementById('admin-reg-mode').value,
+      app_name:          document.getElementById('admin-app-name').value,
     });
-    toast('✅ Platform configuration saved!', 'success');
+    toast('Saved', 'success');
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -789,11 +826,12 @@ function handleURLParams() {
   const error = params.get('error');
 
   if (connected) {
-    toast(`✅ ${connected.charAt(0).toUpperCase() + connected.slice(1)} connected successfully!`, 'success');
+    toast(`${PLATFORMS[connected]?.label || connected} is connected.`, 'success');
+    openSettings('platforms'); // show the result where the user started
     if (connected === 'facebook' && params.get('select_page')) {
       toast(params.get('instagram')
-        ? 'You manage several Facebook Pages — choose the one linked to your Instagram in Settings → Facebook → Select page. Instagram connects when you pick it.'
-        : 'You manage several Facebook Pages — choose which one Social-Nexus posts to in Settings → Facebook → Select page.', 'info', 9000);
+        ? 'You manage several Facebook Pages — choose the one linked to your Instagram in Settings → Connected accounts → Choose Facebook Page. Instagram connects when you pick it.'
+        : 'You manage several Facebook Pages — choose which one Social-Nexus posts to in Settings → Connected accounts → Choose Facebook Page.', 'info', 9000);
     }
     window.history.replaceState({}, '', '/');
   }
@@ -815,8 +853,8 @@ function handleURLParams() {
     if (error === 'not_configured') {
       const names = { linkedin: 'LinkedIn', facebook: 'Facebook', pinterest: 'Pinterest', twitter: 'Twitter/X', google: 'Google Business' };
       const name = names[params.get('platform')] || 'this platform';
-      toast(`Before connecting ${name}, add your ${name} app details in Settings → Social Platforms (open "API Credentials" on its card).`, 'warning', 8000);
-      navigateTo('settings');
+      toast(`Before connecting ${name}, set it up first: open “Set up” on its card in Settings → Connected accounts.`, 'warning', 8000);
+      openSettings('platforms');
       window.history.replaceState({}, '', '/');
       return;
     }

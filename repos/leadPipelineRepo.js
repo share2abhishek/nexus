@@ -339,7 +339,7 @@ module.exports = (knex) => ({
         email: c.email || null,
         lead_score: c.lead_score || 75,
         intent_summary: c.notes || `Imported contact for ${c.society || 'Housing Society'}`,
-        suggested_reply: c.suggested_reply || `Hi ${c.name || 'there'}, thanks for connecting with Urban Society!`,
+        suggested_reply: c.suggested_reply || `Hi ${c.name || 'there'}, thanks for reaching out!`,
         channel_source: c.channel_source || 'csv_upload',
         status: 'new',
         tags_json: JSON.stringify(c.tags || ['audience_upload', 'rwa_prospect']),

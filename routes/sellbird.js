@@ -328,7 +328,7 @@ module.exports = (knex, requirePermission) => {
 
   // ── Discover & Enrich Real-World Targets ────────────────────────────────────
   router.post('/discover-real', requirePermission('content.create'), async (req, res) => {
-    let { campaign_id, targets, preset = 'real_societies' } = req.body || {};
+    let { campaign_id, targets } = req.body || {};
 
     try {
       let campaign;
@@ -340,8 +340,8 @@ module.exports = (knex, requirePermission) => {
         if (!campaign) {
           // Create primary campaign if none exists
           campaign = await repo.createCampaign(req.workspaceId, {
-            name: 'Urban Society - Real RWA Growth Campaign',
-            product_url: 'https://urbansociety.in',
+            name: 'My first campaign',
+            product_url: '',
             product_description: 'AI-Powered Society Maintenance, Billing & Gate Management for Housing Societies & RWAs.',
             icp_definition: { industry: 'Residential Societies', roles: ['President', 'Secretary', 'Treasurer', 'Facility Manager'], location: 'India' },
             sequence_template_json: [
@@ -354,58 +354,12 @@ module.exports = (knex, requirePermission) => {
         }
       }
 
-      // Real Indian real-estate township & residential infrastructure organizations with verified leadership
-      const REAL_TARGET_PRESETS = [
-        {
-          domain: 'godrejproperties.com',
-          name: 'Godrej Properties Limited',
-          industry: 'Residential Townships & Housing Communities',
-          location: 'Mumbai / Bengaluru / Pune, India',
-          executive_name: 'Pirojsha Godrej',
-          executive_role: 'Executive Chairperson',
-          executive_email: 'smartcare@godrejproperties.com',
-        },
-        {
-          domain: 'brigadegroup.com',
-          name: 'Brigade Group Residential',
-          industry: 'Residential Developments & RWAs',
-          location: 'Bengaluru, India',
-          executive_name: 'M.R. Jaishankar',
-          executive_role: 'Executive Chairman',
-          executive_email: 'enquiry@brigadegroup.com',
-        },
-        {
-          domain: 'sobha.com',
-          name: 'Sobha Limited Residential',
-          industry: 'Luxury Apartments & Gated Communities',
-          location: 'Bengaluru / NCR, India',
-          executive_name: 'Ravi PNC Menon',
-          executive_role: 'Chairman',
-          executive_email: 'care@sobha.com',
-        },
-        {
-          domain: 'prestigeconstructions.com',
-          name: 'Prestige Group Developments',
-          industry: 'Residential Societies & Townships',
-          location: 'Bengaluru / Pune, India',
-          executive_name: 'Irfan Razack',
-          executive_role: 'Chairman & Managing Director',
-          executive_email: 'properties@prestigeconstructions.com',
-        },
-        {
-          domain: 'mygate.com',
-          name: 'MyGate (Vivish Technologies)',
-          industry: 'Gated Community Operations & ERP',
-          location: 'Bengaluru, India',
-          executive_name: 'Vijay Arisetty',
-          executive_role: 'Co-Founder & CEO',
-          executive_email: 'contact@mygate.com',
-        },
-      ];
-
-      const domainList = Array.isArray(targets) && targets.length
-        ? targets.map((t) => (typeof t === 'string' ? { domain: t } : t))
-        : REAL_TARGET_PRESETS;
+      // Only companies the user chose. (A built-in list of real executives at real
+      // companies used to be added for everyone — and could then be emailed.)
+      if (!Array.isArray(targets) || !targets.length) {
+        return res.status(400).json({ error: 'Type the website addresses of the companies you want to look up (one per line).' });
+      }
+      const domainList = targets.map((t) => (typeof t === 'string' ? { domain: t } : t));
 
       const aiOpts = aiOptionsFromReq(req);
       const discoveredResults = [];
@@ -609,7 +563,7 @@ module.exports = (knex, requirePermission) => {
     try {
       const aiOpts = aiOptionsFromReq(req);
       const intent = await classifyReplyIntent(message_text, aiOpts);
-      const drafted = await draftReplyResponse({ originalMessage: message_text, intent, product: { name: 'Urban Society' } }, aiOpts);
+      const drafted = await draftReplyResponse({ originalMessage: message_text, intent, product: { name: (await knex('brand_kit').where({ workspace_id: req.workspaceId }).first('company_name').catch(() => null))?.company_name || '' } }, aiOpts);
 
       const reply = await repo.addReply(req.workspaceId, {
         outbox_id: outbox_id ? Number(outbox_id) : null,

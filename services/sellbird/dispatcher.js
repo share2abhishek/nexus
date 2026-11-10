@@ -17,8 +17,8 @@ function getSmtpConfig() {
     port: parseInt(SMTP_PORT || '587', 10),
     secure: SMTP_SECURE === 'true',
     auth: { user: SMTP_USER, pass: SMTP_PASS },
-    from: SMTP_FROM || SMTP_USER || 'sales@urbansociety.in',
-    fromName: SMTP_FROM_NAME || 'Urban Society Sales',
+    from: SMTP_FROM || SMTP_USER,
+    fromName: SMTP_FROM_NAME || '',
   };
 }
 

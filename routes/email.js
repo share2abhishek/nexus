@@ -100,7 +100,7 @@ router.post('/campaigns/:id/send', canPublish, requirePublishLicense, async (req
   const { SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM, SMTP_FROM_NAME, SMTP_PORT, SMTP_SECURE } = process.env;
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
     return res.status(400).json({
-      error: 'Email sending is not set up yet. Go to Settings → Email / SMTP and enter your mail server details (Gmail users: use an App Password).'
+      error: 'Email sending is not set up yet. Go to Settings → Email sending and enter your mail server details (Gmail users: use an App Password).'
     });
   }
 

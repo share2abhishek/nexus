@@ -577,7 +577,7 @@ async function generateImage() {
   } catch (err) {
     out.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`;
     if (/No image generator/.test(err.message)) {
-      out.innerHTML += `<div style="margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="navigateTo('user-settings')">⚙️ Open My API Keys</button></div>`;
+      out.innerHTML += `<div style="margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="openSettings('ai')">Open AI settings</button></div>`;
     }
     toast(err.message, 'error');
   }

@@ -218,10 +218,7 @@ function toggleMoreTools(forceOpen) {
   try { localStorage.setItem('nexus_more_tools_open', open ? '1' : ''); } catch {}
 }
 
-function openPlatformSettings() {
-  navigateTo('settings');
-  switchSettingsTab('platforms', document.querySelector('[data-tab=platforms]'));
-}
+function openPlatformSettings() { openSettings('platforms'); }
 
 // Welcome guide step 2: say so when Ollama is already installed and ready
 async function checkOnboardOllama() {
@@ -280,6 +277,7 @@ async function loadLicense() {
   } catch { return; }
   if (!State.license?.state) return; // signed out: api() is sending the page to sign-in
   renderLicenseBanner(State.license);
+  if (typeof updateSettingsNavStatus === 'function') updateSettingsNavStatus();
   if (document.getElementById('settings-panel-license')?.style.display !== 'none') renderLicensePanel(State.license);
 }
 
@@ -313,12 +311,12 @@ function renderLicenseBanner(s) {
   btn.textContent = s.state === 'active' ? 'Renew' : checkFirst ? 'Check now' : 'Activate';
   btn.onclick = () => {
     if (checkFirst) return licenseRefresh();
-    navigateTo('settings');
-    switchSettingsTab('license', document.querySelector('[data-tab=license]'));
+    openSettings('license');
   };
 }
 
 function renderLicensePanel(s) {
+  if (typeof updateSettingsNavStatus === 'function') setTimeout(updateSettingsNavStatus);
   const box = document.getElementById('license-panel');
   if (!box) return;
   const isAdmin = State.user?.role === 'admin';
@@ -449,8 +447,8 @@ function renderLicensePanel(s) {
 
     const mLicensee = el('input', {
       class: 'form-input',
-      placeholder: 'Licensee Name (e.g. Urban Society)',
-      value: s.licensee || 'Urban Society',
+      placeholder: 'Business name on the licence',
+      value: s.licensee || '',
       style: 'margin-bottom:8px'
     });
 

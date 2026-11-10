@@ -21,8 +21,8 @@ const missedNote = (at) => `Missed: it was due ${new Date(at * 1000).toLocaleStr
 // Why a platform can't be posted to: never connected, or saved without a usable login
 function notConnectedError(platform, account) {
   return account
-    ? `${platform} needs signing in again. Click Connect in Settings → Social Platforms, then press Retry.`
-    : `${platform} isn't connected. Connect it in Settings → Social Platforms, then press Retry.`;
+    ? `${platform} needs signing in again. Click Connect in Settings → Connected accounts, then press Retry.`
+    : `${platform} isn't connected. Connect it in Settings → Connected accounts, then press Retry.`;
 }
 
 // Publishes one content item (already claimed: status "publishing") to its
@@ -57,7 +57,7 @@ async function publishItem(db, repo, item) {
   }
 
   if (!targets.length && !results.length && missingAccounts) {
-    results.push({ success: false, error: 'The chosen account was disconnected. Reconnect it in Settings → Social Platforms, then press Retry.' });
+    results.push({ success: false, error: 'The chosen account was disconnected. Reconnect it in Settings → Connected accounts, then press Retry.' });
   }
 
   for (const account of targets) {

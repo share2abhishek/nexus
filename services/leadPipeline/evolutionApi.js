@@ -38,10 +38,10 @@ function cleanUrl(url) {
  * @param {Object} params
  * @param {string} params.apiUrl - e.g. http://localhost:8080
  * @param {string} params.apiKey - Global or instance API key
- * @param {string} params.instanceName - e.g. urban-society
+ * @param {string} params.instanceName - e.g. social-nexus
  * @param {string} [params.webhookUrl] - Inbound webhook endpoint
  */
-async function createOrConnectInstance({ apiUrl, apiKey, instanceName = 'urban-society', webhookUrl }) {
+async function createOrConnectInstance({ apiUrl, apiKey, instanceName = 'social-nexus', webhookUrl }) {
   const baseUrl = cleanUrl(apiUrl);
   const endpointCreate = `${baseUrl}/instance/create`;
 
@@ -98,7 +98,7 @@ async function createOrConnectInstance({ apiUrl, apiKey, instanceName = 'urban-s
 /**
  * Fetch QR Code or connection state for an existing instance
  */
-async function fetchQrCode({ apiUrl, apiKey, instanceName = 'urban-society' }) {
+async function fetchQrCode({ apiUrl, apiKey, instanceName = 'social-nexus' }) {
   const baseUrl = cleanUrl(apiUrl);
   const endpoint = `${baseUrl}/instance/connect/${instanceName}`;
 
@@ -135,7 +135,7 @@ async function fetchQrCode({ apiUrl, apiKey, instanceName = 'urban-society' }) {
 /**
  * Check connection status of instance
  */
-async function getConnectionState({ apiUrl, apiKey, instanceName = 'urban-society' }) {
+async function getConnectionState({ apiUrl, apiKey, instanceName = 'social-nexus' }) {
   const baseUrl = cleanUrl(apiUrl);
   const endpoint = `${baseUrl}/instance/connectionState/${instanceName}`;
 
@@ -164,7 +164,7 @@ async function getConnectionState({ apiUrl, apiKey, instanceName = 'urban-societ
 /**
  * Send outbound WhatsApp message via Evolution API
  */
-async function sendTextMessage({ apiUrl, apiKey, instanceName = 'urban-society', number, text }) {
+async function sendTextMessage({ apiUrl, apiKey, instanceName = 'social-nexus', number, text }) {
   const cleanTo = cleanPhoneNumber(number);
   const baseUrl = cleanUrl(apiUrl);
   const endpoint = `${baseUrl}/message/sendText/${instanceName}`;
@@ -176,7 +176,7 @@ async function sendTextMessage({ apiUrl, apiKey, instanceName = 'urban-society',
   try {
     const payload = {
       number: cleanTo,
-      text: text || 'Hello from Urban Society!',
+      text: text || 'Hello!',
       delay: 1200,
       linkPreview: true,
     };
@@ -199,7 +199,7 @@ async function sendTextMessage({ apiUrl, apiKey, instanceName = 'urban-society',
     console.warn('[Evolution API] Outbound error:', errMsg);
 
     // Fallback to 1-click WhatsApp bridge so workflow is NEVER blocked
-    const bridgeUrl = `https://wa.me/${cleanTo}?text=${encodeURIComponent(text || 'Hello from Urban Society!')}`;
+    const bridgeUrl = `https://wa.me/${cleanTo}?text=${encodeURIComponent(text || 'Hello!')}`;
     return {
       success: false,
       mode: 'fallback_bridge',
@@ -214,12 +214,13 @@ async function sendTextMessage({ apiUrl, apiKey, instanceName = 'urban-society',
 /**
  * Send WhatsApp in-chat UPI Payment Request
  */
-async function sendPaymentLinkMessage({ apiUrl, apiKey, instanceName, number, title, amount, upiVpa = 'urbansociety@upi' }) {
+async function sendPaymentLinkMessage({ apiUrl, apiKey, instanceName, number, title, amount, upiVpa, payeeName = '' }) {
+  if (!upiVpa) return { success: false, error: 'Add your UPI ID first (it’s where the money goes).' };
   const cleanTo = cleanPhoneNumber(number);
   const amtFormatted = Number(amount || 0).toFixed(2);
   const upiUrl = `upi://pay?pa=${encodeURIComponent(upiVpa)}&pn=Urban%20Society&am=${amtFormatted}&cu=INR&tn=${encodeURIComponent(title || 'Society Dues')}`;
   
-  const paymentMessage = `💳 *Urban Society Payment Request*\n\n` +
+  const paymentMessage = `💳 *${payeeName ? `${payeeName} – ` : ''}Payment request*\n\n` +
     `🏢 *Bill/Service:* ${title || 'Society Maintenance & Amenities'}\n` +
     `💰 *Amount Due:* ₹${amtFormatted}\n` +
     `⚡ *Pay via UPI (GPay, PhonePe, Paytm, BHIM):*\n` +
@@ -238,7 +239,7 @@ async function sendPaymentLinkMessage({ apiUrl, apiKey, instanceName, number, ti
 /**
  * Configure inbound Webhook on Evolution API
  */
-async function setWebhook({ apiUrl, apiKey, instanceName = 'urban-society', webhookUrl }) {
+async function setWebhook({ apiUrl, apiKey, instanceName = 'social-nexus', webhookUrl }) {
   const baseUrl = cleanUrl(apiUrl);
   const endpoint = `${baseUrl}/webhook/set/${instanceName}`;
 
@@ -267,7 +268,7 @@ async function setWebhook({ apiUrl, apiKey, instanceName = 'urban-society', webh
 /**
  * Disconnect/Logout Evolution API instance
  */
-async function logoutInstance({ apiUrl, apiKey, instanceName = 'urban-society' }) {
+async function logoutInstance({ apiUrl, apiKey, instanceName = 'social-nexus' }) {
   const baseUrl = cleanUrl(apiUrl);
   const endpoint = `${baseUrl}/instance/logout/${instanceName}`;
 

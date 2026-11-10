@@ -165,58 +165,6 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  // Load Urban Society 56 feature campaigns preset
-  router.get('/preset-urban-society', async (req, res) => {
-    try {
-      const fs = require('fs');
-      const htmlPath = 'D:/Radixile/WORKSPACE/urabansociety/urban-society-social-posts.html';
-      if (!fs.existsSync(htmlPath)) {
-        return res.status(404).json({ error: 'Preset file not found on disk' });
-      }
-      const html = fs.readFileSync(htmlPath, 'utf8');
-      const startMarker = 'const dailyCampaigns = [';
-      const startIndex = html.indexOf(startMarker);
-      const endIndex = html.indexOf('];', startIndex);
-      if (startIndex === -1 || endIndex === -1) {
-        return res.status(500).json({ error: 'Could not extract dailyCampaigns from HTML' });
-      }
-      const code = html.substring(startIndex, endIndex + 2);
-      const campaigns = eval(code.replace('const dailyCampaigns =', ''));
-
-      // Format campaigns with proper hashtags
-      const formatted = campaigns.map(c => {
-        const fbTags = c.facebook.match(/#[A-Za-z0-9_]+/g) || [];
-        const igTags = c.instagram?.match(/#[A-Za-z0-9_]+/g) || [];
-        const coreTags = ['#UrbanSociety', '#HousingSocietyManagement', '#ApartmentLiving', '#PropTech', '#SmartHousing'];
-        const seen = new Set();
-        const allTags = [];
-        [...fbTags, ...igTags, ...coreTags].forEach(tag => {
-          const lower = tag.toLowerCase();
-          if (!seen.has(lower)) { seen.add(lower); allTags.push(tag); }
-        });
-
-        const lines = c.facebook.trim().split('\n');
-        while (lines.length > 0 && lines[lines.length - 1].trim().startsWith('#')) lines.pop();
-        while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop();
-
-        const enrichedBody = lines.join('\n') + '\n\n' + allTags.join(' ');
-        return {
-          title: `Day ${c.day}: ${c.topic}`,
-          body: enrichedBody,
-          topic: c.topic,
-          day: c.day,
-          category: c.category,
-          visualPrompt: c.visualPrompt,
-          platforms: ['facebook'],
-        };
-      });
-
-      res.json({ success: true, count: formatted.length, posts: formatted });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
   router.post('/', requirePermission('content.create'), async (req, res) => {
     const { title, body, platforms, social_account_ids } = req.body;
     let image_url = req.body.image_url;

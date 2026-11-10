@@ -513,6 +513,11 @@ router.post('/refresh/:platform', async (req, res) => {
     if (!token || !token.access_token) {
       return res.json({ connected: false, message: `${platform} is not connected. Starting authorization...`, oauth_url: oauthUrl(platform) });
     }
+    // The platform already cancelled this sign-in: "Check" must not report it as working
+    // (Facebook is re-checked below, which can clear a stale flag)
+    if (token.auth_error && platform !== 'facebook') {
+      return res.status(400).json({ error: token.auth_error, oauth_url: oauthUrl(platform) });
+    }
 
     // Live verification & auto-healing per platform
     if (platform === 'facebook') {
@@ -619,7 +624,9 @@ router.post('/disconnect/:platform', async (req, res) => {
 router.post('/manual-token/:platform', async (req, res) => {
   const { platform } = req.params;
   const { access_token, page_id, page_token } = req.body;
-  if (!access_token) return res.status(400).json({ error: 'access_token is required' });
+  if (!access_token) return res.status(400).json({ error: 'Paste the access token first.' });
+  // Only Facebook offers this (Instagram comes with it); other platforms connect by signing in
+  if (platform !== 'facebook') return res.status(400).json({ error: 'Pasting a token only works for Facebook. Use Connect for this platform.' });
 
   const wsId = await workspaceId(req);
   if (!wsId) return res.status(403).json({ error: 'You do not have permission to manage social accounts in this workspace.' });
@@ -675,7 +682,9 @@ router.post('/manual-token/:platform', async (req, res) => {
           }
         }
       } catch (err) {
-        console.error('[Manual Token] Verification failed:', err.message);
+        // Don't save a token Facebook rejects: it would show "Connected" but every post would fail
+        console.error('[Manual Token] Verification failed:', err.response?.data?.error?.message || err.message);
+        return res.status(400).json({ error: `Facebook didn't accept this token: ${err.response?.data?.error?.message || err.message}. Generate a new one and paste it again.` });
       }
 
       await socialAccountsRepo.add(wsId, {

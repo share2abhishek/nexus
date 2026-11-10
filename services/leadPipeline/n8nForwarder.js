@@ -41,6 +41,25 @@ async function forwardToN8n(n8nWebhookUrl, payload) {
   }
 }
 
+/**
+ * One event in the shape every Social-Nexus → n8n call uses, so a workflow can
+ * switch on `event` (also sent as the X-Social-Nexus-Event header).
+ */
+function buildEvent(event, workspaceId, data = {}) {
+  return { event, sent_at: new Date().toISOString(), workspace_id: workspaceId, ...data };
+}
+
+// The reply text an n8n workflow sent back ({"reply": "…"}, or plain text)
+function replyFrom(result) {
+  const d = result?.data;
+  if (typeof d === 'string') return d.trim() || null;
+  if (d && typeof d.reply === 'string') return d.reply.trim() || null;
+  if (Array.isArray(d) && typeof d[0]?.reply === 'string') return d[0].reply.trim() || null; // n8n "all items" responses
+  return null;
+}
+
 module.exports = {
   forwardToN8n,
+  buildEvent,
+  replyFrom,
 };

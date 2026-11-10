@@ -98,7 +98,7 @@ async function reply(db, workspaceId, userId, itemId, message) {
   const item = await db('inbox_items').where({ id: itemId, workspace_id: workspaceId }).first();
   if (!item) throw Object.assign(new Error('Not found'), { status: 404 });
   const acc = await accountFor(db, workspaceId, item.platform);
-  if (!acc) throw Object.assign(new Error('This account needs connecting again (Settings → Social Platforms).'), { status: 400 });
+  if (!acc) throw Object.assign(new Error('This account needs connecting again (Settings → Connected accounts).'), { status: 400 });
   try {
     await REPLY[item.platform](acc, item, text.slice(0, 2000));
   } catch (err) {

@@ -15,7 +15,7 @@ router.post('/generate-image', async (req, res) => {
   const { prompt, style = 'photorealistic', width = 1024, height = 1024, negative_prompt, preferred_provider } = req.body;
   if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
-  // The user's own keys first (My API Keys), then the shared .env ones
+  // The user's own keys first (Settings → AI), then the shared .env ones
   const stabilityKey = req.stabilityKey;
   const openaiKey    = req.openaiKey;
   const googleKey    = req.googleKey;
@@ -94,14 +94,14 @@ router.post('/generate-image', async (req, res) => {
         return res.json({ success: true, provider: model, image_base64: part.inlineData.data, format: 'png' });
       } catch (err) {
         if (err.response?.status === 429) {
-          return res.status(402).json({ error: 'Gemini image generation is not included in your Google key’s free quota. Enable billing at aistudio.google.com, or add a Stability/OpenAI key in My API Keys.' });
+          return res.status(402).json({ error: 'Gemini image generation is not included in your Google key’s free quota. Enable billing at aistudio.google.com, or add a Stability/OpenAI key in Settings → AI.' });
         }
         throw err;
       }
     }
 
     return res.status(400).json({
-      error: 'No image generator set up. Add a Stability AI or OpenAI key in My API Keys (or use a Google key with billing enabled).',
+      error: 'No image generator set up. Add a Stability AI or OpenAI key in Settings → AI (or use a Google key with billing enabled).',
     });
 
   } catch (err) {

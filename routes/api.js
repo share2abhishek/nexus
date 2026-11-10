@@ -290,7 +290,7 @@ router.post('/post/now', canPublish, async (req, res) => {
     try {
       const tokenData = await socialRepo.getByPlatform(req.workspaceId, platform);
       if (!tokenData?.access_token || tokenData.auth_error) {
-        results.push({ platform, success: false, error: tokenData ? `${platform} needs signing in again. Click Connect in Settings → Social Platforms.` : `${platform} is not connected` });
+        results.push({ platform, success: false, error: tokenData ? `${platform} needs signing in again. Click Connect in Settings → Connected accounts.` : `${platform} is not connected` });
         continue;
       }
 

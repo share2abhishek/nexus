@@ -147,11 +147,11 @@ describe('Real Data UI Test: urbansociety.in & Facebook Page 520186977848285', (
   // ═════════════════════════════════════════════════════════════════════════════
 
   describe('Screen 2: Lead Ads & Messenger Pipeline UI (#page-lead-ads)', () => {
-    test('2.1 Navigation item exists and is labeled "Ad Leads & CRM"', () => {
+    test('2.1 Navigation item exists and is labeled "WhatsApp"', () => {
       expect(html).toContain('id="nav-lead-ads"');
       expect(html).toContain('data-page="lead-ads"');
-      expect(html).toContain('Ad Leads &amp; CRM');
-      console.log('   ✓ UI: Nav Item for Ad Leads & CRM verified');
+      expect(html).toMatch(/id="nav-lead-ads"[\s\S]{0,400}<span class="nav-label">WhatsApp<\/span>/);
+      console.log('   ✓ UI: Nav Item for WhatsApp (leads & chats) verified');
     });
 
     test('2.2 Page container and all core cards exist in index.html', () => {

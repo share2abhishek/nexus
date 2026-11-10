@@ -25,90 +25,77 @@
     </div>
 
     <nav class="sidebar-nav" aria-label="Main menu">
-      <a class="nav-item active" data-page="dashboard" id="nav-dashboard">
+      <a class="nav-item active" data-page="dashboard" id="nav-dashboard" title="Your posts, schedule and next steps">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-house"/></svg>
         <span class="nav-label">Home</span>
       </a>
-      <a class="nav-item" data-page="compose" id="nav-compose">
+      <a class="nav-item" data-page="compose" id="nav-compose" title="Write a post, then publish or schedule it">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-square-pen"/></svg>
-        <span class="nav-label">Create Post</span>
+        <span class="nav-label">Create post</span>
       </a>
-      <a class="nav-item" data-page="calendar" id="nav-calendar">
+      <a class="nav-item" data-page="calendar" id="nav-calendar" title="Everything planned and published">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-calendar-days"/></svg>
         <span class="nav-label">Calendar</span>
       </a>
-      <a class="nav-item" data-page="inbox" id="nav-inbox">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-message-circle"/></svg>
-        <span class="nav-label">Inbox</span>
-        <span class="nav-badge" id="inbox-badge" style="display:none"></span>
-      </a>
-      <a class="nav-item" data-page="email" id="nav-email">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-mail"/></svg>
-        <span class="nav-label">Email</span>
-      </a>
-      <a class="nav-item" data-page="sellbird" id="nav-sellbird">
-        <svg class="nav-icon sellbird-nav-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" style="flex-shrink:0" aria-hidden="true">
-          <polygon points="12,2 8,8 14,9" fill="#38bdf8" opacity="0.9" />
-          <polygon points="8,8 2,12 9,13" fill="#244b62" opacity="0.95" />
-          <polygon points="12,2 14,9 22,6" fill="#0ea5e9" opacity="0.85" />
-          <polygon points="14,9 22,6 18,14" fill="#0284c7" opacity="0.75" />
-          <polygon points="9,13 14,9 15,19" fill="#1e3a4b" opacity="0.9" />
-          <polygon points="9,13 15,19 11,22" fill="#0369a1" opacity="0.8" />
-          <polygon points="9,13 11,22 4,18" fill="#0f172a" opacity="0.85" />
-        </svg>
-        <span class="nav-label">B2B Sales Agent</span>
-        <span class="nav-badge sellbird-badge" id="sellbird-nav-badge" style="display:none">0</span>
+      <a class="nav-item nav-action" id="nav-bulk-schedule" href="javascript:void(0)" onclick="openBulkImport()" title="Upload an Excel or CSV file with one post per row">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layers"/></svg>
+        <span class="nav-label">Schedule from Excel</span>
       </a>
       <div class="nav-group-parent" id="group-lead-ads">
-        <a class="nav-item has-subnav" data-page="lead-ads" id="nav-lead-ads" onclick="navigateTo('lead-ads')">
-          <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10"/>
-            <circle cx="12" cy="12" r="4"/>
-            <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/>
-            <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/>
-            <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/>
-            <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/>
-          </svg>
-          <span class="nav-label">Ad Leads &amp; CRM</span>
-          <span class="nav-chevron-wrap" onclick="toggleLeadSubmenu(event)" title="Toggle submenu">
+        <a class="nav-item has-subnav" data-page="leads-inbox" id="nav-lead-ads" title="Chat with customers, send broadcasts, manage contacts">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-message-circle"/></svg>
+          <span class="nav-label">WhatsApp</span>
+          <span class="nav-badge" id="wa-unread-badge" style="display:none"></span>
+          <span class="nav-chevron-wrap" onclick="toggleLeadSubmenu(event)" title="Show or hide">
             <svg class="nav-chevron" id="chevron-lead-ads" aria-hidden="true"><use href="icons/sprite.svg#i-chevron-down"/></svg>
           </span>
         </a>
-
-        <!-- Submenu for Ad Leads & CRM (Direct Links to Split Screens) -->
-        <div class="nav-sub-menu" id="sub-nav-lead-ads">
-          <a class="nav-sub-item active" data-page="lead-ads" id="nav-sub-leads-contacts" href="javascript:void(0)" onclick="navigateTo('lead-ads')">
-            <span class="sub-icon">👥</span>
-            <span class="nav-label">Contacts &amp; Leads</span>
-          </a>
+        <div class="nav-sub-menu" id="sub-nav-lead-ads" style="display:none">
           <a class="nav-sub-item" data-page="leads-inbox" id="nav-sub-leads-inbox" href="javascript:void(0)" onclick="navigateTo('leads-inbox')">
-            <span class="sub-icon">💬</span>
-            <span class="nav-label">Live Chat &amp; CRM</span>
-            <span class="badge badge-live">LIVE</span>
+            <span class="nav-label">Chats</span>
+          </a>
+          <a class="nav-sub-item" data-page="leads-bot" id="nav-sub-leads-bot" href="javascript:void(0)" onclick="navigateTo('leads-bot')">
+            <span class="nav-label">Auto-replies</span>
+            <span class="status-dot-sm" id="nav-bot-dot" style="margin-left:auto"></span>
           </a>
           <a class="nav-sub-item" data-page="leads-broadcast" id="nav-sub-leads-broadcast" href="javascript:void(0)" onclick="navigateTo('leads-broadcast')">
-            <span class="sub-icon">📢</span>
-            <span class="nav-label">Bulk Broadcast</span>
+            <span class="nav-label">Broadcasts</span>
+          </a>
+          <a class="nav-sub-item" data-page="leads-templates" id="nav-sub-leads-templates" href="javascript:void(0)" onclick="navigateTo('leads-templates')">
+            <span class="nav-label">Templates</span>
+          </a>
+          <a class="nav-sub-item" data-page="lead-ads" id="nav-sub-leads-contacts" href="javascript:void(0)" onclick="navigateTo('lead-ads')">
+            <span class="nav-label">Contacts</span>
           </a>
           <a class="nav-sub-item" data-page="leads-settings" id="nav-sub-leads-settings" href="javascript:void(0)" onclick="navigateTo('leads-settings')">
-            <span class="sub-icon">⚙️</span>
-            <span class="nav-label">Channel Settings</span>
-            <span class="badge badge-api">API</span>
+            <span class="nav-label">Setup</span>
           </a>
         </div>
       </div>
-      <a class="nav-item" data-page="analytics" id="nav-analytics">
+      <a class="nav-item" data-page="inbox" id="nav-inbox" title="Comments on your social posts">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-mail"/></svg>
+        <span class="nav-label">Comments</span>
+        <span class="nav-badge" id="inbox-badge" style="display:none"></span>
+      </a>
+      <a class="nav-item" data-page="analytics" id="nav-analytics" title="Likes, reach and what works">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-chart-column"/></svg>
-        <span class="nav-label">Analytics</span>
+        <span class="nav-label">Results</span>
       </a>
 
-      <div class="nav-group agency-only">
-        <div class="nav-section-label">Agency</div>
-      <a class="nav-item" data-page="clients" id="nav-clients">
+      <div class="nav-section-label">Grow</div>
+      <a class="nav-item" data-page="sellbird" id="nav-sellbird" title="Find business customers and send outreach emails">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-briefcase-business"/></svg>
-        <span class="nav-label">Clients &amp; Brands</span>
+        <span class="nav-label">Sales outreach</span>
+        <span class="nav-badge sellbird-badge" id="sellbird-nav-badge" style="display:none">0</span>
       </a>
-      </div>
+      <a class="nav-item" data-page="email" id="nav-email" title="Newsletters and email campaigns">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-mail"/></svg>
+        <span class="nav-label">Email</span>
+      </a>
+      <a class="nav-item agency-only" data-page="clients" id="nav-clients" title="Separate brands for each client">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layers"/></svg>
+        <span class="nav-label">Clients</span>
+      </a>
 
       <button class="nav-section-label nav-toggle" id="nav-more-toggle" onclick="toggleMoreTools()" aria-expanded="false" aria-controls="nav-more">
         <span>More tools</span>
@@ -117,11 +104,11 @@
       <div class="nav-more" id="nav-more">
       <a class="nav-item" data-page="generate" id="nav-generate">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-sparkles"/></svg>
-        <span class="nav-label">AI Writer</span>
+        <span class="nav-label">AI writer</span>
       </a>
       <a class="nav-item" data-page="history" id="nav-history">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-history"/></svg>
-        <span class="nav-label">Post History</span>
+        <span class="nav-label">Post history</span>
       </a>
       <a class="nav-item" data-page="templates" id="nav-templates">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layout-template"/></svg>
@@ -129,64 +116,61 @@
       </a>
       <a class="nav-item" data-page="brand" id="nav-brand">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-palette"/></svg>
-        <span class="nav-label">Brand Kit</span>
+        <span class="nav-label">Brand kit</span>
+      </a>
+      <a class="nav-item" data-page="library" id="nav-library">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-folder-open"/></svg>
+        <span class="nav-label">Media library</span>
+      </a>
+      <a class="nav-item" data-page="media" id="nav-media">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-image"/></svg>
+        <span class="nav-label">AI images &amp; video</span>
       </a>
       <a class="nav-item" data-page="hashtags" id="nav-hashtags">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-hash"/></svg>
         <span class="nav-label">Hashtags</span>
       </a>
+      <a class="nav-item" data-page="adcopy" id="nav-adcopy">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-megaphone"/></svg>
+        <span class="nav-label">Ads &amp; press releases</span>
+      </a>
       <a class="nav-item" data-page="seo" id="nav-seo">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-search"/></svg>
-        <span class="nav-label">SEO Tools</span>
+        <span class="nav-label">Website SEO</span>
       </a>
       <a class="nav-item" data-page="aso" id="nav-aso">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-smartphone"/></svg>
-        <span class="nav-label">App Store (ASO)</span>
-      </a>
-      <a class="nav-item" data-page="adcopy" id="nav-adcopy">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-megaphone"/></svg>
-        <span class="nav-label">Ad Copy &amp; PR</span>
-      </a>
-      <a class="nav-item" data-page="media" id="nav-media">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-image"/></svg>
-        <span class="nav-label">AI Media</span>
+        <span class="nav-label">App store listing</span>
       </a>
       <a class="nav-item" data-page="bio" id="nav-bio">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-link"/></svg>
         <span class="nav-label">Link in bio</span>
       </a>
-      <a class="nav-item" data-page="library" id="nav-library">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-image"/></svg>
-        <span class="nav-label">Media library</span>
-      </a>
       <a class="nav-item" data-page="utm" id="nav-utm">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-link"/></svg>
-        <span class="nav-label">UTM Builder</span>
+        <span class="nav-label">Link tracker</span>
       </a>
       <a class="nav-item" data-page="files" id="nav-files">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-folder-open"/></svg>
-        <span class="nav-label">Local Files</span>
+        <span class="nav-label">Files on this PC</span>
       </a>
       <a class="nav-item" data-page="tools-directory" id="nav-tools-directory">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-blocks"/></svg>
-        <span class="nav-label">AI Tools Directory</span>
+        <span class="nav-label">Other AI tools</span>
       </a>
       </div>
     </nav>
 
     <div class="sidebar-bottom">
-      <a class="nav-item" data-page="admin" id="nav-admin" style="display:none">
+      <a class="nav-item" data-page="admin" id="nav-admin" style="display:none" title="People who use Social-Nexus on this PC">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-shield-check"/></svg>
-        <span class="nav-label">Admin</span>
+        <span class="nav-label">Users &amp; access</span>
         <span class="nav-badge" id="admin-users-badge"></span>
       </a>
-      <a class="nav-item" data-page="settings" id="nav-settings">
+      <a class="nav-item" data-page="settings" id="nav-settings" title="Accounts, AI, backups and licence">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-settings"/></svg>
         <span class="nav-label">Settings</span>
-      </a>
-      <a class="nav-item" href="/help.html" onclick="openHelp(); return false;" id="nav-help">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-circle-help"/></svg>
-        <span class="nav-label">Help &amp; User Guide</span>
+        <span class="nav-badge nav-badge-warn" id="settings-attention-badge" style="display:none" title="Something in Settings needs your attention"></span>
       </a>
       <label class="mode-switch" title="Agency mode adds clients, team review and the workspace switcher">
         <input type="checkbox" id="mode-switch" onchange="setUiMode(this.checked ? 'agency' : 'simple')" />
@@ -208,7 +192,6 @@
         <div class="header-subtitle" id="header-subtitle">Overview of your Social-Nexus platform</div>
       </div>
       <div class="header-actions">
-        <button class="btn btn-secondary btn-sm" onclick="openHelp(helpTopicForPage())" id="btn-help" title="Help for this page (F1)" aria-label="Help for this page"><svg class="ico" aria-hidden="true"><use href="icons/sprite.svg#i-circle-help"/></svg></button>
         <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" id="btn-theme" title="Toggle light/dark mode" aria-label="Toggle light/dark mode"><svg class="ico" id="theme-icon" aria-hidden="true"><use href="icons/sprite.svg#i-moon"/></svg></button>
         <button class="btn btn-secondary btn-sm" onclick="refreshStatus()" id="btn-refresh" title="Refresh" aria-label="Refresh"><svg class="ico" aria-hidden="true"><use href="icons/sprite.svg#i-refresh-cw"/></svg><span class="btn-label">Refresh</span></button>
         <!-- Workspace Switcher -->
@@ -222,7 +205,7 @@
             <div style="padding:10px 14px;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid var(--border)">Your Workspaces</div>
             <div id="workspace-list"></div>
             <div style="height:1px;background:var(--border)"></div>
-            <button class="btn" onclick="navigateTo('settings');toggleWorkspaceSwitcher();setTimeout(()=>switchSettingsTab('members',document.querySelector('[data-tab=members]')),100)" style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 14px;font-size:13px;color:var(--text-primary)">👥 Manage Members</button>
+            <button class="menu-item" onclick="toggleWorkspaceSwitcher();openSettings('members')">👥 Manage team</button>
           </div>
         </div>
         <!-- User menu -->
@@ -233,12 +216,11 @@
           </button>
           <div id="user-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;min-width:200px;box-shadow:var(--shadow-lg);z-index:999;overflow:hidden">
             <div id="user-info-header" style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-muted)"></div>
-            <button class="btn" onclick="navigateTo('user-settings');toggleUserMenu()" style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 16px;font-size:13px;color:var(--text-primary)">⚙️ My API Keys</button>
-            <button class="btn" onclick="navigateTo('tools-directory');toggleUserMenu()" style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 16px;font-size:13px;color:var(--text-primary)">🛠️ AI Tools Directory</button>
-            <button class="btn" onclick="openRecoveryCode();toggleUserMenu()" style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 16px;font-size:13px;color:var(--text-primary)">🔑 Recovery code</button>
-            <button class="btn" onclick="openCompanion();toggleUserMenu()" style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 16px;font-size:13px;color:var(--text-primary)">📱 Phone companion</button>
+            <button class="menu-item" onclick="toggleUserMenu();openSettings('account')">👤 My account</button>
+            <button class="menu-item" onclick="toggleUserMenu();openSettings('ai')">🤖 AI setup</button>
+            <button class="menu-item" onclick="openCompanion();toggleUserMenu()">📱 Phone companion</button>
             <div style="height:1px;background:var(--border)"></div>
-            <button class="btn btn-danger" onclick="doLogout()" style="width:100%;justify-content:flex-start;border-radius:0;padding:10px 16px;font-size:13px">🚪 Sign Out</button>
+            <button class="menu-item menu-item-danger" onclick="doLogout()">🚪 Sign out</button>
           </div>
         </div>
         <button class="btn btn-primary btn-sm" onclick="navigateTo('compose')" id="btn-new-post"><svg class="ico" aria-hidden="true"><use href="icons/sprite.svg#i-plus"/></svg><span>New Post</span></button>
@@ -288,38 +270,17 @@
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="font-size:22px">📱</span>
                 <div>
-                  <div style="font-size:14px;font-weight:700;color:var(--text-primary)">Social &amp; Multi-Channel</div>
+                  <div style="font-size:14px;font-weight:700;color:var(--text-primary)">Social posts</div>
                   <div style="font-size:11.5px;color:var(--text-muted)">FB, IG, LinkedIn, X, Threads, Bluesky</div>
                 </div>
               </div>
-              <span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:700">8 Networks</span>
+              
             </div>
-            <p style="font-size:12px;color:var(--text-secondary);margin:6px 0 12px;line-height:1.5">Compose with AI, plan schedules, and request client sign-off via encrypted magic links or WhatsApp.</p>
+            <p style="font-size:12px;color:var(--text-secondary);margin:6px 0 12px;line-height:1.5">Write posts yourself or with AI, add a picture, and schedule them. Have a month planned in Excel? Upload it and every row becomes a scheduled post.</p>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="btn btn-primary btn-sm" onclick="navigateTo('compose')" style="flex:1">✏️ New Post</button>
-            <button class="btn btn-secondary btn-sm" onclick="navigateTo('calendar')" style="flex:1">📅 Calendar</button>
-          </div>
-        </div>
-
-        <!-- Pillar 2: B2B Sales Agent (Sellbird) -->
-        <div class="card" style="padding:18px;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);display:flex;flex-direction:column;justify-content:space-between">
-          <div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-              <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:22px">💼</span>
-                <div>
-                  <div style="font-size:14px;font-weight:700;color:var(--text-primary)">B2B Sales Agent</div>
-                  <div style="font-size:11.5px;color:var(--text-muted)">Autonomous cold email outreach (SDR)</div>
-                </div>
-              </div>
-              <span class="badge" id="dash-sellbird-badge" style="background:rgba(14,165,233,0.15);color:#0284c7;font-size:11px;font-weight:700">Sellbird Active</span>
-            </div>
-            <p style="font-size:12px;color:var(--text-secondary);margin:6px 0 12px;line-height:1.5">Target accounts, extract buying signals, review AI drafts in Outbox, and triage positive replies.</p>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-secondary btn-sm" onclick="navigateTo('sellbird')" style="flex:1">🛡️ Review Outbox</button>
-            <button class="btn btn-secondary btn-sm" onclick="navigateTo('sellbird');setTimeout(()=>switchSellbirdTab('campaigns'),100)" style="flex:1">🚀 Campaigns</button>
+            <button class="btn btn-primary btn-sm" onclick="navigateTo('compose')" style="flex:1">Create post</button>
+            <button class="btn btn-secondary btn-sm" onclick="openBulkImport()" style="flex:1">Upload Excel</button>
           </div>
         </div>
 
@@ -330,17 +291,38 @@
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="font-size:22px">💬</span>
                 <div>
-                  <div style="font-size:14px;font-weight:700;color:var(--text-primary)">Ad Leads &amp; WhatsApp</div>
-                  <div style="font-size:11.5px;color:var(--text-muted)">Meta Lead Ads, 3-pane chat &amp; broadcast</div>
+                  <div style="font-size:14px;font-weight:700;color:var(--text-primary)">WhatsApp</div>
+                  <div style="font-size:11.5px;color:var(--text-muted)">Chats, broadcasts and leads</div>
                 </div>
               </div>
               <span class="badge" style="background:rgba(34,197,94,0.15);color:#16a34a;font-size:11px;font-weight:700">LIVE CHAT</span>
             </div>
-            <p style="font-size:12px;color:var(--text-secondary);margin:6px 0 12px;line-height:1.5">Manage up to 200,000 contacts, chat live with Chat Profiles, request UPI payments, and broadcast bulk templates.</p>
+            <p style="font-size:12px;color:var(--text-secondary);margin:6px 0 12px;line-height:1.5">Send one message to many customers, and reply here when they write back. Leads from your Facebook and Instagram ads land here too.</p>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="btn btn-secondary btn-sm" onclick="navigateTo('lead-ads')" style="flex:1">👥 Contacts</button>
-            <button class="btn btn-primary btn-sm" onclick="navigateTo('leads-inbox')" style="background:#073b3a;border-color:#073b3a;color:#fff;flex:1">💬 Live Chat</button>
+            <button class="btn btn-primary btn-sm" onclick="navigateTo('leads-inbox')" style="flex:1">Open chats</button>
+            <button class="btn btn-secondary btn-sm" onclick="navigateTo('leads-broadcast')" style="flex:1">New broadcast</button>
+          </div>
+        </div>
+
+        <!-- Pillar 2: B2B Sales Agent (Sellbird) -->
+        <div class="card" style="padding:18px;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);display:flex;flex-direction:column;justify-content:space-between">
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:22px">💼</span>
+                <div>
+                  <div style="font-size:14px;font-weight:700;color:var(--text-primary)">Sales outreach</div>
+                  <div style="font-size:11.5px;color:var(--text-muted)">Emails to business customers</div>
+                </div>
+              </div>
+              <span class="badge" id="dash-sellbird-badge" style="background:rgba(14,165,233,0.15);color:#0284c7;font-size:11px;font-weight:700">Sellbird Active</span>
+            </div>
+            <p style="font-size:12px;color:var(--text-secondary);margin:6px 0 12px;line-height:1.5">Finds companies that may need you, drafts an email to each, and waits for you to check it. Replies are sorted for you.</p>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="navigateTo('sellbird')" style="flex:1">Check drafts</button>
+            <button class="btn btn-secondary btn-sm" onclick="navigateTo('sellbird');setTimeout(()=>switchSellbirdTab('campaigns'),100)" style="flex:1">Campaigns</button>
           </div>
         </div>
 
@@ -367,10 +349,9 @@
         <!-- Platform Connections -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title">🔗 Platform Connections</div>
+            <div class="card-title">Your accounts</div>
             <div style="display:flex;gap:6px">
-              <button class="btn btn-secondary btn-sm" onclick="refreshStatus(); toast('Connection status refreshed! 🔄', 'info');" title="Refresh connection status">🔄 Refresh</button>
-              <button class="btn btn-secondary btn-sm" onclick="navigateTo('settings')">Manage</button>
+              <button class="btn btn-secondary btn-sm" onclick="openSettings('platforms')">Connect accounts</button>
             </div>
           </div>
           <div class="card-body">
@@ -559,11 +540,11 @@
     <!-- ── Compose & Post ─────────────────────────────────────────────────── -->
     <section class="page" id="page-compose">
       <div class="section-header">
-        <div>
-          <div class="section-title">Create Post</div>
-          <div class="section-desc">Write or paste content and publish to your connected platforms.</div>
+        <div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="openBulkImport()" title="One post per row in an Excel or CSV file">Schedule from Excel</button>
+          <button class="btn btn-secondary btn-sm" onclick="openFileBrowser()">Import from files</button>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="openFileBrowser()">📁 Import from Files</button>
       </div>
 
       <!-- Shown while a post from the Calendar is open here for editing -->
@@ -615,7 +596,8 @@
                   <div class="media-pick-row">
                     <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('compose-file').click()">⬆ Upload photo or video</button>
                     <button type="button" class="btn btn-secondary btn-sm" onclick="openMediaLibrary('pick')">🖼 Media library</button>
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="designInCanva()" title="Opens Canva at the right size; drag the downloaded design here">🎨 Design in Canva</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="openPostDesigner()" title="Make a picture with your headline, colours and logo">🎨 Design a picture</button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="designInCanva()" title="Opens Canva at the right size; drag the downloaded design here">Canva</button>
                     <span class="media-pick-hint">or drag a file here</span>
                     <input type="file" id="compose-file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime" hidden onchange="uploadComposeFile(this.files[0]); this.value=''" />
                   </div>
@@ -977,314 +959,284 @@
 
     <!-- ── Settings ────────────────────────────────────────────────────────── -->
     <section class="page" id="page-settings">
-      <div class="section-header">
-        <div>
-          <div class="section-title">⚙️ Settings</div>
-          <div class="section-desc">Configure API keys, social media credentials, and platform connections.</div>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick="loadSettings()">🔄 Refresh</button>
-      </div>
+      <div class="settings-layout">
+        <nav class="settings-nav" aria-label="Settings sections">
+          <button class="settings-nav-item settings-tab-btn active" data-tab="platforms" onclick="switchSettingsTab('platforms',this)">
+            <span class="settings-nav-text"><span class="settings-nav-title">Connected accounts</span><span class="settings-nav-sub">Facebook, Instagram, LinkedIn…</span></span>
+            <span class="status-dot-sm" id="snav-status-platforms"></span>
+          </button>
+          <button class="settings-nav-item settings-tab-btn" data-tab="ai" onclick="switchSettingsTab('ai',this)">
+            <span class="settings-nav-text"><span class="settings-nav-title">AI</span><span class="settings-nav-sub">Your keys or free Local AI</span></span>
+            <span class="status-dot-sm" id="snav-status-ai"></span>
+          </button>
+          <button class="settings-nav-item settings-tab-btn" data-tab="smtp" onclick="switchSettingsTab('smtp',this)">
+            <span class="settings-nav-text"><span class="settings-nav-title">Email sending</span><span class="settings-nav-sub">For newsletters and outreach</span></span>
+            <span class="status-dot-sm" id="snav-status-smtp"></span>
+          </button>
+          <button class="settings-nav-item settings-tab-btn" data-tab="backups" onclick="switchSettingsTab('backups',this)">
+            <span class="settings-nav-text"><span class="settings-nav-title">Backups</span><span class="settings-nav-sub">Copies of your data</span></span>
+          </button>
+          <button class="settings-nav-item settings-tab-btn" data-tab="license" onclick="switchSettingsTab('license',this)">
+            <span class="settings-nav-text"><span class="settings-nav-title">Licence</span><span class="settings-nav-sub">Activate publishing</span></span>
+            <span class="status-dot-sm" id="snav-status-license"></span>
+          </button>
+          <button class="settings-nav-item settings-tab-btn agency-only" data-tab="members" onclick="switchSettingsTab('members',this)">
+            <span class="settings-nav-text"><span class="settings-nav-title">Team</span><span class="settings-nav-sub">Invite people to this brand</span></span>
+          </button>
+          <button class="settings-nav-item settings-tab-btn" data-tab="account" onclick="switchSettingsTab('account',this)">
+            <span class="settings-nav-text"><span class="settings-nav-title">My account &amp; app</span><span class="settings-nav-sub">Sign-in, look, version</span></span>
+          </button>
+        </nav>
 
-      <!-- Settings tabs -->
-      <div style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm settings-tab-btn active" data-tab="platforms" onclick="switchSettingsTab('platforms',this)">🔗 Social Platforms</button>
-        <button class="btn btn-secondary btn-sm settings-tab-btn" data-tab="license" onclick="switchSettingsTab('license',this)">🔑 Licence</button>
-        <button class="btn btn-secondary btn-sm settings-tab-btn" data-tab="ai" onclick="switchSettingsTab('ai',this)">🤖 AI</button>
-        <button class="btn btn-secondary btn-sm settings-tab-btn" onclick="switchSettingsTab('smtp',this)">📧 Email / SMTP</button>
-        <button class="btn btn-secondary btn-sm settings-tab-btn" data-tab="backups" onclick="switchSettingsTab('backups',this)">💾 Backups</button>
-        <button class="btn btn-secondary btn-sm settings-tab-btn" onclick="switchSettingsTab('about',this)">ℹ️ About</button>
-        <button class="btn btn-secondary btn-sm settings-tab-btn agency-only" data-tab="members" onclick="switchSettingsTab('members',this)">👥 Members</button>
-      </div>
+        <div class="settings-content">
 
-      <div class="settings-panel" id="settings-panel-backups" style="display:none">
-        <div class="settings-section">
-          <div class="settings-section-header"><div class="settings-section-title">💾 Backups</div></div>
-          <div id="backups-panel" style="padding:16px"></div>
-        </div>
-      </div>
-
-      <!-- ── Licence Panel ───────────────────────────────────────────────────── -->
-      <div class="settings-panel" id="settings-panel-license" style="display:none">
-        <div class="settings-section">
-          <div class="settings-section-header"><div class="settings-section-title">🔑 Licence</div></div>
-          <div id="license-panel" style="padding:16px"><span class="spinner"></span></div>
-        </div>
-      </div>
-
-      <!-- ── Social Platforms Panel ────────────────────────────────────────── -->
+      <!-- ── Connected accounts ─────────────────────────────────────────── -->
       <div class="settings-panel" id="settings-panel-platforms">
-        <div id="platform-cards-container">
-          <div style="text-align:center;padding:40px"><span class="spinner lg"></span><div style="margin-top:12px;color:var(--text-muted)">Loading platform configurations…</div></div>
+        <div class="panel-intro">
+          <h2 class="panel-title">Connected accounts</h2>
+          <p class="panel-desc">Connect the social accounts you want to post to. You only do this once; we tell you here if one needs signing in again.</p>
+        </div>
+        <div class="accounts-summary" id="accounts-summary" aria-live="polite"></div>
+        <div id="platform-cards-container" class="platform-cards">
+          <div class="state-loading"><span class="spinner lg"></span><div>Checking your accounts…</div></div>
         </div>
       </div>
 
-      <!-- ── Ollama / Local AI Panel ──────────────────────────────────────── -->
+      <!-- ── AI ─────────────────────────────────────────────────────────── -->
       <div class="settings-panel" id="settings-panel-ai" style="display:none">
-        <div class="ai-settings-intro">
-          <div>
-            <div class="ai-settings-intro-title">How Social-Nexus writes for you</div>
-            <div class="ai-settings-intro-desc"><b>Local AI</b> runs on this PC for free — your text never leaves your computer. <b>Online AI</b> (Gemini, Claude…) needs an API key and sends the text you ask about to that company. If Local AI is switched on but not running, an online service you have a key for is used instead. Create Post always tells you which one wrote the text. Local AI and the default model are shared by everyone on this PC; API keys are saved to your own account only.</div>
+        <div class="panel-intro">
+          <h2 class="panel-title">AI</h2>
+          <p class="panel-desc">Social-Nexus writes posts with AI. Pick <b>one</b> of these: a free key from an online AI service, or Local AI that runs on this PC (free, and your text never leaves your computer).</p>
+        </div>
+
+        <div class="ai-status-card" id="ai-status-card">
+          <span class="status-dot-sm"></span><span>Checking which AI is ready…</span>
+        </div>
+
+        <div class="settings-section user-scoped">
+          <div class="settings-section-header">
+            <div>
+              <div class="settings-section-title">Option 1 — Online AI (quickest)</div>
+              <div class="settings-section-sub">Paste a key and click Save. Keys are saved to your account only. The text you ask about is sent to that company.</div>
+            </div>
           </div>
-          <button class="btn btn-secondary btn-sm admin-note-exempt" onclick="navigateTo('user-settings')">🔑 My own API keys</button>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-title">Use this AI first</div>
+              <div class="settings-row-desc">If it isn't ready, Social-Nexus tries the others you have set up.</div>
+            </div>
+            <select class="form-select settings-control" id="u-default-text-model">
+              <option value="gemini">Google Gemini (free tier)</option>
+              <option value="groq">Groq (free, fastest)</option>
+              <option value="openrouter">OpenRouter (free models)</option>
+              <option value="mistral">Mistral (free tier)</option>
+              <option value="claude">Anthropic Claude (paid)</option>
+              <option value="ollama">Local AI on this PC</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-title">Google Gemini key <span class="badge badge-green">Recommended · free</span></div>
+              <div class="settings-row-desc">Get one in a minute at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a> → “Create API key”.</div>
+            </div>
+            <input type="password" class="form-input settings-control" id="u-google-key" placeholder="Paste key (starts with AIza…)" autocomplete="off" />
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-title">Groq key <span class="badge badge-green">Free</span></div>
+              <div class="settings-row-desc"><a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com</a></div>
+            </div>
+            <input type="password" class="form-input settings-control" id="u-groq-key" placeholder="gsk_…" autocomplete="off" />
+          </div>
+          <details class="settings-more">
+            <summary>More AI services (OpenRouter, Mistral, Claude)</summary>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-title">OpenRouter key</div>
+                <div class="settings-row-desc"><a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai</a></div>
+              </div>
+              <input type="password" class="form-input settings-control" id="u-openrouter-key" placeholder="sk-or-v1-…" autocomplete="off" />
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-title">Mistral key</div>
+                <div class="settings-row-desc"><a href="https://console.mistral.ai" target="_blank" rel="noopener">console.mistral.ai</a></div>
+              </div>
+              <input type="password" class="form-input settings-control" id="u-mistral-key" placeholder="Paste key" autocomplete="off" />
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-title">Anthropic Claude key</div>
+                <div class="settings-row-desc"><a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> (paid)</div>
+              </div>
+              <input type="password" class="form-input settings-control" id="u-anthropic-key" placeholder="sk-ant-…" autocomplete="off" />
+            </div>
+          </details>
+          <details class="settings-more">
+            <summary>Pictures &amp; video (optional)</summary>
+            <div class="settings-row">
+              <div class="settings-row-info"><div class="settings-row-title">Stability AI key</div><div class="settings-row-desc">Pictures and short animations · <a href="https://platform.stability.ai" target="_blank" rel="noopener">stability.ai</a></div></div>
+              <input type="password" class="form-input settings-control" id="u-stability-key" placeholder="sk-…" autocomplete="off" />
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info"><div class="settings-row-title">OpenAI key</div><div class="settings-row-desc">Pictures · <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a></div></div>
+              <input type="password" class="form-input settings-control" id="u-openai-key" placeholder="sk-proj-…" autocomplete="off" />
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info"><div class="settings-row-title">Luma key</div><div class="settings-row-desc">Video · <a href="https://lumalabs.ai/dream-machine/api" target="_blank" rel="noopener">lumalabs.ai</a></div></div>
+              <input type="password" class="form-input settings-control" id="u-luma-key" placeholder="luma-…" autocomplete="off" />
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info"><div class="settings-row-title">Runway key</div><div class="settings-row-desc">Video · <a href="https://dev.runwayml.com" target="_blank" rel="noopener">runwayml.com</a></div></div>
+              <input type="password" class="form-input settings-control" id="u-runway-key" placeholder="key_…" autocomplete="off" />
+            </div>
+          </details>
+          <div class="settings-actions">
+            <button class="btn btn-primary" onclick="saveUserApiSettings(this)">Save AI settings</button>
+          </div>
         </div>
-        <div class="ai-settings-jump">
-          <a href="#ai-sec-local" onclick="event.preventDefault();document.getElementById('ai-sec-local').scrollIntoView({behavior:'smooth'})">🦙 Local AI</a>
-          <a href="#ai-sec-online" onclick="event.preventDefault();document.getElementById('ai-sec-online').scrollIntoView({behavior:'smooth'})">🤖 Online AI for text</a>
-          <a href="#ai-sec-media" onclick="event.preventDefault();document.getElementById('ai-sec-media').scrollIntoView({behavior:'smooth'})">🎨 Images &amp; video</a>
-        </div>
+
         <div class="settings-section" id="ai-sec-local">
           <div class="settings-section-header">
-            <div class="settings-section-title">🦙 Local AI with Ollama (Free, No API Key Needed)</div>
-          </div>
-          <div class="card-body" style="padding:24px">
-
-            <!-- Status bar -->
-            <div id="ollama-status-bar" style="border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px;background:var(--glass);border:1px solid var(--border)">
-              <div id="ollama-status-dot" style="width:10px;height:10px;border-radius:50%;background:#ef4444;flex-shrink:0"></div>
-              <div id="ollama-status-text" style="font-size:13px;color:var(--text-secondary)">Checking Ollama status…</div>
-              <button class="btn btn-secondary btn-sm" onclick="checkOllamaStatus()" style="margin-left:auto">🔄 Check</button>
-            </div>
-
-            <!-- Install instructions (shown when not running) -->
-            <div id="ollama-install-guide" style="background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.25);border-radius:12px;padding:18px;margin-bottom:20px">
-              <div style="font-size:14px;font-weight:700;color:#a78bfa;margin-bottom:12px">⬇️ Install Ollama (one-time setup)</div>
-              <div style="font-size:13px;color:var(--text-secondary);line-height:1.9">
-                <div><b>Step 1</b> — Download from <a href="https://ollama.com/download" target="_blank" style="color:#60a5fa">ollama.com/download</a> → install the Windows app</div>
-                <div><b>Step 2</b> — Open <b>Command Prompt</b> or <b>PowerShell</b> and run:</div>
-                <div style="background:rgba(0,0,0,0.4);border-radius:6px;padding:10px 14px;margin:6px 0;font-family:monospace;font-size:12px;color:#a78bfa">ollama pull llama3.2</div>
-                <div style="font-size:11px;color:var(--text-muted)">Downloads the Llama 3.2 3B model (~2GB). Takes 2-5 minutes.</div>
-                <div style="margin-top:8px"><b>Step 3</b> — Come back here and click <b>Check</b> above — it should show green ✅</div>
-              </div>
-            </div>
-
-            <!-- Config (always visible) -->
-            <div class="grid-2" style="margin-bottom:16px">
-              <div class="form-group">
-                <label class="form-label">Ollama Server URL</label>
-                <input type="text" class="form-input" id="ollama-base-url" value="http://localhost:11434" placeholder="http://localhost:11434" />
-                <div class="form-hint">Default — only change if running on a different port or machine</div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Active Model</label>
-                <div style="display:flex;gap:8px">
-                  <select class="form-select" id="ollama-model-select">
-                    <option value="llama3.2">llama3.2 (3B — recommended)</option>
-                    <option value="llama3.2:1b">llama3.2:1b (1B — fastest)</option>
-                    <option value="llama3.1:8b">llama3.1:8b (8B — best quality)</option>
-                    <option value="llama3.3:70b">llama3.3:70b (70B — needs high-end GPU)</option>
-                    <option value="mistral">mistral (7B — alternative)</option>
-                    <option value="phi3">phi3 (3.8B — Microsoft)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <!-- Downloaded models list -->
-            <div id="ollama-models-list" style="margin-bottom:16px;display:none">
-              <div class="form-label">Downloaded Models</div>
-              <div id="ollama-models-grid" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
-            </div>
-
-            <!-- Pull a new model -->
-            <div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px">
-              <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px">⬇️ Pull a New Model</div>
-              <div style="display:flex;gap:8px">
-                <input type="text" class="form-input" id="ollama-pull-input" placeholder="e.g. llama3.2, mistral, phi3, gemma2" style="flex:1" />
-                <button class="btn btn-secondary btn-sm" onclick="pullOllamaModel()" id="btn-pull-model">Pull</button>
-              </div>
-              <div id="ollama-pull-progress" style="margin-top:8px;font-size:12px;color:var(--text-muted);display:none"></div>
-            </div>
-
-            <!-- Enable toggle + save -->
-            <div style="display:flex;align-items:center;gap:16px;padding:14px;background:var(--glass);border-radius:10px;border:1px solid var(--border)">
-              <div style="flex:1">
-                <div style="font-size:14px;font-weight:600;color:var(--text-primary)">Use Ollama as Primary AI</div>
-                <div style="font-size:12px;color:var(--text-muted);margin-top:2px">When enabled, Social-Nexus uses your local Llama model instead of Gemini/Claude. Falls back to cloud AI if Ollama is offline.</div>
-              </div>
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                <input type="checkbox" id="ollama-enabled-toggle" onchange="saveOllamaSettings()" style="width:18px;height:18px;cursor:pointer" />
-                <span id="ollama-enabled-label" style="font-size:13px;font-weight:600;color:var(--text-muted)">Disabled</span>
-              </label>
-            </div>
-
-            <button class="btn btn-primary" onclick="saveOllamaSettings()" style="width:100%;margin-top:12px">💾 Save Ollama Settings</button>
-          </div>
-        </div>
-
-        <!-- Online AI for text -->
-        <div class="settings-section" id="ai-sec-online">
-          <div class="settings-section-header"><div class="settings-section-title">🤖 Online AI for text (needs an API key)</div></div>
-
-          <div class="settings-row">
-            <div class="settings-row-info">
-              <div class="settings-row-title">Default AI Model</div>
-              <div class="settings-row-desc">Select the default model to use for generating content.</div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;min-width:320px">
-              <select class="form-select" id="setting-default-model" style="flex:1">
-                <option value="ollama">Ollama (Local Llama)</option>
-                <option value="gemini">Google Gemini Flash</option>
-                <option value="claude">Anthropic Claude Opus</option>
-              </select>
-              <button class="btn btn-primary btn-sm" onclick="saveDefaultModelSetting()">Save</button>
+            <div>
+              <div class="settings-section-title">Option 2 — Local AI on this PC (free, private)</div>
+              <div class="settings-section-sub">Uses the free Ollama app. Slower on older PCs. Shared by everyone who uses Social-Nexus on this PC.</div>
             </div>
           </div>
+          <div class="card-body">
+            <div class="inline-status" id="ollama-status-bar">
+              <span class="status-dot-sm" id="ollama-status-dot"></span>
+              <span id="ollama-status-text">Checking Local AI…</span>
+              <button class="btn btn-secondary btn-sm admin-note-exempt" onclick="checkOllamaStatus()" style="margin-left:auto">Check again</button>
+            </div>
 
-          <div class="settings-row user-scoped">
-            <div class="settings-row-info">
-              <div class="settings-row-title">Google Gemini API Key <span class="badge badge-green" style="font-size:10px">FREE TIER</span></div>
-              <div class="settings-row-desc">Primary AI engine for content generation. Get free key at <a href="https://aistudio.google.com" target="_blank" style="color:#60a5fa">aistudio.google.com</a></div>
+            <div class="setup-steps" id="ollama-install-guide">
+              <div class="setup-steps-title">Set up Local AI (about 10 minutes, one time)</div>
+              <ol>
+                <li>Download and install Ollama: <a href="https://ollama.com/download" target="_blank" rel="noopener" class="btn btn-secondary btn-sm admin-note-exempt">Open ollama.com/download ↗</a></li>
+                <li>Come back here and pick a model below, then click <b>Download model</b> (about 2 GB).</li>
+                <li>Click <b>Check again</b> above. When it says “ready”, turn on <b>Use Local AI</b>.</li>
+              </ol>
             </div>
-            <div style="display:flex;gap:8px;align-items:center;min-width:320px">
-              <input type="password" class="form-input" id="setting-anthropic-key" placeholder="AIza… or AQ.Ab8R…" style="flex:1" />
-              <button class="btn btn-primary btn-sm" onclick="saveApiKey()">Save</button>
-            </div>
-          </div>
 
-          <div class="settings-row user-scoped">
-            <div class="settings-row-info">
-              <div class="settings-row-title">Anthropic Claude API Key <span class="badge badge-orange" style="font-size:10px">OPTIONAL FALLBACK</span></div>
-              <div class="settings-row-desc">Used if Gemini key is not set. Get at <a href="https://console.anthropic.com" target="_blank" style="color:#60a5fa">console.anthropic.com</a></div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;min-width:320px">
-              <input type="password" class="form-input" id="setting-claude-key" placeholder="sk-ant-api03-…" style="flex:1" />
-              <button class="btn btn-secondary btn-sm" onclick="saveClaudeKey()">Save</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Images & video -->
-        <div class="settings-section user-scoped" id="ai-sec-media">
-          <div class="settings-section-header"><div class="settings-section-title">🎨 Images &amp; video (optional — saved to your account)</div></div>
-
-          <div class="settings-row">
-            <div class="settings-row-info">
-              <div class="settings-row-title">Stability AI Key <span class="badge badge-green" style="font-size:10px">IMAGES + ANIMATION</span></div>
-              <div class="settings-row-desc">SDXL image + video-to-animation. Free credits at <a href="https://stability.ai" target="_blank" style="color:#60a5fa">stability.ai</a></div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;min-width:320px">
-              <input type="password" class="form-input" id="setting-stability-key" placeholder="sk-…" style="flex:1" />
-              <button class="btn btn-primary btn-sm" onclick="saveMediaKey('STABILITY_API_KEY','setting-stability-key')">Save</button>
-            </div>
-          </div>
-
-          <div class="settings-row">
-            <div class="settings-row-info">
-              <div class="settings-row-title">OpenAI API Key <span class="badge badge-blue" style="font-size:10px">IMAGES</span></div>
-              <div class="settings-row-desc">Image generation (GPT Image). <a href="https://platform.openai.com" target="_blank" style="color:#60a5fa">platform.openai.com</a></div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;min-width:320px">
-              <input type="password" class="form-input" id="setting-openai-key" placeholder="sk-proj-…" style="flex:1" />
-              <button class="btn btn-secondary btn-sm" onclick="saveMediaKey('OPENAI_API_KEY','setting-openai-key')">Save</button>
-            </div>
-          </div>
-
-          <div class="settings-row">
-            <div class="settings-row-info">
-              <div class="settings-row-title">Luma Dream Machine Key <span class="badge badge-purple" style="font-size:10px">VIDEO</span></div>
-              <div class="settings-row-desc">AI video generation. <a href="https://lumalabs.ai/dream-machine/api" target="_blank" style="color:#60a5fa">lumalabs.ai</a></div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;min-width:320px">
-              <input type="password" class="form-input" id="setting-luma-key" placeholder="luma-…" style="flex:1" />
-              <button class="btn btn-primary btn-sm" onclick="saveMediaKey('LUMA_API_KEY','setting-luma-key')">Save</button>
-            </div>
-          </div>
-
-          <div class="settings-row">
-            <div class="settings-row-info">
-              <div class="settings-row-title">Runway API Key <span class="badge badge-purple" style="font-size:10px">VIDEO FALLBACK</span></div>
-              <div class="settings-row-desc">Runway Gen-3 video generation. <a href="https://runwayml.com/api" target="_blank" style="color:#60a5fa">runwayml.com</a></div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;min-width:320px">
-              <input type="password" class="form-input" id="setting-runway-key" placeholder="key_…" style="flex:1" />
-              <button class="btn btn-secondary btn-sm" onclick="saveMediaKey('RUNWAY_API_KEY','setting-runway-key')">Save</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── SMTP Panel ─────────────────────────────────────────────────────── -->
-      <div class="settings-panel" id="settings-panel-smtp" style="display:none">
-        <div class="settings-section">
-          <div class="settings-section-header">
-            <div class="settings-section-title">📧 Email / SMTP Configuration</div>
-          </div>
-          <div class="card-body" style="padding:24px">
             <div class="grid-2">
-              <div class="form-group"><label class="form-label">SMTP Host</label><input type="text" class="form-input" id="smtp-host" placeholder="smtp.gmail.com" /></div>
-              <div class="form-group"><label class="form-label">SMTP Port</label><input type="number" class="form-input" id="smtp-port" placeholder="587" value="587" /></div>
-              <div class="form-group"><label class="form-label">Username / Email</label><input type="email" class="form-input" id="smtp-user" placeholder="you@gmail.com" /></div>
-              <div class="form-group"><label class="form-label">Password / App Password</label><input type="password" class="form-input" id="smtp-pass" placeholder="your-app-password" /></div>
-              <div class="form-group"><label class="form-label">From Email</label><input type="email" class="form-input" id="smtp-from" placeholder="you@gmail.com" /></div>
-              <div class="form-group"><label class="form-label">From Name</label><input type="text" class="form-input" id="smtp-from-name" placeholder="Your Brand" /></div>
+              <div class="form-group">
+                <label class="form-label" for="ollama-model-select">Model</label>
+                <select class="form-select" id="ollama-model-select">
+                  <option value="llama3.2">llama3.2 — recommended (2 GB)</option>
+                  <option value="llama3.2:1b">llama3.2:1b — fastest, for older PCs (1 GB)</option>
+                  <option value="llama3.1:8b">llama3.1:8b — best writing, needs a good PC (5 GB)</option>
+                  <option value="mistral">mistral (4 GB)</option>
+                  <option value="phi3">phi3 (2 GB)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">&nbsp;</label>
+                <button class="btn btn-secondary" onclick="pullOllamaModel()" id="btn-pull-model">Download model</button>
+                <input type="hidden" id="ollama-pull-input" />
+              </div>
             </div>
-            <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:8px;padding:12px;margin-top:8px;font-size:12px;color:#60a5fa">
-              💡 <strong>Gmail users:</strong> Use an App Password, not your regular password. Create one at <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:#93c5fd">myaccount.google.com/apppasswords</a>
+            <div id="ollama-pull-progress" class="form-hint" style="display:none"></div>
+
+            <div id="ollama-models-list" style="display:none;margin-top:12px">
+              <div class="form-label">Models on this PC (click one to use it)</div>
+              <div id="ollama-models-grid" class="chip-row"></div>
             </div>
-            <button class="btn btn-primary" onclick="saveSMTPSettings()" style="width:100%;margin-top:16px">💾 Save SMTP Settings</button>
+
+            <label class="toggle-row">
+              <input type="checkbox" id="ollama-enabled-toggle" onchange="saveOllamaSettings()" />
+              <span>
+                <span class="toggle-row-title">Use Local AI <span id="ollama-enabled-label" class="badge">Off</span></span>
+                <span class="toggle-row-desc">When on, posts are written on this PC. If Local AI isn't running, an online AI you have a key for is used instead.</span>
+              </span>
+            </label>
+
+            <details class="settings-more">
+              <summary>Advanced</summary>
+              <div class="form-group" style="margin-top:10px">
+                <label class="form-label" for="ollama-base-url">Ollama address</label>
+                <input type="text" class="form-input" id="ollama-base-url" value="http://localhost:11434" placeholder="http://localhost:11434" />
+                <div class="form-hint">Leave as it is unless Ollama runs on another computer.</div>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="saveOllamaSettings()">Save address</button>
+            </details>
           </div>
         </div>
       </div>
 
-      <!-- ── About Panel ────────────────────────────────────────────────────── -->
-      <div class="settings-panel" id="settings-panel-about" style="display:none">
+      <!-- ── Email sending ──────────────────────────────────────────────── -->
+      <div class="settings-panel" id="settings-panel-smtp" style="display:none">
+        <div class="panel-intro">
+          <h2 class="panel-title">Email sending</h2>
+          <p class="panel-desc">Needed only for the Email and Sales outreach screens. Use the email account you want messages to come from.</p>
+        </div>
         <div class="settings-section">
-          <div class="settings-section-header"><div class="settings-section-title">ℹ️ About Social-Nexus</div></div>
-          <div class="settings-row">
-            <div class="settings-row-info"><div class="settings-row-title">Version</div><div class="settings-row-desc">Social-Nexus — One-Stop Digital Marketing Platform</div></div>
-            <span class="badge badge-purple">v2.0.0</span>
-          </div>
-          <div class="settings-row">
-            <div class="settings-row-info"><div class="settings-row-title">Platforms Supported</div><div class="settings-row-desc">LinkedIn · Facebook · Instagram · Threads · Pinterest · Twitter/X · Bluesky · Google Business</div></div>
-          </div>
-          <div class="settings-row">
-            <div class="settings-row-info"><div class="settings-row-title">AI Engines</div><div class="settings-row-desc">Google Gemini · Anthropic Claude · Stability AI · OpenAI GPT Image · Luma · Runway</div></div>
-          </div>
-          <div class="settings-row">
-            <div class="settings-row-info"><div class="settings-row-title">Tech Stack</div><div class="settings-row-desc">Node.js · Express · SQLite · Vanilla JS</div></div>
-          </div>
-          <div class="settings-row">
-            <div class="settings-row-info">
-              <div class="settings-row-title">Local Content Folder</div>
-              <div class="settings-row-desc">Folder for local files, CSV schedules, and content imports</div>
+          <div class="card-body">
+            <div class="callout callout-info">
+              <b>Using Gmail?</b> Server <code>smtp.gmail.com</code>, port <code>587</code>, and an <b>app password</b> (not your normal password): <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">create one here ↗</a>
             </div>
-            <div style="display:flex;gap:8px;align-items:center;min-width:320px">
-              <input type="text" class="form-input" id="setting-content-folder" placeholder="D:/social" style="flex:1" />
-              <button class="btn btn-primary btn-sm" onclick="saveContentFolder()">Save</button>
+            <div class="grid-2">
+              <div class="form-group"><label class="form-label" for="smtp-user">Your email address</label><input type="email" class="form-input" id="smtp-user" placeholder="you@yourbusiness.com" autocomplete="off" /></div>
+              <div class="form-group"><label class="form-label" for="smtp-pass">Password or app password</label><input type="password" class="form-input" id="smtp-pass" placeholder="Leave empty to keep the saved one" autocomplete="new-password" /></div>
+              <div class="form-group"><label class="form-label" for="smtp-host">Mail server</label><input type="text" class="form-input" id="smtp-host" placeholder="smtp.gmail.com" /></div>
+              <div class="form-group"><label class="form-label" for="smtp-port">Port</label><input type="number" class="form-input" id="smtp-port" placeholder="587" value="587" /></div>
+              <div class="form-group"><label class="form-label" for="smtp-from-name">Name people see</label><input type="text" class="form-input" id="smtp-from-name" placeholder="Your Business" /></div>
+              <div class="form-group"><label class="form-label" for="smtp-from">Send as (optional)</label><input type="email" class="form-input" id="smtp-from" placeholder="Same as your email address" /></div>
+            </div>
+            <div class="settings-actions">
+              <button class="btn btn-primary" onclick="saveSMTPSettings(this)">Save email settings</button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- ── Members Panel ──────────────────────────────────────────────────── -->
+      <!-- ── Backups ────────────────────────────────────────────────────── -->
+      <div class="settings-panel" id="settings-panel-backups" style="display:none">
+        <div class="panel-intro">
+          <h2 class="panel-title">Backups</h2>
+          <p class="panel-desc">Social-Nexus makes a copy of your data every day. Export one to keep it safe on a USB drive or another PC.</p>
+        </div>
+        <div class="settings-section"><div id="backups-panel" class="card-body"></div></div>
+      </div>
+
+      <!-- ── Licence ────────────────────────────────────────────────────── -->
+      <div class="settings-panel" id="settings-panel-license" style="display:none">
+        <div class="panel-intro">
+          <h2 class="panel-title">Licence</h2>
+          <p class="panel-desc">You can write and plan without a licence. Publishing to your accounts needs an active licence.</p>
+        </div>
+        <div class="settings-section"><div id="license-panel" class="card-body"><span class="spinner"></span></div></div>
+      </div>
+
+      <!-- ── Team ───────────────────────────────────────────────────────── -->
       <div class="settings-panel" id="settings-panel-members" style="display:none">
+        <div class="panel-intro">
+          <h2 class="panel-title">Team</h2>
+          <p class="panel-desc">People who can work on this brand. Each role only sees what it needs.</p>
+        </div>
         <div class="settings-section">
-          <div class="settings-section-header">
-            <div class="settings-section-title">👥 Workspace Members</div>
-          </div>
-          <div class="card-body" style="padding:24px">
+          <div class="card-body">
             <div id="members-list" style="margin-bottom:24px">
-              <div style="text-align:center;padding:20px;color:var(--text-muted)">Loading members…</div>
+              <div class="state-loading">Loading team…</div>
             </div>
-
-            <div style="border-top:1px solid var(--border);padding-top:20px">
-              <div style="font-size:14px;font-weight:600;margin-bottom:12px">Invite a Member</div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-                <div style="flex:1;min-width:200px">
-                  <label style="font-size:12px;color:var(--text-muted);margin-bottom:4px;display:block">Email address</label>
-                  <input id="invite-email" type="email" class="form-control" placeholder="colleague@company.com" style="width:100%" />
+            <div class="form-subsection">
+              <div class="form-subsection-title">Invite someone</div>
+              <div class="inline-form">
+                <div class="form-group" style="flex:1;min-width:200px">
+                  <label class="form-label" for="invite-email">Email address</label>
+                  <input id="invite-email" type="email" class="form-input" placeholder="colleague@company.com" />
                 </div>
-                <div style="min-width:140px">
-                  <label style="font-size:12px;color:var(--text-muted);margin-bottom:4px;display:block">Role</label>
-                  <select id="invite-role" class="form-control">
-                    <option value="creator">Creator</option>
-                    <option value="reviewer">Reviewer</option>
-                    <option value="client">Client</option>
-                    <option value="analyst">Analyst</option>
-                    <option value="manager">Manager</option>
+                <div class="form-group" style="min-width:200px">
+                  <label class="form-label" for="invite-role">What they can do</label>
+                  <select id="invite-role" class="form-select">
+                    <option value="creator">Creator — writes posts</option>
+                    <option value="reviewer">Reviewer — checks posts</option>
+                    <option value="manager">Manager — approves and publishes</option>
+                    <option value="analyst">Analyst — sees results only</option>
+                    <option value="client">Client — approves their posts</option>
                   </select>
                 </div>
-                <button class="btn btn-primary" onclick="sendInvite()">📩 Send Invite</button>
+                <button class="btn btn-primary" onclick="sendInvite()">Send invite</button>
               </div>
               <div id="invite-result" style="margin-top:10px;font-size:13px"></div>
             </div>
@@ -1292,6 +1244,50 @@
         </div>
       </div>
 
+      <!-- ── My account & app ───────────────────────────────────────────── -->
+      <div class="settings-panel" id="settings-panel-account" style="display:none">
+        <div class="panel-intro">
+          <h2 class="panel-title">My account &amp; app</h2>
+        </div>
+        <div class="settings-section">
+          <div class="settings-row">
+            <div class="settings-row-info"><div class="settings-row-title">Signed in as</div><div class="settings-row-desc" id="account-signed-in">…</div></div>
+            <button class="btn btn-secondary btn-sm" onclick="doLogout()">Sign out</button>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info"><div class="settings-row-title">Recovery code</div><div class="settings-row-desc">Lets you get back in if you forget your password. Keep it somewhere safe.</div></div>
+            <button class="btn btn-secondary btn-sm" onclick="openRecoveryCode()">Show new code</button>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info"><div class="settings-row-title">Phone companion</div><div class="settings-row-desc">Get a short summary and approve posts from your phone.</div></div>
+            <button class="btn btn-secondary btn-sm" onclick="openCompanion()">Set up</button>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info"><div class="settings-row-title">Look</div><div class="settings-row-desc">Light or dark screens.</div></div>
+            <button class="btn btn-secondary btn-sm" onclick="toggleTheme()">Switch light / dark</button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-header"><div class="settings-section-title">This PC</div></div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-title">Folder for your files</div>
+              <div class="settings-row-desc">Where “Files on this PC” and spreadsheet imports look.</div>
+            </div>
+            <div class="settings-control-group">
+              <input type="text" class="form-input" id="setting-content-folder" placeholder="D:/social" />
+              <button class="btn btn-secondary btn-sm" onclick="saveContentFolder()">Save</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info"><div class="settings-row-title">Version</div><div class="settings-row-desc">Social-Nexus by Radixile Technology Solutions · Questions: <a href="mailto:support@radixile.com">support@radixile.com</a></div></div>
+            <span class="badge" id="app-version-badge">…</span>
+          </div>
+        </div>
+      </div>
+
+        </div>
+      </div>
     </section>
 
     <!-- ── SEO Tools ─────────────────────────────────────────────────────── -->
@@ -1570,7 +1566,7 @@
               </div>
               <div class="sb-brand-dropdown" id="sb-brand-selector" onclick="openAddCompanyModal()">
                 <span style="display:inline-block;width:14px;height:14px;background:#0f172a;color:#fff;border-radius:3px;font-size:9px;text-align:center;line-height:14px;font-weight:700">U</span>
-                <span id="sb-brand-display-name">Urban Society</span>
+                <span id="sb-brand-display-name">Your business</span>
                 <span style="font-size:9px;color:#94a3b8">⌵</span>
               </div>
               <span class="sb-breadcrumb-sep">›</span>
@@ -1842,7 +1838,7 @@
                 <div style="margin-top:24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px">
                   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
                     <div style="font-size:11px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#475569" id="sb-sequence-title-heading">
-                      SEQUENCE — URBAN SOCIETY RWA OUTREACH
+                      EMAIL SEQUENCE
                     </div>
                     <div style="font-size:11.5px;color:#64748b">
                       🕒 Mon–Fri, 9:00–17:00 in each recipient's time zone
@@ -1948,7 +1944,7 @@
             <div class="sellbird-form-section">
               <label class="form-label font-bold">1. Product or Landing Page URL</label>
               <div class="sellbird-input-action-row">
-                <input type="url" class="form-input sellbird-input" id="wizard-product-url" placeholder="https://urbansociety.in" />
+                <input type="url" class="form-input sellbird-input" id="wizard-product-url" placeholder="https://yourbusiness.com" />
                 <button class="btn btn-sellbird-primary" id="btn-wizard-crawl" onclick="trainFromProductUrl()">
                   ✨ Auto-Crawl Value Props
                 </button>
@@ -2067,38 +2063,15 @@
             </div>
           </div>
           <div>
-            <label style="font-size:12px;font-weight:700;color:var(--text-primary);display:block;margin-bottom:8px">Select Discovery Target Source:</label>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <label style="border:1px solid var(--border);background:var(--bg3);border-radius:10px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:4px">
-                <div style="display:flex;align-items:center;gap:6px">
-                  <input type="radio" name="real_target_mode" value="preset" checked onchange="toggleRealTargetMode('preset')" />
-                  <strong style="font-size:13px;color:var(--text-primary)">🏢 Indian Township & PropTech</strong>
-                </div>
-                <div style="font-size:11px;color:var(--text-muted);padding-left:20px">Godrej Properties, Brigade Group, Sobha, Prestige, MyGate</div>
-              </label>
-              <label style="border:1px solid var(--border);background:var(--bg3);border-radius:10px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:4px">
-                <div style="display:flex;align-items:center;gap:6px">
-                  <input type="radio" name="real_target_mode" value="custom" onchange="toggleRealTargetMode('custom')" />
-                  <strong style="font-size:13px;color:var(--text-primary)">✍️ Custom Live Domains</strong>
-                </div>
-                <div style="font-size:11px;color:var(--text-muted);padding-left:20px">Enter your own real target companies or domains</div>
-              </label>
-            </div>
+            
+            <input type="radio" name="real_target_mode" value="custom" checked hidden />
+            <div class="form-hint">Type the websites of companies you’d like as customers. Social-Nexus reads their public pages and finds who to contact.</div>
           </div>
-          <div id="box-custom-domains" style="display:none">
-            <label style="font-size:12px;font-weight:700;color:var(--text-primary);display:block;margin-bottom:6px">Target Domains (One per line or comma-separated):</label>
-            <textarea class="form-textarea sellbird-textarea" id="input-custom-real-domains" rows="3" placeholder="dlf.in&#10;godrejproperties.com&#10;nobroker.in"></textarea>
+          <div id="box-custom-domains">
+            <label style="font-size:12px;font-weight:700;color:var(--text-primary);display:block;margin-bottom:6px">Company websites (one per line):</label>
+            <textarea class="form-textarea sellbird-textarea" id="input-custom-real-domains" rows="3" placeholder="example.com&#10;another-company.in"></textarea>
           </div>
-          <div id="box-preset-preview" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px">
-            <div style="font-size:11.5px;text-transform:uppercase;color:var(--text-muted);font-weight:700;margin-bottom:8px">Target Organizations to Crawl:</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px">
-              <span class="badge" style="background:rgba(2,132,199,0.15);color:#0284c7;font-size:11.5px">🏢 godrejproperties.com</span>
-              <span class="badge" style="background:rgba(2,132,199,0.15);color:#0284c7;font-size:11.5px">🏢 brigadegroup.com</span>
-              <span class="badge" style="background:rgba(2,132,199,0.15);color:#0284c7;font-size:11.5px">🏢 sobha.com</span>
-              <span class="badge" style="background:rgba(2,132,199,0.15);color:#0284c7;font-size:11.5px">🏢 prestigeconstructions.com</span>
-              <span class="badge" style="background:rgba(2,132,199,0.15);color:#0284c7;font-size:11.5px">🏢 mygate.com</span>
-            </div>
-          </div>
+          
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="closeSellbirdModals()">Cancel</button>
@@ -2798,61 +2771,6 @@
     </section>
 
     <!-- ── User API Settings ─────────────────────────────────────────────── -->
-    <section class="page" id="page-user-settings">
-      <div class="section-header">
-        <div><div class="section-title">🔑 My API Keys</div><div class="section-desc">Your personal API keys — stored securely per account.</div></div>
-        <button class="btn btn-primary btn-sm" onclick="saveUserApiSettings()">💾 Save All Keys</button>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-header"><div class="settings-section-title">🤖 AI Text Generation</div></div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Default AI Model</div><div class="settings-row-desc">Select the default model for generating content.</div></div>
-          <div style="min-width:300px">
-            <select class="form-select" id="u-default-text-model" style="width:100%">
-              <option value="ollama">🦙 Ollama (Local — Free, Private)</option>
-              <option value="gemini">🟣 Google Gemini Flash (Free tier)</option>
-              <option value="groq">⚡ Groq — Llama 3.3 70B (Free, Fastest)</option>
-              <option value="openrouter">🌐 OpenRouter — Llama 3.1 8B (Free)</option>
-              <option value="mistral">🌊 Mistral Small (Free tier)</option>
-              <option value="claude">🟠 Anthropic Claude 3.5 (Paid)</option>
-            </select>
-          </div>
-        </div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Google Gemini API Key <span class="badge badge-green" style="font-size:10px">FREE TIER</span></div><div class="settings-row-desc">Get free key at <a href="https://aistudio.google.com" target="_blank" style="color:#60a5fa">aistudio.google.com</a> — 1M tokens/month free</div></div>
-          <div style="display:flex;gap:8px;min-width:300px"><input type="password" class="form-input" id="u-google-key" placeholder="AIza… or AQ.Ab8R…" style="flex:1"/><button class="btn btn-primary btn-sm" onclick="saveUserApiSettings()">Save</button></div></div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Groq API Key <span class="badge badge-green" style="font-size:10px">FREE — FASTEST</span></div><div class="settings-row-desc">Get free key at <a href="https://console.groq.com" target="_blank" style="color:#60a5fa">console.groq.com</a> — 14,400 req/day free · Llama 3.3 70B</div></div>
-          <div style="display:flex;gap:8px;min-width:300px"><input type="password" class="form-input" id="u-groq-key" placeholder="gsk_…" style="flex:1"/><button class="btn btn-primary btn-sm" onclick="saveUserApiSettings()">Save</button></div></div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">OpenRouter API Key <span class="badge badge-green" style="font-size:10px">FREE MODELS</span></div><div class="settings-row-desc">Get free key at <a href="https://openrouter.ai" target="_blank" style="color:#60a5fa">openrouter.ai</a> — access to 200+ free models</div></div>
-          <div style="display:flex;gap:8px;min-width:300px"><input type="password" class="form-input" id="u-openrouter-key" placeholder="sk-or-v1-…" style="flex:1"/></div></div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Mistral AI Key <span class="badge badge-green" style="font-size:10px">FREE TIER</span></div><div class="settings-row-desc">Get free key at <a href="https://console.mistral.ai" target="_blank" style="color:#60a5fa">console.mistral.ai</a> — free tier available</div></div>
-          <div style="display:flex;gap:8px;min-width:300px"><input type="password" class="form-input" id="u-mistral-key" placeholder="…" style="flex:1"/></div></div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Anthropic Claude Key <span class="badge badge-orange" style="font-size:10px">OPTIONAL</span></div><div class="settings-row-desc">Get at <a href="https://console.anthropic.com" target="_blank" style="color:#60a5fa">console.anthropic.com</a></div></div>
-          <div style="display:flex;gap:8px;min-width:300px"><input type="password" class="form-input" id="u-anthropic-key" placeholder="sk-ant-…" style="flex:1"/></div></div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-header"><div class="settings-section-title">🎨 Image Generation</div></div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Stability AI Key</div><div class="settings-row-desc"><a href="https://stability.ai" target="_blank" style="color:#60a5fa">stability.ai</a> — free credits on signup</div></div>
-          <div style="min-width:300px"><input type="password" class="form-input" id="u-stability-key" placeholder="sk-…"/></div></div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">OpenAI Key (images)</div><div class="settings-row-desc"><a href="https://platform.openai.com" target="_blank" style="color:#60a5fa">platform.openai.com</a></div></div>
-          <div style="min-width:300px"><input type="password" class="form-input" id="u-openai-key" placeholder="sk-proj-…"/></div></div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-header"><div class="settings-section-title">🎬 Video Generation</div></div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Luma Dream Machine</div><div class="settings-row-desc"><a href="https://lumalabs.ai" target="_blank" style="color:#60a5fa">lumalabs.ai</a> — 30 free videos/month</div></div>
-          <div style="min-width:300px"><input type="password" class="form-input" id="u-luma-key" placeholder="luma-…"/></div></div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Runway Gen-3</div><div class="settings-row-desc"><a href="https://runwayml.com" target="_blank" style="color:#60a5fa">runwayml.com</a> — 125 free credits</div></div>
-          <div style="min-width:300px"><input type="password" class="form-input" id="u-runway-key" placeholder="key_…"/></div></div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-header"><div class="settings-section-title">🦙 Local AI (Ollama)</div></div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Enable Ollama</div><div class="settings-row-desc">Use your local Llama model — free, private</div></div>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="u-ollama-enabled" style="width:18px;height:18px"/> <span style="font-size:13px">Use Ollama as primary AI</span></label></div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Active Model</div></div>
-          <input type="text" class="form-input" id="u-ollama-model" placeholder="llama3.2" style="width:200px"/></div>
-        <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Server URL</div><div class="settings-row-desc">Change if Ollama runs on a different port or machine</div></div>
-          <input type="text" class="form-input" id="u-ollama-url" placeholder="http://localhost:11434" style="width:280px"/></div>
-      </div>
-    </section>
-
     <!-- ── AI Tools Directory ─────────────────────────────────────────────── -->
     <section class="page" id="page-tools-directory">
       <div class="section-header">
@@ -3018,7 +2936,7 @@
               </div>
               <div class="wa-suite-pill" onclick="openWhatsAppConfigModal()" style="cursor:pointer;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg3);display:flex;align-items:center;gap:10px">
                 <div style="width:36px;height:36px;border-radius:10px;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center;font-size:18px">💬</div>
-                <div><div style="font-size:12.5px;font-weight:700;color:var(--text-primary)">Official WhatsApp API</div><div style="font-size:11px;color:var(--text-muted)">+91 96370 00102</div></div>
+                <div><div style="font-size:12.5px;font-weight:700;color:var(--text-primary)">Official WhatsApp API</div><div style="font-size:11px;color:var(--text-muted)">Your WhatsApp number</div></div>
               </div>
               <div class="wa-suite-pill" onclick="switchLeadPipelineTab('inbox', document.getElementById('tab-lead-inbox'))" style="cursor:pointer;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg3);display:flex;align-items:center;gap:10px">
                 <div style="width:36px;height:36px;border-radius:10px;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center;font-size:18px">👥</div>
@@ -3107,7 +3025,7 @@
             <div>
               <div style="font-size:18px;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:8px">
                 <span>📢 Outbound Bulk WhatsApp Broadcast Studio</span>
-                <span class="badge" style="background:#22c55e;color:#000;font-size:10px;font-weight:800">urbansociety2.0</span>
+                <span class="badge" style="background:#22c55e;color:#000;font-size:10px;font-weight:800">WhatsApp</span>
               </div>
               <div style="font-size:12.5px;color:var(--text-muted);margin-top:4px">
                 Send bulk personalized WhatsApp messages to residential society contacts via Excel / CSV upload or manual list.
@@ -3215,10 +3133,8 @@
                   </button>
                 </div>
                 <select id="broadcast-template-select" class="form-input form-input-sm" onchange="onBroadcastTemplateChange(this.value)">
-                  <option value="demo">Urban Society - Maintenance Billing Demo</option>
-                  <option value="committee">RWA Managing Committee Executive Connect</option>
-                  <option value="official_test">Meta Official Test (hello_world)</option>
-                  <option value="custom">Custom Outreach Message (Direct / Evolution)</option>
+                  <option value="official_test">Meta’s test template (hello_world)</option>
+                  <option value="custom" selected>Write my own message</option>
                 </select>
               </div>
 
@@ -3280,7 +3196,7 @@
                   </div>
                   <div style="flex:1">
                     <div style="font-size:12.5px;font-weight:700;color:#e9edef;display:flex;align-items:center;gap:4px">
-                      <span>urbansociety2.0</span>
+                      <span>WhatsApp</span>
                       <span style="color:#22c55e;font-size:11px">✓</span>
                     </div>
                     <div style="font-size:10px;color:#8696a0">Official Business Cloud API</div>
@@ -3308,7 +3224,7 @@
                   <div class="form-group">
                     <label class="form-label" style="font-size:11px">Delivery Engine</label>
                     <select id="broadcast-delivery-mode" class="form-input form-input-sm">
-                      <option value="cloud_api">Meta WhatsApp Cloud API (+91 96370 00102)</option>
+                      <option value="cloud_api">Official WhatsApp Business API</option>
                       <option value="evolution">Evolution API (QR-Code WhatsApp Web - 0 Ban / Any Text)</option>
                       <option value="web_bridge">1-Click WhatsApp Web Queue</option>
                     </select>
@@ -3359,20 +3275,20 @@
           <!-- Left Filter Tabs -->
           <div style="display:flex;align-items:center;gap:14px;font-size:12px;font-weight:700;letter-spacing:0.02em">
             <button class="wa-filter-tab active" id="tab-wa-active" onclick="filterWhatsAppChats('active', this)" style="background:none;border:none;color:#ffffff;cursor:pointer;padding:12px 4px;border-bottom:2px solid #22c55e;font-weight:800;font-size:12px;display:flex;align-items:center;gap:6px">
-              <span>ACTIVE (<span id="count-wa-active">21</span>)</span>
+              <span>ACTIVE (<span id="count-wa-active">0</span>)</span>
             </button>
             <button class="wa-filter-tab" id="tab-wa-requesting" onclick="filterWhatsAppChats('requesting', this)" style="background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;padding:12px 4px;border-bottom:2px solid transparent;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px">
-              <span>REQUESTING (<span id="count-wa-requesting">24</span>)</span>
+              <span>REQUESTING (<span id="count-wa-requesting">0</span>)</span>
             </button>
             <button class="wa-filter-tab" id="tab-wa-intervened" onclick="filterWhatsAppChats('intervened', this)" style="background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;padding:12px 4px;border-bottom:2px solid transparent;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px">
-              <span>INTERVENED (<span id="count-wa-intervened">1</span>)</span>
+              <span>INTERVENED (<span id="count-wa-intervened">0</span>)</span>
             </button>
           </div>
 
           <!-- Center Active Contact Dropdown -->
           <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#ffffff;cursor:pointer" onclick="toggleChatProfilePanel()">
             <span style="font-size:10px;opacity:0.8">▼</span>
-            <span id="wa-top-contact-label">Arvind Bajaj (+91 987654321)</span>
+            <span id="wa-top-contact-label">No chat open</span>
           </div>
 
           <!-- Right Chat Profile Toggle -->
@@ -3412,14 +3328,14 @@
                 </div>
                 <div>
                   <div style="display:flex;align-items:center;gap:8px">
-                    <span id="chat-header-name" style="font-size:14px;font-weight:700;color:#e9edef">Arvind Bajaj</span>
+                    <span id="chat-header-name" style="font-size:14px;font-weight:700;color:#e9edef">No chat open</span>
                     <span class="badge" id="chat-header-verified-badge" style="background:#22c55e;color:#000;font-size:9.5px;font-weight:800;padding:1px 5px">✓ VERIFIED</span>
                   </div>
                   <div style="font-size:11px;color:#8696a0;display:flex;align-items:center;gap:8px;margin-top:2px">
-                    <span id="chat-header-phone">+91 987654321</span>
-                    <span id="chat-header-society" style="color:#53bdeb">• Palm Meadows</span>
+                    <span id="chat-header-phone"></span>
+                    <span id="chat-header-society" style="color:#53bdeb"></span>
                     <span id="chat-header-window" class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e;font-size:9.5px">Active (24h left)</span>
-                    <span id="chat-header-agent" class="badge" onclick="openTeamSeatsModal()" style="background:rgba(99,102,241,0.15);color:#a5b4fc;cursor:pointer;font-size:9.5px" title="Click to assign team seat">👤 <span id="chat-header-agent-name">Priya Gautam</span></span>
+                    <span id="chat-header-agent" class="badge" onclick="openTeamSeatsModal()" style="background:rgba(99,102,241,0.15);color:#a5b4fc;cursor:pointer;font-size:9.5px" title="Click to assign team seat">👤 <span id="chat-header-agent-name">Not assigned</span></span>
                   </div>
                 </div>
               </div>
@@ -3499,21 +3415,21 @@
               <div id="profile-avatar" style="width:68px;height:68px;border-radius:50%;background:#0284c7;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:24px;box-shadow:0 4px 12px rgba(2,132,199,0.3);margin-bottom:10px">
                 AB
               </div>
-              <div id="profile-name" style="font-size:16px;font-weight:800;color:var(--text-primary)">Arvind Bajaj</div>
-              <div id="profile-phone" style="font-size:13px;color:var(--text-muted);margin-top:2px">+91 987654321</div>
-              <div id="profile-society" style="font-size:12px;color:#0284c7;font-weight:600;margin-top:4px">Palm Meadows Society</div>
-              <div id="profile-role" style="font-size:11.5px;color:var(--text-muted)">President / Decision Maker</div>
+              <div id="profile-name" style="font-size:16px;font-weight:800;color:var(--text-primary)">No chat open</div>
+              <div id="profile-phone" style="font-size:13px;color:var(--text-muted);margin-top:2px"></div>
+              <div id="profile-society" style="font-size:12px;color:#0284c7;font-weight:600;margin-top:4px"></div>
+              <div id="profile-role" style="font-size:11.5px;color:var(--text-muted)"></div>
             </div>
 
             <!-- WhatsApp Conversation Category & Transaction Status -->
             <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px">
               <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">WhatsApp Conversation Category</div>
               <div id="profile-category" class="badge" style="background:#e0f2fe;color:#0369a1;font-weight:700;font-size:11.5px;padding:3px 8px;border-radius:6px;display:inline-block">
-                Utility / Marketing (Free Tier)
+                —
               </div>
               <div style="margin-top:10px;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px">Payment Received</div>
               <div id="profile-payment" class="badge" style="background:#dcfce7;color:#15803d;font-weight:700;font-size:11.5px;padding:3px 8px;border-radius:6px;display:inline-block">
-                ₹1,500.00 Received from UPI
+                None yet
               </div>
             </div>
 
@@ -3521,8 +3437,8 @@
             <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px">
               <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Tags &amp; Intent</div>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
-                <span class="badge" id="profile-tag-ctwa" style="background:#fef3c7;color:#92400e;font-weight:700;font-size:11px">CTWA Lead</span>
-                <span class="badge" id="profile-tag-hot" style="background:rgba(16,185,129,0.15);color:#10b981;font-weight:700;font-size:11px">🔥 Hot (90)</span>
+                <span class="badge" id="profile-tag-ctwa" style="background:#fef3c7;color:#92400e;font-weight:700;font-size:11px;display:none"></span>
+                <span class="badge" id="profile-tag-hot" style="background:rgba(16,185,129,0.15);color:#10b981;font-weight:700;font-size:11px;display:none"></span>
               </div>
             </div>
 
@@ -3533,7 +3449,7 @@
                 <button class="btn btn-secondary btn-sm" onclick="openTeamSeatsModal()" style="font-size:10px;padding:1px 6px">Reassign</button>
               </div>
               <div id="profile-agent" style="font-size:13px;font-weight:700;color:var(--text-primary)">
-                👤 Priya Gautam (Seat 2)
+                👤 Not assigned
               </div>
             </div>
 
@@ -3558,330 +3474,220 @@
     </section><!-- End of Screen 2: Live Chat & CRM -->
     
     <!-- ⚙️ Screen 4: Dedicated Channel Settings, APIs & Automations -->
+    <!-- ── WhatsApp auto-replies (chatbot) ─────────────────────────────── -->
+    <section class="page" id="page-leads-bot">
+      <div id="bot-root"><div class="state-loading"><span class="spinner lg"></span><div>Loading auto-replies…</div></div></div>
+    </section>
+
+    <!-- ── WhatsApp templates ──────────────────────────────────────────── -->
+    <section class="page" id="page-leads-templates">
+      <div id="tpl-root"></div>
+    </section>
+
     <section class="page" id="page-leads-settings">
-      <div id="panel-lead-settings" style="display:block">
-        <!-- Settings Header Banner -->
-        <div class="card" style="padding:18px 24px;margin-bottom:20px;border-left:4px solid #0284c7">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-            <div>
-              <h3 style="margin:0;font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px">
-                <span>⚙️ Channel Settings, Webhooks &amp; API Integrations</span>
-              </h3>
-              <div style="font-size:13px;color:var(--text-muted);margin-top:4px">
-                Technical configuration for Meta WhatsApp Cloud API, Webhook Handshake, In-App n8n Automations, and Chatwoot CRM.
-              </div>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-secondary btn-sm" onclick="switchLeadPipelineTab('inbound', document.getElementById('tab-lead-inbound'))">
-                ‹ Back to Contacts
-              </button>
-              <button class="btn btn-primary btn-sm" onclick="savePipelineConfig()" style="background:#0f2338;border-color:#0f2338;color:#fff">
-                💾 Save Configuration
-              </button>
-            </div>
-          </div>
+      <div id="panel-lead-settings" class="wa-setup">
+        <div class="panel-intro">
+          <h2 class="panel-title">WhatsApp setup</h2>
+          <p class="panel-desc">Step 1 lets you send broadcasts and reply to chats. Step 2 lets customers’ messages come in, which Chats and Auto-replies need. The rest is optional.</p>
         </div>
 
-        <!-- Setup Cards Grid -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;margin-bottom:24px">
-        <!-- Card 1: Meta Webhook Setup -->
-        <div class="card" style="padding:20px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div style="font-size:22px">📘</div>
+        <!-- Step 1: connect the number -->
+        <div class="settings-section wa-step" id="card-whatsapp-cloud-api">
+          <div class="settings-section-header">
+            <div class="wa-step-head">
+              <span class="wa-step-num">1</span>
               <div>
-                <h3 style="margin:0;font-size:16px">1. Meta Webhook &amp; Page Setup</h3>
-                <div style="font-size:12px;color:var(--text-muted)">Official Meta Graph Webhook Handshake</div>
+                <div class="settings-section-title">Connect your WhatsApp Business number</div>
+                <div class="settings-section-sub">Uses Meta’s official WhatsApp Business API. You do this once.</div>
               </div>
             </div>
-            <div id="tunnel-mode-badge">
-              <span class="badge" style="background:var(--bg3);color:var(--text-muted);font-size:11px;padding:3px 8px;border-radius:999px">Checking Mode...</span>
-            </div>
+            <span class="status-pill" id="card-wa-status-badge">Checking…</span>
           </div>
+          <div class="card-body">
+            <details class="settings-more wa-help">
+              <summary>Where do I find these?</summary>
+              <ol class="wa-steps-list">
+                <li>Open <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com/apps ↗</a>, choose your app (or create a “Business” app) and add the <b>WhatsApp</b> product.</li>
+                <li>In <b>WhatsApp → API setup</b>, copy the <b>Phone number ID</b> and the <b>WhatsApp Business Account ID</b>.</li>
+                <li>For a token that doesn’t expire: Business settings → <b>System users</b> → add one → <b>Generate token</b> with the <code>whatsapp_business_messaging</code> and <code>whatsapp_business_management</code> permissions.</li>
+              </ol>
+            </details>
 
-          <div class="form-group" style="margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <label class="form-label" style="font-size:12px;margin:0">Webhook Callback URL</label>
-              <span id="tunnel-status-subtext" style="font-size:11px;color:var(--text-muted)">Auto-detected</span>
-            </div>
-            <div style="display:flex;gap:6px">
-              <input type="text" class="form-input" id="pipeline-webhook-url" readonly style="background:var(--bg3);font-family:monospace;font-size:12px" />
-              <button class="btn btn-secondary btn-sm" onclick="copyPipelineWebhookUrl()" title="Copy Webhook URL">📋 Copy</button>
-              <button class="btn btn-secondary btn-sm" id="btn-refresh-tunnel" onclick="restartTunnelManager()" title="Refresh Tunnel">🔄</button>
-            </div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:4px" id="tunnel-hint-note">
-              Paste into <strong>Meta Developer Dashboard → WhatsApp → Configuration</strong>. Meta requires public HTTPS.
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-bottom:14px">
-            <label class="form-label" style="font-size:12px">Verify Token</label>
-            <div style="display:flex;gap:6px">
-              <input type="text" class="form-input" id="pipeline-verify-token" readonly style="background:var(--bg3);font-family:monospace;font-size:12px" />
-              <button class="btn btn-secondary btn-sm" onclick="copyPipelineVerifyToken()" title="Copy Verify Token">📋 Copy</button>
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-bottom:14px">
-            <label class="form-label" style="font-size:12px">Connected Facebook Page</label>
-            <div id="pipeline-page-status" style="padding:10px;background:var(--bg3);border-radius:8px;font-size:13px">
-              Checking connected Facebook page...
-            </div>
-          </div>
-
-          <button class="btn btn-primary" id="btn-pipeline-subscribe-page" onclick="subscribePageNow()" style="width:100%;background:#10b981;border:0">
-            ⚡ 1-Click Subscribe Page to Lead Webhooks
-          </button>
-        </div>
-
-        <!-- Card 2: 2. n8n Automation Node (Built natively in this application) -->
-        <div class="card" style="padding:20px;border-top:3px solid #f59e0b" id="card-n8n-automation-node">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div style="font-size:22px">⚡</div>
-              <div>
-                <h3 style="margin:0;font-size:16px;display:flex;align-items:center;gap:6px">
-                  <span>2. n8n Automation Node</span>
-                  <span class="badge" style="background:#f59e0b;color:#000;font-size:10px;font-weight:700">IN-APP ACTIVE</span>
-                </h3>
-                <div style="font-size:12px;color:var(--text-muted)">Instant Lead Alert · CRM / SMS / Slack Pipeline</div>
-              </div>
-            </div>
-            <div style="display:flex;gap:4px">
-              <button class="btn btn-secondary btn-sm" id="btn-open-n8n-studio" onclick="openN8nStudioModal()" style="font-size:11.5px;padding:3px 8px" title="Open visual node pipeline editor">
-                🎛️ n8n Studio
-              </button>
-            </div>
-          </div>
-
-          <!-- Visual Node Canvas Pipeline -->
-          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px" id="n8n-mini-canvas">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;overflow-x:auto;padding-bottom:4px">
-              <!-- Node 1 -->
-              <div class="n8n-node-pill" onclick="inspectN8nNode('node-trigger')" style="background:var(--bg2);border:1px solid #3b82f6;border-radius:8px;padding:6px 10px;font-size:11px;min-width:110px;cursor:pointer;flex-shrink:0" title="Click to inspect Trigger Node">
-                <div style="display:flex;align-items:center;gap:6px">
-                  <span>⚡</span>
-                  <strong style="color:var(--text-primary)">Meta Trigger</strong>
-                </div>
-                <div style="font-size:10px;color:#10b981;margin-top:2px">● Listening</div>
-              </div>
-              <span style="color:var(--text-muted);font-size:12px;flex-shrink:0">➔</span>
-
-              <!-- Node 2 -->
-              <div class="n8n-node-pill" onclick="inspectN8nNode('node-qualify')" style="background:var(--bg2);border:1px solid #10b981;border-radius:8px;padding:6px 10px;font-size:11px;min-width:110px;cursor:pointer;flex-shrink:0" title="Click to inspect AI Qualifier Node">
-                <div style="display:flex;align-items:center;gap:6px">
-                  <span>🧠</span>
-                  <strong style="color:var(--text-primary)">AI Qualifier</strong>
-                </div>
-                <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Score &ge; 75 Hot</div>
-              </div>
-              <span style="color:var(--text-muted);font-size:12px;flex-shrink:0">➔</span>
-
-              <!-- Node 3 -->
-              <div class="n8n-node-pill" onclick="inspectN8nNode('node-alert')" style="background:var(--bg2);border:1px solid #f59e0b;border-radius:8px;padding:6px 10px;font-size:11px;min-width:110px;cursor:pointer;flex-shrink:0" title="Click to inspect Instant Alert Node">
-                <div style="display:flex;align-items:center;gap:6px">
-                  <span>🔔</span>
-                  <strong style="color:var(--text-primary)">Instant Alert</strong>
-                </div>
-                <div style="font-size:10px;color:#f59e0b;margin-top:2px">Audio &amp; Banner</div>
-              </div>
-              <span style="color:var(--text-muted);font-size:12px;flex-shrink:0">➔</span>
-
-              <!-- Node 4 -->
-              <div class="n8n-node-pill" onclick="inspectN8nNode('node-sms-whatsapp')" style="background:var(--bg2);border:1px solid #22c55e;border-radius:8px;padding:6px 10px;font-size:11px;min-width:110px;cursor:pointer;flex-shrink:0" title="Click to inspect WhatsApp/SMS Node">
-                <div style="display:flex;align-items:center;gap:6px">
-                  <span>💬</span>
-                  <strong style="color:var(--text-primary)">SMS / WhatsApp</strong>
-                </div>
-                <div style="font-size:10px;color:#22c55e;margin-top:2px">1-Click Dispatch</div>
-              </div>
-              <span style="color:var(--text-muted);font-size:12px;flex-shrink:0">➔</span>
-
-              <!-- Node 5 -->
-              <div class="n8n-node-pill" onclick="inspectN8nNode('node-slack-crm')" style="background:var(--bg2);border:1px solid #8b5cf6;border-radius:8px;padding:6px 10px;font-size:11px;min-width:110px;cursor:pointer;flex-shrink:0" title="Click to inspect Slack/CRM Node">
-                <div style="display:flex;align-items:center;gap:6px">
-                  <span>📢</span>
-                  <strong style="color:var(--text-primary)">Slack &amp; CRM</strong>
-                </div>
-                <div style="font-size:10px;color:#8b5cf6;margin-top:2px">#leads Channel</div>
-              </div>
-            </div>
-          </div>
-
-          <div style="display:flex;gap:8px;margin-bottom:14px">
-            <button class="btn btn-primary btn-sm" id="btn-trigger-workflow" onclick="executeN8nWorkflow()" style="flex:1.2;background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;font-weight:700;border:0">
-              ▶ Run Entire n8n Workflow
-            </button>
-            <button class="btn btn-secondary btn-sm" id="btn-view-workflow-logs" onclick="viewWorkflowLogsModal()" style="flex:0.8" title="View workflow execution history">
-              📜 Logs
-            </button>
-          </div>
-
-          <details style="margin-top:6px;border-top:1px solid var(--border);padding-top:10px">
-            <summary style="font-size:12px;color:var(--text-muted);cursor:pointer;font-weight:600">⚙️ Node Webhook, AI &amp; WhatsApp Settings</summary>
-            <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:8px;padding:10px 12px;margin-top:10px;margin-bottom:12px">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                <strong style="font-size:12px;color:#22c55e">💬 WhatsApp Cloud API (urbansociety2.0)</strong>
-                <span class="badge" style="background:#22c55e;color:#000;font-size:10px;font-weight:700">CONFIGURED</span>
-              </div>
-              <div style="font-size:11px;color:var(--text-muted);display:grid;grid-template-columns:1fr 1fr;gap:4px">
-                <div>Phone ID: <strong style="color:var(--text-primary)">908833945656131</strong></div>
-                <div>WABA ID: <strong style="color:var(--text-primary)">2476543366144669</strong></div>
-                <div style="grid-column:span 2">Verified Test Recipient: <strong style="color:#22c55e">+918149498945</strong></div>
-              </div>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="sendLiveWhatsAppTest('918149498945')" style="width:100%;margin-top:8px;border-color:rgba(34,197,94,0.3);color:#22c55e;font-size:11.5px;font-weight:700">
-                🚀 Send WhatsApp Test Ping (+918149498945)
-              </button>
-            </div>
-            <div class="form-group" style="margin-top:10px;margin-bottom:10px">
-              <label class="form-label" style="font-size:11px">External Webhook URL (Optional forwarder)</label>
-              <input type="url" class="form-input form-input-sm" id="pipeline-n8n-url" placeholder="https://webhook.site/your-webhook" />
-            </div>
-            <div class="form-group" style="margin-bottom:10px">
-              <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer">
-                <input type="checkbox" id="pipeline-auto-qualify" checked />
-                <span>Enable AI Lead Scoring &amp; Intent Qualification</span>
+            <div class="form-group">
+              <label class="form-label wa-label-row" for="card-wa-access-token">
+                <span>Access token</span>
+                <a href="#" onclick="toggleCardWaTokenVisibility();return false" id="card-wa-token-toggle-link">Show</a>
               </label>
+              <input type="password" class="form-input" id="card-wa-access-token" placeholder="Paste your token (starts with EAA…)" autocomplete="off" style="font-family:monospace" />
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="savePipelineConfig()" style="width:100%">
-              💾 Save Settings
-            </button>
-          </details>
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label" for="card-wa-phone-id">Phone number ID</label>
+                <input type="text" class="form-input" id="card-wa-phone-id" placeholder="e.g. 1234567890123456" inputmode="numeric" autocomplete="off" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="card-wa-waba-id">WhatsApp Business Account ID</label>
+                <input type="text" class="form-input" id="card-wa-waba-id" placeholder="Needed to load your templates" inputmode="numeric" autocomplete="off" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="card-wa-test-recipient">Send test messages to</label>
+              <input type="tel" class="form-input" id="card-wa-test-recipient" placeholder="Your own WhatsApp number, e.g. 919876543210" autocomplete="off" />
+              <div class="form-hint">Only used by “Send test message”. Use your own number with the country code.</div>
+            </div>
+
+            <details class="settings-more">
+              <summary>Message templates (needed to start a chat or send broadcasts)</summary>
+              <div class="form-hint" style="margin:4px 0 8px">WhatsApp only lets businesses message someone first with a template Meta has approved. Click <b>Load my templates</b> to see yours.</div>
+              <div class="wa-inline">
+                <select class="form-select" id="card-wa-template-select" onchange="onCardTemplateChange(this.value)">
+                  <option value="" data-lang="en_US">No templates loaded yet</option>
+                </select>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="syncCardWaTemplates()" id="btn-sync-card-templates">Load my templates</button>
+              </div>
+              <div class="form-hint" style="margin-top:6px">Language: <code id="card-wa-template-lang-badge">—</code> · <span id="card-wa-template-status-pill">Not loaded</span></div>
+            </details>
+
+            <div class="settings-actions">
+              <button class="btn btn-secondary" onclick="openEvolutionModal()" title="Uses WhatsApp Web through a free Evolution API server you run">Use WhatsApp Web (QR code) instead</button>
+              <span style="flex:1"></span>
+              <button class="btn btn-secondary" onclick="sendWhatsAppTestPing()" id="btn-card-wa-ping">Send test message</button>
+              <button class="btn btn-primary" id="btn-save-card-wa" onclick="saveCardWhatsAppConfig()">Save and connect</button>
+            </div>
+          </div>
         </div>
 
-        <!-- Card 3: Native Live Agent Takeover & Shared Inbox (Chatwoot-style in-app) -->
-        <div class="card" style="padding:20px;border-top:3px solid #8b5cf6">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div style="font-size:22px">💬</div>
+        <!-- Step 2: receive messages -->
+        <div class="settings-section wa-step">
+          <div class="settings-section-header">
+            <div class="wa-step-head">
+              <span class="wa-step-num">2</span>
               <div>
-                <h3 style="margin:0;font-size:16px;display:flex;align-items:center;gap:6px">
-                  <span>3. CRM &amp; Shared Inbox</span>
-                  <span class="badge" style="background:#8b5cf6;color:#fff;font-size:10px;font-weight:700">IN-APP CHATWOOT</span>
-                </h3>
-                <div style="font-size:12px;color:var(--text-muted)">Live Agent Takeover · 24-hr Messenger Reply Policy</div>
+                <div class="settings-section-title">Receive customers’ messages</div>
+                <div class="settings-section-sub">Meta sends each new message to this PC. Needed for Chats and Auto-replies; not needed to only send broadcasts.</div>
               </div>
             </div>
+            <div id="tunnel-mode-badge"><span class="status-pill">Checking…</span></div>
           </div>
-
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
-            <span class="badge" style="background:rgba(139,92,246,0.18);color:#8b5cf6;font-size:11px">👤 Live Agent Takeover</span>
-            <span class="badge" style="background:rgba(16,185,129,0.18);color:#10b981;font-size:11px">⏳ 24h Messenger Policy</span>
-            <span class="badge" style="background:rgba(59,130,246,0.18);color:#3b82f6;font-size:11px">📝 Team Internal Notes</span>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label wa-label-row" for="pipeline-webhook-url">
+                <span>Callback URL</span>
+                <span id="tunnel-status-subtext" class="form-hint" style="margin:0"></span>
+              </label>
+              <div class="wa-inline">
+                <input type="text" class="form-input" id="pipeline-webhook-url" readonly style="font-family:monospace" />
+                <button class="btn btn-secondary btn-sm" onclick="copyPipelineWebhookUrl()">Copy</button>
+                <button class="btn btn-secondary btn-sm" id="btn-refresh-tunnel" onclick="restartTunnelManager()" title="Open (or renew) the public address for this PC">Start public address</button>
+              </div>
+              <div class="form-hint" id="tunnel-hint-note">Meta can only reach a public https address. “Start public address” opens one for this PC while Social-Nexus is running.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="pipeline-verify-token">Verify token</label>
+              <div class="wa-inline">
+                <input type="text" class="form-input" id="pipeline-verify-token" readonly style="font-family:monospace" />
+                <button class="btn btn-secondary btn-sm" onclick="copyPipelineVerifyToken()">Copy</button>
+              </div>
+            </div>
+            <ol class="wa-steps-list">
+              <li>In your Meta app, open <b>WhatsApp → Configuration</b> and click <b>Edit</b> next to Webhook.</li>
+              <li>Paste the <b>Callback URL</b> and the <b>Verify token</b> from above, then click <b>Verify and save</b>.</li>
+              <li>Under <b>Webhook fields</b>, subscribe to <b>messages</b>. Send a WhatsApp message to your number: it appears in <a href="javascript:void(0)" onclick="navigateTo('leads-inbox')">Chats</a>.</li>
+            </ol>
           </div>
-
-          <div style="display:flex;gap:8px;margin-bottom:14px">
-            <button class="btn btn-primary btn-sm" id="btn-open-live-inbox" onclick="openLiveTakeoverDrawer()" style="width:100%;background:linear-gradient(135deg,#8b5cf6,#6d28d9);font-weight:700;border:0">
-              💬 Open Live Agent Takeover Inbox
-            </button>
-          </div>
-
-          <details style="margin-top:6px;border-top:1px solid var(--border);padding-top:10px">
-            <summary style="font-size:12px;color:var(--text-muted);cursor:pointer;font-weight:600">⚙️ External Chatwoot Bridge (Optional)</summary>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;margin-bottom:8px">
-              <div class="form-group">
-                <label class="form-label" style="font-size:11px">Chatwoot URL</label>
-                <input type="url" class="form-input form-input-sm" id="pipeline-chatwoot-url" placeholder="https://app.chatwoot.com" />
-              </div>
-              <div class="form-group">
-                <label class="form-label" style="font-size:11px">API Access Token</label>
-                <input type="password" class="form-input form-input-sm" id="pipeline-chatwoot-token" placeholder="User Profile token" />
-              </div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-              <div class="form-group">
-                <label class="form-label" style="font-size:11px">Account ID</label>
-                <input type="number" class="form-input form-input-sm" id="pipeline-chatwoot-account" placeholder="1" />
-              </div>
-              <div class="form-group">
-                <label class="form-label" style="font-size:11px">Inbox ID</label>
-                <input type="number" class="form-input form-input-sm" id="pipeline-chatwoot-inbox" placeholder="2" />
-              </div>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-secondary btn-sm" id="btn-test-chatwoot" onclick="testChatwootConnectionNow()" style="flex:1">
-                🔌 Test Bridge
-              </button>
-              <button class="btn btn-primary btn-sm" onclick="savePipelineConfig()" style="flex:1">
-                💾 Save
-              </button>
-            </div>
-          </details>
         </div>
 
-        <!-- Card 4: Official Meta WhatsApp Business Cloud API (urbansociety2.0) -->
-        <div class="card" style="padding:20px;border-top:3px solid #22c55e" id="card-whatsapp-cloud-api">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div style="font-size:22px">📱</div>
+        <!-- Step 3: ad leads -->
+        <div class="settings-section wa-step">
+          <div class="settings-section-header">
+            <div class="wa-step-head">
+              <span class="wa-step-num wa-step-optional">3</span>
               <div>
-                <h3 style="margin:0;font-size:16px;display:flex;align-items:center;gap:6px">
-                  <span>4. WhatsApp Cloud API</span>
-                  <span class="badge" id="card-wa-status-badge" style="background:#ef4444;color:#fff;font-size:10px;font-weight:700">TOKEN NEEDED</span>
-                </h3>
-                <div style="font-size:12px;color:var(--text-muted)">Official Meta Cloud API · Direct Outbound &amp; Chat</div>
+                <div class="settings-section-title">Leads from Facebook &amp; Instagram ads <span class="badge">Optional</span></div>
+                <div class="settings-section-sub">People who fill in your Instant Forms appear in Contacts within seconds.</div>
               </div>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="sendWhatsAppTestPing()" id="btn-card-wa-ping" style="font-size:11px;padding:3px 8px;color:#22c55e;border-color:rgba(34,197,94,0.3)" title="Send instant ping to verified recipient">
-              🧪 Test Ping
-            </button>
           </div>
-
-          <div class="form-group" style="margin-bottom:10px">
-            <label class="form-label" style="font-size:11.5px;font-weight:600;display:flex;justify-content:space-between">
-              <span>Meta Permanent Access Token *</span>
-              <a href="#" onclick="toggleCardWaTokenVisibility();return false" style="font-size:11px;color:#3b82f6;text-decoration:none" id="card-wa-token-toggle-link">👁️ Show</a>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Facebook Page</label>
+              <div id="pipeline-page-status" class="inline-status">Checking your Facebook Page…</div>
+            </div>
+            <label class="toggle-row" style="margin-top:0">
+              <input type="checkbox" id="pipeline-auto-qualify" checked />
+              <span>
+                <span class="toggle-row-title">Score new leads with AI</span>
+                <span class="toggle-row-desc">Marks hot leads and drafts a first reply for you. Uses your AI setup (Settings → AI).</span>
+              </span>
             </label>
-            <input type="password" class="form-input form-input-sm" id="card-wa-access-token" placeholder="Paste EAAG... permanent token" style="font-family:monospace;font-size:11.5px" />
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-            <div class="form-group">
-              <label class="form-label" style="font-size:11px">Phone Number ID</label>
-              <input type="text" class="form-input form-input-sm" id="card-wa-phone-id" value="1368551949674659" style="font-family:monospace;font-size:11px" />
+            <div class="settings-actions">
+              <button class="btn btn-secondary" onclick="savePipelineConfig()">Save</button>
+              <button class="btn btn-primary" id="btn-pipeline-subscribe-page" onclick="subscribePageNow()">Get leads from this Page</button>
             </div>
-            <div class="form-group">
-              <label class="form-label" style="font-size:11px">WABA Account ID</label>
-              <input type="text" class="form-input form-input-sm" id="card-wa-waba-id" value="696830193454621" style="font-family:monospace;font-size:11px" />
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-bottom:10px">
-            <label class="form-label" style="font-size:11px">Verified Test Recipient</label>
-            <input type="text" class="form-input form-input-sm" id="card-wa-test-recipient" value="918149498945" style="font-size:11.5px" />
-          </div>
-
-          <!-- Template Configuration Row -->
-          <div class="form-group" style="margin-bottom:12px;background:rgba(56,189,248,0.06);padding:8px 10px;border-radius:8px;border:1px solid rgba(56,189,248,0.2)">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <label class="form-label" style="font-size:11px;font-weight:700;color:#38bdf8;margin:0">
-                <span>📋 Message Template &amp; Translation</span>
-              </label>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="syncCardWaTemplates()" id="btn-sync-card-templates" style="font-size:10px;padding:1px 6px;color:#38bdf8;border-color:rgba(56,189,248,0.4)" title="Sync live approved templates from Meta WhatsApp Business Account">
-                🔄 Sync Meta
-              </button>
-            </div>
-            <select class="form-input form-input-sm" id="card-wa-template-select" style="font-size:11px;margin-bottom:4px" onchange="onCardTemplateChange(this.value)">
-              <option value="withoutlink_en_message" data-lang="en_US" selected>withoutlink_en_message (en_US) · Society Admin [Approved]</option>
-              <option value="generic_en_us_for_all_message" data-lang="en_US">generic_en_us_for_all_message (en_US) · Society Notice [Approved]</option>
-              <option value="transaction_message" data-lang="en">transaction_message (en) · Payment Update [Approved]</option>
-              <option value="generic_template_first_message" data-lang="en">generic_template_first_message (en) · Welcome [Approved]</option>
-            </select>
-            <div style="display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:#94a3b8">
-              <span>Lang: <code id="card-wa-template-lang-badge" style="color:#22c55e">en_US</code></span>
-              <span id="card-wa-template-status-pill" style="color:#22c55e">✓ Meta Approved</span>
-            </div>
-          </div>
-
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-primary btn-sm" id="btn-save-card-wa" onclick="saveCardWhatsAppConfig()" style="width:100%;background:#22c55e;color:#000;font-weight:800;border:0">
-              💾 Save &amp; Connect WhatsApp Token
-            </button>
           </div>
         </div>
-      </div>
-      </div>
 
+        <!-- Step 4: n8n -->
+        <div class="settings-section wa-step" id="card-n8n-automation-node">
+          <div class="settings-section-header">
+            <div class="wa-step-head">
+              <span class="wa-step-num wa-step-optional">4</span>
+              <div>
+                <div class="settings-section-title">Automate with n8n <span class="badge">Optional</span></div>
+                <div class="settings-section-sub">Send every new WhatsApp message and ad lead to your own n8n workflow: add them to Google Sheets or your CRM, alert your team, or let the workflow answer the customer.</div>
+              </div>
+            </div>
+            <span class="status-pill" id="n8n-status-pill"></span>
+          </div>
+          <div class="card-body">
+            <ol class="wa-steps-list">
+              <li>In n8n, start a workflow with a <b>Webhook</b> node (method <b>POST</b>) and copy its <b>Production URL</b>.</li>
+              <li>Paste it below, click <b>Save</b>, then <b>Send test event</b> (in n8n, click “Listen for test event” first, or turn the workflow on).</li>
+              <li>To answer customers from n8n, end the workflow with <b>Respond to Webhook</b> returning <code>{"reply": "your text"}</code>, and choose <a href="javascript:void(0)" onclick="navigateTo('leads-bot')">Auto-replies → “Let your n8n workflow answer”</a>.</li>
+            </ol>
+            <div class="form-group">
+              <label class="form-label" for="pipeline-n8n-url">n8n webhook URL</label>
+              <input type="url" class="form-input" id="pipeline-n8n-url" placeholder="https://your-n8n.example.com/webhook/…" autocomplete="off" />
+              <div class="form-hint">Customer names, numbers and messages are sent to this address. Use an n8n you run or trust.</div>
+            </div>
+            <div id="n8n-test-result" class="form-hint" aria-live="polite"></div>
+            <details class="settings-more">
+              <summary>What Social-Nexus sends</summary>
+              <pre class="wa-code">{
+  "event": "whatsapp.message_received",
+  "sent_at": "2026-11-10T10:15:00.000Z",
+  "contact": { "lead_id": 42, "name": "Priya Sharma", "phone": "+919876543210" },
+  "message": { "text": "What are your prices?", "source": "cloud_api" },
+  "bot": { "replied": ["Haircut ₹300…"], "reason": "keyword", "action": null },
+  "reply_wanted": false
+}</pre>
+              <div class="form-hint">Other events: <code>lead.created</code> (a new ad lead). <code>bot.action</code> is <code>handover</code> when a customer asks for a person, <code>opt_out</code> when they reply STOP. The event name is also in the <code>X-Social-Nexus-Event</code> header.</div>
+            </details>
+            <div class="settings-actions">
+              <button class="btn btn-secondary" id="btn-n8n-test" onclick="sendN8nTestEvent(this)">Send test event</button>
+              <button class="btn btn-primary" onclick="savePipelineConfig()">Save</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Advanced -->
+        <details class="settings-section settings-more wa-advanced">
+          <summary>Advanced: Chatwoot</summary>
+          <div class="card-body">
+            <div class="form-hint" style="margin-bottom:10px">Also copy new leads into a Chatwoot inbox you already use. Not needed: Chats in Social-Nexus works on its own.</div>
+            <div class="grid-2">
+              <div class="form-group"><label class="form-label" for="pipeline-chatwoot-url">Chatwoot address</label><input type="url" class="form-input" id="pipeline-chatwoot-url" placeholder="https://app.chatwoot.com" /></div>
+              <div class="form-group"><label class="form-label" for="pipeline-chatwoot-token">API access token</label><input type="password" class="form-input" id="pipeline-chatwoot-token" placeholder="From your Chatwoot profile" autocomplete="off" /></div>
+              <div class="form-group"><label class="form-label" for="pipeline-chatwoot-account">Account ID</label><input type="number" class="form-input" id="pipeline-chatwoot-account" placeholder="1" /></div>
+              <div class="form-group"><label class="form-label" for="pipeline-chatwoot-inbox">Inbox ID</label><input type="number" class="form-input" id="pipeline-chatwoot-inbox" placeholder="2" /></div>
+            </div>
+            <div class="settings-actions">
+              <button class="btn btn-secondary" id="btn-test-chatwoot" onclick="testChatwootConnectionNow()">Test connection</button>
+              <button class="btn btn-primary" onclick="savePipelineConfig()">Save</button>
+            </div>
+          </div>
+        </details>
+      </div>
     </section>
 </main>
 </div>
@@ -4123,7 +3929,7 @@
           <button onclick="closeOnboarding();openPlatformSettings()" style="padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--glass);cursor:pointer;color:var(--text-primary);display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600">🐦 Twitter / X</button>
           <button onclick="closeOnboarding();openPlatformSettings()" style="padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--glass);cursor:pointer;color:var(--text-primary);display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600">📌 Pinterest</button>
         </div>
-        <button class="btn btn-primary" style="width:100%" onclick="closeOnboarding();openPlatformSettings()">Go to Settings → Connect Platforms</button>
+        <button class="btn btn-primary" style="width:100%" onclick="closeOnboarding();openPlatformSettings()">Connect accounts</button>
         <div style="text-align:center;margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="goOnboardStep(2)">Skip →</button></div>
       </div>
 
@@ -4148,7 +3954,7 @@
             <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Free key at <a href="https://aistudio.google.com" target="_blank" style="color:#60a5fa">aistudio.google.com</a></div>
           </div>
         </div>
-        <button class="btn btn-primary" style="width:100%" id="onboard-ai-btn" onclick="closeOnboarding();navigateTo('user-settings')">Add API Keys →</button>
+        <button class="btn btn-primary" style="width:100%" id="onboard-ai-btn" onclick="closeOnboarding();openSettings('ai')">Set up AI →</button>
         <div style="text-align:center;margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="goOnboardStep(3)">Skip →</button></div>
       </div>
 
@@ -4244,7 +4050,7 @@
     <div class="modal-body" style="padding:20px">
       <div class="form-group" style="margin-bottom:12px">
         <label class="form-label" style="font-size:12px">Full Name *</label>
-        <input type="text" id="manual-contact-name" class="form-input" placeholder="e.g. Vikramaditya Rao" />
+        <input type="text" id="manual-contact-name" class="form-input" placeholder="e.g. Priya Sharma" />
       </div>
       <div class="form-group" style="margin-bottom:12px">
         <label class="form-label" style="font-size:12px">WhatsApp Phone Number * (with Country Code)</label>
@@ -4252,7 +4058,7 @@
       </div>
       <div class="form-group" style="margin-bottom:12px">
         <label class="form-label" style="font-size:12px">Society / Community / RWA</label>
-        <input type="text" id="manual-contact-society" class="form-input" placeholder="e.g. Palm Meadows Society" />
+        <input type="text" id="manual-contact-society" class="form-input" placeholder="e.g. Green Valley" />
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="form-group">
@@ -4286,7 +4092,7 @@
       <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px">
         Copy rows directly from your spreadsheet and paste them below (tab or comma-separated):
       </div>
-      <textarea id="paste-excel-text" rows="8" class="form-input" style="font-family:monospace;font-size:12px;width:100%" placeholder="Name	Phone	Society	Role&#10;Vikramaditya	9820055443	Palm Meadows	President&#10;Dr. Rajesh	9811223344	Palm Grove	Secretary"></textarea>
+      <textarea id="paste-excel-text" rows="8" class="form-input" style="font-family:monospace;font-size:12px;width:100%" placeholder="Name	Phone	Company	Role&#10;Priya Sharma	9876543210	Green Valley	Owner"></textarea>
     </div>
     <div class="modal-footer" style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
       <button class="btn btn-secondary btn-sm" onclick="document.getElementById('modal-paste-excel').style.display='none'">Cancel</button>
@@ -4301,7 +4107,7 @@
     <div class="modal-header" style="border-bottom:1px solid rgba(56,189,248,0.18);padding:16px 20px;display:flex;align-items:center;justify-content:space-between">
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:22px">📱</span>
-        <h3 class="modal-title" style="margin:0;font-size:16px;color:#f8fafc;font-weight:800">WhatsApp Cloud API Configuration (urbansociety2.0)</h3>
+        <h3 class="modal-title" style="margin:0;font-size:16px;color:#f8fafc;font-weight:800">WhatsApp connection</h3>
       </div>
       <button class="modal-close" onclick="closeWhatsAppConfigModal()" style="color:#94a3b8;background:transparent;border:0;font-size:18px;cursor:pointer">✕</button>
     </div>
@@ -4325,18 +4131,18 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
         <div class="form-group">
           <label class="form-label" style="color:#cbd5e1;font-size:12.5px;font-weight:600">Phone Number ID</label>
-          <input type="text" id="wa-cfg-phone-id" value="1368551949674659" class="form-input" style="background:#070e17;color:#f8fafc;border:1px solid rgba(56,189,248,0.3);font-size:12px;font-family:monospace" />
+          <input type="text" id="wa-cfg-phone-id" value="" placeholder="Phone number ID" class="form-input" style="background:#070e17;color:#f8fafc;border:1px solid rgba(56,189,248,0.3);font-size:12px;font-family:monospace" />
         </div>
         <div class="form-group">
           <label class="form-label" style="color:#cbd5e1;font-size:12.5px;font-weight:600">WhatsApp Business Account ID</label>
-          <input type="text" id="wa-cfg-waba-id" value="696830193454621" class="form-input" style="background:#070e17;color:#f8fafc;border:1px solid rgba(56,189,248,0.3);font-size:12px;font-family:monospace" />
+          <input type="text" id="wa-cfg-waba-id" value="" placeholder="WhatsApp Business Account ID" class="form-input" style="background:#070e17;color:#f8fafc;border:1px solid rgba(56,189,248,0.3);font-size:12px;font-family:monospace" />
         </div>
       </div>
 
       <div class="form-group" style="margin-bottom:12px">
         <label class="form-label" style="color:#cbd5e1;font-size:12.5px;font-weight:600">Verified Test Recipient Number</label>
-        <input type="text" id="wa-cfg-test-recipient" value="918149498945" class="form-input" style="background:#070e17;color:#f8fafc;border:1px solid rgba(56,189,248,0.3);font-size:12.5px" />
-        <div style="font-size:11px;color:#94a3b8;margin-top:4px">Recipient phone number with country code (e.g. 918149498945).</div>
+        <input type="text" id="wa-cfg-test-recipient" value="" placeholder="Your own number, e.g. 919876543210" class="form-input" style="background:#070e17;color:#f8fafc;border:1px solid rgba(56,189,248,0.3);font-size:12.5px" />
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px">Recipient phone number with country code (e.g. 919876543210).</div>
       </div>
 
       <!-- Template Configuration Section in Modal -->
@@ -4386,6 +4192,9 @@
 <script src="js/12-sellbird.js"></script>
 
 <script src="js/13-lead-pipeline.js"></script>
+<script src="js/14-whatsapp-bot.js"></script>
+<script src="js/15-post-designer.js"></script>
+<script src="js/16-whatsapp-templates.js"></script>
 
 <!-- ── Modal: 7-Step Meta Business Verification & Official Blue/Green Tick Hub ── -->
 <div class="modal" id="modal-meta-verification" style="display:none">
@@ -4402,8 +4211,8 @@
       <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:12px">
         <span style="font-size:24px">🏢</span>
         <div>
-          <div style="font-size:13.5px;font-weight:700;color:#38bdf8">Business: Urban Society (urbansociety.in)</div>
-          <div style="font-size:12px;color:#94a3b8">WABA ID: 2475742706580340 &bull; Phone Profile ID: 1368551949674659 (+91 96370 00102) &bull; Business ID: 692261563155254</div>
+          <div style="font-size:13.5px;font-weight:700;color:#38bdf8" id="meta-ver-business">Your business</div>
+          <div style="font-size:12px;color:#94a3b8" id="meta-ver-ids">Add your WhatsApp details in WhatsApp → Setup.</div>
         </div>
       </div>
 
@@ -4422,33 +4231,33 @@
           <tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
             <td style="padding:10px">1</td>
             <td style="padding:10px;font-weight:600">Meta Developer App</td>
-            <td style="padding:10px"><span class="badge" style="background:#10b981;color:#fff;padding:2px 8px;border-radius:6px">✓ Configured</span></td>
-            <td style="padding:10px;color:#94a3b8">App ID &amp; Secret active in .env</td>
+            <td style="padding:10px"><span class="badge" style="background:rgba(255,255,255,0.1);color:#e2e8f0;padding:2px 8px;border-radius:6px">Check</span></td>
+            <td style="padding:10px;color:#94a3b8">Your Meta app (Settings → Connected accounts → Facebook)</td>
           </tr>
 
           <!-- Step 2 -->
           <tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
             <td style="padding:10px">2</td>
             <td style="padding:10px;font-weight:600">WhatsApp Business Account (WABA)</td>
-            <td style="padding:10px"><span class="badge" style="background:#10b981;color:#fff;padding:2px 8px;border-radius:6px">✓ Active</span></td>
-            <td style="padding:10px;color:#94a3b8">Phone Profile ID 1368551949674659 connected</td>
+            <td style="padding:10px"><span class="badge" style="background:rgba(255,255,255,0.1);color:#e2e8f0;padding:2px 8px;border-radius:6px">Check</span></td>
+            <td style="padding:10px;color:#94a3b8">Your number in WhatsApp → Setup</td>
           </tr>
 
           <!-- Step 3 -->
           <tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
             <td style="padding:10px">3</td>
-            <td style="padding:10px;font-weight:600">Official Domain (urbansociety.in)</td>
-            <td style="padding:10px"><span class="badge" style="background:#10b981;color:#fff;padding:2px 8px;border-radius:6px">✓ Live</span></td>
-            <td style="padding:10px"><a href="https://urbansociety.in" target="_blank" style="color:#38bdf8;text-decoration:none">Inspect Footer &amp; Privacy Policy ↗</a></td>
+            <td style="padding:10px;font-weight:600">Your website</td>
+            <td style="padding:10px"><span class="badge" style="background:rgba(255,255,255,0.1);color:#e2e8f0;padding:2px 8px;border-radius:6px">Check</span></td>
+            <td style="padding:10px;color:#94a3b8">Needs your business name, address and a privacy policy page</td>
           </tr>
 
           <!-- Step 4 -->
           <tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
             <td style="padding:10px">4</td>
             <td style="padding:10px;font-weight:600">Business Legal Verification</td>
-            <td style="padding:10px"><span class="badge" style="background:#f59e0b;color:#000;padding:2px 8px;border-radius:6px;font-weight:700">In Progress</span></td>
+            <td style="padding:10px"><span class="badge" style="background:#f59e0b;color:#000;padding:2px 8px;border-radius:6px;font-weight:700">To do</span></td>
             <td style="padding:10px">
-              <a href="https://business.facebook.com/latest/settings/security_center?business_id=692261563155254" target="_blank" class="btn btn-secondary btn-sm" style="padding:3px 10px;font-size:11px;color:#38bdf8;border-color:rgba(56,189,248,0.3)">
+              <a href="https://business.facebook.com/latest/settings/security_center" target="_blank" class="btn btn-secondary btn-sm" style="padding:3px 10px;font-size:11px;color:#38bdf8;border-color:rgba(56,189,248,0.3)">
                 Upload GST / COI in Security Center ↗
               </a>
             </td>
@@ -4458,9 +4267,9 @@
           <tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
             <td style="padding:10px">5</td>
             <td style="padding:10px;font-weight:600">Registered Address Proof</td>
-            <td style="padding:10px"><span class="badge" style="background:#f59e0b;color:#000;padding:2px 8px;border-radius:6px;font-weight:700">In Progress</span></td>
+            <td style="padding:10px"><span class="badge" style="background:#f59e0b;color:#000;padding:2px 8px;border-radius:6px;font-weight:700">To do</span></td>
             <td style="padding:10px">
-              <a href="https://business.facebook.com/latest/settings/legal_info?business_id=692261563155254" target="_blank" class="btn btn-secondary btn-sm" style="padding:3px 10px;font-size:11px;color:#38bdf8;border-color:rgba(56,189,248,0.3)">
+              <a href="https://business.facebook.com/latest/settings/business_info" target="_blank" class="btn btn-secondary btn-sm" style="padding:3px 10px;font-size:11px;color:#38bdf8;border-color:rgba(56,189,248,0.3)">
                 Upload Bank / Utility Proof ↗
               </a>
             </td>
@@ -4487,7 +4296,7 @@
             <td style="padding:10px;font-weight:600">Official Blue/Green Tick Badge</td>
             <td style="padding:10px"><span class="badge" style="background:rgba(255,255,255,0.1);color:#e2e8f0;padding:2px 8px;border-radius:6px">Submit After Step 4</span></td>
             <td style="padding:10px">
-              <a href="https://business.facebook.com/latest/settings/whatsapp_business_presence/?business_id=692261563155254&selected_asset_id=2475742706580340&selected_asset_type=whatsapp-business-account&detail_view_tab=PHONE_NUMBERS#" target="_blank" class="btn btn-secondary btn-sm" style="padding:3px 10px;font-size:11px;color:#38bdf8;border-color:rgba(56,189,248,0.3)">
+              <a href="https://business.facebook.com/latest/whatsapp_manager/phone_numbers" target="_blank" class="btn btn-secondary btn-sm" style="padding:3px 10px;font-size:11px;color:#38bdf8;border-color:rgba(56,189,248,0.3)">
                 Submit OBA Application ↗
               </a>
             </td>
@@ -4501,11 +4310,11 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
           <div>
             <label class="form-label" style="font-size:11px">About / Description</label>
-            <input type="text" id="meta-prof-about" value="Automated society maintenance &amp; billing platform for residential communities." class="form-input form-input-sm" />
+            <input type="text" id="meta-prof-about" value="" placeholder="What your business does, in a sentence" class="form-input form-input-sm" />
           </div>
           <div>
             <label class="form-label" style="font-size:11px">Official Website</label>
-            <input type="text" id="meta-prof-website" value="https://urbansociety.in" class="form-input form-input-sm" />
+            <input type="text" id="meta-prof-website" value="" placeholder="https://yourbusiness.com" class="form-input form-input-sm" />
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end">
@@ -4552,7 +4361,7 @@
         </div>
         <div>
           <label class="form-label" style="font-size:11px">Instance Name</label>
-          <input type="text" id="evo-cfg-instance" value="urban-society" class="form-input form-input-sm" style="font-family:monospace;font-size:11.5px" />
+          <input type="text" id="evo-cfg-instance" value="social-nexus" class="form-input form-input-sm" style="font-family:monospace;font-size:11.5px" />
         </div>
       </div>
 
@@ -4609,7 +4418,7 @@
 
       <div class="form-group" style="margin-bottom:12px">
         <label class="form-label">Or Paste Contacts (Name, Phone, Society)</label>
-        <textarea id="csv-contacts-paste" rows="6" class="form-textarea" placeholder="Abhishek Gautam, 918149498945, Palm Meadows&#10;Priya Sharma, 919876543210, Green Valley Society" style="font-family:monospace;font-size:12px"></textarea>
+        <textarea id="csv-contacts-paste" rows="6" class="form-textarea" placeholder="Priya Sharma, 919876543210, Green Valley&#10;Rahul Mehta, 919123456789, Sunrise Traders" style="font-family:monospace;font-size:12px"></textarea>
       </div>
 
       <div style="font-size:11.5px;color:#94a3b8">
@@ -4659,7 +4468,7 @@
 
       <div class="form-group" style="margin-bottom:12px">
         <label class="form-label">UPI VPA (Virtual Payment Address)</label>
-        <input type="text" id="pay-modal-upi-vpa" value="urbansociety@upi" class="form-input" style="font-family:monospace;font-size:12px" />
+        <input type="text" id="pay-modal-upi-vpa" value="" placeholder="yourbusiness@upi" class="form-input" style="font-family:monospace;font-size:12px" />
       </div>
     </div>
     <div class="modal-footer">
@@ -4688,95 +4497,7 @@
       </div>
 
       <div style="display:flex;flex-direction:column;gap:10px">
-        <!-- Seat 1 -->
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#040911;border:1px solid rgba(56,189,248,0.25);border-radius:10px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:32px;height:32px;border-radius:50%;background:#0284c7;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">AG</div>
-            <div>
-              <div style="font-size:13px;font-weight:700;color:#fff">Abhishek Gautam (Admin)</div>
-              <div style="font-size:11px;color:#94a3b8">Executive Sales Lead &bull; All Permissions</div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="badge" style="background:#10b981;color:#fff;font-size:11px;padding:3px 8px;border-radius:6px">Seat 1</span>
-            <button class="btn btn-secondary btn-sm" onclick="assignWhatsAppAgent(null, 1, 'Abhishek Gautam')" style="font-size:11px;padding:3px 8px;border-color:rgba(56,189,248,0.4)">Assign to Chat</button>
-          </div>
-        </div>
-
-        <!-- Seat 2 -->
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#040911;border:1px solid rgba(56,189,248,0.2);border-radius:10px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:32px;height:32px;border-radius:50%;background:#8b5cf6;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">PG</div>
-            <div>
-              <div style="font-size:13px;font-weight:700;color:#fff">Priya Gautam</div>
-              <div style="font-size:11px;color:#94a3b8">Customer Success &amp; Onboarding</div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="badge" style="background:#10b981;color:#fff;font-size:11px;padding:3px 8px;border-radius:6px">Seat 2</span>
-            <button class="btn btn-secondary btn-sm" onclick="assignWhatsAppAgent(null, 2, 'Priya Gautam')" style="font-size:11px;padding:3px 8px;border-color:rgba(56,189,248,0.4)">Assign to Chat</button>
-          </div>
-        </div>
-
-        <!-- Seat 3 -->
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#040911;border:1px solid rgba(56,189,248,0.2);border-radius:10px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:32px;height:32px;border-radius:50%;background:#f59e0b;color:#000;display:flex;align-items:center;justify-content:center;font-weight:700">RV</div>
-            <div>
-              <div style="font-size:13px;font-weight:700;color:#fff">Rohit Verma</div>
-              <div style="font-size:11px;color:#94a3b8">Outbound RWA Outreach Specialist</div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="badge" style="background:#10b981;color:#fff;font-size:11px;padding:3px 8px;border-radius:6px">Seat 3</span>
-            <button class="btn btn-secondary btn-sm" onclick="assignWhatsAppAgent(null, 3, 'Rohit Verma')" style="font-size:11px;padding:3px 8px;border-color:rgba(56,189,248,0.4)">Assign to Chat</button>
-          </div>
-        </div>
-
-        <!-- Seat 4 -->
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#040911;border:1px solid rgba(56,189,248,0.2);border-radius:10px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:32px;height:32px;border-radius:50%;background:#06b6d4;color:#000;display:flex;align-items:center;justify-content:center;font-weight:700">SK</div>
-            <div>
-              <div style="font-size:13px;font-weight:700;color:#fff">Sneha Kulkarni</div>
-              <div style="font-size:11px;color:#94a3b8">Inbound Resident Queries &amp; Live Triage</div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="badge" style="background:#10b981;color:#fff;font-size:11px;padding:3px 8px;border-radius:6px">Seat 4</span>
-            <button class="btn btn-secondary btn-sm" onclick="assignWhatsAppAgent(null, 4, 'Sneha Kulkarni')" style="font-size:11px;padding:3px 8px;border-color:rgba(56,189,248,0.4)">Assign to Chat</button>
-          </div>
-        </div>
-
-        <!-- Seat 5 -->
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#040911;border:1px solid rgba(56,189,248,0.2);border-radius:10px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:32px;height:32px;border-radius:50%;background:#ec4899;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">AS</div>
-            <div>
-              <div style="font-size:13px;font-weight:700;color:#fff">Amit Saxena</div>
-              <div style="font-size:11px;color:#94a3b8">Enterprise Society Contracts &amp; Demo Closures</div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="badge" style="background:#10b981;color:#fff;font-size:11px;padding:3px 8px;border-radius:6px">Seat 5</span>
-            <button class="btn btn-secondary btn-sm" onclick="assignWhatsAppAgent(null, 5, 'Amit Saxena')" style="font-size:11px;padding:3px 8px;border-color:rgba(56,189,248,0.4)">Assign to Chat</button>
-          </div>
-        </div>
-
-        <!-- Seat 6 -->
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#040911;border:1px solid rgba(56,189,248,0.2);border-radius:10px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:32px;height:32px;border-radius:50%;background:#6366f1;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">ND</div>
-            <div>
-              <div style="font-size:13px;font-weight:700;color:#fff">Neha Deshmukh</div>
-              <div style="font-size:11px;color:#94a3b8">Inbound Meta Ads Qualification &amp; Live Takeover</div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="badge" style="background:#10b981;color:#fff;font-size:11px;padding:3px 8px;border-radius:6px">Seat 6</span>
-            <button class="btn btn-secondary btn-sm" onclick="assignWhatsAppAgent(null, 6, 'Neha Deshmukh')" style="font-size:11px;padding:3px 8px;border-color:rgba(56,189,248,0.4)">Assign to Chat</button>
-          </div>
-        </div>
+        <div id="team-seats-list"><div class="state-loading">Loading your team…</div></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -4799,7 +4520,7 @@
     <div class="modal-body" style="padding:20px">
       <div class="form-group" style="margin-bottom:14px">
         <label class="form-label" style="font-size:12px;font-weight:700;margin-bottom:4px;display:block">Full Name *</label>
-        <input type="text" id="add-contact-name" class="form-input" placeholder="e.g. Arvind Bajaj" style="width:100%" />
+        <input type="text" id="add-contact-name" class="form-input" placeholder="e.g. Priya Sharma" style="width:100%" />
       </div>
       <div class="form-group" style="margin-bottom:14px">
         <label class="form-label" style="font-size:12px;font-weight:700;margin-bottom:4px;display:block">Mobile Number (with Country Code) *</label>
@@ -4808,7 +4529,7 @@
       <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
         <div class="form-group">
           <label class="form-label" style="font-size:12px;font-weight:700;margin-bottom:4px;display:block">Society / Organization</label>
-          <input type="text" id="add-contact-society" class="form-input" placeholder="e.g. Palm Meadows" style="width:100%" />
+          <input type="text" id="add-contact-society" class="form-input" placeholder="e.g. Green Valley" style="width:100%" />
         </div>
         <div class="form-group">
           <label class="form-label" style="font-size:12px;font-weight:700;margin-bottom:4px;display:block">Role / Designation</label>
@@ -4858,7 +4579,7 @@
       <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
         <div class="form-group">
           <label class="form-label" style="font-size:12px;font-weight:700;margin-bottom:4px;display:block">Full Name *</label>
-          <input type="text" id="edit-lead-name" class="form-input" placeholder="e.g. Vikramaditya Rao" style="width:100%" />
+          <input type="text" id="edit-lead-name" class="form-input" placeholder="e.g. Priya Sharma" style="width:100%" />
         </div>
         <div class="form-group">
           <label class="form-label" style="font-size:12px;font-weight:700;margin-bottom:4px;display:block">Mobile Number *</label>
@@ -4872,7 +4593,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" style="font-size:12px;font-weight:700;margin-bottom:4px;display:block">Society / Organization</label>
-          <input type="text" id="edit-lead-society" class="form-input" placeholder="e.g. Palm Meadows Society" style="width:100%" />
+          <input type="text" id="edit-lead-society" class="form-input" placeholder="e.g. Green Valley" style="width:100%" />
         </div>
       </div>
       <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">

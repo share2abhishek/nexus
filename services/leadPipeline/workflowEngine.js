@@ -15,7 +15,7 @@ const DEFAULT_NODES = [
     enabled: true,
     config: {
       event: 'leadgen',
-      page_name: 'Urban Society',
+      page_name: '',
       auto_ingest: true,
     },
   },
@@ -58,11 +58,7 @@ const DEFAULT_NODES = [
     enabled: true,
     config: {
       channel: 'whatsapp_cloud_api',
-      app_name: 'urbansociety2.0',
-      phone_number_id: '908833945656131',
-      waba_id: '2476543366144669',
-      verified_test_recipient: '918149498945',
-      template: 'Hi {{name}}, thanks for reaching out to Urban Society! Can I share a quick 10-minute demo of our automated society maintenance software?',
+      template: 'Hi {{name}}, thanks for reaching out! How can we help?',
     },
   },
   {
@@ -134,7 +130,7 @@ async function executeWorkflowPipeline(lead, customConfig = {}, aiOpts = {}) {
     let qualification = {
       score: lead.lead_score || 88,
       intent_summary: lead.intent_summary || 'Interested in maintenance collection automation and accounting ERP.',
-      suggested_reply: lead.suggested_reply || `Hi ${lead.full_name || 'there'}, thanks for connecting with Urban Society!`,
+      suggested_reply: lead.suggested_reply || `Hi ${lead.full_name || 'there'}, thanks for reaching out!`,
     };
 
     if (!lead.lead_score || !lead.intent_summary) {
@@ -180,7 +176,7 @@ async function executeWorkflowPipeline(lead, customConfig = {}, aiOpts = {}) {
     const isHot = currentPayload.is_hot !== false;
     const alertOutput = {
       title: `${isHot ? '🔥 Hot Lead Alert' : '📥 New Lead Ingested'}: ${currentPayload.full_name}`,
-      subtitle: `${currentPayload.society_name || 'Urban Society Prospect'} · Score: ${currentPayload.lead_score || 85}/100`,
+      subtitle: `${currentPayload.society_name || 'New lead'} · Score: ${currentPayload.lead_score || 85}/100`,
       body: `Phone: ${currentPayload.phone_number || 'N/A'} | Email: ${currentPayload.email || 'N/A'}\n${currentPayload.intent_summary || ''}`,
       sound: alertNode.config?.play_audio !== false,
       priority: isHot ? 'urgent' : 'normal',
@@ -204,17 +200,13 @@ async function executeWorkflowPipeline(lead, customConfig = {}, aiOpts = {}) {
   if (smsNode && smsNode.enabled) {
     const t3 = Date.now();
     const cleanPhone = (currentPayload.phone_number || '').replace(/[^0-9+]/g, '');
-    let template = smsNode.config?.template || 'Hi {{name}}, thanks for reaching out to Urban Society! Can I share a quick demo?';
+    let template = smsNode.config?.template || 'Hi {{name}}, thanks for reaching out! How can we help?';
     const personalizedText = template.replace('{{name}}', currentPayload.full_name || 'there');
     const waUrl = cleanPhone ? `https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent(personalizedText)}` : null;
 
     const smsOutput = {
       channel: 'whatsapp_cloud_api',
-      app_name: 'urbansociety2.0',
-      phone_number_id: '908833945656131',
-      waba_id: '2476543366144669',
-      recipient_phone: cleanPhone || '918149498945',
-      verified_test_recipient: '918149498945',
+      recipient_phone: cleanPhone || null,
       message_text: personalizedText,
       whatsapp_url: waUrl,
       action_ready: true,
@@ -240,7 +232,7 @@ async function executeWorkflowPipeline(lead, customConfig = {}, aiOpts = {}) {
     const channel = slackNode.config?.channel || '#leads';
     const slackPayload = {
       channel,
-      username: 'Urban Society Lead Bot',
+      username: 'Social-Nexus',
       icon_emoji: ':office:',
       text: `*New Meta Ad Lead:* ${currentPayload.full_name} (${currentPayload.society_name || 'Society'})\n*Score:* ${currentPayload.lead_score}/100\n*Phone:* ${currentPayload.phone_number}\n*Intent:* ${currentPayload.intent_summary}`,
       blocks: [
@@ -248,7 +240,7 @@ async function executeWorkflowPipeline(lead, customConfig = {}, aiOpts = {}) {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `*🎯 New Lead Ingested for Urban Society*\n*Name:* ${currentPayload.full_name}\n*Phone:* ${currentPayload.phone_number}\n*Email:* ${currentPayload.email || 'N/A'}\n*Score:* ${currentPayload.lead_score}/100 (${currentPayload.is_hot ? '🔥 Hot Lead' : 'Standard'})\n*Summary:* ${currentPayload.intent_summary || 'Interested in maintenance billing'}`,
+            text: `*🎯 New lead*\n*Name:* ${currentPayload.full_name}\n*Phone:* ${currentPayload.phone_number}\n*Email:* ${currentPayload.email || 'N/A'}\n*Score:* ${currentPayload.lead_score}/100 (${currentPayload.is_hot ? '🔥 Hot Lead' : 'Standard'})\n*Summary:* ${currentPayload.intent_summary || 'Interested in maintenance billing'}`,
           },
         },
       ],
@@ -285,7 +277,7 @@ async function executeWorkflowPipeline(lead, customConfig = {}, aiOpts = {}) {
 
   return {
     success: true,
-    workflow_name: 'Urban Society Multi-Channel Lead Pipeline',
+    workflow_name: 'Lead pipeline',
     total_execution_time_ms: Date.now() - t0,
     steps_executed: executionResults.length,
     steps: executionResults,

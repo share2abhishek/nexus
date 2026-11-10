@@ -34,32 +34,36 @@ if (typeof window !== 'undefined') window.State = State;
 // ── Page Titles ───────────────────────────────────────────────────────────────
 const PAGE_META = {
   dashboard: { title: 'Home',                   subtitle: 'Your posts, schedule and next steps' },
-  generate:  { title: 'AI Writer',              subtitle: 'Write a version for each platform with AI' },
-  compose:   { title: 'Create Post',            subtitle: 'Write, then publish or schedule' },
-  calendar:  { title: 'Calendar',               subtitle: 'Everything scheduled, published and in progress' },
-  history:   { title: 'Post History',           subtitle: 'Published posts and AI generations' },
-  templates: { title: 'Content Templates',      subtitle: 'Save and reuse your best content' },
-  files:     { title: 'Local Files',            subtitle: 'Browse your local content folder' },
-  seo:       { title: 'SEO Tools',              subtitle: 'Meta tags, keywords, and content optimization' },
-  aso:       { title: 'App Store Optimization', subtitle: 'Generate App Store & Play Store listings' },
-  email:     { title: 'Email Marketing',        subtitle: 'Subscribers, campaigns, and AI email generation' },
-  'sellbird': { title: 'B2B Sales Agent', subtitle: 'Autonomous prospecting, website signals, verified outreach and reply triage' },
-  'lead-ads':        { title: 'Contacts & Leads',       subtitle: 'Real-time Meta Lead Ingestion, Verification & Direct CRM' },
-  'leads-contacts':   { title: 'Contacts & Leads',       subtitle: 'Real-time Meta Lead Ingestion, Verification & Direct CRM' },
-  'leads-inbox':      { title: 'Live Chat & CRM',        subtitle: 'Real-Time WhatsApp & Messenger Conversations' },
-  'leads-broadcast':  { title: 'Bulk Broadcast',         subtitle: 'WhatsApp Campaigns, CSV Import & Outreach Studio' },
-  'leads-settings':   { title: 'Channel Settings',       subtitle: 'WhatsApp Cloud API, Cloudflare Tunnel, Verify Tokens & n8n' },
-  adcopy:    { title: 'Ad Copy & PR',           subtitle: 'Google Ads, Meta Ads, and press releases' },
-  media:     { title: 'AI Media Creator',       subtitle: 'Generate images, videos, and animations with AI' },
-  hashtags:  { title: 'Hashtag Research',       subtitle: 'AI-powered hashtag suggestions' },
-  utm:       { title: 'UTM Link Builder',       subtitle: 'Build trackable campaign URLs' },
-  brand:     { title: 'Brand Kit',              subtitle: 'Define your brand identity for consistent content' },
-  analytics:         { title: 'Analytics',          subtitle: 'Performance metrics across platforms' },
-  'user-settings':   { title: 'My API Keys',        subtitle: 'Your personal API key configuration' },
-  'tools-directory': { title: 'AI Tools Directory', subtitle: 'Top free and paid AI tools by category' },
-  admin:             { title: 'Admin Dashboard',     subtitle: 'Monitor users, access, and platform health' },
-  settings:          { title: 'Settings',            subtitle: 'Configure connections and preferences' },
-  clients:           { title: 'Clients & Brands',    subtitle: 'Manage client brand workspaces and isolated social media channels' },
+  generate:  { title: 'AI writer',              subtitle: 'Describe your idea; get a version for each platform' },
+  compose:   { title: 'Create post',            subtitle: 'Write (or let AI write), add a picture, then publish or schedule' },
+  calendar:  { title: 'Calendar',               subtitle: 'Everything planned and published. Drag a post to move it' },
+  history:   { title: 'Post history',           subtitle: 'What went out, and what didn’t' },
+  templates: { title: 'Templates',              subtitle: 'Save posts you reuse' },
+  files:     { title: 'Files on this PC',       subtitle: 'Pictures and spreadsheets in your content folder' },
+  seo:       { title: 'Website SEO',            subtitle: 'Titles, descriptions and keywords for your website' },
+  aso:       { title: 'App store listing',      subtitle: 'Text for your App Store and Play Store page' },
+  email:     { title: 'Email',                  subtitle: 'Your subscribers and email campaigns' },
+  'sellbird': { title: 'Sales outreach',        subtitle: 'Find business customers, check drafts, then send' },
+  'lead-ads':        { title: 'WhatsApp · Contacts',   subtitle: 'People who wrote to you or filled in your ad forms' },
+  'leads-contacts':  { title: 'WhatsApp · Contacts',   subtitle: 'People who wrote to you or filled in your ad forms' },
+  'leads-inbox':     { title: 'WhatsApp · Chats',      subtitle: 'Reply to customers on WhatsApp and Messenger' },
+  'leads-bot':       { title: 'WhatsApp · Auto-replies', subtitle: 'Answer customers automatically, day and night' },
+  'leads-templates': { title: 'WhatsApp · Templates', subtitle: 'Approved messages for broadcasts and first contact' },
+  'leads-broadcast': { title: 'WhatsApp · Broadcasts', subtitle: 'Send one message to many contacts' },
+  'leads-settings':  { title: 'WhatsApp · Setup',      subtitle: 'Connect your WhatsApp Business number' },
+  adcopy:    { title: 'Ads & press releases',   subtitle: 'Ad text for Google and Meta, and press releases' },
+  media:     { title: 'AI images & video',      subtitle: 'Make pictures and short videos with AI' },
+  hashtags:  { title: 'Hashtags',               subtitle: 'Hashtag ideas for your topic' },
+  utm:       { title: 'Link tracker',           subtitle: 'Links that show which post brought a visitor' },
+  brand:     { title: 'Brand kit',              subtitle: 'Your business name, voice and colours, used whenever AI writes' },
+  analytics:         { title: 'Results',            subtitle: 'Likes, comments and reach of your posts' },
+  'tools-directory': { title: 'Other AI tools',     subtitle: 'Useful free and paid AI tools' },
+  admin:             { title: 'Users & access',     subtitle: 'Who can use Social-Nexus on this PC' },
+  settings:          { title: 'Settings',           subtitle: 'Accounts, AI, email, backups and licence' },
+  clients:           { title: 'Clients',            subtitle: 'A separate brand for each client' },
+  inbox:             { title: 'Inbox',              subtitle: 'Comments on your posts' },
+  library:           { title: 'Media library',      subtitle: 'Your pictures and videos' },
+  bio:               { title: 'Link in bio',        subtitle: 'One page with all your links' },
 };
 
 // ── Platform Config ───────────────────────────────────────────────────────────
@@ -81,7 +85,15 @@ const PLATFORMS = {
 // Navigation
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Screens that moved into Settings
+const PAGE_REDIRECTS = { 'user-settings': ['settings', 'ai'] };
+
 function navigateTo(page) {
+  if (PAGE_REDIRECTS[page]) {
+    const [to, tab] = PAGE_REDIRECTS[page];
+    State.pendingSettingsTab = tab;
+    page = to;
+  }
   // Reset scroll position so new page always starts cleanly at the top
   try {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -94,7 +106,7 @@ function navigateTo(page) {
   } catch (e) {}
 
   // Update nav items
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => el.classList.remove('active'));
   const navEl = document.getElementById(`nav-${page}`);
   if (navEl) navEl.classList.add('active');
 
@@ -109,7 +121,7 @@ function navigateTo(page) {
   }
 
   // Keep Ad Leads & CRM submenu open when on any of its split screens
-  const isLeadPage = ['lead-ads', 'leads-contacts', 'leads-inbox', 'leads-broadcast', 'leads-settings'].includes(page);
+  const isLeadPage = ['lead-ads', 'leads-contacts', 'leads-inbox', 'leads-bot', 'leads-templates', 'leads-broadcast', 'leads-settings'].includes(page);
   const submenu = document.getElementById('sub-nav-lead-ads');
   const chevron = document.getElementById('chevron-lead-ads');
   if (isLeadPage) {
@@ -124,6 +136,8 @@ function navigateTo(page) {
       'lead-ads': 'nav-sub-leads-contacts',
       'leads-contacts': 'nav-sub-leads-contacts',
       'leads-inbox': 'nav-sub-leads-inbox',
+      'leads-bot': 'nav-sub-leads-bot',
+      'leads-templates': 'nav-sub-leads-templates',
       'leads-broadcast': 'nav-sub-leads-broadcast',
       'leads-settings': 'nav-sub-leads-settings',
     };
@@ -160,6 +174,8 @@ function navigateTo(page) {
     'leads-contacts':   () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : (typeof loadLeadPipeline === 'function' ? loadLeadPipeline() : null)),
     'leads-inbox':      () => (typeof window.loadWhatsAppConversations === 'function' ? window.loadWhatsAppConversations() : (typeof loadWhatsAppConversations === 'function' ? loadWhatsAppConversations() : null)),
     'leads-broadcast':  () => (typeof window.renderBroadcastContacts === 'function' ? window.renderBroadcastContacts() : (typeof renderBroadcastContacts === 'function' ? renderBroadcastContacts() : null)),
+    'leads-templates':  () => (typeof window.loadWhatsAppTemplates === 'function' ? window.loadWhatsAppTemplates() : null),
+    'leads-bot':        () => (typeof window.loadWhatsAppBot === 'function' ? window.loadWhatsAppBot() : null),
     'leads-settings':   () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : (typeof loadLeadPipeline === 'function' ? loadLeadPipeline() : null)),
     brand:     () => (typeof window.loadBrandKit === 'function' ? window.loadBrandKit() : (typeof loadBrandKit === 'function' ? loadBrandKit() : null)),
     seo:       () => (typeof window.loadTrackedKeywords === 'function' ? window.loadTrackedKeywords() : (typeof loadTrackedKeywords === 'function' ? loadTrackedKeywords() : null)),

@@ -209,7 +209,7 @@ async function loadClients() {
             <button class="btn ${isCurrent ? 'btn-secondary' : 'btn-primary'}" onclick="switchClientWorkspace(${c.workspace_id}, ${jsAttr(c.name)})" style="flex:1" ${isCurrent ? 'disabled' : ''}>
               ${isCurrent ? '🟢 Managing Client' : '🔌 Manage Social Media'}
             </button>
-            <button class="btn btn-secondary btn-sm" onclick="navigateTo('settings');setTimeout(()=>switchSettingsTab('members',document.querySelector('[data-tab=members]')),100)" title="Client Settings">⚙️</button>
+            <button class="btn btn-secondary btn-sm" onclick="openSettings('members')" title="Client Settings">⚙️</button>
             <button class="btn btn-danger btn-sm" onclick="deleteClient(${c.workspace_id}, ${jsAttr(c.name)})" title="Delete Client Brand" ${c.role !== 'manager' ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}>🗑️</button>
           </div>
         </div>`;
@@ -406,31 +406,30 @@ async function loadUserSettings() {
   } catch {}
 }
 
-async function saveUserApiSettings() {
-  const get = id => document.getElementById(id)?.value?.trim() || '';
+// Saves only the fields shown on screen (an empty key box keeps nothing; a masked
+// "••••" value is skipped by the server so the saved key stays).
+async function saveUserApiSettings(btn) {
+  const fields = {
+    'u-google-key': 'google_ai_key', 'u-groq-key': 'groq_key', 'u-openrouter-key': 'openrouter_key',
+    'u-mistral-key': 'mistral_key', 'u-anthropic-key': 'anthropic_key', 'u-stability-key': 'stability_key',
+    'u-openai-key': 'openai_key', 'u-luma-key': 'luma_key', 'u-runway-key': 'runway_key',
+  };
+  const body = {};
+  for (const [id, key] of Object.entries(fields)) {
+    const el = document.getElementById(id);
+    if (el) body[key] = el.value.trim();
+  }
+  const model = document.getElementById('u-default-text-model');
+  if (model) body.default_text_model = model.value;
+  if (btn) btn.disabled = true;
   try {
-    await fetch('/users/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        google_ai_key:    get('u-google-key'),
-        groq_key:         get('u-groq-key'),
-        openrouter_key:   get('u-openrouter-key'),
-        mistral_key:      get('u-mistral-key'),
-        anthropic_key:    get('u-anthropic-key'),
-        stability_key:    get('u-stability-key'),
-        openai_key:       get('u-openai-key'),
-        luma_key:         get('u-luma-key'),
-        runway_key:       get('u-runway-key'),
-        ollama_model:     get('u-ollama-model'),
-        ollama_url:       get('u-ollama-url'),
-        ollama_enabled:   document.getElementById('u-ollama-enabled')?.checked ? 1 : 0,
-        default_text_model: document.getElementById('u-default-text-model')?.value || 'ollama',
-      }),
-    });
-    toast('✅ API keys saved to your account!', 'success');
+    await api('POST', '/users/settings', body);
+    toast('AI settings saved to your account', 'success');
+    loadUserSettings();
     loadModels(); // refresh model selector
+    if (typeof refreshAiStatus === 'function') refreshAiStatus();
   } catch (err) { toast(err.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

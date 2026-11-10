@@ -3,8 +3,8 @@
 // 1. Meta WhatsApp Error #132001 Resolution ("Template name does not exist in the translation")
 // 2. Component Parameters & Body Variables ({{1}}, {{2}})
 // 3. Template Language Codes (en_US, en, hi, mr, gu, ta, te, etc.)
-// 4. Default Phone Number ID (1368551949674659 / +91 96370 00102) & WABA ID (2475742706580340)
-// 5. 2-Step Verification PIN Registration (POST /1368551949674659/register with 6-digit PIN)
+// 4. No built-in Phone Number ID / WABA ID: each business uses its own
+// 5. 2-Step Verification PIN Registration (POST /{phone-number-id}/register with 6-digit PIN)
 // 6. Official Business Account (OBA / Green Tick) Verification Status Audit
 
 const axios = require('axios');
@@ -14,8 +14,8 @@ jest.mock('axios');
 
 describe('Meta WhatsApp Cloud API & Template Architecture', () => {
   const MOCK_TOKEN = 'EAAG_mock_permanent_token_xyz_12345';
-  const MOCK_PHONE_ID = whatsappCloud.DEFAULT_PHONE_NUMBER_ID; // '1368551949674659'
-  const MOCK_WABA_ID = whatsappCloud.DEFAULT_WABA_ID; // '2475742706580340'
+  const MOCK_PHONE_ID = '111122223333444';
+  const MOCK_WABA_ID = '555566667777888';
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -25,9 +25,10 @@ describe('Meta WhatsApp Cloud API & Template Architecture', () => {
   // ── 1. Default Phone Profile & WABA Constants ──────────────────────────────
   describe('1. Default Identifiers & Graph API Target', () => {
     test('verifies real phone profile ID and WABA ID constants', () => {
-      expect(whatsappCloud.DEFAULT_PHONE_NUMBER_ID).toBe('1368551949674659');
-      expect(whatsappCloud.DEFAULT_WABA_ID).toBe('2475742706580340');
-      expect(whatsappCloud.DEFAULT_TEST_RECIPIENT).toBe('918149498945');
+      // No other business's number or account is built in
+      expect(whatsappCloud.DEFAULT_PHONE_NUMBER_ID).toBe('');
+      expect(whatsappCloud.DEFAULT_WABA_ID).toBe('');
+      expect(whatsappCloud.DEFAULT_TEST_RECIPIENT).toBe('');
       expect(whatsappCloud.GRAPH_API_VERSION).toBe('v21.0');
       expect(whatsappCloud.GRAPH_BASE_URL).toBe('https://graph.facebook.com/v21.0');
     });
@@ -118,6 +119,8 @@ describe('Meta WhatsApp Cloud API & Template Architecture', () => {
       });
 
       const res = await whatsappCloud.sendWhatsAppMessage({
+        phoneNumberId: MOCK_PHONE_ID,
+        wabaId: MOCK_WABA_ID,
         accessToken: MOCK_TOKEN,
         to: '919637000102',
         templateName: 'society_billing_reminder',
@@ -169,6 +172,8 @@ describe('Meta WhatsApp Cloud API & Template Architecture', () => {
       });
 
       const res = await whatsappCloud.sendWhatsAppMessage({
+        phoneNumberId: MOCK_PHONE_ID,
+        wabaId: MOCK_WABA_ID,
         accessToken: MOCK_TOKEN,
         to: '919637000102',
         templateName: 'hello_world',
@@ -222,6 +227,8 @@ describe('Meta WhatsApp Cloud API & Template Architecture', () => {
       });
 
       const res = await whatsappCloud.sendWhatsAppMessage({
+        phoneNumberId: MOCK_PHONE_ID,
+        wabaId: MOCK_WABA_ID,
         accessToken: MOCK_TOKEN,
         to: '919637000102',
         templateName: 'urban_society_welcome',
@@ -277,6 +284,8 @@ describe('Meta WhatsApp Cloud API & Template Architecture', () => {
       });
 
       const res = await whatsappCloud.sendWhatsAppMessage({
+        phoneNumberId: MOCK_PHONE_ID,
+        wabaId: MOCK_WABA_ID,
         accessToken: MOCK_TOKEN,
         to: '919637000102',
         templateName: 'marathi_welcome',
@@ -317,6 +326,8 @@ describe('Meta WhatsApp Cloud API & Template Architecture', () => {
       });
 
       const res = await whatsappCloud.sendWhatsAppMessage({
+        phoneNumberId: MOCK_PHONE_ID,
+        wabaId: MOCK_WABA_ID,
         accessToken: MOCK_TOKEN,
         to: '919637000102',
         templateName: 'society_announcement',
@@ -350,6 +361,8 @@ describe('Meta WhatsApp Cloud API & Template Architecture', () => {
       });
 
       const res = await whatsappCloud.sendWhatsAppMessage({
+        phoneNumberId: MOCK_PHONE_ID,
+        wabaId: MOCK_WABA_ID,
         accessToken: MOCK_TOKEN,
         to: '919637000102',
         templateName: 'completely_nonexistent_template',
@@ -423,7 +436,7 @@ describe('Meta WhatsApp Cloud API & Template Architecture', () => {
 
   // ── 5. Step 6: 2-Step PIN Registration (POST /register) ────────────────────
   describe('5. Step 6: 2-Step Verification PIN Registration', () => {
-    test('registers 6-digit PIN via POST /1368551949674659/register', async () => {
+    test('registers 6-digit PIN via POST /{phone-number-id}/register', async () => {
       axios.post.mockResolvedValueOnce({
         status: 200,
         data: { success: true },
@@ -432,7 +445,7 @@ describe('Meta WhatsApp Cloud API & Template Architecture', () => {
       const res = await whatsappCloud.registerTwoStepPin(MOCK_PHONE_ID, MOCK_TOKEN, '963700');
 
       expect(res.success).toBe(true);
-      expect(res.phone_number_id).toBe('1368551949674659');
+      expect(res.phone_number_id).toBe(MOCK_PHONE_ID);
       expect(axios.post).toHaveBeenCalledWith(
         `https://graph.facebook.com/v21.0/${MOCK_PHONE_ID}/register`,
         {
@@ -509,8 +522,8 @@ describe('Meta WhatsApp Cloud API & Template Architecture', () => {
       const audit = await whatsappCloud.getVerificationAudit(MOCK_PHONE_ID, MOCK_WABA_ID, MOCK_TOKEN);
 
       expect(audit.configured).toBe(true);
-      expect(audit.phone_id).toBe('1368551949674659');
-      expect(audit.waba_id).toBe('2475742706580340');
+      expect(audit.phone_id).toBe(MOCK_PHONE_ID);
+      expect(audit.waba_id).toBe(MOCK_WABA_ID);
       expect(audit.is_oba).toBe(true);
       expect(audit.oba_badge_status).toBe('VERIFIED');
       expect(audit.checklist.two_step_verification).toBe('COMPLETED');

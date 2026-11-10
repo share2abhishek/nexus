@@ -19,16 +19,11 @@ const SellbirdState = {
   selectedOutboxIds: new Set(),
   isEditingOutbox: false,
   officialSender: {
-    email: (typeof localStorage !== 'undefined' && localStorage.getItem('nexus_sellbird_sender_email')) || 'sales@urbansociety.in',
-    name: (typeof localStorage !== 'undefined' && localStorage.getItem('nexus_sellbird_sender_name')) || 'Urban Society Sales',
+    // Your own address (Settings → Email sending), or one you typed here before
+    email: (typeof localStorage !== 'undefined' && localStorage.getItem('nexus_sellbird_sender_email')) || '',
+    name: (typeof localStorage !== 'undefined' && localStorage.getItem('nexus_sellbird_sender_name')) || '',
   },
-  officialSenderPresets: [
-    { email: 'sales@urbansociety.in', name: 'Urban Society Sales', label: 'Urban Society Sales <sales@urbansociety.in>' },
-    { email: 'growth@urbansociety.in', name: 'Urban Society Growth', label: 'Urban Society Growth <growth@urbansociety.in>' },
-    { email: 'contact@urbansociety.in', name: 'Urban Society Operations', label: 'Urban Society Operations <contact@urbansociety.in>' },
-    { email: 'support@urbansociety.in', name: 'Urban Society Support', label: 'Urban Society Support <support@urbansociety.in>' },
-    { email: 'share2abhishek@gmail.com', name: 'Abhishek (Workspace Admin)', label: 'Abhishek <share2abhishek@gmail.com>' },
-  ],
+  officialSenderPresets: [],
   companies: [],
   contacts: [],
   selectedContactIds: new Set(),
@@ -823,7 +818,7 @@ function toggleSendingPause() {
 }
 
 function renderOfficialSenderOptions() {
-  const current = SellbirdState.officialSender || { email: 'sales@urbansociety.in', name: 'Urban Society Sales' };
+  const current = SellbirdState.officialSender || { email: '', name: '' };
   const presets = SellbirdState.officialSenderPresets || [];
   const isCustom = !presets.some((p) => p.email.toLowerCase() === current.email.toLowerCase());
 
@@ -841,13 +836,13 @@ function renderOfficialSenderOptions() {
 
 function onSelectOfficialSender(val) {
   if (val === '__custom__') {
-    const customEmail = window.prompt('Enter your company official email ID (e.g. outreach@urbansociety.in):', SellbirdState.officialSender.email);
+    const customEmail = window.prompt('Enter your company official email ID (e.g. sales@yourbusiness.com):', SellbirdState.officialSender.email);
     if (!customEmail || !customEmail.trim() || !customEmail.includes('@')) {
       if (customEmail !== null) toast('Please enter a valid company email address.', 'warning');
       renderOutbox();
       return;
     }
-    const customName = window.prompt('Enter sender display name (e.g. Urban Society Growth Team):', SellbirdState.officialSender.name) || customEmail.split('@')[0];
+    const customName = window.prompt('Enter sender display name (e.g. Your Business Sales):', SellbirdState.officialSender.name) || customEmail.split('@')[0];
     SellbirdState.officialSender = { email: customEmail.trim(), name: (customName || '').trim() || customEmail.split('@')[0] };
   } else {
     const found = (SellbirdState.officialSenderPresets || []).find((p) => p.email.toLowerCase() === val.toLowerCase());
@@ -1500,7 +1495,7 @@ function renderReplies() {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:1px solid #f1f5f9;margin-bottom:18px">
           <div>
             <div style="font-size:17px;font-weight:800;color:#0f172a;letter-spacing:-0.02em">
-              ${escapeHtml(activeReply.subject || 'Re: Urban Society automated community operations')}
+              ${escapeHtml(activeReply.subject || '(no subject)')}
             </div>
             <div style="font-size:12px;color:#64748b;margin-top:2px">
               ${escapeHtml(senderName)} · ${escapeHtml(activeReply.company_name || 'Community Leadership')} · Conversation Thread
@@ -1516,12 +1511,12 @@ function renderReplies() {
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
             <div style="display:flex;align-items:center;gap:6px">
               <div class="sb-avatar-box" style="width:20px;height:20px;font-size:9px;background:#0284c7;color:#fff;font-weight:800">US</div>
-              <strong style="font-size:12.5px;color:#0f172a">${escapeHtml(SellbirdState.officialSender?.name || 'Urban Society Sales')} &lt;${escapeHtml(SellbirdState.officialSender?.email || 'sales@urbansociety.in')}&gt;</strong>
+              <strong style="font-size:12.5px;color:#0f172a">${escapeHtml(SellbirdState.officialSender?.name || 'You')} &lt;${escapeHtml(SellbirdState.officialSender?.email || '')}&gt;</strong>
             </div>
             <span style="font-size:11px;color:#94a3b8">Outreach · Step 1</span>
           </div>
           <div style="font-size:13px;line-height:1.5;color:#334155">
-            Hi ${escapeHtml(senderName.split(' ')[0])}, I noticed your team is managing residential community operations. We built Urban Society to help communities automate daily operations, maintenance billing, and committee approvals without manual spreadsheet tracking.
+            Hi ${escapeHtml(senderName.split(' ')[0])}, I noticed your team is managing residential community operations. We help businesses like yours.
           </div>
         </div>
 
@@ -1592,7 +1587,7 @@ function renderReplies() {
             </div>
             <div>
               <div class="sb-dossier-col-title">CAMPAIGN</div>
-              <div class="sb-dossier-col-val">${escapeHtml(activeReply.campaign_name || 'Urban Society Outreach')}<br><span style="color:#64748b;font-weight:400">Step 1 of 3 · stopped on reply</span></div>
+              <div class="sb-dossier-col-val">${escapeHtml(activeReply.campaign_name || '—')}<br><span style="color:#64748b;font-weight:400">Step 1 of 3 · stopped on reply</span></div>
             </div>
           </div>
         </div>
@@ -1800,16 +1795,10 @@ function openPullRealProspectsModal() {
   if (modal) modal.style.display = 'flex';
 }
 
-function toggleRealTargetMode(mode) {
+// Only one source now: companies the user types (no built-in list of real executives)
+function toggleRealTargetMode() {
   const boxCustom = document.getElementById('box-custom-domains');
-  const boxPreset = document.getElementById('box-preset-preview');
-  if (mode === 'custom') {
-    if (boxCustom) boxCustom.style.display = 'block';
-    if (boxPreset) boxPreset.style.display = 'none';
-  } else {
-    if (boxCustom) boxCustom.style.display = 'none';
-    if (boxPreset) boxPreset.style.display = 'block';
-  }
+  if (boxCustom) boxCustom.style.display = 'block';
 }
 
 async function triggerRealWorldDiscovery() {

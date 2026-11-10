@@ -161,7 +161,7 @@ function shortReason(err) {
   if (String(status) === '429') return 'rate limit reached (429)';
   if (err.name === 'AbortError' || /aborted|timeout|ETIMEDOUT/i.test(err.message || '')) return 'no reply within 30 seconds (timed out)';
   if (String(status) === '401' || String(status) === '403' || /API_KEY_INVALID|API key not valid/.test(err.message || '')) {
-    return 'API key rejected — check it in Settings → My API Keys';
+    return 'API key rejected — check it in Settings → AI';
   }
   return (apiMsg || err.message || 'unknown error')
     .replace(/^\[[^\]]+\]:\s*Error fetching from \S+:\s*/, '') // Google SDK prefix + URL
@@ -343,7 +343,7 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
   if (cloudFailed.length) {
     throw new Error(
       'All configured AI providers failed:\n' + failures.map(f => `• ${f}`).join('\n') +
-      '\nTry again in a minute, or add another free provider in Settings → My API Keys.'
+      '\nTry again in a minute, or add another free provider in Settings → AI.'
     );
   }
 
@@ -352,7 +352,7 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
     '1. Start Ollama (free, local): https://ollama.com\n' +
     '2. Add GROQ_API_KEY (free): https://console.groq.com\n' +
     '3. Add GOOGLE_AI_KEY (free): https://aistudio.google.com\n' +
-    'Go to Settings → My API Keys to configure.'
+    'Go to Settings → AI to configure.'
   );
 }
 

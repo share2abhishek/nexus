@@ -10,14 +10,10 @@ const LeadPipelineState = {
   activeTab: 'inbound',
   loading: false,
   broadcast: {
-    contacts: [
-      { name: 'Vikramaditya Rao', phone: '+919820055443', society: 'Palm Meadows Society', role: 'President', units: '450', valid: true },
-      { name: 'Dr. Rajesh Sharma', phone: '+919811223344', society: 'Palm Grove Residences', role: 'Secretary', units: '320', valid: true },
-      { name: 'Pirojsha Godrej', phone: '+919820011223', society: 'Godrej Properties Communities', role: 'Executive Chairperson', units: '600', valid: true },
-    ],
-    selectedIndexes: new Set([0, 1, 2]),
-    template: 'demo',
-    message: 'Hi {{name}}, thanks for connecting with Urban Society! We built an automated society management platform that eliminates billing delays and vendor tracking for communities like {{society}}. Would you be available for a quick 5-minute demo on Thursday?',
+    contacts: [],
+    selectedIndexes: new Set(),
+    template: 'custom',
+    message: 'Hi {{name}}, thanks for getting in touch! Reply here if you have any questions.',
     deliveryMode: 'cloud_api',
     safetyDelay: 1500,
     sending: false,
@@ -88,23 +84,31 @@ function renderPipelineConfig() {
   const hintEl = document.getElementById('tunnel-hint-note');
 
   if (badgeEl) {
+    const pill = (tone, text) => `<span class="status-pill ${tone}"><span class="status-dot-sm ${tone}"></span>${text}</span>`;
+    const startBtn = document.getElementById('btn-refresh-tunnel');
     if (tunnel.mode === 'server') {
-      badgeEl.innerHTML = '<span class="badge" style="background:#10b981;color:#fff;font-size:11px;padding:3px 9px;border-radius:999px;font-weight:600">🌐 Production Server Mode</span>';
-      if (subtextEl) subtextEl.textContent = 'Server HTTPS';
-      if (hintEl) hintEl.innerHTML = 'Using live domain: <strong>' + escapeHtml(tunnel.publicUrl || '') + '</strong>';
+      badgeEl.innerHTML = pill('ok', 'Ready');
+      if (subtextEl) subtextEl.textContent = 'Your own web address';
+      if (hintEl) hintEl.innerHTML = 'Meta reaches this installation at <b>' + escapeHtml(tunnel.publicUrl || '') + '</b>.';
+      if (startBtn) startBtn.style.display = 'none';
     } else if (tunnel.status === 'connected') {
-      badgeEl.innerHTML = '<span class="badge" style="background:#0284c7;color:#fff;font-size:11px;padding:3px 9px;border-radius:999px;font-weight:600;display:inline-flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:#4ade80;display:inline-block;box-shadow:0 0 6px #4ade80"></span>⚡ Auto-Tunnel Active (HTTPS)</span>';
-      if (subtextEl) subtextEl.textContent = 'Cloudflare Tunnel';
-      if (hintEl) hintEl.innerHTML = 'Auto-tunnel is forwarding Meta traffic to <code>localhost:' + (tunnel.port || 3000) + '</code>. Meta accepts this URL!';
+      badgeEl.innerHTML = pill('ok', 'Ready');
+      if (subtextEl) subtextEl.textContent = 'Public address is on';
+      if (hintEl) hintEl.textContent = 'This address works while Social-Nexus is running. It changes when the app restarts: paste the new one into Meta then (we show it here).';
+      if (startBtn) startBtn.textContent = 'Renew address';
     } else if (tunnel.status === 'starting' || tunnel.status === 'reconnecting') {
-      badgeEl.innerHTML = '<span class="badge" style="background:#f59e0b;color:#000;font-size:11px;padding:3px 9px;border-radius:999px;font-weight:600">⏳ Tunnel Starting...</span>';
-      if (subtextEl) subtextEl.textContent = 'Initializing...';
+      badgeEl.innerHTML = pill('warn', 'Starting…');
+      if (subtextEl) subtextEl.textContent = '';
       scheduleTunnelPoll();
     } else if (tunnel.status === 'error') {
-      badgeEl.innerHTML = '<span class="badge" style="background:#ef4444;color:#fff;font-size:11px;padding:3px 9px;border-radius:999px;font-weight:600">⚠️ Tunnel Offline</span>';
-      if (subtextEl) subtextEl.textContent = 'Offline';
+      badgeEl.innerHTML = pill('warn', 'Not reachable');
+      if (subtextEl) subtextEl.textContent = '';
+      if (hintEl) hintEl.textContent = 'The public address couldn’t start' + (tunnel.error ? ' (' + tunnel.error + ')' : '') + '. Check the internet connection and click “Start public address” again.';
     } else {
-      badgeEl.innerHTML = '<span class="badge" style="background:var(--bg3);color:var(--text-muted);font-size:11px;padding:3px 9px;border-radius:999px">Local Dev</span>';
+      badgeEl.innerHTML = pill('off', 'Not receiving yet');
+      if (subtextEl) subtextEl.textContent = '';
+      if (hintEl) hintEl.textContent = 'Meta can only reach a public https address. Click “Start public address” to open one for this PC (it stays on while Social-Nexus is running).';
+      if (startBtn) startBtn.textContent = 'Start public address';
     }
   }
 
@@ -130,7 +134,7 @@ function renderPipelineConfig() {
     } else {
       pageStatusEl.innerHTML = `
         <div style="color:var(--text-muted)">
-          ⚠️ No Facebook Page connected. Go to <strong>Settings → Social Platforms</strong> to connect your Page.
+          No Facebook Page connected yet. <a href="javascript:void(0)" onclick="openSettings('platforms')">Connect Facebook in Settings → Connected accounts</a> first.
         </div>
       `;
       if (btnSubscribe) btnSubscribe.disabled = true;
@@ -140,6 +144,11 @@ function renderPipelineConfig() {
   // 4. n8n and Chatwoot inputs
   const n8nUrlInput = document.getElementById('pipeline-n8n-url');
   if (n8nUrlInput) n8nUrlInput.value = cfg.n8n_webhook_url || '';
+  const n8nPill = document.getElementById('n8n-status-pill');
+  if (n8nPill) {
+    n8nPill.className = 'status-pill ' + (cfg.n8n_webhook_url ? 'ok' : '');
+    n8nPill.innerHTML = cfg.n8n_webhook_url ? '<span class="status-dot-sm ok"></span>Sending events' : '';
+  }
 
   const cwUrlInput = document.getElementById('pipeline-chatwoot-url');
   if (cwUrlInput) cwUrlInput.value = cfg.chatwoot_url || '';
@@ -158,11 +167,11 @@ function renderPipelineConfig() {
   const cardToken = document.getElementById("card-wa-access-token");
   if (cardToken) cardToken.value = cfg.whatsapp_access_token || "";
   const cardPhone = document.getElementById("card-wa-phone-id");
-  if (cardPhone) cardPhone.value = cfg.whatsapp_phone_number_id || "1368551949674659";
+  if (cardPhone) cardPhone.value = cfg.whatsapp_phone_number_id || "";
   const cardWaba = document.getElementById("card-wa-waba-id");
-  if (cardWaba) cardWaba.value = cfg.whatsapp_business_account_id || "696830193454621";
+  if (cardWaba) cardWaba.value = cfg.whatsapp_business_account_id || "";
   const cardRecipient = document.getElementById("card-wa-test-recipient");
-  if (cardRecipient) cardRecipient.value = cfg.whatsapp_test_recipient || "918149498945";
+  if (cardRecipient) cardRecipient.value = cfg.whatsapp_test_recipient || "";
   renderWhatsAppConfigBadges();
 }
 
@@ -204,7 +213,8 @@ async function savePipelineConfig() {
     });
 
     LeadPipelineState.config = updated;
-    toast('Pipeline settings saved successfully!', 'success');
+    renderPipelineConfig();
+    toast('Saved', 'success');
   } catch (err) {
     console.error('[Lead Pipeline] Save error:', err);
     toast(err.message || 'Error saving settings', 'error');
@@ -285,7 +295,7 @@ async function syncRealMetaLeads() {
     const campaignsCount = Array.isArray(res.active_campaigns) ? res.active_campaigns.length : 0;
     const adsCount = Array.isArray(res.active_ads) ? res.active_ads.length : 0;
 
-    toast(`✅ Synced with Meta! ${res.page_name || 'Urban Society'}: ${campaignsCount} campaigns, ${adsCount} ads, ${formsCount} lead forms`, 'success', 6000);
+    toast(`✅ Synced with Meta! ${res.page_name || 'your Page'}: ${campaignsCount} campaigns, ${adsCount} ads, ${formsCount} lead forms`, 'success', 6000);
     await loadLeadPipeline();
   } catch (err) {
     console.error('[Lead Pipeline] Real sync error:', err);
@@ -331,14 +341,13 @@ async function simulateTestLead() {
       btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;margin-right:6px"></span> Ingesting...';
     }
     const res = await api('POST', '/api/lead-pipeline/test-lead', {
-      full_name: 'Dr. Rajesh Sharma',
-      email: 'secretary@palmgrove-rwa.in',
-      phone_number: '+919811223344',
+      full_name: 'Test Lead',
+      email: 'test.lead@example.com',
+      phone_number: '+910000000000',
       custom_answers: {
-        'Society / Community Name': 'Palm Grove Residences (Urban Society RWA)',
-        'Total Apartment Units': '450 Units',
-        'Primary Operational Challenge': 'Maintenance billing collection delays and visitor security gates',
-        'Budget Approved': 'Yes, AGM approved ₹45,000/yr'
+        'Company': 'Sample Company',
+        'What are you looking for?': 'A price list and a call back',
+        'Budget': 'Not sure yet'
       }
     });
     toast(res.message || 'Test Lead ingested & n8n pipeline triggered!', 'success', 4000);
@@ -440,20 +449,7 @@ function renderLeadsTable(searchFilter = '') {
 
   let leads = LeadPipelineState.leads || [];
 
-  // Seed sample Urban Society / B2B & B2C contacts if empty
-  if (!leads.length) {
-    leads = [
-      { id: 101, full_name: 'Vikramaditya Rao', phone_number: '+919820055443', society: 'Palm Meadows Society', role: 'President', tag: 'CTWA Lead', lead_score: 90, source: 'AD', created_at: Math.floor(Date.now() / 1000) - 3600, suggested_reply: 'Hi Vikramaditya, thanks for reaching out regarding automated maintenance billing!' },
-      { id: 102, full_name: 'Jay Anand', phone_number: '+91 987654922', society: 'DLF Phase 5', role: 'Secretary', tag: 'CTWA Lead', lead_score: 85, source: 'AD', created_at: Math.floor(Date.now() / 1000) - 7200, suggested_reply: 'Hello Jay, thanks for contacting Urban Society!' },
-      { id: 103, full_name: 'Skylar Torff', phone_number: '+91 987654966', society: 'Godrej Woods', role: 'Treasurer', tag: 'CTWA Lead', lead_score: 80, source: 'AD', created_at: Math.floor(Date.now() / 1000) - 10800, suggested_reply: 'Hi Skylar, we would love to schedule a quick 10-min demo.' },
-      { id: 104, full_name: 'Zain Bator', phone_number: '+91 987654481', society: 'Prestige Shantiniketan', role: 'Facility Manager', tag: 'CTWA Lead', lead_score: 78, source: 'AD', created_at: Math.floor(Date.now() / 1000) - 14400, suggested_reply: 'Hi Zain, checking in regarding your inquiry.' },
-      { id: 105, full_name: 'Ryan Philips', phone_number: '+91 987654813', society: 'Sobha City', role: 'Admin', tag: 'CTWA Lead', lead_score: 75, source: 'AD', created_at: Math.floor(Date.now() / 1000) - 18000, suggested_reply: 'Hi Ryan, thanks for reaching out!' },
-      { id: 106, full_name: 'Allison Schleifer', phone_number: '+91 987654837', society: 'Hiranandani Gardens', role: 'RWA President', tag: 'CTWA Lead', lead_score: 92, source: 'AD', created_at: Math.floor(Date.now() / 1000) - 21600, suggested_reply: 'Hi Allison, we have prepared your custom proposal.' },
-      { id: 107, full_name: 'Dr. Rajesh Sharma', phone_number: '+919811223344', society: 'Palm Grove Residences', role: 'Secretary', tag: 'CTWA Lead', lead_score: 88, source: 'CSV', created_at: Math.floor(Date.now() / 1000) - 25200, suggested_reply: 'Hello Dr. Sharma, looking forward to discussing society collections.' },
-      { id: 108, full_name: 'Pirojsha Godrej', phone_number: '+919820011223', society: 'Godrej Properties Communities', role: 'Executive Chairman', tag: 'Enterprise', lead_score: 95, source: 'INBOUND', created_at: Math.floor(Date.now() / 1000) - 28800, suggested_reply: 'Dear Mr. Godrej, our enterprise society deck is attached.' }
-    ];
-    LeadPipelineState.leads = leads;
-  }
+
 
   const query = (searchFilter || LeadPipelineState.contactSearchQuery || '').toLowerCase().trim();
   const filtered = leads.filter((l) => {
@@ -497,7 +493,7 @@ function renderLeadsTable(searchFilter = '') {
         </td>
         <td style="padding:12px 16px">
           <div style="font-weight:700;color:var(--text-primary);font-size:13.5px">${escapeHtml(l.full_name || 'Anonymous Lead')}</div>
-          <div style="font-size:11.5px;color:var(--text-muted)">${escapeHtml(l.society || 'Palm Meadows Society')} ${l.role ? '• ' + escapeHtml(l.role) : ''}</div>
+          <div style="font-size:11.5px;color:var(--text-muted)">${escapeHtml(l.society || '')} ${l.role ? '• ' + escapeHtml(l.role) : ''}</div>
         </td>
         <td style="padding:12px 16px">
           <div style="font-size:13px;font-weight:600">
@@ -610,7 +606,7 @@ function broadcastSelectedContacts() {
   LeadPipelineState.broadcastRecipients = targets.map((l) => ({
     name: l.full_name,
     phone: l.phone_number,
-    society: l.society || 'Palm Meadows Society',
+    society: l.society || '',
     role: l.role || 'Member',
     selected: true,
   }));
@@ -663,13 +659,13 @@ function saveManualContact() {
     id: Date.now(),
     full_name: name,
     phone_number: phone,
-    society: (societyInput?.value || '').trim() || 'Palm Meadows Society',
+    society: (societyInput?.value || '').trim(),
     role: (roleInput?.value || '').trim() || 'Secretary',
     tag: tagSelect?.value || 'CTWA Lead',
     source: sourceSelect?.value || 'MANUAL',
     lead_score: 85,
     created_at: Math.floor(Date.now() / 1000),
-    suggested_reply: `Hi ${name}, thank you for connecting with Urban Society!`,
+    suggested_reply: `Hi ${name}, thanks for getting in touch!`,
   };
 
   LeadPipelineState.leads.unshift(newContact);
@@ -1062,7 +1058,7 @@ function playInspectorChime() {
 }
 
 async function sendLiveWhatsAppTest(toPhone) {
-  const target = toPhone || '918149498945';
+  const target = toPhone || '';
   try {
     toast(`🚀 Dispatched WhatsApp Cloud API test to +${target}...`, 'info');
     const res = await api('POST', '/api/lead-pipeline/whatsapp/test', { to: target });
@@ -1078,9 +1074,9 @@ function renderVisualNodeView(nodeId, step) {
 
   // 1. WhatsApp & SMS Dispatcher Visual Node UI
   if (nodeId === 'node-sms-whatsapp') {
-    const waUrl = out.whatsapp_url || `https://wa.me/918149498945?text=${encodeURIComponent(out.message_text || 'Hello from Urban Society!')}`;
-    const msgText = out.message_text || inp.template || 'Hi Dr. Rajesh Sharma, thanks for reaching out to Urban Society! Can I share a quick 10-minute demo of our automated society maintenance software?';
-    const recipient = out.recipient_phone || inp.phone || '918149498945';
+    const waUrl = out.whatsapp_url || `https://wa.me/?text=${encodeURIComponent(out.message_text || 'Hello!')}`;
+    const msgText = out.message_text || inp.template || 'Hi, thanks for getting in touch!';
+    const recipient = out.recipient_phone || inp.phone || '—';
 
     return `
       <!-- WhatsApp Cloud App Ribbon -->
@@ -1091,7 +1087,7 @@ function renderVisualNodeView(nodeId, step) {
             <div>
               <div style="font-size:14px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:6px">
                 <span>WhatsApp Cloud API</span>
-                <span class="badge" style="background:#22c55e;color:#000;font-size:10px;font-weight:800">urbansociety2.0</span>
+                <span class="badge" style="background:#22c55e;color:#000;font-size:10px;font-weight:800">WhatsApp</span>
                 <span class="badge" style="background:rgba(34,197,94,0.2);color:#22c55e;font-size:10px">● Live Ready</span>
               </div>
               <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
@@ -1108,15 +1104,15 @@ function renderVisualNodeView(nodeId, step) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(34,197,94,0.2)">
           <div style="font-size:11.5px">
             <span style="color:var(--text-muted)">Phone Number ID:</span>
-            <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;color:#22c55e;font-weight:700">908833945656131</code>
+            <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;color:#22c55e;font-weight:700">${escapeHtml((LeadPipelineState.config || {}).whatsapp_phone_number_id || 'not set')}</code>
           </div>
           <div style="font-size:11.5px">
             <span style="color:var(--text-muted)">WABA ID:</span>
-            <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;color:var(--text-primary)">2476543366144669</code>
+            <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;color:var(--text-primary)">${escapeHtml((LeadPipelineState.config || {}).whatsapp_business_account_id || 'not set')}</code>
           </div>
           <div style="font-size:11.5px">
             <span style="color:var(--text-muted)">Verified Test Number:</span>
-            <span class="badge" style="background:rgba(34,197,94,0.18);color:#22c55e;font-weight:700">+918149498945</span>
+            <span class="badge" style="background:rgba(34,197,94,0.18);color:#22c55e;font-weight:700">${escapeHtml(recipient)}</span>
           </div>
         </div>
       </div>
@@ -1125,7 +1121,7 @@ function renderVisualNodeView(nodeId, step) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
         <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
           <div style="font-size:11px;text-transform:uppercase;color:var(--text-muted);font-weight:700">Target Recipient</div>
-          <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-top:4px">Dr. Rajesh Sharma</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-top:4px">Test Lead</div>
           <div style="font-size:12px;color:#10b981;font-weight:600;margin-top:2px">📞 +${escapeHtml(recipient)}</div>
         </div>
         <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
@@ -1172,8 +1168,8 @@ function renderVisualNodeView(nodeId, step) {
   // 2. Instant Lead Alert Visual Node UI
   if (nodeId === 'node-alert') {
     const isHot = out.priority === 'urgent' || inp.is_hot;
-    const alertTitle = out.title || '🔥 Hot Lead Alert: Dr. Rajesh Sharma';
-    const alertSub = out.subtitle || 'Palm Grove Residences (Urban Society RWA) • Score: 100/100';
+    const alertTitle = out.title || '🔥 Hot Lead Alert: Test Lead';
+    const alertSub = out.subtitle || 'New lead';
     const alertBody = out.body || 'Phone: +919811223344 | Email: secretary@palmgrove-rwa.in';
 
     return `
@@ -1235,7 +1231,7 @@ function renderVisualNodeView(nodeId, step) {
     const score = out.lead_score || out.score || 100;
     const isHot = score >= 75;
     const intent = out.intent_summary || 'Urgent society management inquiry with committee budget approved.';
-    const reply = out.suggested_reply || 'Hi Dr. Rajesh Sharma, thank you for inquiring! When would be a convenient time for a quick 5-minute demo?';
+    const reply = out.suggested_reply || 'Hi Test Lead, thank you for inquiring! When would be a convenient time for a quick 5-minute demo?';
 
     return `
       <!-- Score & Intent Banner -->
@@ -1253,7 +1249,7 @@ function renderVisualNodeView(nodeId, step) {
                 </span>
               </div>
               <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
-                Evaluated against Palm Grove Residences RWA criteria
+                Scored on the answers in the form
               </div>
             </div>
           </div>
@@ -1309,7 +1305,7 @@ function renderVisualNodeView(nodeId, step) {
         </div>
         <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px">
           <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Facebook Page</div>
-          <div style="font-size:13.5px;font-weight:700;color:#3b82f6;margin-top:2px">Urban Society (520186977848285)</div>
+          <div style="font-size:13.5px;font-weight:700;color:#3b82f6;margin-top:2px">${escapeHtml(LeadPipelineState.facebookPage?.page_label || 'Not connected')}</div>
         </div>
         <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px">
           <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Lead Ingestion Mode</div>
@@ -1340,9 +1336,9 @@ function renderVisualNodeView(nodeId, step) {
       <!-- Slack Simulated Card -->
       <div style="background:#1a1d21;border:1px solid #383f45;border-left:4px solid #8b5cf6;border-radius:10px;padding:14px;margin-bottom:14px;color:#d1d2d3">
         <div style="font-size:12px;font-weight:700;color:#8b5cf6;margin-bottom:4px">SLACK #leads CHANNEL DISPATCH</div>
-        <div style="font-size:14px;font-weight:700;color:#fff">🔥 New High-Intent Lead: Dr. Rajesh Sharma</div>
+        <div style="font-size:14px;font-weight:700;color:#fff">🔥 New High-Intent Lead: Test Lead</div>
         <div style="font-size:12.5px;margin-top:6px;line-height:1.5">
-          • Society: Palm Grove Residences (Urban Society RWA)<br/>
+          • Company: Sample Company<br/>
           • Units: 450 Units • Phone: +919811223344<br/>
           • Challenge: Maintenance billing collection delays
         </div>
@@ -1507,7 +1503,7 @@ async function openLiveTakeoverDrawer(leadId) {
     const waLink = cleanPhone ? `https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent(lead.suggested_reply || 'Hi, thanks for reaching out!')}` : null;
 
     const msgsHtml = messages.map(m => {
-      const isAgent = m.sender_type === 'agent';
+      const isAgent = m.sender_type === 'agent' || m.sender_type === 'bot' || m.sender_type === 'broadcast';
       const isNote = m.sender_type === 'note';
       const timeStr = m.created_at ? new Date(m.created_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
@@ -1732,10 +1728,8 @@ function toggleLeadSubmenu(e) {
 
 function downloadSampleWhatsAppCsv() {
   const csvContent = 'Name,Phone,Society,Role,Units\n' +
-    'Vikramaditya Rao,+919820055443,Palm Meadows Society,President,450\n' +
-    'Dr. Rajesh Sharma,+919811223344,Palm Grove Residences,Secretary,320\n' +
-    'Pirojsha Godrej,+919820011223,Godrej Properties Communities,Executive Chairperson,600\n' +
-    'Sanjay Singhania,+919833445566,Oberoi Sky Heights RWA,Treasurer,280\n';
+    'Priya Sharma,+91 98765 43210,Green Valley,Owner,\n' +
+    'Rahul Mehta,+91 91234 56789,Sunrise Traders,Manager,\n';
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -2012,11 +2006,11 @@ function onBroadcastTemplateChange(val) {
   if (!textarea) return;
 
   if (val === 'demo') {
-    textarea.value = 'Hi {{name}}, thanks for connecting with Urban Society! We built an automated society management platform that eliminates billing delays and vendor tracking for communities like {{society}}. Would you be available for a quick 5-minute demo on Thursday?';
+    textarea.value = 'Hi {{name}}, thanks for getting in touch! Reply here if you have any questions.';
   } else if (val === 'committee') {
-    textarea.value = 'Hello {{name}}, reaching out to the {{role}} office at {{society}}. Many residential committees spend 10+ hours a month managing dues and committee votes manually. Can I share a quick 1-pager on how Urban Society automates this?';
+    textarea.value = 'Hi {{name}}, thanks for getting in touch! Reply here if you have any questions.';
   } else if (val === 'official_test') {
-    textarea.value = 'Hello! This is an official WhatsApp Cloud API verification message from Urban Society (urbansociety2.0). If you received this, your WhatsApp bridge is fully active.';
+    textarea.value = 'Hello! This is a test message from Social-Nexus.';
   }
 
   updateBroadcastPhoneMockup();
@@ -2043,19 +2037,14 @@ function updateBroadcastPhoneMockup() {
   if (!textarea || !bubble) return;
 
   if (!textarea.value) {
-    textarea.value = 'Hi {{name}}, thanks for connecting with Urban Society! We built an automated society management platform that eliminates billing delays and vendor tracking for communities like {{society}}. Would you be available for a quick 5-minute demo on Thursday?';
+    textarea.value = 'Hi {{name}}, thanks for getting in touch! Reply here if you have any questions.';
   }
 
   const rawText = textarea.value;
   if (countLabel) countLabel.textContent = `${rawText.length} chars`;
 
   // Sample or first contact
-  const sample = LeadPipelineState.broadcast.contacts[0] || {
-    name: 'Vikramaditya Rao',
-    society: 'Palm Meadows Society',
-    role: 'President',
-    units: '450',
-  };
+  const sample = LeadPipelineState.broadcast.contacts[0] || { name: 'Priya', society: '', role: '', units: '' };
 
   let personalized = rawText
     .replace(/\{\{name\}\}/gi, sample.name || 'Resident')
@@ -2227,148 +2216,26 @@ async function loadWhatsAppConversations() {
     const res = await api('GET', '/api/lead-pipeline/whatsapp/conversations').catch(() => ({ conversations: [] }));
     let convos = res.conversations || [];
 
-    // Comprehensive WhatsApp seed dataset matching Image 1
-    if (!convos.length) {
-      convos = [
-        {
-          lead_id: 201,
-          full_name: 'Dr. Hussain',
-          phone_number: '+91 987654320',
-          society: 'Palm Meadows Society',
-          role: 'Treasurer',
-          last_message: 'Free Tier Conversation Started',
-          category_snippet: 'Free Tier Conversation S..',
-          category: 'Service / Free Tier',
-          payment: 'Free Tier Active',
-          filter_type: 'active',
-          last_sender: 'system',
-          last_time: Math.floor(Date.now() / 1000) - 300,
-          is_within_24h: true,
-          assigned_agent_name: 'Priya Gautam',
-        },
-        {
-          lead_id: 202,
-          full_name: 'Arvind Bajaj',
-          phone_number: '+91 987654321',
-          society: 'Palm Meadows Society',
-          role: 'President / Secretary',
-          last_message: '₹1,500.00 received from UPI',
-          category_snippet: '₹1,500.00 received fr..',
-          category: 'Utility Conversation Started',
-          payment: '₹1,500.00 Received from UPI',
-          filter_type: 'active',
-          last_sender: 'lead',
-          last_time: Math.floor(Date.now() / 1000) - 1200,
-          is_within_24h: true,
-          assigned_agent_name: 'Priya Gautam',
-        },
-        {
-          lead_id: 203,
-          full_name: 'Manish',
-          phone_number: '+91 987654322',
-          society: 'DLF Phase 5',
-          role: 'Secretary',
-          last_message: 'Marketing Conversation Active',
-          category_snippet: 'Marketing Conversation ..',
-          category: 'Marketing Conversation',
-          payment: 'Pending Demo',
-          filter_type: 'requesting',
-          last_sender: 'lead',
-          last_time: Math.floor(Date.now() / 1000) - 2400,
-          is_within_24h: true,
-          assigned_agent_name: 'Unassigned',
-        },
-        {
-          lead_id: 204,
-          full_name: 'Yash Batra',
-          phone_number: '+91 987654323',
-          society: 'Godrej Woods',
-          role: 'Facility Manager',
-          last_message: '₹1,500.00 received from UPI',
-          category_snippet: '₹1,500.00 received from..',
-          category: 'Utility Conversation Started',
-          payment: '₹1,500.00 Received from UPI',
-          filter_type: 'active',
-          last_sender: 'lead',
-          last_time: Math.floor(Date.now() / 1000) - 3600,
-          is_within_24h: true,
-          assigned_agent_name: 'Rohit Verma',
-        },
-        {
-          lead_id: 205,
-          full_name: 'Monika Shah',
-          phone_number: '+91 987654324',
-          society: 'Prestige Shantiniketan',
-          role: 'RWA Secretary',
-          last_message: '₹1,500.00 received from UPI',
-          category_snippet: '₹1,500.00 received from..',
-          category: 'Utility Conversation Started',
-          payment: '₹1,500.00 Received from UPI',
-          filter_type: 'active',
-          last_sender: 'lead',
-          last_time: Math.floor(Date.now() / 1000) - 4800,
-          is_within_24h: true,
-          assigned_agent_name: 'Priya Gautam',
-        },
-        {
-          lead_id: 206,
-          full_name: "Paula D'Cruz",
-          phone_number: '+91 987654325',
-          society: 'Hiranandani Gardens',
-          role: 'Managing Committee',
-          last_message: 'Utility Conversation Started',
-          category_snippet: 'Utility Conversation Star..',
-          category: 'Utility Conversation Started',
-          payment: 'Invoice Generated',
-          filter_type: 'requesting',
-          last_sender: 'system',
-          last_time: Math.floor(Date.now() / 1000) - 6000,
-          is_within_24h: true,
-          assigned_agent_name: 'Sneha Kulkarni',
-        },
-        {
-          lead_id: 207,
-          full_name: 'Sam Baldwin',
-          phone_number: '+91 987654326',
-          society: 'Sobha City',
-          role: 'President',
-          last_message: 'Utility Conversation Started',
-          category_snippet: 'Utility Conversation Star..',
-          category: 'Utility Conversation Started',
-          payment: 'Under Review',
-          filter_type: 'intervened',
-          last_sender: 'agent',
-          last_time: Math.floor(Date.now() / 1000) - 7200,
-          is_within_24h: true,
-          assigned_agent_name: 'Rohit Verma',
-        },
-        {
-          lead_id: 101,
-          full_name: 'Vikramaditya Rao',
-          phone_number: '+919820055443',
-          society: 'Palm Meadows Society',
-          role: 'President',
-          last_message: 'Hi Vikramaditya, thank you for contacting Urban Society!',
-          category_snippet: 'CTWA Lead • Palm Meadows',
-          category: 'Inbound Meta Lead',
-          payment: '₹1,500.00 Received',
-          filter_type: 'active',
-          last_sender: 'agent',
-          last_time: Math.floor(Date.now() / 1000) - 8600,
-          is_within_24h: true,
-          assigned_agent_name: 'Priya Gautam',
-        }
-      ];
-    }
+
 
     LeadPipelineState.chat.conversations = convos;
     updateWhatsAppFilterCounts();
     renderWhatsAppConversationsList();
 
-    // Auto-select Arvind Bajaj (lead_id 202) or first
-    const arvind = convos.find((c) => c.full_name === 'Arvind Bajaj');
-    const targetId = arvind ? arvind.lead_id : convos[0].lead_id;
-    selectWhatsAppConversation(targetId);
+    if (!convos.length) {
+      if (listEl) listEl.innerHTML = `
+        <div style="text-align:center;padding:28px 18px;color:var(--text-muted);font-size:13px;line-height:1.5">
+          <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px">No chats yet</div>
+          When customers write to your WhatsApp number, their messages appear here and you can reply.
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px;align-items:center">
+            <button class="btn btn-secondary btn-sm" onclick="navigateTo('leads-settings')">Connect WhatsApp</button>
+            <button class="btn btn-ghost btn-sm" onclick="navigateTo('leads-bot')">Set up auto-replies</button>
+          </div>
+        </div>`;
+      return;
+    }
+    // Open the most recent chat
+    selectWhatsAppConversation(convos[0].lead_id);
   } catch (err) {
     console.error('Error loading conversations:', err);
     if (listEl) listEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted)">No chats found</div>';
@@ -2511,14 +2378,14 @@ async function selectWhatsAppConversation(leadId) {
   if (headerAvatar) headerAvatar.textContent = initials;
   if (headerName) headerName.textContent = active.full_name || 'Prospect Lead';
   if (headerPhone) headerPhone.textContent = active.phone_number || '';
-  if (headerSociety) headerSociety.textContent = '• ' + (active.society || 'Palm Meadows Society');
+  if (headerSociety) headerSociety.textContent = active.society ? '• ' + active.society : '';
   if (headerWindow) {
     headerWindow.textContent = active.window_status || 'Active (24h left)';
     headerWindow.style.background = 'rgba(34,197,94,0.15)';
     headerWindow.style.color = '#22c55e';
   }
   if (headerAgentName) {
-    headerAgentName.textContent = active.assigned_agent_name || 'Priya Gautam';
+    headerAgentName.textContent = active.assigned_agent_name || 'Not assigned';
   }
 
   // 3. Update Chat Profile Side Panel (Matching Image 1)
@@ -2532,13 +2399,13 @@ async function selectWhatsAppConversation(leadId) {
   const profileAgent = document.getElementById('profile-agent');
 
   if (profileAvatar) profileAvatar.textContent = initials;
-  if (profileName) profileName.textContent = active.full_name || 'Arvind Bajaj';
+  if (profileName) profileName.textContent = active.full_name || 'Unknown';
   if (profilePhone) profilePhone.textContent = active.phone_number || '+91 987654321';
-  if (profileSociety) profileSociety.textContent = active.society || 'Palm Meadows Society';
+  if (profileSociety) profileSociety.textContent = active.society || '';
   if (profileRole) profileRole.textContent = (active.role || 'President') + ' • Decision Maker';
   if (profileCategory) profileCategory.textContent = active.category || 'Utility / Marketing (Free Tier)';
   if (profilePayment) profilePayment.textContent = active.payment || '₹1,500.00 Received from UPI';
-  if (profileAgent) profileAgent.textContent = '👤 ' + (active.assigned_agent_name || 'Priya Gautam (Seat 2)');
+  if (profileAgent) profileAgent.textContent = '👤 ' + (active.assigned_agent_name || 'Not assigned');
 
   // 4. Render Messages Stream
   const stream = document.getElementById('chat-message-stream');
@@ -2546,21 +2413,12 @@ async function selectWhatsAppConversation(leadId) {
 
   try {
     const res = await api('GET', `/api/lead-pipeline/whatsapp/conversations/${leadId}/messages`).catch(() => ({ messages: [] }));
-    let messages = res.messages || [];
-
-    if (!messages.length) {
-      messages = [
-        { id: 1, sender_type: 'lead', message_text: 'Hi, I saw your maintenance collection ad for Palm Meadows Society.', created_at: Math.floor(Date.now() / 1000) - 3600 },
-        { id: 2, sender_type: 'agent', message_text: 'Hello Arvind! Thanks for reaching out. Urban Society automates billing, WhatsApp reminders, and UPI collection directly.', created_at: Math.floor(Date.now() / 1000) - 3000 },
-        { id: 3, sender_type: 'lead', message_text: 'Great! Does it reconcile with our society bank account automatically?', created_at: Math.floor(Date.now() / 1000) - 2400 },
-        { id: 4, sender_type: 'agent', message_text: 'Yes, 100% automated with instant ledger sync and 0 manual reconciliation.', created_at: Math.floor(Date.now() / 1000) - 1800 },
-        { id: 5, sender_type: 'lead', message_text: 'Just sent ₹1,500 via UPI for the demo society onboarding.', created_at: Math.floor(Date.now() / 1000) - 1200 },
-        { id: 6, sender_type: 'agent', message_text: 'Payment received! Receipt #REC-8842 dispatched. Would you like to schedule a 10-minute kickoff call today?', created_at: Math.floor(Date.now() / 1000) - 600 }
-      ];
-    }
+    // Only real messages: an empty chat shows "Start of conversation", never sample text
+    const messages = res.messages || [];
 
     LeadPipelineState.chat.activeMessages = messages;
     renderChatMessageStream(messages, active);
+    renderChatBotNotice(leadId, res.bot);
     startChatAutoPoll();
   } catch (err) {
     console.error('Error loading messages:', err);
@@ -2581,7 +2439,7 @@ function renderChatMessageStream(messages, activeContact) {
   }
 
   stream.innerHTML = messages.map((m) => {
-    const isOutbound = m.sender_type === 'agent' || m.sender_type === 'broadcast';
+    const isOutbound = m.sender_type === 'agent' || m.sender_type === 'broadcast' || m.sender_type === 'bot';
     const isInternal = m.sender_type === 'internal_note' || m.channel === 'internal';
     const timeStr = m.created_at ? new Date(m.created_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today';
 
@@ -2601,6 +2459,7 @@ function renderChatMessageStream(messages, activeContact) {
       return `
         <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
           <div style="background:#005c4b;color:#e9edef;border-radius:12px 12px 2px 12px;padding:10px 14px;max-width:75%;box-shadow:0 1px 3px rgba(0,0,0,0.3)">
+            ${m.sender_type === 'bot' ? '<div style="font-size:10.5px;font-weight:600;color:#8696a0;margin-bottom:3px">🤖 Auto-reply</div>' : ''}
             <div style="font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word">${escapeHtml(m.message_text)}</div>
             <div style="display:flex;justify-content:flex-end;align-items:center;gap:4px;margin-top:4px;font-size:10px;color:#8696a0">
               <span>${timeStr}</span>
@@ -2680,7 +2539,7 @@ function insertChatQuickReply(type) {
   if (type === 'demo') {
     input.value = 'Hi, thanks for reaching out! Would you be available for a brief 10-minute demo on Zoom this week?';
   } else if (type === 'pricing') {
-    input.value = 'Urban Society offers complete automated society management starting at ₹15/flat/month with zero setup cost.';
+    input.value = 'Here are our prices: ';
   } else if (type === 'units') {
     input.value = 'Could you please confirm the total number of units and flats in your residential community?';
   } else if (type === 'confirm') {
@@ -2701,8 +2560,8 @@ function openActiveChatWhatsAppWeb() {
 
   const cleanPhone = String(active.phone_number).replace(/[^0-9]/g, '');
   const input = document.getElementById('chat-reply-input');
-  const msg = input ? input.value : 'Hello from Urban Society!';
-  const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg || 'Hello from Urban Society!')}`;
+  const msg = input ? input.value : 'Hello!';
+  const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg || 'Hello!')}`;
   window.open(url, '_blank');
 }
 
@@ -2746,9 +2605,9 @@ function openWhatsAppConfigModal() {
   const recipientInput = document.getElementById("wa-cfg-test-recipient");
 
   if (tokenInput) tokenInput.value = cfg.whatsapp_access_token || "";
-  if (phoneInput) phoneInput.value = cfg.whatsapp_phone_number_id || "1368551949674659";
-  if (wabaInput) wabaInput.value = cfg.whatsapp_business_account_id || "696830193454621";
-  if (recipientInput) recipientInput.value = cfg.whatsapp_test_recipient || "918149498945";
+  if (phoneInput) phoneInput.value = cfg.whatsapp_phone_number_id || "";
+  if (wabaInput) wabaInput.value = cfg.whatsapp_business_account_id || "";
+  if (recipientInput) recipientInput.value = cfg.whatsapp_test_recipient || "";
 
   renderWhatsAppConfigBadges();
 }
@@ -2773,9 +2632,9 @@ function toggleWaTokenVisibility() {
 
 async function saveWhatsAppConfig() {
   const token = document.getElementById("wa-cfg-access-token")?.value?.trim();
-  const phoneId = document.getElementById("wa-cfg-phone-id")?.value?.trim() || "1368551949674659";
-  const wabaId = document.getElementById("wa-cfg-waba-id")?.value?.trim() || "696830193454621";
-  const testRecipient = document.getElementById("wa-cfg-test-recipient")?.value?.trim() || "918149498945";
+  const phoneId = document.getElementById("wa-cfg-phone-id")?.value?.trim() || "";
+  const wabaId = document.getElementById("wa-cfg-waba-id")?.value?.trim() || "";
+  const testRecipient = document.getElementById("wa-cfg-test-recipient")?.value?.trim() || "";
 
   if (!token) {
     toast("Please enter your Meta WhatsApp Permanent Access Token", "warning");
@@ -2803,7 +2662,7 @@ async function saveWhatsAppConfig() {
       LeadPipelineState.config.whatsapp_business_account_id = wabaId;
       LeadPipelineState.config.whatsapp_test_recipient = testRecipient;
 
-      toast("🎉 Connected & Verified! Meta Cloud API verified for " + (res.verified_name || "urbansociety2.0") + ".", "success", 5000);
+      toast("WhatsApp is connected" + (res.verified_name ? " as " + res.verified_name : "") + ".", "success", 5000);
       renderWhatsAppConfigBadges();
       closeWhatsAppConfigModal();
     } else {
@@ -2938,7 +2797,8 @@ async function sendWhatsAppTestPing() {
   const recipient =
     document.getElementById("wa-cfg-test-recipient")?.value?.trim() ||
     document.getElementById("card-wa-test-recipient")?.value?.trim() ||
-    "918149498945";
+    "";
+  if (!recipient) { toast("Type your own WhatsApp number in “Send test messages to” first.", "warning"); return; }
 
   const templateSelect =
     document.getElementById("card-wa-template-select") ||
@@ -2969,10 +2829,7 @@ async function sendWhatsAppTestPing() {
       to: recipient,
       template_name: chosenTemplate,
       language_code: chosenLang,
-      template_params: {
-        header: ["Urban Society"],
-        body: ["Welcome to Urban Society! Testing Meta Business Cloud API connection."],
-      },
+      template_params: undefined,
     });
 
     if (res.success) {
@@ -3014,21 +2871,21 @@ function toggleCardWaTokenVisibility() {
   if (!input) return;
   if (input.type === "password") {
     input.type = "text";
-    if (link) link.textContent = "🔒 Hide";
+    if (link) link.textContent = "Hide";
   } else {
     input.type = "password";
-    if (link) link.textContent = "👁️ Show";
+    if (link) link.textContent = "Show";
   }
 }
 
 async function saveCardWhatsAppConfig() {
   const token = document.getElementById("card-wa-access-token")?.value?.trim();
-  const phoneId = document.getElementById("card-wa-phone-id")?.value?.trim() || "1368551949674659";
-  const wabaId = document.getElementById("card-wa-waba-id")?.value?.trim() || "696830193454621";
-  const testRecipient = document.getElementById("card-wa-test-recipient")?.value?.trim() || "918149498945";
+  const phoneId = document.getElementById("card-wa-phone-id")?.value?.trim() || "";
+  const wabaId = document.getElementById("card-wa-waba-id")?.value?.trim() || "";
+  const testRecipient = document.getElementById("card-wa-test-recipient")?.value?.trim() || "";
 
-  if (!token) {
-    toast("Please enter your Meta WhatsApp Permanent Access Token", "warning");
+  if (!token || !phoneId) {
+    toast(!token ? "Paste your WhatsApp access token first." : "Paste your Phone number ID (from Meta → WhatsApp → API setup).", "warning");
     return;
   }
 
@@ -3053,7 +2910,7 @@ async function saveCardWhatsAppConfig() {
       LeadPipelineState.config.whatsapp_business_account_id = wabaId;
       LeadPipelineState.config.whatsapp_test_recipient = testRecipient;
 
-      toast("🎉 Connected & Verified! Meta Cloud API verified for " + (res.verified_name || "urbansociety2.0") + ".", "success", 5000);
+      toast("🎉 Connected & Verified! Meta Cloud API verified for " + (res.verified_name || "your number") + ".", "success", 5000);
       renderWhatsAppConfigBadges();
     } else {
       toast("❌ Meta Verification Failed: " + (res.error || "Invalid token or phone ID"), "error", 7000);
@@ -3064,7 +2921,7 @@ async function saveCardWhatsAppConfig() {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = "💾 Save & Connect WhatsApp Token";
+      btn.textContent = "Save and connect";
     }
   }
 }
@@ -3076,8 +2933,8 @@ function renderWhatsAppConfigBadges() {
   // 1. Setup Card Badge
   const cardBadge = document.getElementById("card-wa-status-badge");
   if (cardBadge) {
-    cardBadge.style.background = hasToken ? "#10b981" : "#ef4444";
-    cardBadge.textContent = hasToken ? "CONNECTED ✓" : "TOKEN NEEDED";
+    cardBadge.className = "status-pill " + (hasToken ? "ok" : "warn");
+    cardBadge.innerHTML = '<span class="status-dot-sm ' + (hasToken ? "ok" : "warn") + '"></span>' + (hasToken ? "Connected" : "Not connected");
   }
 
   // 2. Broadcast Tab Header Badge
@@ -3107,8 +2964,8 @@ function renderWhatsAppConfigBadges() {
       outboundBanner.style.borderColor = "rgba(16,185,129,0.3)";
       if (outboundIcon) outboundIcon.textContent = "🟢";
       outboundTitle.style.color = "#10b981";
-      outboundTitle.textContent = "WhatsApp Cloud API Active (urbansociety2.0)";
-      if (outboundDesc) outboundDesc.textContent = "Phone ID: " + (cfg.whatsapp_phone_number_id || "1368551949674659") + " · Direct automated cloud delivery is enabled.";
+      outboundTitle.textContent = "WhatsApp is connected";
+      if (outboundDesc) outboundDesc.textContent = "Phone ID: " + (cfg.whatsapp_phone_number_id || "") + " · Direct automated cloud delivery is enabled.";
       if (btnOutboundSetup) btnOutboundSetup.textContent = "⚙️ Configure API";
     } else {
       outboundBanner.style.background = "rgba(239,68,68,0.12)";
@@ -3138,7 +2995,7 @@ function renderWhatsAppConfigBadges() {
       alertBox.style.borderColor = "rgba(16,185,129,0.3)";
       alertBox.style.color = "#6ee7b7";
       if (alertIcon) alertIcon.textContent = "🟢";
-      alertText.innerHTML = "<strong>Connected:</strong> Phone ID: <code>" + (cfg.whatsapp_phone_number_id || "1368551949674659") + "</code> · WABA ID: <code>" + (cfg.whatsapp_business_account_id || "696830193454621") + "</code>. Direct Cloud API is active.";
+      alertText.innerHTML = "<strong>Connected:</strong> Phone ID: <code>" + (cfg.whatsapp_phone_number_id || "") + "</code> · WABA ID: <code>" + (cfg.whatsapp_business_account_id || "") + "</code>. Direct Cloud API is active.";
     } else {
       alertBox.style.background = "rgba(239,68,68,0.15)";
       alertBox.style.borderColor = "rgba(239,68,68,0.3)";
@@ -3213,15 +3070,15 @@ function onBroadcastTemplateChange(val) {
   if (val === 'official_test') {
     if (nameInput) nameInput.value = 'hello_world';
     if (langSelect) langSelect.value = 'en_US';
-    if (txtArea) txtArea.value = 'Hello! Welcome to Urban Society community management.';
+    if (txtArea) txtArea.value = 'Hello World (Meta’s sample template for testing)';
   } else if (val === 'demo') {
-    if (nameInput) nameInput.value = 'urban_society_demo';
+    if (nameInput) nameInput.value = '';
     if (langSelect) langSelect.value = 'en_US';
-    if (txtArea) txtArea.value = 'Hi {{name}}, thanks for connecting with Urban Society! We built an automated society management platform that eliminates billing delays and vendor tracking for communities like {{society}}. Would you be available for a quick 5-minute demo on Thursday?';
+    if (txtArea) txtArea.value = 'Hi {{name}}, thanks for getting in touch! Reply here if you have any questions.';
   } else if (val === 'committee') {
-    if (nameInput) nameInput.value = 'rwa_committee_outreach';
+    if (nameInput) nameInput.value = '';
     if (langSelect) langSelect.value = 'en_US';
-    if (txtArea) txtArea.value = 'Hello {{name}}, as a key leader at {{society}}, we would love to show you how Urban Society streamlines resident maintenance billing and accounting with 0 manual effort.';
+    if (txtArea) txtArea.value = 'Hi {{name}}, thanks for getting in touch! Reply here if you have any questions.';
   } else if (val === 'custom') {
     if (nameInput) nameInput.value = '';
   } else {
@@ -3239,6 +3096,18 @@ function onBroadcastTemplateChange(val) {
 function openMetaVerificationModal() {
   const modal = document.getElementById('modal-meta-verification');
   if (modal) modal.style.display = 'flex';
+  // This business's own details (from WhatsApp → Setup)
+  const cfg = LeadPipelineState.config || {};
+  const ids = [
+    cfg.whatsapp_business_account_id && `WhatsApp Business Account: ${cfg.whatsapp_business_account_id}`,
+    cfg.whatsapp_phone_number_id && `Phone number ID: ${cfg.whatsapp_phone_number_id}`,
+  ].filter(Boolean);
+  const idsEl = document.getElementById('meta-ver-ids');
+  if (idsEl) idsEl.textContent = ids.length ? ids.join(' • ') : 'Add your WhatsApp details in WhatsApp → Setup.';
+  api('GET', '/api/tools/brand-kit').then(b => {
+    const el = document.getElementById('meta-ver-business');
+    if (el && b?.company_name) el.textContent = b.company_name;
+  }).catch(() => {});
   refreshMetaAuditStatus();
 }
 
@@ -3315,7 +3184,7 @@ async function saveOfficialBusinessProfile() {
   try {
     const res = await api('POST', '/api/lead-pipeline/meta/update-profile', {
       description: about,
-      websites: [website || 'https://urbansociety.in'],
+      websites: [website].filter(Boolean),
     });
     if (res.success) {
       toast('Profile updated with Meta Graph API!', 'success');
@@ -3354,7 +3223,7 @@ async function checkEvolutionStatus() {
 
     if (res.connected) {
       if (dot) dot.textContent = '🟢';
-      if (text) text.textContent = 'Connected (Instance: ' + (res.instance_name || 'urban-society') + ')';
+      if (text) text.textContent = 'Connected (Instance: ' + (res.instance_name || 'social-nexus') + ')';
       if (badge) {
         badge.style.background = 'rgba(34,197,94,0.15)';
         badge.style.borderColor = 'rgba(34,197,94,0.3)';
@@ -3541,7 +3410,7 @@ async function dispatchInChatPaymentRequest() {
       leadId: Number(leadId),
       title: title || 'Society Maintenance',
       amount: Number(amount || 0),
-      upi_vpa: upiVpa || 'urbansociety@upi',
+      upi_vpa: upiVpa,
     });
 
     toast('💳 UPI Payment request dispatched directly into WhatsApp thread!', 'success', 6000);
@@ -3558,9 +3427,38 @@ async function dispatchInChatPaymentRequest() {
 }
 
 // ── Team Seats & Template Manager Modals ──
-function openTeamSeatsModal() {
+// Who can take a chat: the people in this workspace (Settings → Team)
+async function openTeamSeatsModal() {
   const modal = document.getElementById('modal-team-seats');
   if (modal) modal.style.display = 'flex';
+  const list = document.getElementById('team-seats-list');
+  if (!list) return;
+  list.innerHTML = '<div class="state-loading">Loading your team…</div>';
+  try {
+    const wsId = typeof currentWorkspaceId !== 'undefined' ? currentWorkspaceId : null;
+    let people = wsId ? await api('GET', `/workspaces/${wsId}/members`).catch(() => []) : [];
+    if (!Array.isArray(people) || !people.length) {
+      const me = State.user || {};
+      people = me.id ? [{ user_id: me.id, name: me.name, email: me.email, role: 'owner' }] : [];
+    }
+    list.innerHTML = people.map(p => {
+      const name = p.name || (p.email || '').split('@')[0] || `User ${p.user_id}`;
+      const initials = name.split(/s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+      return `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:#040911;border:1px solid rgba(56,189,248,0.2);border-radius:10px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:32px;height:32px;border-radius:50%;background:#0284c7;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">${escapeHtml(initials)}</div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#fff">${escapeHtml(name)}</div>
+              <div style="font-size:11px;color:#94a3b8">${escapeHtml(p.email || '')}${p.role ? ' · ' + escapeHtml(p.role) : ''}</div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="assignWhatsAppAgent(null, ${Number(p.user_id)}, ${jsAttr(name)})">Assign to this chat</button>
+        </div>`;
+    }).join('') + '<div class="form-hint" style="margin-top:6px">To add people, use Settings → Team (turn on Agency mode first).</div>';
+  } catch (err) {
+    list.innerHTML = `<div class="state-error">${escapeHtml(err.message)}</div>`;
+  }
 }
 
 function closeTeamSeatsModal() {
@@ -3723,3 +3621,49 @@ window.saveLeadDetails = saveLeadDetails;
 window.deleteLeadContact = deleteLeadContact;
 window.deleteLeadContactFromModal = deleteLeadContactFromModal;
 window.deleteSelectedContacts = deleteSelectedContacts;
+
+// Above the chat: say when auto-replies are paused here (a person replied) or the
+// contact opted out of broadcasts, with a way to let the bot answer again
+function renderChatBotNotice(leadId, bot) {
+  const stream = document.getElementById('chat-message-stream');
+  if (!stream) return;
+  let box = document.getElementById('chat-bot-notice');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'chat-bot-notice';
+    box.className = 'chat-bot-notice';
+    stream.parentNode.insertBefore(box, stream);
+  }
+  const parts = [];
+  if (bot?.paused_until) {
+    const until = new Date(bot.paused_until * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    parts.push(`Auto-replies are paused in this chat until ${escapeHtml(until)} because you replied. <button class="btn btn-secondary btn-sm" onclick="resumeWhatsAppBot(${Number(leadId)}).then(()=>{ document.getElementById('chat-bot-notice').style.display='none'; })">Turn back on</button>`);
+  }
+  if (bot?.opted_out) parts.push('This person replied STOP: they won’t get broadcasts.');
+  box.innerHTML = parts.join('<br>');
+  box.style.display = parts.length ? '' : 'none';
+}
+
+
+// n8n: send a sample event so the workflow can be built against real data
+async function sendN8nTestEvent(btn) {
+  const out = document.getElementById('n8n-test-result');
+  const url = document.getElementById('pipeline-n8n-url')?.value?.trim();
+  if (!url) { toast('Paste your n8n webhook URL first.', 'warning'); return; }
+  if (btn) btn.disabled = true;
+  if (out) out.textContent = 'Sending…';
+  try {
+    const r = await api('POST', '/api/lead-pipeline/n8n/test-event', { url });
+    if (out) {
+      out.className = r.success ? 'form-hint' : 'state-error';
+      out.textContent = r.success
+        ? (r.reply ? `n8n received it and answered: “${r.reply}”. That reply would be sent to the customer.` : 'n8n received the test event. Open your workflow’s executions to see the data.')
+        : r.error;
+    }
+  } catch (err) {
+    if (out) { out.className = 'state-error'; out.textContent = err.message; }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+window.sendN8nTestEvent = sendN8nTestEvent;

@@ -85,7 +85,7 @@ async function manualApprove(options = {}) {
 
   const edition = options.edition === 'individual' ? 'individual' : 'agency';
   const editionName = edition === 'individual' ? 'Individual' : 'Agency (All Features)';
-  const licensee = String(options.licensee || 'Urban Society').trim();
+  const licensee = String(options.licensee || '').trim();
 
   const seats = edition === 'individual' ? 1 : (Number(options.seats) || 5);
   const workspaces = edition === 'individual' ? 1 : (Number(options.workspaces) || 25);
