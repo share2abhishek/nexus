@@ -332,8 +332,18 @@ function composeAiSourceNote(model) {
 }
 
 function composeAiModel() {
+  const sel = document.getElementById('compose-ai-model-select');
+  if (sel && sel.value) return sel.value;
   return (typeof ModelState !== 'undefined' && ModelState.textModel?.id) || null;
 }
+
+function onComposeModelSelect(val) {
+  if (typeof ModelState !== 'undefined' && ModelState.available?.text) {
+    const found = ModelState.available.text.find(m => m.id === val);
+    if (found) ModelState.textModel = found;
+  }
+}
+window.onComposeModelSelect = onComposeModelSelect;
 
 async function composeAiWrite(promptOverride) {
   if (composeAiBusy) return;

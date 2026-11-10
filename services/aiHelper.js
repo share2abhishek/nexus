@@ -35,7 +35,10 @@ async function ollamaGenerate(prompt, maxTokens = 1024, opts = {}) {
     messages: [{ role: 'user', content: prompt }],
     stream: false,
     keep_alive: '30m',
-    options: { num_predict: Math.min(maxTokens, 1024) },
+    options: {
+      num_predict: Math.min(maxTokens, 1024),
+      num_ctx: parseInt(process.env.OLLAMA_NUM_CTX) || 4096,   // default 131K OOMs on 16GB; 4K is plenty for posts
+    },
   }, { timeout: 180000 });
 
   return { text: res.data.message?.content || res.data.response || '', model: `ollama:${model}` };

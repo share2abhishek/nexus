@@ -165,7 +165,12 @@ function navigateTo(page) {
     history:   () => (typeof window.loadHistory === 'function' ? window.loadHistory() : (typeof loadHistory === 'function' ? loadHistory() : null)),
     analytics: () => (typeof window.loadAnalytics === 'function' ? window.loadAnalytics() : (typeof loadAnalytics === 'function' ? loadAnalytics() : null)),
     files:     () => (typeof window.loadLocalFiles === 'function' ? window.loadLocalFiles() : (typeof loadLocalFiles === 'function' ? loadLocalFiles() : null)),
-    compose:   () => (typeof window.loadScheduled === 'function' ? window.loadScheduled() : (typeof loadScheduled === 'function' ? loadScheduled() : null)),
+    compose:   () => {
+      if (typeof window.loadScheduled === 'function') window.loadScheduled();
+      else if (typeof loadScheduled === 'function') loadScheduled();
+      if (typeof window.loadModels === 'function') window.loadModels();
+      else if (typeof loadModels === 'function') loadModels();
+    },
     templates: () => (typeof window.loadTemplates === 'function' ? window.loadTemplates() : (typeof loadTemplates === 'function' ? loadTemplates() : null)),
     utm:       () => (typeof window.loadUTMLinks === 'function' ? window.loadUTMLinks() : (typeof loadUTMLinks === 'function' ? loadUTMLinks() : null)),
     email:     () => (typeof window.loadEmailPage === 'function' ? window.loadEmailPage() : (typeof loadEmailPage === 'function' ? loadEmailPage() : null)),

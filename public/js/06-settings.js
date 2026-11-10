@@ -914,6 +914,17 @@ async function loadModels() {
     }
     if (!ModelState.imageModel && data.image?.length) selectModel(data.image[0], 'image');
     if (!ModelState.videoModel && data.video?.length) selectModel(data.video[0], 'video');
+
+    // Populate compose screen model dropdown if present
+    const composeSel = document.getElementById('compose-ai-model-select');
+    if (composeSel && data.text?.length) {
+      const currentVal = composeSel.value;
+      composeSel.innerHTML = '<option value="">Auto (Default preference)</option>' +
+        data.text.map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.label)}</option>`).join('');
+      if (currentVal && data.text.some(m => m.id === currentVal)) {
+        composeSel.value = currentVal;
+      }
+    }
   } catch {}
 }
 

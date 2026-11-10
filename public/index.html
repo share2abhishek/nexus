@@ -562,7 +562,15 @@
             <div class="card-body">
               <!-- AI writes into the box below; nothing is posted until you choose in the next step -->
               <div class="compose-ai">
-                <label class="form-label" for="compose-ai-prompt">✨ Write with AI <span class="form-hint" style="display:inline;margin:0">(optional)</span></label>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:6px">
+                  <label class="form-label" for="compose-ai-prompt" style="margin:0">✨ Write with AI <span class="form-hint" style="display:inline;margin:0">(optional)</span></label>
+                  <div style="display:inline-flex;align-items:center;gap:6px">
+                    <span style="font-size:11px;color:var(--text-muted)">AI Model:</span>
+                    <select class="form-select form-select-sm" id="compose-ai-model-select" style="font-size:11px;padding:2px 8px;height:26px;border-radius:6px;max-width:210px" onchange="onComposeModelSelect(this.value)">
+                      <option value="">Auto (Default preference)</option>
+                    </select>
+                  </div>
+                </div>
                 <div class="compose-ai-row">
                   <input type="text" class="form-input" id="compose-ai-prompt" maxlength="2000"
                     placeholder="What should the post say? e.g. Diwali offer: 20% off all cakes this week"
