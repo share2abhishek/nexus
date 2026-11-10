@@ -16,6 +16,8 @@ const HELP_TOPICS = {
   templates: 'templates', brand: 'templates', hashtags: 'hashtags', utm: 'hashtags', seo: 'seo', aso: 'seo',
   adcopy: 'seo', media: 'ai-keys', email: 'email', clients: 'clients', analytics: 'tour', files: 'data',
   admin: 'team', 'tools-directory': 'ai-keys',
+  sellbird: 'sellbird', 'lead-ads': 'lead-pipeline', 'leads-inbox': 'lead-pipeline',
+  'leads-broadcast': 'lead-pipeline', 'leads-settings': 'lead-pipeline',
   // Settings tabs
   'settings:platforms': 'connect', 'settings:license': 'licence', 'settings:ai': 'ai-keys',
   'settings:smtp': 'email',
@@ -769,7 +771,7 @@ function toggleTheme() {
 
 function initTheme() {
   const saved = localStorage.getItem('nexus_theme');
-  if (saved === 'light') {
+  if (saved !== 'dark') {
     document.body.classList.add('light-mode');
     const btn = document.getElementById('btn-theme');
     document.getElementById('theme-icon')?.querySelector('use')?.setAttribute('href', 'icons/sprite.svg#i-sun');

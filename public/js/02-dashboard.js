@@ -77,6 +77,21 @@ async function loadDashboardStats() {
     setEl('stat-next-post', next ? `Next: ${new Date(next * 1000).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}` : '');
     setEl('stat-ai-generated', aiHistory.length);
   } catch {}
+
+  // Gracefully update B2B Sales Agent badge if active campaigns exist
+  try {
+    const sbStats = await api('GET', '/api/sellbird/stats');
+    const badge = document.getElementById('dash-sellbird-badge');
+    if (badge && sbStats) {
+      if (sbStats.pending_approval > 0) {
+        badge.textContent = `🛡️ ${sbStats.pending_approval} Need Review`;
+        badge.style.background = '#fef3c7';
+        badge.style.color = '#92400e';
+      } else {
+        badge.textContent = `⚡ ${sbStats.active_campaigns || 0} Campaigns`;
+      }
+    }
+  } catch {}
 }
 
 async function loadActivityFeed() {

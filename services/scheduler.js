@@ -6,6 +6,7 @@ const postsRepoFactory = require('../repos/postsRepo');
 const { isPublishable, notAvailableMessage } = require('./platforms/available');
 const { ensureFresh } = require('./tokenRefresher');
 const socialAccountsRepo = require('../repos/socialAccountsRepo');
+const { runHeartbeat } = require('./sellbird/heartbeat');
 
 const contentRepo = contentRepoFactory(knex);
 
@@ -201,6 +202,11 @@ function start() {
       if (!require('./license').status().can_publish) return;
       await processDueScheduled(knex);
       await processDueContent(knex, contentRepo);
+
+      // Sellbird autonomous loop (runs every 15 minutes)
+      if (new Date().getMinutes() % 15 === 0) {
+        runHeartbeat(knex).catch(err => console.error('[Scheduler] Sellbird error:', err.message));
+      }
     } catch (err) {
       console.error('[Scheduler] Unexpected error:', err.message);
     } finally {

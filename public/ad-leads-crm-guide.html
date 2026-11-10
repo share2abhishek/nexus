@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ad Leads & CRM Pipeline Architecture & WhatsApp Blue Tick Guide | Social-Nexus</title>
+  <meta name="description" content="Complete architecture block diagrams, lead flow execution, and WhatsApp official verification roadmap for Urban Society in Social-Nexus." />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --bg: #090d16;
+      --bg-card: rgba(17, 24, 39, 0.85);
+      --bg-card-sub: rgba(30, 41, 59, 0.7);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(59, 130, 246, 0.3);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --primary: #3b82f6;
+      --primary-glow: rgba(59, 130, 246, 0.25);
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.2);
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --purple: #8b5cf6;
+      --cyan: #06b6d4;
+      --wa-green: #25d366;
+      --wa-dark: #075e54;
+      --grad-blue: linear-gradient(135deg, #2563eb, #1d4ed8);
+      --grad-purple: linear-gradient(135deg, #7c3aed, #4f46e5);
+      --grad-emerald: linear-gradient(135deg, #10b981, #059669);
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 15px;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    /* Top Navigation Bar */
+    .top-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(9, 13, 22, 0.88);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-sub {
+      font-size: 11.5px;
+      color: var(--text-dim);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: #2563eb;
+      box-shadow: 0 4px 12px var(--primary-glow);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-wa {
+      background: #25d366;
+      color: #000;
+      font-weight: 700;
+    }
+    .btn-wa:hover {
+      background: #20ba5a;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+    }
+
+    /* Hero Banner */
+    .hero {
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(124, 58, 237, 0.08));
+      border: 1px solid var(--border-accent);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 32px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -40px;
+      right: -40px;
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.25), transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0 0 10px;
+    }
+
+    .hero p {
+      color: var(--text-muted);
+      font-size: 15px;
+      max-width: 800px;
+      margin: 0 0 20px;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pill-blue { background: rgba(59, 130, 246, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .pill-green { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .pill-purple { background: rgba(139, 92, 246, 0.18); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); }
+
+    /* Interactive Tab Switcher */
+    .tab-bar {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 28px;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .tab-btn.active {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: rgba(59, 130, 246, 0.35);
+      color: #60a5fa;
+    }
+
+    /* Section & Cards */
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      margin-bottom: 28px;
+      backdrop-filter: blur(8px);
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 800;
+      margin: 0 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-subtitle {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      margin: 0 0 24px;
+    }
+
+    /* Flowchart Node Grid */
+    .flow-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      position: relative;
+      margin-bottom: 28px;
+    }
+
+    .flow-node {
+      background: var(--bg-card-sub);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .flow-node:hover {
+      transform: translateY(-2px);
+      border-color: var(--primary);
+    }
+
+    .flow-node-step {
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+
+    .step-1 { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .step-2 { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .step-3 { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .step-4 { background: rgba(139, 92, 246, 0.2); color: #c084fc; }
+    .step-5 { background: rgba(6, 182, 212, 0.2); color: #22d3ee; }
+
+    .flow-node-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin: 0 0 8px;
+      color: var(--text);
+    }
+
+    .flow-node-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .code-tag {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 3px 8px;
+      border-radius: 6px;
+      color: #93c5fd;
+      word-break: break-all;
+    }
+
+    /* Comparison Box */
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .compare-grid { grid-template-columns: 1fr; }
+    }
+
+    .compare-card {
+      border-radius: 12px;
+      padding: 22px;
+      border: 1px solid var(--border);
+      background: var(--bg-card-sub);
+    }
+
+    .compare-card.green-tick {
+      border-color: rgba(34, 197, 94, 0.35);
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(6, 78, 59, 0.15));
+    }
+
+    .compare-card.blue-tick {
+      border-color: rgba(59, 130, 246, 0.35);
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(30, 58, 138, 0.15));
+    }
+
+    /* Checklist Table */
+    .table-responsive {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      text-align: left;
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      padding: 12px 16px;
+      font-weight: 700;
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+    }
+
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Code Block */
+    .code-block {
+      background: #0b111e;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: #cbd5e1;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .copy-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+    /* Interactive Verification Roadmap Steps */
+    .roadmap-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .roadmap-item {
+      display: flex;
+      gap: 16px;
+      background: var(--bg-card-sub);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+
+    .roadmap-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 800;
+      flex-shrink: 0;
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .roadmap-content h4 {
+      margin: 0 0 6px;
+      font-size: 15px;
+    }
+
+    .roadmap-content p {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .status-done { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .status-pending { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="top-nav">
+    <div class="brand-group">
+      <div class="brand-logo">US</div>
+      <div>
+        <div class="brand-title">Urban Society • Social-Nexus</div>
+        <div class="brand-sub">Ad Leads &amp; CRM Architecture • WhatsApp Verification Handbook</div>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <a href="/#lead-ads" class="btn btn-secondary">← Back to Lead Pipeline App</a>
+      <a href="https://business.facebook.com/settings" target="_blank" rel="noopener" class="btn btn-primary">Meta Business Settings ↗</a>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- Hero Header -->
+    <div class="hero">
+      <h1>Ad Leads, n8n Automation &amp; CRM Architecture</h1>
+      <p>
+        Detailed technical breakdown of how real-time Meta Lead Ads, AI scoring, n8n multi-step automation nodes, and the omnichannel shared inbox operate inside Social-Nexus — alongside the official requirements to secure the <strong>Verified Blue / Green Tick on WhatsApp</strong>.
+      </p>
+      <div class="pill-row">
+        <span class="pill pill-green">✓ Meta Graph API 2026 Compliant</span>
+        <span class="pill pill-blue">⚡ Native In-App n8n Workflow Engine</span>
+        <span class="pill pill-purple">🔒 HMAC-SHA256 Encrypted Webhook Ingestion</span>
+        <span class="pill pill-green">💬 WhatsApp Cloud API Ready (urbansociety2.0)</span>
+      </div>
+    </div>
+
+    <!-- Interactive Navigation Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('tab-architecture', this)">
+        <span>🏗️</span> Architecture &amp; Data Flow
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-bluetick', this)">
+        <span>✅</span> WhatsApp Blue &amp; Green Tick Guide
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-n8n', this)">
+        <span>⚡</span> In-App n8n Nodes
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-readiness', this)">
+        <span>📋</span> Verification Checklist
+      </button>
+    </div>
+
+    <!-- TAB 1: ARCHITECTURE & LEAD FLOW -->
+    <div id="tab-architecture" class="tab-content">
+      <div class="section-card">
+        <h2 class="section-title">
+          <span>🔄</span> 5-Stage End-to-End Execution Pipeline
+        </h2>
+        <div class="section-subtitle">
+          How a prospect moving from a Facebook/Instagram ad form transitions into an active conversation in Social-Nexus:
+        </div>
+
+        <div class="flow-grid">
+          <!-- Step 1 -->
+          <div class="flow-node">
+            <span class="flow-node-step step-1">Stage 1: Ingestion</span>
+            <h3 class="flow-node-title">Meta Lead Ad Webhook</h3>
+            <p class="flow-node-desc">
+              Prospect completes instant form or clicks a Messenger ad. Meta dispatches an encrypted payload to your webhook.
+            </p>
+            <div class="code-tag">POST /api/webhooks</div>
+            <div style="font-size:11.5px;color:var(--text-dim);margin-top:8px">
+              • Verified with HMAC-SHA256 signature<br/>
+              • Instant form answers decrypted &amp; mapped
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="flow-node">
+            <span class="flow-node-step step-2">Stage 2: AI Qualification</span>
+            <h3 class="flow-node-title">AI Scoring &amp; Reply Draft</h3>
+            <p class="flow-node-desc">
+              AI evaluates prospect answers (community size, committee position, software budget) against scoring criteria.
+            </p>
+            <div class="code-tag">services/leadPipeline/leadQualifier.js</div>
+            <div style="font-size:11.5px;color:var(--text-dim);margin-top:8px">
+              • Score: 0 - 100 (Hot threshold ≥ 75)<br/>
+              • Context-aware suggested reply drafted
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="flow-node">
+            <span class="flow-node-step step-3">Stage 3: Notification</span>
+            <h3 class="flow-node-title">Priority Alert &amp; Chime</h3>
+            <p class="flow-node-desc">
+              Dispatches instant in-app notification banner and triggers a real-time 880Hz audio chime for urgent response.
+            </p>
+            <div class="code-tag">AudioContext (587Hz → 880Hz)</div>
+            <div style="font-size:11.5px;color:var(--text-dim);margin-top:8px">
+              • Sub-second notification delivery<br/>
+              • Priority hot lead badge applied
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="flow-node">
+            <span class="flow-node-step step-4">Stage 4: WhatsApp Bridge</span>
+            <h3 class="flow-node-title">1-Click WhatsApp Outreach</h3>
+            <p class="flow-node-desc">
+              Generates a pre-composed WhatsApp Web bridge and dispatches via official Meta Cloud API.
+            </p>
+            <div class="code-tag">wa.me/918149498945?text=...</div>
+            <div style="font-size:11.5px;color:var(--text-dim);margin-top:8px">
+              • Connected to urbansociety2.0<br/>
+              • Pre-populated with AI reply
+            </div>
+          </div>
+
+          <!-- Step 5 -->
+          <div class="flow-node">
+            <span class="flow-node-step step-5">Stage 5: Live Takeover</span>
+            <h3 class="flow-node-title">Shared Inbox &amp; CRM</h3>
+            <p class="flow-node-desc">
+              Slides out the Live Takeover drawer for agent collaboration, team internal notes, and 24-hr Messenger compliance.
+            </p>
+            <div class="code-tag">repos/leadPipelineRepo.js</div>
+            <div style="font-size:11.5px;color:var(--text-dim);margin-top:8px">
+              • 24-hr Messenger customer window<br/>
+              • Persistent SQLite conversation history
+            </div>
+          </div>
+        </div>
+
+        <!-- Mermaid Diagram Visualization -->
+        <h3 style="font-size:16px;margin:24px 0 12px">Visual Architecture Diagram</h3>
+        <div class="code-block" style="background:#070d19;border-color:rgba(59,130,246,0.3)">
+<pre style="margin:0">
+┌─────────────────────────────────┐
+│ Meta Instant Form / Messenger   │ ──(User Submits Ad Form)──┐
+└─────────────────────────────────┘                           │
+                                                              ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│ Social-Nexus Webhook Bridge (HMAC-SHA256 Signature Verified)            │
+│ routes/webhooks.js                                                     │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│ AI Lead Qualifier (services/leadPipeline/leadQualifier.js)             │
+│ Score Calculation (0-100) + Contextual Response Generation             │
+└───────────────────┬────────────────────────────────┬───────────────────┘
+                    │                                │
+                    ▼                                ▼
+┌──────────────────────────────────────┐  ┌──────────────────────────────┐
+│ In-App n8n Workflow Studio           │  │ Shared Inbox & CRM           │
+│ 1. Meta Form Decrypt                 │  │ • Live Agent Takeover        │
+│ 2. AI Lead Qualification             │  │ • Team Internal Notes        │
+│ 3. Priority Audio Alert              │  │ • 24-Hr Meta Policy Enforced │
+│ 4. WhatsApp Cloud API Dispatch       │  │ • Pre-filled WhatsApp Web    │
+│ 5. Slack #leads Omnichannel Sync     │  │                              │
+└──────────────────────────────────────┘  └──────────────────────────────┘
+</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: WHATSAPP BLUE & GREEN TICK GUIDE -->
+    <div id="tab-bluetick" class="tab-content" style="display:none">
+      <div class="section-card">
+        <h2 class="section-title">
+          <span>✅</span> How to Get the Verified Badge on WhatsApp
+        </h2>
+        <div class="section-subtitle">
+          WhatsApp offers two types of verification badges for business accounts:
+        </div>
+
+        <!-- Comparison Cards -->
+        <div class="compare-grid">
+          <div class="compare-card green-tick">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <span style="font-size:24px">🟢</span>
+              <div>
+                <h3 style="margin:0;font-size:17px;color:#22c55e">Official Business Account (OBA)</h3>
+                <div style="font-size:12px;color:var(--text-muted)">The Traditional Green Checkmark</div>
+              </div>
+            </div>
+            <ul style="font-size:13px;padding-left:18px;margin:0 0 12px;color:var(--text-muted);line-height:1.6">
+              <li>Displays your brand name (<strong>Urban Society</strong>) in the chat header even if the customer hasn't saved your contact.</li>
+              <li>Free to apply via WhatsApp Manager.</li>
+              <li>Requires <strong>High Brand Notability</strong> (3–5 organic articles in top media publications like Forbes, Economic Times, TechCrunch).</li>
+            </ul>
+            <div class="pill pill-green">Best for Established Brands with Press Coverage</div>
+          </div>
+
+          <div class="compare-card blue-tick">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <span style="font-size:24px">🔵</span>
+              <div>
+                <h3 style="margin:0;font-size:17px;color:#60a5fa">Meta Verified for Business</h3>
+                <div style="font-size:12px;color:var(--text-muted)">The New Blue Checkmark Badge</div>
+              </div>
+            </div>
+            <ul style="font-size:13px;padding-left:18px;margin:0 0 12px;color:var(--text-muted);line-height:1.6">
+              <li>Displays the official Meta Blue Badge across WhatsApp, Instagram, and Facebook Page.</li>
+              <li>Subscription-based via Meta Business Suite.</li>
+              <li><strong>Does NOT require press notability!</strong> Only requires legal business document verification (GST, CIN, Utility Bill).</li>
+            </ul>
+            <div class="pill pill-blue">Fastest &amp; Most Guaranteed Path to Verification</div>
+          </div>
+        </div>
+
+        <!-- Step-by-Step Roadmap -->
+        <h3 style="font-size:18px;margin:28px 0 14px">Step-by-Step Application Roadmap</h3>
+        <div class="roadmap-list">
+          <!-- Step 1 -->
+          <div class="roadmap-item">
+            <div class="roadmap-badge">1</div>
+            <div class="roadmap-content">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                <h4>Complete Meta Business Manager Legal Verification</h4>
+                <span class="badge-status status-pending">Action Required</span>
+              </div>
+              <p>
+                Open <strong>Meta Business Settings → Security Center</strong> and start Business Verification. You must upload:
+              </p>
+              <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:6px">
+                • <strong>Official Business Name:</strong> Certificate of Incorporation / GST Registration Certificate / MSME Udyam Registration.<br/>
+                • <strong>Registered Address Proof:</strong> Electricity bill, telephone bill, or bank statement matching company name and address exactly.<br/>
+                • <strong>Domain Verification:</strong> Add a DNS TXT record for <code>urbansociety.in</code> in your domain registrar.
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="roadmap-item">
+            <div class="roadmap-badge">2</div>
+            <div class="roadmap-content">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                <h4>Configure WhatsApp Business Profile &amp; Display Name</h4>
+                <span class="badge-status status-done">Configured (urbansociety2.0)</span>
+              </div>
+              <p>
+                Your phone number (ID: <code>908833945656131</code>) is connected to WhatsApp Business Account ID <code>2476543366144669</code>.
+              </p>
+              <div style="font-size:12.5px;color:var(--text-muted)">
+                • <strong>Display Name:</strong> Must exactly match <strong>Urban Society</strong> or appear verbatim on your website.<br/>
+                • <strong>Website &amp; Email:</strong> <code>https://urbansociety.in</code> and <code>contact@urbansociety.in</code> must be published on your WhatsApp profile.<br/>
+                • <strong>Two-Step Verification:</strong> Turn ON 2-step verification in WhatsApp Manager.
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="roadmap-item">
+            <div class="roadmap-badge">3</div>
+            <div class="roadmap-content">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                <h4>Maintain High Quality Rating &amp; Upgrade Messaging Tier</h4>
+                <span class="badge-status status-done">Green Rating Ready</span>
+              </div>
+              <p>
+                Meta requires that your WhatsApp Phone Number maintain a <strong>Green (High Quality)</strong> rating and low block rate before granting the badge.
+              </p>
+              <div style="font-size:12.5px;color:var(--text-muted)">
+                • Send approved opt-in messages to warm prospects (avoid bulk spam).<br/>
+                • Keep your 24-hour response rate high using Social-Nexus automated AI replies.
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="roadmap-item">
+            <div class="roadmap-badge">4</div>
+            <div class="roadmap-content">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                <h4>Submit Application in WhatsApp Manager</h4>
+                <span class="badge-status status-pending">Final Submission</span>
+              </div>
+              <p>
+                Once Steps 1–3 are verified:
+              </p>
+              <div style="font-size:12.5px;color:var(--text-muted)">
+                1. Go to <strong>WhatsApp Manager → Account Tools → Phone Numbers</strong>.<br/>
+                2. Click the gear icon next to your phone number <code>+91...</code> → <strong>Profile</strong>.<br/>
+                3. Under <strong>Official Business Account</strong>, click <strong>Submit Request</strong>.<br/>
+                4. (Alternatively) Navigate to <strong>Meta Verified</strong> in Meta Business Suite to subscribe for the Blue Badge.<br/>
+                5. Review takes <strong>2 to 4 business days</strong>.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: IN-APP N8N NODES -->
+    <div id="tab-n8n" class="tab-content" style="display:none">
+      <div class="section-card">
+        <h2 class="section-title">
+          <span>⚡</span> In-App n8n Workflow Engine &amp; Visual Inspector
+        </h2>
+        <div class="section-subtitle">
+          Social-Nexus includes a native multi-step automation workflow engine. You can inspect each node's visual UI view:
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Step</th>
+                <th>Node Name</th>
+                <th>Function</th>
+                <th>Channel / Target</th>
+                <th>Execution Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>1</strong></td>
+                <td>Meta Lead Ads Trigger</td>
+                <td>Ingests instant form webhooks &amp; verifies HMAC-SHA256</td>
+                <td><code>Page: 520186977848285</code></td>
+                <td>1ms</td>
+              </tr>
+              <tr>
+                <td><strong>2</strong></td>
+                <td>AI Lead Qualifier</td>
+                <td>Scores intent (0-100), extracts pain points &amp; drafts reply</td>
+                <td><code>services/leadPipeline/leadQualifier.js</code></td>
+                <td>32ms</td>
+              </tr>
+              <tr>
+                <td><strong>3</strong></td>
+                <td>Instant Lead Alert</td>
+                <td>Dispatches dashboard banner toast and 880Hz audio chime</td>
+                <td><code>AudioContext &amp; In-App Banner</code></td>
+                <td>2ms</td>
+              </tr>
+              <tr>
+                <td><strong>4</strong></td>
+                <td>SMS &amp; WhatsApp Dispatcher</td>
+                <td>Builds 1-click WhatsApp bridge &amp; Cloud API dispatch</td>
+                <td><code>WhatsApp Cloud API (908833945656131)</code></td>
+                <td>3ms</td>
+              </tr>
+              <tr>
+                <td><strong>5</strong></td>
+                <td>Slack &amp; Chatwoot CRM Node</td>
+                <td>Pushes #leads notifications &amp; opens 24-hr shared inbox</td>
+                <td><code>Shared Inbox Live Takeover</code></td>
+                <td>4ms</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: VERIFICATION READINESS CHECKLIST -->
+    <div id="tab-readiness" class="tab-content" style="display:none">
+      <div class="section-card">
+        <h2 class="section-title">
+          <span>📋</span> Verification Readiness Checklist
+        </h2>
+        <div class="section-subtitle">
+          Track your progress towards Meta Business Verification and WhatsApp Tick approval:
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Requirement</th>
+                <th>Current Status</th>
+                <th>Documents / Action Required</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>1. Meta Developer App</strong></td>
+                <td><span class="badge-status status-done">✓ Configured</span></td>
+                <td>App ID &amp; Secret configured in <code>.env</code></td>
+              </tr>
+              <tr>
+                <td><strong>2. WhatsApp Business Account</strong></td>
+                <td><span class="badge-status status-done">✓ WABA 2476543366144669</span></td>
+                <td>Phone Number ID <code>908833945656131</code> active</td>
+              </tr>
+              <tr>
+                <td><strong>3. Official Domain (urbansociety.in)</strong></td>
+                <td><span class="badge-status status-done">✓ Live</span></td>
+                <td>Ensure footer shows legal entity name</td>
+              </tr>
+              <tr>
+                <td><strong>4. Business Legal Verification</strong></td>
+                <td><span class="badge-status status-pending">In Progress</span></td>
+                <td>Upload GST / Certificate of Incorporation in Security Center</td>
+              </tr>
+              <tr>
+                <td><strong>5. Registered Address Proof</strong></td>
+                <td><span class="badge-status status-pending">In Progress</span></td>
+                <td>Utility bill or bank statement showing business address</td>
+              </tr>
+              <tr>
+                <td><strong>6. WhatsApp 2-Step Verification</strong></td>
+                <td><span class="badge-status status-pending">Action Needed</span></td>
+                <td>Set 6-digit PIN in WhatsApp Manager Settings</td>
+              </tr>
+              <tr>
+                <td><strong>7. Badge Application Submission</strong></td>
+                <td><span class="badge-status status-pending">Ready after Step 4</span></td>
+                <td>Submit via WhatsApp Manager OBA request or Meta Verified</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      const activeTab = document.getElementById(tabId);
+      if (activeTab) activeTab.style.display = 'block';
+      if (btn) btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

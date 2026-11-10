@@ -136,6 +136,7 @@ app.use('/auth',       authRoutes);   // OAuth platform callbacks
 app.use('/users',      usersRoutes);  // register / login / logout / me
 app.use('/admin',      adminRoutes);  // super admin dashboard
 app.use('/ollama',     ollamaSetupGuard, ollamaRoutes); // guided AI setup (status / pull)
+app.use('/api/webhooks', require('../routes/webhooks')(knex)); // Meta Lead Ads & Messenger Webhooks (HMAC-SHA256 verified)
 
 // ── Protected Routes (require login) ─────────────────────────────────────────
 
@@ -172,6 +173,8 @@ app.use('/api/tools',  requireAuth, withWorkspace, injectUserKeys, toolsRoutes);
 app.use('/api/media',  requireAuth, withWorkspace, injectUserKeys, mediaRoutes);
 app.use('/api/config', requireAuth, withWorkspace, injectUserKeys, configRoutes);
 app.use('/api/content', requireAuth, withWorkspace, injectUserKeys, require('../routes/content')(knex, requirePermission));
+app.use('/api/sellbird', requireAuth, withWorkspace, injectUserKeys, require('../routes/sellbird')(knex, requirePermission));
+app.use('/api/lead-pipeline', requireAuth, withWorkspace, injectUserKeys, require('../routes/leadPipeline')(knex, requirePermission));
 
 // ── Tenancy Routes ────────────────────────────────────────────────────────────
 
@@ -263,6 +266,16 @@ async function bootstrap() {
     require('../services/companion').start(knex); // phone companion summaries and actions
     require('../services/cloudPosting').start(knex); // PC-off safety net (paid editions)
     require('../services/license').start(); // background licence check
+
+    // Automated Webhook & Tunnel Manager:
+    // When on Server (PUBLIC_URL or APP_URL): binds public domain (e.g. urbansociety.in)
+    // When on Localhost: provisions zero-config Cloudflare HTTPS tunnel for Meta Webhook ingestion
+    try {
+      const tunnelManager = require('../services/leadPipeline/tunnelManager');
+      tunnelManager.start(PORT).catch(err => console.warn('[Tunnel] Startup notice:', err.message));
+    } catch (err) {
+      console.warn('[Tunnel] Init notice:', err.message);
+    }
 
     // Only auto-open a browser when running standalone. Under Electron the
     // desktop window handles the UI (NEXUS_NO_BROWSER=true).

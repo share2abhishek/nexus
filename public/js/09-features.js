@@ -431,6 +431,77 @@ function renderLicensePanel(s) {
         } catch (err) { toast(err.message, 'error'); }
       } }, 'Deactivate this PC')));
   }
+
+  // ── Manual License Approval / Emergency Override (Admin) ──────────────────
+  if (isAdmin) {
+    const manualDetails = el('details', {
+      style: 'margin-top:24px;padding:16px;border:1px solid var(--border-subtle, rgba(255,255,255,0.12));border-radius:10px;background:var(--card-bg, rgba(255,255,255,0.02))',
+      open: s.state !== 'active'
+    });
+
+    const summary = el('summary', {
+      style: 'cursor:pointer;font-weight:600;font-size:14px;color:var(--text-primary);display:flex;align-items:center;gap:8px'
+    }, '🛠️ Manual License Approval & Emergency Override');
+
+    const desc = el('p', {
+      style: 'font-size:12px;color:var(--text-muted);margin:8px 0 14px'
+    }, 'If a license becomes damaged, invalid, or the licensing server is unreachable, administrators can manually approve and sign an active license directly on this machine.');
+
+    const mLicensee = el('input', {
+      class: 'form-input',
+      placeholder: 'Licensee Name (e.g. Urban Society)',
+      value: s.licensee || 'Urban Society',
+      style: 'margin-bottom:8px'
+    });
+
+    const mEdition = el('select', {
+      class: 'form-select',
+      style: 'margin-bottom:8px;width:100%'
+    },
+      el('option', { value: 'agency' }, 'Agency Edition (All Features - 25 Workspaces, 10 Users)'),
+      el('option', { value: 'individual' }, 'Individual Edition (1 Workspace, 2 Users)')
+    );
+
+    const btnApprove = el('button', {
+      class: 'btn btn-primary',
+      style: 'display:inline-flex;align-items:center;gap:6px',
+      onclick: async () => {
+        btnApprove.disabled = true;
+        btnApprove.textContent = 'Approving & Signing…';
+        try {
+          const res = await api('POST', '/api/license/manual-approve', {
+            licensee: mLicensee.value,
+            edition: mEdition.value,
+            validYears: 10,
+          });
+          State.license = res.license;
+          toast('License manually approved and activated! ✅', 'success', 6000);
+          renderLicensePanel(res.license);
+          renderLicenseBanner(res.license);
+        } catch (err) {
+          toast(err.message, 'error', 8000);
+        } finally {
+          btnApprove.disabled = false;
+          btnApprove.textContent = '⚡ Approve & Activate License Now';
+        }
+      }
+    }, '⚡ Approve & Activate License Now');
+
+    manualDetails.append(
+      summary,
+      desc,
+      el('div', { style: 'display:flex;flex-direction:column;gap:4px;max-width:480px' },
+        el('label', { style: 'font-size:12px;color:var(--text-secondary)' }, 'Licensed To:'),
+        mLicensee,
+        el('label', { style: 'font-size:12px;color:var(--text-secondary)' }, 'License Tier:'),
+        mEdition,
+        el('div', { style: 'margin-top:8px' }, btnApprove)
+      )
+    );
+
+    parts.push(manualDetails);
+  }
+
   box.replaceChildren(...parts);
 }
 

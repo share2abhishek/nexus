@@ -29,6 +29,7 @@ const State = {
   lastCaption: null,
   selectedTemplate: null,
 };
+if (typeof window !== 'undefined') window.State = State;
 
 // ── Page Titles ───────────────────────────────────────────────────────────────
 const PAGE_META = {
@@ -42,6 +43,12 @@ const PAGE_META = {
   seo:       { title: 'SEO Tools',              subtitle: 'Meta tags, keywords, and content optimization' },
   aso:       { title: 'App Store Optimization', subtitle: 'Generate App Store & Play Store listings' },
   email:     { title: 'Email Marketing',        subtitle: 'Subscribers, campaigns, and AI email generation' },
+  'sellbird': { title: 'B2B Sales Agent', subtitle: 'Autonomous prospecting, website signals, verified outreach and reply triage' },
+  'lead-ads':        { title: 'Contacts & Leads',       subtitle: 'Real-time Meta Lead Ingestion, Verification & Direct CRM' },
+  'leads-contacts':   { title: 'Contacts & Leads',       subtitle: 'Real-time Meta Lead Ingestion, Verification & Direct CRM' },
+  'leads-inbox':      { title: 'Live Chat & CRM',        subtitle: 'Real-Time WhatsApp & Messenger Conversations' },
+  'leads-broadcast':  { title: 'Bulk Broadcast',         subtitle: 'WhatsApp Campaigns, CSV Import & Outreach Studio' },
+  'leads-settings':   { title: 'Channel Settings',       subtitle: 'WhatsApp Cloud API, Cloudflare Tunnel, Verify Tokens & n8n' },
   adcopy:    { title: 'Ad Copy & PR',           subtitle: 'Google Ads, Meta Ads, and press releases' },
   media:     { title: 'AI Media Creator',       subtitle: 'Generate images, videos, and animations with AI' },
   hashtags:  { title: 'Hashtag Research',       subtitle: 'AI-powered hashtag suggestions' },
@@ -75,6 +82,17 @@ const PLATFORMS = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function navigateTo(page) {
+  // Reset scroll position so new page always starts cleanly at the top
+  try {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+    const mainEl = document.querySelector('.main');
+    if (mainEl) mainEl.scrollTop = 0;
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) mainContent.scrollTop = 0;
+  } catch (e) {}
+
   // Update nav items
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   const navEl = document.getElementById(`nav-${page}`);
@@ -85,10 +103,39 @@ function navigateTo(page) {
   const pageEl = document.getElementById(`page-${page}`);
   if (pageEl) pageEl.classList.add('active');
   // Pages under "More tools": keep that group open so the current page is visible
-  if (document.getElementById(`nav-${page}`)?.closest('#nav-more')) toggleMoreTools(true);
+  if (document.getElementById(`nav-${page}`)?.closest?.('#nav-more')) {
+    if (typeof toggleMoreTools === 'function') toggleMoreTools(true);
+    else if (typeof window.toggleMoreTools === 'function') window.toggleMoreTools(true);
+  }
+
+  // Keep Ad Leads & CRM submenu open when on any of its split screens
+  const isLeadPage = ['lead-ads', 'leads-contacts', 'leads-inbox', 'leads-broadcast', 'leads-settings'].includes(page);
+  const submenu = document.getElementById('sub-nav-lead-ads');
+  const chevron = document.getElementById('chevron-lead-ads');
+  if (isLeadPage) {
+    if (submenu) submenu.style.display = 'flex';
+    if (chevron) chevron.style.transform = 'rotate(180deg)';
+    const parentNav = document.getElementById('nav-lead-ads');
+    if (parentNav) parentNav.classList.add('active');
+
+    // Highlight active submenu item
+    document.querySelectorAll('#sub-nav-lead-ads .nav-sub-item').forEach(el => el.classList.remove('active'));
+    const subMap = {
+      'lead-ads': 'nav-sub-leads-contacts',
+      'leads-contacts': 'nav-sub-leads-contacts',
+      'leads-inbox': 'nav-sub-leads-inbox',
+      'leads-broadcast': 'nav-sub-leads-broadcast',
+      'leads-settings': 'nav-sub-leads-settings',
+    };
+    const activeSub = document.getElementById(subMap[page]);
+    if (activeSub) activeSub.classList.add('active');
+  }
 
   // Compose opens in "Schedule" mode with a time 1 hour ahead (unless one is already picked)
-  if (page === 'compose') setPostMode(State.postMode);
+  if (page === 'compose') {
+    if (typeof setPostMode === 'function') setPostMode(State.postMode);
+    else if (typeof window.setPostMode === 'function') window.setPostMode(State.postMode);
+  }
 
   // Update header
   const meta = PAGE_META[page] || {};
@@ -97,33 +144,42 @@ function navigateTo(page) {
 
   State.currentPage = page;
 
-  // Page-specific load hooks
+  // Page-specific load hooks (safely checking existence so no ReferenceError is thrown)
   const hooks = {
-    dashboard: loadDashboard,
-    calendar:  () => renderCalendar(State.calendarDate),
-    history:   loadHistory,
-    analytics: loadAnalytics,
-    files:     loadLocalFiles,
-    compose:   loadScheduled,
-    templates: loadTemplates,
-    utm:       loadUTMLinks,
-    email:            loadEmailPage,
-    brand:            loadBrandKit,
-    seo:              loadTrackedKeywords,
-    settings:         loadSettings,
-    clients:          loadClients,
-    generate:         loadModels,
-    media:            loadModels,
-    library:          loadMediaLibrary,
-    inbox:            loadInbox,
-    bio:              loadBio,
-    'user-settings':   loadUserSettings,
-    'tools-directory': renderToolsDirectory,
-  admin:             loadAdminDashboard,
-    'admin':           loadAdminDashboard,
+    dashboard: () => (typeof window.loadDashboard === 'function' ? window.loadDashboard() : (typeof loadDashboard === 'function' ? loadDashboard() : null)),
+    calendar:  () => (typeof window.renderCalendar === 'function' ? window.renderCalendar(State.calendarDate) : (typeof renderCalendar === 'function' ? renderCalendar(State.calendarDate) : null)),
+    history:   () => (typeof window.loadHistory === 'function' ? window.loadHistory() : (typeof loadHistory === 'function' ? loadHistory() : null)),
+    analytics: () => (typeof window.loadAnalytics === 'function' ? window.loadAnalytics() : (typeof loadAnalytics === 'function' ? loadAnalytics() : null)),
+    files:     () => (typeof window.loadLocalFiles === 'function' ? window.loadLocalFiles() : (typeof loadLocalFiles === 'function' ? loadLocalFiles() : null)),
+    compose:   () => (typeof window.loadScheduled === 'function' ? window.loadScheduled() : (typeof loadScheduled === 'function' ? loadScheduled() : null)),
+    templates: () => (typeof window.loadTemplates === 'function' ? window.loadTemplates() : (typeof loadTemplates === 'function' ? loadTemplates() : null)),
+    utm:       () => (typeof window.loadUTMLinks === 'function' ? window.loadUTMLinks() : (typeof loadUTMLinks === 'function' ? loadUTMLinks() : null)),
+    email:     () => (typeof window.loadEmailPage === 'function' ? window.loadEmailPage() : (typeof loadEmailPage === 'function' ? loadEmailPage() : null)),
+    sellbird:  () => (typeof window.loadSellbird === 'function' ? window.loadSellbird() : (typeof loadSellbird === 'function' ? loadSellbird() : null)),
+    'lead-ads':        () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : (typeof loadLeadPipeline === 'function' ? loadLeadPipeline() : null)),
+    'leads-contacts':   () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : (typeof loadLeadPipeline === 'function' ? loadLeadPipeline() : null)),
+    'leads-inbox':      () => (typeof window.loadWhatsAppConversations === 'function' ? window.loadWhatsAppConversations() : (typeof loadWhatsAppConversations === 'function' ? loadWhatsAppConversations() : null)),
+    'leads-broadcast':  () => (typeof window.renderBroadcastContacts === 'function' ? window.renderBroadcastContacts() : (typeof renderBroadcastContacts === 'function' ? renderBroadcastContacts() : null)),
+    'leads-settings':   () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : (typeof loadLeadPipeline === 'function' ? loadLeadPipeline() : null)),
+    brand:     () => (typeof window.loadBrandKit === 'function' ? window.loadBrandKit() : (typeof loadBrandKit === 'function' ? loadBrandKit() : null)),
+    seo:       () => (typeof window.loadTrackedKeywords === 'function' ? window.loadTrackedKeywords() : (typeof loadTrackedKeywords === 'function' ? loadTrackedKeywords() : null)),
+    settings:  () => (typeof window.loadSettings === 'function' ? window.loadSettings() : (typeof loadSettings === 'function' ? loadSettings() : null)),
+    clients:   () => (typeof window.loadClients === 'function' ? window.loadClients() : (typeof loadClients === 'function' ? loadClients() : null)),
+    generate:  () => (typeof window.loadModels === 'function' ? window.loadModels() : (typeof loadModels === 'function' ? loadModels() : null)),
+    media:     () => (typeof window.loadModels === 'function' ? window.loadModels() : (typeof loadModels === 'function' ? loadModels() : null)),
+    library:   () => (typeof window.loadMediaLibrary === 'function' ? window.loadMediaLibrary() : (typeof loadMediaLibrary === 'function' ? loadMediaLibrary() : null)),
+    inbox:     () => (typeof window.loadInbox === 'function' ? window.loadInbox() : (typeof loadInbox === 'function' ? loadInbox() : null)),
+    bio:       () => (typeof window.loadBio === 'function' ? window.loadBio() : (typeof loadBio === 'function' ? loadBio() : null)),
+    'user-settings': () => (typeof window.loadUserSettings === 'function' ? window.loadUserSettings() : (typeof loadUserSettings === 'function' ? loadUserSettings() : null)),
+    'tools-directory': () => (typeof window.renderToolsDirectory === 'function' ? window.renderToolsDirectory() : (typeof renderToolsDirectory === 'function' ? renderToolsDirectory() : null)),
+    admin:     () => (typeof window.loadAdminDashboard === 'function' ? window.loadAdminDashboard() : (typeof loadAdminDashboard === 'function' ? loadAdminDashboard() : null)),
   };
 
-  if (hooks[page]) hooks[page]();
+  try {
+    if (hooks[page]) hooks[page]();
+  } catch (err) {
+    console.warn(`[Navigation] Error running hook for page "${page}":`, err);
+  }
 }
 
 // Attach nav click handlers
@@ -133,6 +189,49 @@ document.querySelectorAll('.nav-item[data-page]').forEach(el => {
     navigateTo(el.dataset.page);
   });
 });
+
+// Ad Leads & CRM Submenu Navigation
+function toggleLeadSubmenu(e) {
+  if (e) {
+    e.preventDefault?.();
+    e.stopPropagation?.();
+  }
+  const submenu = document.getElementById('sub-nav-lead-ads');
+  const chevron = document.getElementById('chevron-lead-ads');
+  if (!submenu) return;
+  const isHidden = window.getComputedStyle ? (window.getComputedStyle(submenu).display === 'none') : (submenu.style.display === 'none');
+  const nextDisplay = isHidden ? 'flex' : 'none';
+  submenu.style.display = nextDisplay;
+  if (chevron) chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+function navigateToLeadTab(tab, subItemEl) {
+  const pageMap = {
+    inbound: 'lead-ads',
+    contacts: 'lead-ads',
+    inbox: 'leads-inbox',
+    outbound: 'leads-broadcast',
+    broadcast: 'leads-broadcast',
+    settings: 'leads-settings',
+  };
+  const targetPage = pageMap[tab] || 'lead-ads';
+  navigateTo(targetPage);
+}
+
+window.navigateTo = navigateTo;
+window.toggleLeadSubmenu = toggleLeadSubmenu;
+window.navigateToLeadTab = navigateToLeadTab;
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+window.escapeHtml = escapeHtml;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API Helpers

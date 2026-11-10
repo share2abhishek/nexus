@@ -62,6 +62,161 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
+  // Bulk scheduling with custom interval and loop / repeat queue options
+  router.post('/bulk-schedule', requirePermission('content.create'), async (req, res) => {
+    try {
+      const { posts, start_at, interval_hours = 24, platforms = ['facebook'], loop_count = 1, status = 'scheduled', auto_restart = false } = req.body || {};
+
+      if (!Array.isArray(posts) || !posts.length) {
+        return res.status(400).json({ error: 'Please provide at least one message to schedule.' });
+      }
+
+      const now = Math.floor(Date.now() / 1000);
+      const startAtNum = Number(start_at);
+      if (!Number.isFinite(startAtNum) || startAtNum < now - 300) {
+        return res.status(400).json({ error: 'Start date/time must be in the future.' });
+      }
+
+      const loops = Math.min(Math.max(1, parseInt(loop_count, 10) || 1), 20);
+      const intervalSec = Math.max(0.5, parseFloat(interval_hours) || 24) * 3600;
+      const targetPlatforms = Array.isArray(platforms) && platforms.length ? platforms : ['facebook'];
+
+      const canSchedule = can(req.role, 'content.schedule') && can(req.role, 'content.approve');
+      const shouldSchedule = (status === 'scheduled') && canSchedule;
+
+      if (shouldSchedule && licenceBlock(res)) return;
+
+      // Find social accounts for the workspace
+      const targetAccountIds = [];
+      for (const p of targetPlatforms) {
+        const acc = await knex('social_accounts')
+          .where({ workspace_id: req.workspaceId, platform: p })
+          .orderByRaw('(CASE WHEN access_token IS NOT NULL AND auth_error IS NULL THEN 0 ELSE 1 END)')
+          .orderBy('id', 'desc')
+          .first();
+        if (acc) targetAccountIds.push(acc.id);
+      }
+
+      const seriesId = require('crypto').randomUUID();
+      const totalOccurrences = posts.length * loops;
+      if (totalOccurrences > 1000) {
+        return res.status(400).json({ error: `Cannot schedule more than 1000 posts at once (requested: ${totalOccurrences}). Please reduce loop count.` });
+      }
+
+      const rows = [];
+      for (let i = 0; i < totalOccurrences; i++) {
+        const itemIdx = i % posts.length;
+        const cycle = Math.floor(i / posts.length) + 1;
+        const p = posts[itemIdx];
+        const postTime = startAtNum + Math.floor(i * intervalSec);
+
+        let itemTitle = p.title || `Post #${itemIdx + 1}`;
+        if (loops > 1) {
+          itemTitle = `${itemTitle} (Cycle ${cycle}/${loops})`;
+        }
+
+        const opts = {
+          ...(typeof p.options === 'object' && p.options !== null ? p.options : {}),
+          cycle,
+          total_cycles: loops,
+          loop_restart: auto_restart,
+        };
+
+        rows.push({
+          workspace_id: req.workspaceId,
+          title: itemTitle,
+          body: String(p.body || p.content || '').trim(),
+          platforms: JSON.stringify(targetPlatforms),
+          image_url: p.image_url || null,
+          social_account_ids: JSON.stringify(targetAccountIds),
+          options: JSON.stringify(opts),
+          status: shouldSchedule ? 'scheduled' : 'draft',
+          scheduled_at: postTime,
+          submitted_by: req.session.userId,
+          approved_by: shouldSchedule ? req.session.userId : null,
+          series_id: seriesId,
+          series_index: i + 1,
+          series_total: totalOccurrences,
+          series_every: loops > 1 ? `loop-${interval_hours}h` : 'bulk',
+          created_at: now,
+          updated_at: now,
+        });
+      }
+
+      await knex.transaction(async (trx) => {
+        for (let b = 0; b < rows.length; b += 50) {
+          await trx('content_items').insert(rows.slice(b, b + 50));
+        }
+      });
+
+      res.json({
+        success: true,
+        total_scheduled: rows.length,
+        posts_count: posts.length,
+        cycles: loops,
+        status: shouldSchedule ? 'scheduled' : 'draft',
+        first_at: new Date(rows[0].scheduled_at * 1000).toISOString(),
+        last_at: new Date(rows[rows.length - 1].scheduled_at * 1000).toISOString(),
+        series_id: seriesId,
+      });
+    } catch (err) {
+      console.error('[BulkSchedule] Error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Load Urban Society 56 feature campaigns preset
+  router.get('/preset-urban-society', async (req, res) => {
+    try {
+      const fs = require('fs');
+      const htmlPath = 'D:/Radixile/WORKSPACE/urabansociety/urban-society-social-posts.html';
+      if (!fs.existsSync(htmlPath)) {
+        return res.status(404).json({ error: 'Preset file not found on disk' });
+      }
+      const html = fs.readFileSync(htmlPath, 'utf8');
+      const startMarker = 'const dailyCampaigns = [';
+      const startIndex = html.indexOf(startMarker);
+      const endIndex = html.indexOf('];', startIndex);
+      if (startIndex === -1 || endIndex === -1) {
+        return res.status(500).json({ error: 'Could not extract dailyCampaigns from HTML' });
+      }
+      const code = html.substring(startIndex, endIndex + 2);
+      const campaigns = eval(code.replace('const dailyCampaigns =', ''));
+
+      // Format campaigns with proper hashtags
+      const formatted = campaigns.map(c => {
+        const fbTags = c.facebook.match(/#[A-Za-z0-9_]+/g) || [];
+        const igTags = c.instagram?.match(/#[A-Za-z0-9_]+/g) || [];
+        const coreTags = ['#UrbanSociety', '#HousingSocietyManagement', '#ApartmentLiving', '#PropTech', '#SmartHousing'];
+        const seen = new Set();
+        const allTags = [];
+        [...fbTags, ...igTags, ...coreTags].forEach(tag => {
+          const lower = tag.toLowerCase();
+          if (!seen.has(lower)) { seen.add(lower); allTags.push(tag); }
+        });
+
+        const lines = c.facebook.trim().split('\n');
+        while (lines.length > 0 && lines[lines.length - 1].trim().startsWith('#')) lines.pop();
+        while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop();
+
+        const enrichedBody = lines.join('\n') + '\n\n' + allTags.join(' ');
+        return {
+          title: `Day ${c.day}: ${c.topic}`,
+          body: enrichedBody,
+          topic: c.topic,
+          day: c.day,
+          category: c.category,
+          visualPrompt: c.visualPrompt,
+          platforms: ['facebook'],
+        };
+      });
+
+      res.json({ success: true, count: formatted.length, posts: formatted });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   router.post('/', requirePermission('content.create'), async (req, res) => {
     const { title, body, platforms, social_account_ids } = req.body;
     let image_url = req.body.image_url;

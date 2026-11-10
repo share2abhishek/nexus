@@ -53,4 +53,14 @@ router.post('/import', requireAdmin, express.json({ limit: '50kb' }), async (req
   try { res.json(await license.importLicense(req.body?.content ?? req.body)); } catch (err) { fail(res, err); }
 });
 
+router.post('/manual-approve', requireAdmin, async (req, res) => {
+  try {
+    const { manualApprove } = require('../services/license/manualApprove');
+    const result = await manualApprove(req.body);
+    res.json({ success: true, license: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
 module.exports = router;
