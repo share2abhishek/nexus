@@ -72,7 +72,7 @@ ${pages.map(([p, pr]) => `  <url><loc>${url}${p}</loc>${lastmod(p) ? `<lastmod>$
 
 // ── Legal pages ─────────────────────────────────────────────────────────────
 // Text in server/legal/<page>.html; this adds the menu, sidebar and footer and
-// fills in the company details. Set these in .env (shown as written):
+// fills in the company details. Defaults below; .env can override them:
 //   LEGAL_ADDRESS            registered office address
 //   LEGAL_GRIEVANCE_OFFICER  name of the Grievance Officer (IT Rules, DPDP Act)
 //   LEGAL_CITY               city whose courts handle disputes
@@ -95,9 +95,9 @@ function legalTokens(req) {
     '%SITE_URL%': siteUrl(req),
     '%COMPANY%': 'Radixile Technology Solutions LLP',
     '%EMAIL%': 'info@radixile.com',
-    '%ADDRESS%': esc(process.env.LEGAL_ADDRESS || 'India (full address on request: write to info@radixile.com)'),
-    '%GRIEVANCE%': esc(process.env.LEGAL_GRIEVANCE_OFFICER || 'Grievance Officer, Radixile Technology Solutions LLP'),
-    '%CITY%': esc(process.env.LEGAL_CITY || 'the city of our registered office'),
+    '%ADDRESS%': esc(process.env.LEGAL_ADDRESS || 'Pune, Maharashtra, India'),
+    '%GRIEVANCE%': esc(process.env.LEGAL_GRIEVANCE_OFFICER || 'Kajal Aher'),
+    '%CITY%': esc(process.env.LEGAL_CITY || 'Pune, Maharashtra'),
     '%UPDATED%': LEGAL_UPDATED,
   };
 }

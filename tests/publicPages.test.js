@@ -88,3 +88,12 @@ describe('legal pages', () => {
     for (const slug of slugs) expect(map.text).toContain(`/legal/${slug}</loc>`);
   });
 });
+
+test('legal pages name Kajal Aher as Grievance Officer and Pune courts by default', async () => {
+  delete process.env.LEGAL_GRIEVANCE_OFFICER; delete process.env.LEGAL_CITY; delete process.env.LEGAL_ADDRESS;
+  const privacy = await request(app()).get('/legal/privacy');
+  expect(privacy.text).toContain('Kajal Aher');
+  expect(privacy.text).toContain('Pune, Maharashtra, India');
+  const terms = await request(app()).get('/legal/terms');
+  expect(terms.text).toContain('courts at Pune, Maharashtra, India');
+});
