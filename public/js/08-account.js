@@ -11,7 +11,15 @@ async function checkAuth() {
     const data = await fetch('/users/me').then(r => r.json());
     if (!data.authenticated) { window.location.href = '/login.html'; return false; }
     State.user = data.user;
-    setTimeout(showRecoveryNudge, 1500);
+    State.server = !!data.server;
+    State.business = data.business || null;
+    // Server edition: passwords are reset by email, so no recovery-code reminder
+    if (State.server) renderAccountBanner(); else setTimeout(showRecoveryNudge, 1500);
+    // Back from the link in the confirmation email
+    if (new URLSearchParams(location.search).get('verified') === '1') {
+      setTimeout(() => toast('Your email is confirmed. Thank you!', 'success'), 800);
+      history.replaceState(null, '', '/');
+    }
     // Update user menu
     const nameEl   = document.getElementById('user-name-label');
     const avatarEl = document.getElementById('user-avatar');
@@ -21,7 +29,8 @@ async function checkAuth() {
     if (infoEl)   infoEl.innerHTML     = `
       <div style="font-weight:600;color:var(--text-primary)">${escapeHtml(data.user.name || '')}</div>
       <div>${escapeHtml(data.user.email)}</div>
-      ${data.user.role==='admin' ? '<div><span class="badge badge-purple" style="font-size:10px;margin-top:4px">👑 Super Admin</span></div>' : ''}`;
+      ${State.business ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px">🏢 ${escapeHtml(State.business.name)}</div>` : ''}
+      ${data.user.role==='admin' ? `<div><span class="badge badge-purple" style="font-size:10px;margin-top:4px">👑 ${State.server ? 'Radixile admin' : 'Super Admin'}</span></div>` : ''}`;
 
     // Show admin nav item only for admins
     if (data.user.role === 'admin') {
@@ -710,3 +719,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   console.log('Social-Nexus v2.0 initialized ⚡ — Full Digital Marketing Suite');
 });
+
+// ── Server edition: confirm your email, and trial days left ─────────────────
+function renderAccountBanner() {
+  const bar = document.getElementById('account-banner');
+  if (!bar || !State.server) return;
+  const parts = [];
+  const b = State.business;
+  if (State.user && State.user.email_verified === false) {
+    parts.push(`<span>📧 Please confirm your email: we sent a link to <b>${escapeHtml(State.user.email)}</b>.</span>
+      <button class="btn btn-secondary btn-sm" id="btn-resend-verify" onclick="resendVerification(this)">Send it again</button>`);
+  }
+  if (b && b.plan === 'trial' && b.trial_days_left != null) {
+    parts.push(b.trial_days_left > 0
+      ? `<span>⏳ Free trial: <b>${b.trial_days_left} day${b.trial_days_left === 1 ? '' : 's'} left</b> for ${escapeHtml(b.name)}.</span>`
+      : `<span>⏳ The free trial for ${escapeHtml(b.name)} has ended. Your posts and settings are kept; choose a plan to keep publishing.</span>`);
+  }
+  bar.innerHTML = parts.map(p => `<div class="account-banner-row">${p}</div>`).join('');
+  bar.style.display = parts.length ? '' : 'none';
+}
+
+async function resendVerification(btn) {
+  btn.disabled = true;
+  try {
+    const r = await api('POST', '/users/resend-verification');
+    toast(r.already ? 'Your email is already confirmed.' : r.sent ? 'Sent. Check your inbox (and spam folder).' : 'Email isn’t set up on the server yet: ask Radixile support.', r.sent || r.already ? 'success' : 'warning', 7000);
+  } catch (err) { toast(err.message, 'error'); }
+  finally { btn.disabled = false; }
+}

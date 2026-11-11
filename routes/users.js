@@ -30,7 +30,9 @@ router.get('/registration-info', async (req, res) => {
       usersRepo.getConfig('app_name', 'Social-Nexus'),
       knexInstance('users').count('id as c'),
     ]);
-    res.json({ mode, app_name: appName, is_first_user: parseInt(c, 10) === 0 });
+    const server = require('../services/edition').isServer();
+    // Server edition: sign-up is for businesses; there's no "first user is admin"
+    res.json({ mode, app_name: appName, is_first_user: !server && parseInt(c, 10) === 0, server });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -39,6 +41,7 @@ router.get('/registration-info', async (req, res) => {
 // ── Register ──────────────────────────────────────────────────────────────────
 
 router.post('/register', async (req, res) => {
+  if (require('../services/edition').isServer()) return registerOnServer(req, res);
   const { email, password, name, invite_code } = req.body;
 
   if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
@@ -91,6 +94,118 @@ router.post('/register', async (req, res) => {
     if (err.message?.includes('UNIQUE') || err.message?.includes('unique')) return res.status(409).json({ error: 'Email already registered' });
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── Server edition (hosted for many businesses) ─────────────────────────────
+// Sign-up creates a business (with a 14-day trial) and its owner, or, with an
+// invitation link, joins the business that sent it. The email gets a
+// confirmation link; passwords are reset by email.
+const accounts = require('../services/accounts');
+
+async function registerOnServer(req, res) {
+  const email = String(req.body?.email || '').toLowerCase().trim();
+  const password = String(req.body?.password || '');
+  const name = String(req.body?.name || '').trim().slice(0, 120);
+  const businessName = String(req.body?.business_name || '').trim();
+  const inviteToken = String(req.body?.invite_token || '').trim();
+
+  if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'That doesn’t look like an email address.' });
+  if (password.length < 8) return res.status(400).json({ error: 'Choose a password of at least 8 characters.' });
+  if ((await usersRepo.getConfig('registration_mode', 'open')) === 'closed') {
+    return res.status(403).json({ error: 'New sign-ups are paused for the moment. Please try again later.' });
+  }
+
+  // Joining a business by invitation: only the invited address may use it
+  let invite = null;
+  if (inviteToken) {
+    invite = await knexInstance('invitations').where({ token: inviteToken }).first();
+    const t = Math.floor(Date.now() / 1000);
+    if (!invite || invite.accepted_at || (invite.expires_at && invite.expires_at < t)) {
+      return res.status(400).json({ error: 'This invitation has expired or was already used. Ask for a new one.' });
+    }
+    if (String(invite.email || '').trim().toLowerCase() !== email) {
+      return res.status(403).json({ error: `This invitation was sent to ${invite.email}. Sign up with that address.` });
+    }
+  } else if (businessName.length < 2) {
+    return res.status(400).json({ error: 'Type your business name.' });
+  }
+
+  let created;
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    created = await knexInstance.transaction(async (trx) => {
+      const [row] = await trx('users').insert({ email, password_hash: hash, name: name || null, role: 'user' }).returning('id');
+      const id = row?.id ?? row;
+      if (!invite) await accounts.createBusiness(trx, { userId: id, businessName });
+      return { id, email, name };
+    });
+  } catch (err) {
+    if (/unique/i.test(err.message)) return res.status(409).json({ error: 'There’s already an account with this email. Sign in, or use “Forgot your password?”.' });
+    return res.status(500).json({ error: err.message });
+  }
+  if (invite) await require('../repos/invitationsRepo')(knexInstance).accept(inviteToken, created.id);
+
+  req.session.userId = created.id;
+  req.session.userEmail = email;
+  req.session.userName = name || email.split('@')[0];
+  req.session.userRole = 'user';
+
+  let emailSent = false;
+  try { emailSent = await accounts.sendVerification(knexInstance, req, created); } catch (err) { console.warn('[Accounts] Verification email failed:', err.message); }
+  res.json({ success: true, user: { id: created.id, email, name: req.session.userName, role: 'user' }, verify_email_sent: emailSent });
+}
+
+// The link in the confirmation email
+router.get('/verify-email', async (req, res) => {
+  const userId = await accounts.useToken(knexInstance, req.query.token, 'verify_email');
+  if (!userId) return res.redirect('/login.html?verify=expired');
+  const user = await knexInstance('users').where({ id: userId }).first('id', 'email');
+  // Radixile staff (PLATFORM_ADMIN_EMAILS) become platform admins once their email is confirmed
+  await knexInstance('users').where({ id: userId }).update({
+    email_verified_at: Math.floor(Date.now() / 1000),
+    ...(accounts.isPlatformAdminEmail(user?.email) && { role: 'admin' }),
+  });
+  res.redirect(req.session?.userId ? '/?verified=1' : '/login.html?verify=done');
+});
+
+router.post('/resend-verification', requireAuth, async (req, res) => {
+  const user = await knexInstance('users').where({ id: req.session.userId }).first('id', 'email', 'name', 'email_verified_at');
+  if (!user) return res.status(404).json({ error: 'Not found' });
+  if (user.email_verified_at) return res.json({ already: true });
+  try {
+    const sent = await accounts.sendVerification(knexInstance, req, user);
+    res.json({ sent });
+  } catch (err) {
+    res.status(502).json({ error: `The email couldn’t be sent: ${err.message}` });
+  }
+});
+
+// Forgotten password: the same answer whether or not the address has an account
+router.post('/forgot-password', async (req, res) => {
+  if (!require('../services/edition').isServer()) return res.status(404).json({ error: 'Not available' });
+  const email = String(req.body?.email || '').toLowerCase().trim();
+  const wait = loginGuard.check(`forgot:${email}`);
+  if (wait) return res.status(429).json({ error: wait });
+  loginGuard.failed(`forgot:${email}`); // limits how often reset emails can be asked for
+  const user = email && await knexInstance('users').where({ email }).first('id', 'email', 'name', 'status');
+  if (user && user.status !== 'suspended') {
+    try { await accounts.sendReset(knexInstance, req, user); } catch (err) { console.warn('[Accounts] Reset email failed:', err.message); }
+  }
+  res.json({ success: true, message: 'If there’s an account with that email, a link to choose a new password is on its way. Check your inbox (and spam folder).' });
+});
+
+router.post('/reset-password', async (req, res) => {
+  const password = String(req.body?.password || '');
+  if (password.length < 8) return res.status(400).json({ error: 'Choose a password of at least 8 characters.' });
+  const userId = await accounts.useToken(knexInstance, req.body?.token, 'reset_password');
+  if (!userId) return res.status(400).json({ error: 'This link has expired or was already used. Ask for a new one.' });
+  // Opening the link proves the email address too
+  await knexInstance('users').where({ id: userId }).update({
+    password_hash: await bcrypt.hash(password, 10),
+    email_verified_at: knexInstance.raw('COALESCE(email_verified_at, ?)', [Math.floor(Date.now() / 1000)]),
+  });
+  res.json({ success: true });
 });
 
 // ── Login ─────────────────────────────────────────────────────────────────────
@@ -174,9 +289,24 @@ router.get('/me', async (req, res) => {
     const user = await usersRepo.findById(req.session.userId);
     if (!user) return res.json({ authenticated: false });
     if (user.status === 'suspended') { req.session.destroy(); return res.json({ authenticated: false, error: 'suspended' }); }
+    const extra = await knexInstance('users').where({ id: user.id }).first('recovery_hash', 'email_verified_at');
+    const server = require('../services/edition').isServer();
+    const business = server ? await accounts.businessFor(knexInstance, user.id) : null;
     res.json({
       authenticated: true,
-      user: { id: user.id, email: user.email, name: user.name || user.email.split('@')[0], role: user.role, has_recovery_code: !!(await knexInstance('users').where({ id: user.id }).first('recovery_hash'))?.recovery_hash },
+      server,
+      user: {
+        id: user.id, email: user.email, name: user.name || user.email.split('@')[0], role: user.role,
+        has_recovery_code: !!extra?.recovery_hash,
+        ...(server && { email_verified: !!extra?.email_verified_at }),
+      },
+      ...(business && {
+        business: {
+          id: business.id, name: business.name, plan: business.plan, role: business.role,
+          trial_ends_at: business.trial_ends_at,
+          trial_days_left: business.plan === 'trial' && business.trial_ends_at ? Math.max(0, Math.ceil((business.trial_ends_at - Date.now() / 1000) / 86400)) : null,
+        },
+      }),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

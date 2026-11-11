@@ -294,6 +294,8 @@ document.addEventListener('visibilitychange', () => {
 function renderLicenseBanner(s) {
   const bar = document.getElementById('license-banner');
   if (!bar) return;
+  // Server edition: businesses have plans, not licence keys (see the account banner)
+  if (State.server) { bar.style.display = 'none'; return; }
   // Start-up checks take a few seconds: don't flash a warning, just look again
   if (s.state === 'checking') {
     bar.style.display = 'none';

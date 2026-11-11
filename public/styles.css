@@ -5232,3 +5232,8 @@ body.light-mode :is(.btn, .sb-primary-btn, .sb-secondary-btn, .sb-icon-btn, .ton
 /* An error shown under a field, inside a dialog or form */
 .field-error { margin-top: 6px; font-size: 12.5px; line-height: 1.45; color: #dc2626; }
 .form-input[aria-invalid="true"] { border-color: #dc2626 !important; box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15); }
+
+/* Server edition: email confirmation and trial banner */
+#account-banner { margin: 0 24px 12px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(37, 99, 235, .35); background: rgba(37, 99, 235, .07); font-size: 13px; }
+#account-banner .account-banner-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+#account-banner .account-banner-row + .account-banner-row { margin-top: 6px; }

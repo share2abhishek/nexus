@@ -47,8 +47,13 @@ function createDefault(userId, displayName, slug) {
     const existing = await trx('memberships').where({ user_id: userId }).first();
     if (existing) return existing.workspace_id;
 
+    // Server edition: every new business starts on the trial (as at sign-up)
+    const server = require('./edition').isServer();
     const orgRows = await trx('organizations')
-      .insert({ name: `${displayName}'s Org`, owner_user_id: userId, plan: 'free' })
+      .insert({
+        name: `${displayName}'s Org`, owner_user_id: userId, plan: server ? 'trial' : 'free',
+        ...(server && { trial_ends_at: Math.floor(Date.now() / 1000) + require('./accounts').TRIAL_DAYS * 86400 }),
+      })
       .returning('id');
     const orgId = orgRows[0]?.id ?? orgRows[0];
     await trx('org_members').insert({ org_id: orgId, user_id: userId, role: 'owner' }).onConflict(['org_id', 'user_id']).ignore();

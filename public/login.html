@@ -204,7 +204,26 @@
         <button class="auth-btn" id="btn-login" onclick="doLogin()">
           Sign In →
         </button>
-        <p style="text-align:center;margin:14px 0 0;font-size:13px"><a href="#" onclick="switchAuthTab('recover');return false" style="color:var(--text-muted)">Forgot your password?</a></p>
+        <p style="text-align:center;margin:14px 0 0;font-size:13px"><a href="#" onclick="switchAuthTab(window.SERVER_EDITION ? 'forgot' : 'recover');return false" style="color:var(--text-muted)">Forgot your password?</a></p>
+      </div>
+
+      <!-- Server edition: forgotten password, by email -->
+      <div class="auth-panel" id="panel-forgot">
+        <p style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Type your email address. We’ll send you a link to choose a new password.</p>
+        <div class="auth-error"   id="forgot-error"></div>
+        <div class="auth-success" id="forgot-success"></div>
+        <div class="form-group"><label class="form-label" for="forgot-email">Email Address</label><input type="email" class="form-input" id="forgot-email" autocomplete="email" /></div>
+        <button class="auth-btn" id="btn-forgot" onclick="doForgot()">Send me a link →</button>
+        <p style="text-align:center;margin:14px 0 0;font-size:13px"><a href="#" onclick="switchAuthTab('login');return false" style="color:var(--text-muted)">Back to sign in</a></p>
+      </div>
+
+      <!-- Server edition: the link from the email -->
+      <div class="auth-panel" id="panel-reset">
+        <h3 style="margin:0 0 8px">Choose a new password</h3>
+        <div class="auth-error"   id="reset-error"></div>
+        <div class="form-group"><label class="form-label" for="reset-password">New password <span style="color:var(--text-muted);font-weight:400">(at least 8 characters)</span></label><input type="password" class="form-input" id="reset-password" autocomplete="new-password" /></div>
+        <div class="form-group"><label class="form-label" for="reset-password2">Type it again</label><input type="password" class="form-input" id="reset-password2" autocomplete="new-password" /></div>
+        <button class="auth-btn" id="btn-reset" onclick="doReset()">Save new password →</button>
       </div>
 
       <!-- Forgotten password: reset with the recovery code -->
@@ -239,6 +258,16 @@
         <div class="auth-error"   id="reg-error"></div>
         <div class="auth-success" id="reg-success"></div>
 
+        <!-- Server edition: the business this account is for (not when joining by invitation) -->
+        <div class="form-group" id="business-row" style="display:none">
+          <label class="form-label" for="reg-business">Business name</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">🏢</span>
+            <input type="text" class="form-input input-with-icon" id="reg-business" placeholder="e.g. Acme Interiors" autocomplete="organization" maxlength="120" />
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Free for 14 days, no card needed.</div>
+        </div>
+
         <div class="form-group">
           <label class="form-label">Your Name</label>
           <div class="input-icon-wrap">
@@ -258,7 +287,7 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Password <span style="color:var(--text-muted);font-weight:400">(min 6 characters)</span></label>
+          <label class="form-label">Password <span style="color:var(--text-muted);font-weight:400" id="reg-password-hint">(min 6 characters)</span></label>
           <div class="input-icon-wrap">
             <span class="input-icon">🔒</span>
             <input type="password" class="form-input input-with-icon" id="reg-password"
@@ -285,7 +314,7 @@
     </div>
 
     <div class="auth-footer">
-      Social-Nexus by Radixile Technology Solutions · Your data stays on your machine
+      Social-Nexus by Radixile Technology Solutions · <span id="footer-where">Your data stays on your machine</span>
       <br style="margin-bottom:6px">
       <a href="/help.html" target="_blank" style="color:#60a5fa;text-decoration:none;font-size:12px">📖 Documentation & Help</a>
       &nbsp;·&nbsp;
@@ -300,7 +329,23 @@
     fetch('/users/me').then(r => r.json()),
     fetch('/users/registration-info').then(r => r.json()),
   ]).then(([me, regInfo]) => {
-    if (me.authenticated) { window.location.href = safeNext(); return; }
+    const params = new URLSearchParams(location.search);
+    // The reset link from the email works whether or not someone is signed in
+    if (params.get('reset')) { document.querySelector('.auth-tabs').style.display = 'none'; switchAuthTab('reset'); }
+    else if (me.authenticated) { window.location.href = safeNext(); return; }
+
+    // Server edition: sign-up is for a business; passwords are reset by email
+    if (regInfo.server) {
+      window.SERVER_EDITION = true;
+      if (!inviteToken()) document.getElementById('business-row').style.display = 'block';
+      else document.getElementById('reg-success').textContent = '';
+      document.getElementById('reg-password-hint').textContent = '(at least 8 characters)';
+      document.getElementById('footer-where').textContent = 'Hosted securely by Radixile';
+    }
+    if (params.get('verify') === 'done') showSuccess('login-success', 'Your email is confirmed. Sign in to continue.');
+    if (params.get('verify') === 'expired') showError('login-error', 'That confirmation link has expired or was already used. Sign in and ask for a new one.');
+    // Came from an invitation: start on "Create Account"
+    if (inviteToken() && !params.get('reset')) switchAuthTab('register');
 
     // Show first-user message
     if (regInfo.is_first_user) {
@@ -367,6 +412,47 @@
     return /^\/(?!\/)[\w\-./?=&%]*$/.test(next) ? next : '/';
   }
 
+  // The invitation this sign-up came from (next=/invite.html?token=…)
+  function inviteToken() {
+    const next = new URLSearchParams(location.search).get('next') || '';
+    const m = next.match(/^\/invite\.html\?token=([\w-]+)/);
+    return m ? m[1] : '';
+  }
+
+  async function doForgot() {
+    const btn = document.getElementById('btn-forgot');
+    const email = document.getElementById('forgot-email').value.trim();
+    if (!email) return showError('forgot-error', 'Type your email address');
+    btn.disabled = true;
+    try {
+      const r = await fetch('/users/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+      const data = await r.json();
+      if (!r.ok) return showError('forgot-error', data.error);
+      showSuccess('forgot-success', data.message);
+    } catch { showError('forgot-error', 'Connection error. Please try again.'); }
+    finally { btn.disabled = false; }
+  }
+
+  async function doReset() {
+    const btn = document.getElementById('btn-reset');
+    const p1 = document.getElementById('reset-password').value;
+    const p2 = document.getElementById('reset-password2').value;
+    if (p1.length < 8) return showError('reset-error', 'Choose a password of at least 8 characters.');
+    if (p1 !== p2) return showError('reset-error', 'The two passwords are different.');
+    btn.disabled = true;
+    try {
+      const token = new URLSearchParams(location.search).get('reset');
+      const r = await fetch('/users/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, password: p1 }) });
+      const data = await r.json();
+      if (!r.ok) return showError('reset-error', data.error);
+      history.replaceState(null, '', '/login.html');
+      document.querySelector('.auth-tabs').style.display = '';
+      switchAuthTab('login');
+      showSuccess('login-success', 'Password changed. Sign in with your new password.');
+    } catch { showError('reset-error', 'Connection error. Please try again.'); }
+    finally { btn.disabled = false; }
+  }
+
   async function doRegister() {
     const btn         = document.getElementById('btn-register');
     const name        = document.getElementById('reg-name').value.trim();
@@ -374,12 +460,21 @@
     const pass        = document.getElementById('reg-password').value;
     const invite_code = document.getElementById('reg-invite')?.value.trim().toUpperCase();
     if (!email || !pass) return showError('reg-error', 'Email and password are required');
+    const business_name = document.getElementById('reg-business')?.value.trim();
+    if (window.SERVER_EDITION && !inviteToken() && !business_name) return showError('reg-error', 'Type your business name');
 
     btn.disabled = true; btn.textContent = 'Creating account…';
     try {
-      const r    = await fetch('/users/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: pass, name, invite_code }) });
+      const body = window.SERVER_EDITION ? { email, password: pass, name, business_name, invite_token: inviteToken() || undefined } : { email, password: pass, name, invite_code };
+      const r    = await fetch('/users/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await r.json();
       if (!r.ok) { showError('reg-error', data.error); if (data.needs_invite) document.getElementById('invite-code-row').style.display = 'block'; return; }
+      if (window.SERVER_EDITION) {
+        // Joined by invitation (already accepted) or a new business: straight into the app
+        showSuccess('reg-success', data.verify_email_sent ? `Welcome! We sent a link to ${email} to confirm your email.` : 'Welcome!');
+        setTimeout(() => window.location.href = '/', 1200);
+        return;
+      }
       if (data.recovery_code) return showRecoveryCode(data.recovery_code);
       showSuccess('reg-success', `Account created! ${data.user.role === 'admin' ? '👑 You are the Super Admin!' : 'Redirecting…'}`);
       setTimeout(() => window.location.href = safeNext(), 800);
@@ -425,6 +520,8 @@
     const active = document.querySelector('.auth-panel.active').id;
     if (active === 'panel-login')    doLogin();
     if (active === 'panel-register') doRegister();
+    if (active === 'panel-forgot')   doForgot();
+    if (active === 'panel-reset')    doReset();
   });
 </script>
 </body>

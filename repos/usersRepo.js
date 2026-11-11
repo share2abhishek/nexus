@@ -16,11 +16,13 @@ module.exports = (knex) => {
   // ── Users ──────────────────────────────────────────────────────────────────
 
   async function create(email, passwordHash, name) {
-    // First user ever becomes admin automatically. Count + insert run in one
-    // transaction so two simultaneous sign-ups on a fresh install can't both be admin.
+    // Desktop: the first user ever becomes admin of the install. Count + insert run
+    // in one transaction so two simultaneous sign-ups can't both be admin.
+    // Server edition (hosted for many businesses): a sign-up is never an admin of
+    // the service; Radixile staff get that after confirming their email.
     return knex.transaction(async (trx) => {
       const [{ c }] = await trx('users').count('id as c');
-      const role    = parseInt(c, 10) === 0 ? 'admin' : 'user';
+      const role    = !require('../services/edition').isServer() && parseInt(c, 10) === 0 ? 'admin' : 'user';
       const rows    = await trx('users').insert({
         email, password_hash: passwordHash, name: name || null, role,
       }).returning('id');
