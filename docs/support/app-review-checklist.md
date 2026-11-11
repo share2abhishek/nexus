@@ -11,7 +11,7 @@ Pages you will be asked for (already on the licence server):
 |---|---|
 | Privacy policy | `https://license.radixile.com/privacy` |
 | Data deletion instructions | `https://license.radixile.com/data-deletion` |
-| Website / support | `https://radixile.com`, `support@radixile.com` |
+| Website / support | `https://radixile.com`, `info@radixile.com` |
 
 ## Meta (Facebook + Instagram)
 

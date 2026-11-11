@@ -42,6 +42,13 @@ Newest first. Paste the section for a version into the GitHub Release
 - **SEO autopilot:** add your website and phrases; Social-Nexus re-checks it every week or day, keeps a plain-language to-do list (most urgent first, things that got worse moved up, fixed things closed by themselves), drafts titles, descriptions and page plans on request, and drafts a Google Business post for approval when the profile has been quiet. Nothing is changed or posted without someone's OK. The Home page shows the top to-dos.
 - New whole-site checks: broken links, duplicate titles and descriptions, soft 404s, canonical and sitemap problems, structured data (JSON-LD), AI assistants blocked in robots.txt, and phone page speed from Google PageSpeed Insights (needs `PAGESPEED_API_KEY`). These follow checks in the MIT-licensed open-source projects Seo-Promt-Master, linkinator and crawlseo, rewritten for Social-Nexus.
 
+### Website and sign-in
+- New landing page at the site's main address, using the whole screen; the sign-in page has the same light look. The desktop app's own window still opens on sign-in.
+- Ready for search engines: page title and description, canonical address, share previews (with a share picture) for WhatsApp, LinkedIn, Facebook and X, structured data for Google (who makes it, what it is, and the FAQ), `robots.txt` and `sitemap.xml`. The address comes from `APP_URL`. The app and sign-in pages are kept out of search results.
+- "More from Radixile": Urban Society, the housing society app (urbansociety.in).
+- Contact address is now info@radixile.com.
+- Legal pages at /legal: Terms of Service, Privacy Policy (DPDP Act, Grievance Officer, Google "Limited Use"), Refund & Cancellation (with delivery), Acceptable Use, Cookies, Delete your data (for Meta and Google app review) and a Data Processing Addendum for businesses. Company address, Grievance Officer and court city come from `LEGAL_ADDRESS`, `LEGAL_GRIEVANCE_OFFICER` and `LEGAL_CITY`. Sign-up says that creating an account accepts the Terms and Privacy Policy.
+
 ### Server edition: settings for each business
 - AI keys can be shared with the whole team (Settings → AI → Shared with your team). The owner or a manager saves them; everyone else uses them unless they add their own. Keys are stored encrypted and never shown again.
 - Email sending (Settings → Email sending) belongs to the business: campaigns and Sales outreach go from the business's own address. Only the owner or a manager can change it.

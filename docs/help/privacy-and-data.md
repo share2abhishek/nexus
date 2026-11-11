@@ -1,6 +1,6 @@
 # Privacy and your data
 
-**Social-Nexus by Radixile Technology Solutions** · Questions: support@radixile.com
+**Social-Nexus by Radixile Technology Solutions** · Questions: info@radixile.com
 
 Social-Nexus is a desktop app. It runs on **your** Windows PC, not on Radixile's servers. This page explains, in plain language, what is kept on your PC, what is sent elsewhere and when, and how to delete everything.
 
@@ -78,7 +78,7 @@ The licence server keeps a record of activations (which licence, which scrambled
 
 ## 5. Logs and support
 
-The log file stays on your PC. If you email it to support@radixile.com, we use it only to solve your problem. Logs can contain error messages and parts of post text. Open the file in Notepad first if you'd like to check it. **Never send us your passwords, API keys or the `.env` file**; we will never ask for them.
+The log file stays on your PC. If you email it to info@radixile.com, we use it only to solve your problem. Logs can contain error messages and parts of post text. Open the file in Notepad first if you'd like to check it. **Never send us your passwords, API keys or the `.env` file**; we will never ask for them.
 
 ---
 
@@ -96,4 +96,4 @@ The log file stays on your PC. If you email it to support@radixile.com, we use i
 
 **Delete the AI keys you created** on each provider's website if you no longer need them.
 
-**Licence server data:** email **support@radixile.com** from your purchase or coupon email address and ask us to delete your customer record. We keep invoice and payment records for as long as Indian tax law requires.
+**Licence server data:** email **info@radixile.com** from your purchase or coupon email address and ask us to delete your customer record. We keep invoice and payment records for as long as Indian tax law requires.

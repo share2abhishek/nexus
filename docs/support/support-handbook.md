@@ -3,7 +3,7 @@
 **For Radixile Technology Solutions support staff** · Internal document · Version 2.1 (October 2026)
 
 Customer-facing guides: `docs/help/user-guide.md`, `docs/help/connect-social-accounts.md`, `docs/help/privacy-and-data.md` (also in the app under Help).
-Licence admin panel: **https://license.radixile.com/admin** · Support mailbox: **support@radixile.com**
+Licence admin panel: **https://license.radixile.com/admin** · Support mailbox: **info@radixile.com**
 
 > **Status of this handbook:** the licence server (separate repo `license-server`) is new and its admin panel screens are still being built. The behaviour, limits and error codes below come from the server code (`src/*.js` in that repo) and the design in `docs/architecture/licensing-and-distribution.md`. Button names in the admin panel may differ slightly. Where something is design-only (not in the code yet), it is marked **(planned)**.
 

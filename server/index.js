@@ -116,6 +116,9 @@ app.get('/__schedule', async (req, res) => {
 
 // ── Static Files ──────────────────────────────────────────────────────────────
 
+// Landing page address, robots.txt and sitemap.xml for search engines
+const publicPages = require('./publicPages');
+app.use(publicPages.router);
 // index: false, so "/" goes to the route below (app or landing page), not straight to index.html
 app.use(express.static(path.join(__dirname, '..', 'public'), { index: false }));
 // Chart library shipped with the app (works offline; no CDN)
@@ -219,7 +222,7 @@ app.get('/', (req, res) => {
     res.redirect('/login.html');
   } else {
     // Any browser: visitors see what Social-Nexus is, then sign up or sign in
-    res.sendFile(path.join(__dirname, '..', 'public', 'landing.html'));
+    publicPages.sendLanding(req, res);
   }
 });
 

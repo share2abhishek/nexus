@@ -1,6 +1,6 @@
 # Connecting your social accounts to Social-Nexus
 
-**Social-Nexus by Radixile Technology Solutions** · Support: support@radixile.com
+**Social-Nexus by Radixile Technology Solutions** · Support: info@radixile.com
 
 This guide covers LinkedIn, Facebook + Instagram, Pinterest, X (Twitter), Google Business Profile, YouTube and TikTok.
 
@@ -299,4 +299,4 @@ TikTok only allows web apps with a public `https` redirect address, and posts fr
 - X uses `127.0.0.1`; all other platforms use `localhost`.
 - No space or `/` at the end.
 
-Still stuck? Email **support@radixile.com** with the platform name, a screenshot of the error, and your log file `%APPDATA%\Social-Nexus\logs\server.log`. **Never send us your Client Secret or passwords.**
+Still stuck? Email **info@radixile.com** with the platform name, a screenshot of the error, and your log file `%APPDATA%\Social-Nexus\logs\server.log`. **Never send us your Client Secret or passwords.**

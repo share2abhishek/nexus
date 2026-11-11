@@ -1,9 +1,9 @@
 # Social-Nexus User Guide
 
 **Social-Nexus by Radixile Technology Solutions**
-For version 2.1 · Support: support@radixile.com · Licence portal: https://license.radixile.com
+For version 2.1 · Support: info@radixile.com · Licence portal: https://license.radixile.com
 
-This guide is for business owners, marketers and agency teams. You don't need any technical knowledge. If you get stuck, write to **support@radixile.com**. It helps if you attach your log file (see [Troubleshooting](#18-troubleshooting)).
+This guide is for business owners, marketers and agency teams. You don't need any technical knowledge. If you get stuck, write to **info@radixile.com**. It helps if you attach your log file (see [Troubleshooting](#18-troubleshooting)).
 
 ---
 
@@ -205,7 +205,7 @@ Your licence is linked to your computer through a scrambled "fingerprint" of its
 
 If you try to deactivate while offline, you'll see "… Deactivating needs the internet so your seat is freed for another PC." Nothing is removed, and your licence keeps working on this PC. Connect to the internet and try again.
 
-If the old PC is broken or lost, email **support@radixile.com** with your licence key's last 4 characters and your purchase email, and we'll free the seat. Moves may be limited (for example, "This licence was moved to another computer recently"). Support can help then.
+If the old PC is broken or lost, email **info@radixile.com** with your licence key's last 4 characters and your purchase email, and we'll free the seat. Moves may be limited (for example, "This licence was moved to another computer recently"). Support can help then.
 
 **"This licence is already active on N of N computers"** means all your seats are in use. Deactivate one PC, or ask support to move the licence.
 
@@ -724,7 +724,7 @@ If you're moving to a new PC, deactivate your licence before uninstalling, while
 ## 18. Troubleshooting
 
 ### Where is the log file?
-`%APPDATA%\Social-Nexus\logs\server.log`. Older logs are `server.1.log` and `server.2.log`. Press **Windows key + R**, paste `%APPDATA%\Social-Nexus\logs` and press Enter. Attach `server.log` when you email support@radixile.com.
+`%APPDATA%\Social-Nexus\logs\server.log`. Older logs are `server.1.log` and `server.2.log`. Press **Windows key + R**, paste `%APPDATA%\Social-Nexus\logs` and press Enter. Attach `server.log` when you email info@radixile.com.
 
 The log stays on your PC unless you send it. Before sending, you can open it in Notepad to see what's inside.
 
@@ -775,7 +775,7 @@ Another copy of Social-Nexus, or another program, is using the same connection p
 3. If another program uses port 3000 (some developer tools do), close that program. Social-Nexus's connection addresses for the social networks depend on port 3000, so don't change it.
 
 ### Social-Nexus shows an error when starting
-The message explains the actual problem and shows the log folder (`%APPDATA%\Social-Nexus\logs`). Follow the advice in the message. If it doesn't help, email support@radixile.com with a screenshot and `server.log` from that folder.
+The message explains the actual problem and shows the log folder (`%APPDATA%\Social-Nexus\logs`). Follow the advice in the message. If it doesn't help, email info@radixile.com with a screenshot and `server.log` from that folder.
 
 ### The app window is blank or says it can't connect
 Wait 10–20 seconds. The local server may still be starting, and the app retries automatically. If it doesn't recover, quit from the tray and start again. If it keeps happening, email support with `server.log`.
@@ -803,7 +803,7 @@ Read the message under **Settings → 🔑 Licence**:
 - *"…belongs to another installation"* or *"…activated on a different computer"*: activate again here with the same key. On the same PC (for example after reinstalling) this doesn't use another seat.
 - *"This copy of Social-Nexus has been modified…"*: reinstall Social-Nexus from radixile.com. Your data is safe.
 - *"The licence file is damaged or was changed"*: activate again.
-- The licence was cancelled or put on hold: email support@radixile.com.
+- The licence was cancelled or put on hold: email info@radixile.com.
 
 ### "Deactivating needs the internet so your seat is freed for another PC"
 You tried **Deactivate this PC** while offline. Nothing was removed and the licence still works here. Connect to the internet and click **Deactivate this PC** again.
@@ -843,7 +843,7 @@ No. Social-Nexus must be running (the tray is enough) at the scheduled time. Pos
 Not yet. Today team members sign in on the same PC. Multi-PC team access is planned for the Agency edition.
 
 **I forgot my password.**
-Ask your admin to reset it in **Admin Dashboard → Users**. If you are the admin, email support@radixile.com.
+Ask your admin to reset it in **Admin Dashboard → Users**. If you are the admin, email info@radixile.com.
 
 **Where do I get help?**
-Email **support@radixile.com** with a description, a screenshot and your `server.log` file. Licence questions: https://license.radixile.com.
+Email **info@radixile.com** with a description, a screenshot and your `server.log` file. Licence questions: https://license.radixile.com.

@@ -649,7 +649,7 @@ Modules: `services/autopilot/{planner,themes,compose,safety}.js`, `services/fact
 
 ### 6.4 R4: Rename and branding
 
-- `config/brand.js` (new, shared by main, server and renderer through `/api/brand`): `{productName:'Social-Nexus', fullName:'Social-Nexus by Radixile Technology Solutions', company:'Radixile Technology Solutions LLP', support:'support@radixile.com'}`.
+- `config/brand.js` (new, shared by main, server and renderer through `/api/brand`): `{productName:'Social-Nexus', fullName:'Social-Nexus by Radixile Technology Solutions', company:'Radixile Technology Solutions LLP', support:'info@radixile.com'}`.
 - Replace hard-coded "NEXUS" in:
   - `electron/main.js`: `APP_NAME`, the window title, tray and dialogs
   - `electron/splash.html`
