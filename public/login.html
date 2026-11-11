@@ -344,8 +344,8 @@
     }
     if (params.get('verify') === 'done') showSuccess('login-success', 'Your email is confirmed. Sign in to continue.');
     if (params.get('verify') === 'expired') showError('login-error', 'That confirmation link has expired or was already used. Sign in and ask for a new one.');
-    // Came from an invitation: start on "Create Account"
-    if (inviteToken() && !params.get('reset')) switchAuthTab('register');
+    // Came from an invitation, or "Start free trial" on the landing page: start on "Create Account"
+    if ((inviteToken() || location.hash === '#register' || params.get('signup') === '1') && !params.get('reset') && regInfo.mode !== 'closed') switchAuthTab('register');
 
     // Show first-user message
     if (regInfo.is_first_user) {

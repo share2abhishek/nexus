@@ -116,7 +116,8 @@ app.get('/__schedule', async (req, res) => {
 
 // ── Static Files ──────────────────────────────────────────────────────────────
 
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// index: false, so "/" goes to the route below (app or landing page), not straight to index.html
+app.use(express.static(path.join(__dirname, '..', 'public'), { index: false }));
 // Chart library shipped with the app (works offline; no CDN)
 app.get('/vendor/chart.umd.js', (req, res) => res.sendFile(path.join(__dirname, '..', 'node_modules', 'chart.js', 'dist', 'chart.umd.js')));
 
@@ -213,7 +214,11 @@ app.get('/me/workspaces', async (req, res) => {
 app.get('/', (req, res) => {
   if (req.session?.userId) {
     res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  } else if (/Electron/i.test(req.get('user-agent') || '') && !require('../services/edition').isServer()) {
+    // The desktop app's own window: straight to sign-in
+    res.redirect('/login.html');
   } else {
+    // Any browser: visitors see what Social-Nexus is, then sign up or sign in
     res.sendFile(path.join(__dirname, '..', 'public', 'landing.html'));
   }
 });
