@@ -1,0 +1,58 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "social-nexus-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 3000,
+      "autoPort": false
+    },
+    {
+      "name": "nexus-uitest",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/abhis/AppData/Local/Temp/claude/D--Social-nexus/229f7ad4-ca55-4108-b076-2ee0d389494e/scratchpad/run-uitest.js"
+      ],
+      "port": 3099
+    },
+    {
+      "name": "nexus-uitest-edit",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/abhis/AppData/Local/Temp/claude/D--Social-nexus/63a6b570-d1b9-4845-b290-0dca0e957a47/scratchpad/run-uitest.js"
+      ],
+      "port": 3098
+    },
+    {
+      "name": "scenario-license",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/abhis/AppData/Local/Temp/claude/D--Social-nexus/229f7ad4-ca55-4108-b076-2ee0d389494e/scratchpad/scenario/run-license.js"
+      ],
+      "port": 4101,
+      "autoPort": false
+    },
+    {
+      "name": "scenario-app",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/abhis/AppData/Local/Temp/claude/D--Social-nexus/229f7ad4-ca55-4108-b076-2ee0d389494e/scratchpad/scenario/run-app.js"
+      ],
+      "port": 3097,
+      "autoPort": false
+    },
+    {
+      "name": "scenario-main",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/abhis/AppData/Local/Temp/claude/D--Social-nexus/229f7ad4-ca55-4108-b076-2ee0d389494e/scratchpad/scenario/run-main.js"
+      ],
+      "port": 3000,
+      "autoPort": false
+    }
+  ]
+}

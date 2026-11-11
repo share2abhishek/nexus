@@ -34,3 +34,19 @@ desktop.ini
 # Temporary
 *.tmp
 *.temp
+.chrome-cdp-tmp/
+.edge-cdp-tmp/
+.edge-tmp/
+.cdp_streamline_test/
+
+# Licence server: local signing keys, dev database, secrets
+config/license-keys/*.pem
+
+# Release build artefacts
+.protect-backup/
+config/integrity.json
+*.jsc
+.env.backup-*
+
+# Claude Code: personal settings
+.claude/settings.local.json

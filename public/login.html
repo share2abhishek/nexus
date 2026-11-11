@@ -3,171 +3,125 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NEXUS — Sign In</title>
+  <meta name="robots" content="noindex" />
+  <title>Social-Nexus — Sign In</title>
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="stylesheet" href="styles.css" />
   <style>
-    body { display:flex; align-items:center; justify-content:center; min-height:100vh; }
-
-    .auth-container {
-      width: 100%;
-      max-width: 440px;
-      padding: 0 20px;
-      animation: fadeIn 0.4s ease;
+    /* Same light look as the landing page (public/landing.html) */
+    :root {
+      --ink: #0f2338; --text: #334155; --muted: #64748b; --line: #e2e8f0;
+      --card: #ffffff; --bg: #f6f9fc; --sky: #e8f2fb; --accent: #2563eb; --accent-soft: #e0ecff;
+      --green: #059669; --green-soft: #dcfce7; --red: #b91c1c; --red-soft: #fee2e2;
+      --shadow: 0 1px 2px rgba(15, 35, 56, .04), 0 12px 32px -12px rgba(15, 35, 56, .18);
     }
-
-    .auth-logo {
-      text-align: center;
-      margin-bottom: 32px;
+    body.light-mode {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--text); line-height: 1.55; min-height: 100vh;
+      background: linear-gradient(180deg, var(--sky) 0%, var(--bg) 55%);
+      display: flex; flex-direction: column;
     }
+    body.light-mode::before { display: none; }
+    a { color: var(--accent); }
 
-    .auth-logo img { width: 64px; height: 64px; border-radius: 16px; margin-bottom: 12px; }
+    /* Top bar, like the landing page menu */
+    .auth-top { border-bottom: 1px solid rgba(226, 232, 240, .7); background: rgba(246, 249, 252, .85); }
+    .auth-top-inner { width: min(1600px, 100% - clamp(32px, 6vw, 128px)); margin: 0 auto; height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .auth-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+    .auth-mark { width: 30px; height: 30px; border-radius: 9px; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 15px; flex: none; }
+    .auth-brand b { display: block; font-size: 16px; line-height: 1.1; }
+    .auth-brand small { display: block; font-size: 11.5px; color: var(--muted); }
+    .auth-back { font-size: 14px; font-weight: 600; color: var(--ink); text-decoration: none; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+    .auth-back:hover { border-color: #cbd5e1; }
 
-    .auth-logo-title {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 28px;
-      font-weight: 900;
-      background: var(--gradient-primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
+    /* Page: message on the left, form on the right; fills the screen */
+    .auth-shell { flex: 1; width: min(1600px, 100% - clamp(32px, 6vw, 128px)); margin: 0 auto; display: grid; grid-template-columns: 1.1fr minmax(380px, 480px); gap: clamp(40px, 6vw, 120px); align-items: center; padding: clamp(32px, 6vh, 72px) 0; }
+    .auth-pill { display: inline-flex; gap: 6px; align-items: center; padding: 6px 12px; border-radius: 999px; background: var(--accent-soft); color: #1d4ed8; font-size: 13px; font-weight: 600; }
+    .auth-side h1 { font-size: clamp(32px, 3.8vw, 60px); line-height: 1.08; letter-spacing: -.03em; color: var(--ink); margin: 18px 0 20px; }
+    .auth-side h1 span { color: var(--muted); }
+    .auth-ticks { list-style: none; display: grid; gap: 12px; padding: 0; margin: 0; }
+    .auth-ticks li { display: grid; grid-template-columns: 24px 1fr; gap: 10px; font-size: clamp(15px, 1.1vw, 18px); }
+    .auth-ticks li::before { content: '✓'; width: 22px; height: 22px; border-radius: 50%; background: var(--green-soft); color: var(--green); display: grid; place-items: center; font-size: 12px; font-weight: 700; margin-top: 2px; }
 
-    .auth-logo-sub {
-      font-size: 13px;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
+    .auth-container { width: 100%; }
+    .auth-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
 
-    .auth-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-xl);
-      backdrop-filter: blur(20px);
-      overflow: hidden;
-    }
-
-    .auth-tabs {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .auth-tab {
-      flex: 1;
-      padding: 16px;
-      text-align: center;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      color: var(--text-muted);
-      background: none;
-      border: none;
-      transition: var(--transition);
-      font-family: 'Inter', sans-serif;
-    }
-
-    .auth-tab.active {
-      color: var(--text-primary);
-      background: rgba(124,58,237,0.08);
-      border-bottom: 2px solid var(--accent-purple);
-    }
-
-    .auth-tab:hover:not(.active) { color: var(--text-secondary); background: var(--glass); }
+    .auth-tabs { display: flex; border-bottom: 1px solid var(--line); }
+    .auth-tab { flex: 1; padding: 16px; text-align: center; font-size: 15px; font-weight: 600; cursor: pointer; color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent; font-family: inherit; transition: color .15s, background .15s; }
+    .auth-tab.active { color: var(--ink); border-bottom-color: var(--ink); }
+    .auth-tab:hover:not(.active) { color: var(--ink); background: #f8fafc; }
+    .auth-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
     .auth-body { padding: 28px; }
-
     .auth-panel { display: none; }
     .auth-panel.active { display: block; }
+    .auth-panel h3 { color: var(--ink); }
 
-    .auth-error {
-      background: rgba(239,68,68,0.12);
-      border: 1px solid rgba(239,68,68,0.3);
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 13px;
-      color: #f87171;
-      margin-bottom: 16px;
-      display: none;
-    }
+    body.light-mode .form-label { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+    body.light-mode .form-input { font-size: 15px; padding: 11px 14px; border-radius: 10px; border-color: var(--line); color: var(--ink); }
+    body.light-mode .form-input:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(15, 35, 56, .1); }
 
-    .auth-success {
-      background: rgba(16,185,129,0.12);
-      border: 1px solid rgba(16,185,129,0.3);
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 13px;
-      color: var(--accent-green);
-      margin-bottom: 16px;
-      display: none;
-    }
+    .auth-error, .auth-success { border-radius: 10px; padding: 10px 14px; font-size: 13.5px; margin-bottom: 16px; display: none; }
+    .auth-error { background: var(--red-soft); border: 1px solid #fecaca; color: var(--red); }
+    .auth-success { background: var(--green-soft); border: 1px solid #bbf7d0; color: #047857; }
+    .auth-note { border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
+    .auth-note.info { background: var(--accent-soft); border: 1px solid #bfdbfe; color: #1e40af; }
+    .auth-note.bad { background: var(--red-soft); border: 1px solid #fecaca; color: var(--red); }
 
-    .auth-btn {
-      width: 100%;
-      padding: 13px;
-      border-radius: var(--radius-sm);
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      border: none;
-      background: var(--gradient-primary);
-      color: #fff;
-      box-shadow: 0 4px 15px rgba(124,58,237,0.4);
-      transition: var(--transition);
-      font-family: 'Inter', sans-serif;
-      margin-top: 8px;
-    }
+    /* Same as the landing page's main button */
+    .auth-btn { width: 100%; padding: 13px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; border: 1px solid transparent; background: var(--ink); color: #fff; box-shadow: 0 6px 16px -8px rgba(15, 35, 56, .6); font-family: inherit; margin-top: 8px; transition: background .15s, box-shadow .15s, transform .05s; }
+    .auth-btn:hover:not(:disabled) { background: #1b3a5c; }
+    .auth-btn:active:not(:disabled) { transform: translateY(1px); }
+    .auth-btn:focus-visible { outline: 3px solid rgba(37, 99, 235, .35); outline-offset: 2px; }
+    .auth-btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
 
-    .auth-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
-    .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; filter: none; }
+    .auth-footer { text-align: center; padding: 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); background: #fbfcfd; }
+    .auth-footer a { color: var(--accent); text-decoration: none; }
+    .auth-footer a:hover { text-decoration: underline; }
 
-    .auth-divider {
-      text-align: center;
-      font-size: 12px;
-      color: var(--text-muted);
-      margin: 20px 0;
-      position: relative;
-    }
-    .auth-divider::before, .auth-divider::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      width: 42%;
-      height: 1px;
-      background: var(--border);
-    }
-    .auth-divider::before { left: 0; }
-    .auth-divider::after  { right: 0; }
-
-    .auth-footer {
-      text-align: center;
-      padding: 16px;
-      border-top: 1px solid var(--border);
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
+    .auth-consent { font-size: 12.5px; color: var(--muted); text-align: center; margin-top: 12px; }
     .input-icon-wrap { position: relative; }
-    .input-icon {
-      position: absolute;
-      left: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 16px;
-      pointer-events: none;
-    }
+    .input-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 16px; pointer-events: none; }
     .input-with-icon { padding-left: 38px !important; }
+
+    @media (max-width: 900px) {
+      .auth-shell { grid-template-columns: 1fr; max-width: 520px; gap: 24px; padding: 28px 0 40px; align-content: start; }
+      .auth-ticks { display: none; }
+      .auth-side h1 { font-size: 28px; margin: 12px 0 0; }
+    }
+    @media (max-width: 560px) {
+      .auth-shell, .auth-top-inner { width: calc(100% - 32px); }
+      .auth-brand small { display: none; }
+      .auth-pill { display: none; }
+      .auth-body { padding: 22px 18px; }
+    }
   </style>
 </head>
-<body>
+<body class="light-mode">
+
+<header class="auth-top">
+  <div class="auth-top-inner">
+    <a class="auth-brand" href="/" aria-label="Social-Nexus home">
+      <span class="auth-mark" aria-hidden="true">✦</span>
+      <span><b class="auth-logo-title">Social-Nexus</b><small>by Radixile Technology Solutions</small></span>
+    </a>
+    <a class="auth-back" href="/">← Back to home</a>
+  </div>
+</header>
+
+<main class="auth-shell">
+<section class="auth-side">
+  <span class="auth-pill">✨ Built for Indian businesses and agencies</span>
+  <h1>Your posts, chats and customers. <span>In one place.</span></h1>
+  <ul class="auth-ticks">
+    <li>Plan and publish to Facebook, Instagram, LinkedIn, X, Google Business and more from one calendar</li>
+    <li>WhatsApp auto-replies, broadcasts and all your customer chats in one inbox</li>
+    <li>Find businesses that need you, and keep your website in shape for Google</li>
+    <li>AI writes the first draft in your words. Nothing goes out without your OK.</li>
+  </ul>
+</section>
 
 <div class="auth-container">
-  <!-- Logo -->
-  <div class="auth-logo">
-    <img src="icon.svg" alt="NEXUS" />
-    <div class="auth-logo-title">NEXUS</div>
-    <div class="auth-logo-sub">AI Digital Marketing Platform</div>
-  </div>
 
   <!-- Card -->
   <div class="auth-card">
@@ -205,18 +159,69 @@
         <button class="auth-btn" id="btn-login" onclick="doLogin()">
           Sign In →
         </button>
+        <p style="text-align:center;margin:14px 0 0;font-size:13px"><a href="#" onclick="switchAuthTab(window.SERVER_EDITION ? 'forgot' : 'recover');return false" style="color:var(--text-muted)">Forgot your password?</a></p>
+      </div>
+
+      <!-- Server edition: forgotten password, by email -->
+      <div class="auth-panel" id="panel-forgot">
+        <p style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Type your email address. We’ll send you a link to choose a new password.</p>
+        <div class="auth-error"   id="forgot-error"></div>
+        <div class="auth-success" id="forgot-success"></div>
+        <div class="form-group"><label class="form-label" for="forgot-email">Email Address</label><input type="email" class="form-input" id="forgot-email" autocomplete="email" /></div>
+        <button class="auth-btn" id="btn-forgot" onclick="doForgot()">Send me a link →</button>
+        <p style="text-align:center;margin:14px 0 0;font-size:13px"><a href="#" onclick="switchAuthTab('login');return false" style="color:var(--text-muted)">Back to sign in</a></p>
+      </div>
+
+      <!-- Server edition: the link from the email -->
+      <div class="auth-panel" id="panel-reset">
+        <h3 style="margin:0 0 8px">Choose a new password</h3>
+        <div class="auth-error"   id="reset-error"></div>
+        <div class="form-group"><label class="form-label" for="reset-password">New password <span style="color:var(--text-muted);font-weight:400">(at least 8 characters)</span></label><input type="password" class="form-input" id="reset-password" autocomplete="new-password" /></div>
+        <div class="form-group"><label class="form-label" for="reset-password2">Type it again</label><input type="password" class="form-input" id="reset-password2" autocomplete="new-password" /></div>
+        <button class="auth-btn" id="btn-reset" onclick="doReset()">Save new password →</button>
+      </div>
+
+      <!-- Forgotten password: reset with the recovery code -->
+      <div class="auth-panel" id="panel-recover">
+        <p style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Use the recovery code you saved when you created your account. No code? Ask your admin to set a new password for you.</p>
+        <div class="auth-error"   id="recover-error"></div>
+        <div class="form-group"><label class="form-label">Email Address</label><input type="email" class="form-input" id="recover-email" autocomplete="email" /></div>
+        <div class="form-group"><label class="form-label">Recovery code</label><input type="text" class="form-input" id="recover-code" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false" style="font-family:monospace;text-transform:uppercase" /></div>
+        <div class="form-group"><label class="form-label">New password <span style="color:var(--text-muted);font-weight:400">(min 6 characters)</span></label><input type="password" class="form-input" id="recover-password" autocomplete="new-password" /></div>
+        <button class="auth-btn" id="btn-recover" onclick="doRecover()">Set new password →</button>
+        <p style="text-align:center;margin:14px 0 0;font-size:13px"><a href="#" onclick="switchAuthTab('login');return false" style="color:var(--text-muted)">Back to sign in</a></p>
+      </div>
+
+      <!-- Shown once: the recovery code to keep -->
+      <div class="auth-panel" id="panel-code">
+        <h3 style="margin:0 0 8px">Save your recovery code</h3>
+        <p style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">If you ever forget your password, this code lets you set a new one. Write it down or keep it in a password manager. It is shown only now.</p>
+        <div id="code-box" style="font-family:monospace;font-size:20px;letter-spacing:1px;text-align:center;padding:14px;border:1px dashed var(--border);border-radius:10px;user-select:all"></div>
+        <button class="auth-btn" style="margin-top:12px" onclick="copyRecoveryCode()">📋 Copy code</button>
+        <label style="display:flex;gap:8px;align-items:center;margin:14px 0;font-size:13px"><input type="checkbox" id="code-saved" onchange="document.getElementById('btn-code-done').disabled=!this.checked" /> I have saved my recovery code</label>
+        <button class="auth-btn" id="btn-code-done" disabled onclick="window.location.href = safeNext()">Continue →</button>
       </div>
 
       <!-- Register Panel -->
       <div class="auth-panel" id="panel-register">
-        <div id="first-user-notice" style="display:none;background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.3);border-radius:8px;padding:10px 14px;font-size:12px;color:#a78bfa;margin-bottom:14px">
+        <div id="first-user-notice" class="auth-note info" style="display:none">
           👑 You're the first user — your account will be the <strong>Super Admin</strong>.
         </div>
-        <div id="reg-closed-msg" style="display:none;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 14px;font-size:13px;color:#f87171;margin-bottom:14px">
+        <div id="reg-closed-msg" class="auth-note bad" style="display:none">
           🔒 Registration is currently closed. Contact the admin for access.
         </div>
         <div class="auth-error"   id="reg-error"></div>
         <div class="auth-success" id="reg-success"></div>
+
+        <!-- Server edition: the business this account is for (not when joining by invitation) -->
+        <div class="form-group" id="business-row" style="display:none">
+          <label class="form-label" for="reg-business">Business name</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">🏢</span>
+            <input type="text" class="form-input input-with-icon" id="reg-business" placeholder="e.g. Acme Interiors" autocomplete="organization" maxlength="120" />
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Free for 14 days, no card needed.</div>
+        </div>
 
         <div class="form-group">
           <label class="form-label">Your Name</label>
@@ -237,7 +242,7 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Password <span style="color:var(--text-muted);font-weight:400">(min 6 characters)</span></label>
+          <label class="form-label">Password <span style="color:var(--text-muted);font-weight:400" id="reg-password-hint">(min 6 characters)</span></label>
           <div class="input-icon-wrap">
             <span class="input-icon">🔒</span>
             <input type="password" class="form-input input-with-icon" id="reg-password"
@@ -247,7 +252,7 @@
 
         <!-- Invite code (shown only in invite mode) -->
         <div class="form-group" id="invite-code-row" style="display:none">
-          <label class="form-label">Invite Code <span style="color:#ef4444">*</span></label>
+          <label class="form-label">Invite Code <span style="color:var(--red)">*</span></label>
           <div class="input-icon-wrap">
             <span class="input-icon">🎟️</span>
             <input type="text" class="form-input input-with-icon" id="reg-invite"
@@ -259,19 +264,25 @@
         <button class="auth-btn" id="btn-register" onclick="doRegister()">
           Create Account →
         </button>
+        <p class="auth-consent">By creating an account you agree to the <a href="/legal/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/legal/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>
       </div>
 
     </div>
 
     <div class="auth-footer">
-      NEXUS v2.0 · Your data stays on your machine · 100% private
+      Social-Nexus by Radixile Technology Solutions · <span id="footer-where">Your data stays on your machine</span>
       <br style="margin-bottom:6px">
-      <a href="/help.html" target="_blank" style="color:#60a5fa;text-decoration:none;font-size:12px">📖 Documentation & Help</a>
+      <a href="/help.html" target="_blank" rel="noopener">Documentation &amp; Help</a>
       &nbsp;·&nbsp;
-      <a href="/landing.html" style="color:#60a5fa;text-decoration:none;font-size:12px">🏠 About NEXUS</a>
+      <a href="/">About Social-Nexus</a>
+      &nbsp;·&nbsp;
+      <a href="/legal/terms">Terms</a>
+      &nbsp;·&nbsp;
+      <a href="/legal/privacy">Privacy</a>
     </div>
   </div>
 </div>
+</main>
 
 <script>
   // Check if already logged in + get registration info
@@ -279,7 +290,23 @@
     fetch('/users/me').then(r => r.json()),
     fetch('/users/registration-info').then(r => r.json()),
   ]).then(([me, regInfo]) => {
-    if (me.authenticated) { window.location.href = '/'; return; }
+    const params = new URLSearchParams(location.search);
+    // The reset link from the email works whether or not someone is signed in
+    if (params.get('reset')) { document.querySelector('.auth-tabs').style.display = 'none'; switchAuthTab('reset'); }
+    else if (me.authenticated) { window.location.href = safeNext(); return; }
+
+    // Server edition: sign-up is for a business; passwords are reset by email
+    if (regInfo.server) {
+      window.SERVER_EDITION = true;
+      if (!inviteToken()) document.getElementById('business-row').style.display = 'block';
+      else document.getElementById('reg-success').textContent = '';
+      document.getElementById('reg-password-hint').textContent = '(at least 8 characters)';
+      document.getElementById('footer-where').textContent = 'Hosted securely by Radixile';
+    }
+    if (params.get('verify') === 'done') showSuccess('login-success', 'Your email is confirmed. Sign in to continue.');
+    if (params.get('verify') === 'expired') showError('login-error', 'That confirmation link has expired or was already used. Sign in and ask for a new one.');
+    // Came from an invitation, or "Start free trial" on the landing page: start on "Create Account"
+    if ((inviteToken() || location.hash === '#register' || params.get('signup') === '1') && !params.get('reset') && regInfo.mode !== 'closed') switchAuthTab('register');
 
     // Show first-user message
     if (regInfo.is_first_user) {
@@ -304,7 +331,7 @@
   function switchAuthTab(tab) {
     document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById(`tab-${tab}`).classList.add('active');
+    document.getElementById(`tab-${tab}`)?.classList.add('active');
     document.getElementById(`panel-${tab}`).classList.add('active');
   }
 
@@ -334,9 +361,57 @@
       const data = await r.json();
       if (!r.ok) return showError('login-error', data.error);
       showSuccess('login-success', `Welcome back, ${data.user.name}!`);
-      setTimeout(() => window.location.href = '/', 600);
+      setTimeout(() => window.location.href = safeNext(), 600);
     } catch { showError('login-error', 'Connection error — is the server running?'); }
     finally { btn.disabled = false; btn.textContent = 'Sign In →'; }
+  }
+
+  // After signing in, go back to where the user came from (e.g. an invite link).
+  // Only same-app paths are allowed, never another website.
+  function safeNext() {
+    const next = new URLSearchParams(location.search).get('next') || '/';
+    return /^\/(?!\/)[\w\-./?=&%]*$/.test(next) ? next : '/';
+  }
+
+  // The invitation this sign-up came from (next=/invite.html?token=…)
+  function inviteToken() {
+    const next = new URLSearchParams(location.search).get('next') || '';
+    const m = next.match(/^\/invite\.html\?token=([\w-]+)/);
+    return m ? m[1] : '';
+  }
+
+  async function doForgot() {
+    const btn = document.getElementById('btn-forgot');
+    const email = document.getElementById('forgot-email').value.trim();
+    if (!email) return showError('forgot-error', 'Type your email address');
+    btn.disabled = true;
+    try {
+      const r = await fetch('/users/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+      const data = await r.json();
+      if (!r.ok) return showError('forgot-error', data.error);
+      showSuccess('forgot-success', data.message);
+    } catch { showError('forgot-error', 'Connection error. Please try again.'); }
+    finally { btn.disabled = false; }
+  }
+
+  async function doReset() {
+    const btn = document.getElementById('btn-reset');
+    const p1 = document.getElementById('reset-password').value;
+    const p2 = document.getElementById('reset-password2').value;
+    if (p1.length < 8) return showError('reset-error', 'Choose a password of at least 8 characters.');
+    if (p1 !== p2) return showError('reset-error', 'The two passwords are different.');
+    btn.disabled = true;
+    try {
+      const token = new URLSearchParams(location.search).get('reset');
+      const r = await fetch('/users/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, password: p1 }) });
+      const data = await r.json();
+      if (!r.ok) return showError('reset-error', data.error);
+      history.replaceState(null, '', '/login.html');
+      document.querySelector('.auth-tabs').style.display = '';
+      switchAuthTab('login');
+      showSuccess('login-success', 'Password changed. Sign in with your new password.');
+    } catch { showError('reset-error', 'Connection error. Please try again.'); }
+    finally { btn.disabled = false; }
   }
 
   async function doRegister() {
@@ -346,16 +421,58 @@
     const pass        = document.getElementById('reg-password').value;
     const invite_code = document.getElementById('reg-invite')?.value.trim().toUpperCase();
     if (!email || !pass) return showError('reg-error', 'Email and password are required');
+    const business_name = document.getElementById('reg-business')?.value.trim();
+    if (window.SERVER_EDITION && !inviteToken() && !business_name) return showError('reg-error', 'Type your business name');
 
     btn.disabled = true; btn.textContent = 'Creating account…';
     try {
-      const r    = await fetch('/users/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: pass, name, invite_code }) });
+      const body = window.SERVER_EDITION ? { email, password: pass, name, business_name, invite_token: inviteToken() || undefined } : { email, password: pass, name, invite_code };
+      const r    = await fetch('/users/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await r.json();
       if (!r.ok) { showError('reg-error', data.error); if (data.needs_invite) document.getElementById('invite-code-row').style.display = 'block'; return; }
+      if (window.SERVER_EDITION) {
+        // Joined by invitation (already accepted) or a new business: straight into the app
+        showSuccess('reg-success', data.verify_email_sent ? `Welcome! We sent a link to ${email} to confirm your email.` : 'Welcome!');
+        setTimeout(() => window.location.href = '/', 1200);
+        return;
+      }
+      if (data.recovery_code) return showRecoveryCode(data.recovery_code);
       showSuccess('reg-success', `Account created! ${data.user.role === 'admin' ? '👑 You are the Super Admin!' : 'Redirecting…'}`);
-      setTimeout(() => window.location.href = '/', 800);
+      setTimeout(() => window.location.href = safeNext(), 800);
     } catch { showError('reg-error', 'Connection error'); }
     finally { btn.disabled = false; btn.textContent = 'Create Account →'; }
+  }
+
+  function showRecoveryCode(code) {
+    document.getElementById('code-box').textContent = code;
+    document.querySelector('.auth-tabs').style.display = 'none';
+    switchAuthTab('code');
+  }
+  function copyRecoveryCode() {
+    navigator.clipboard?.writeText(document.getElementById('code-box').textContent).catch(() => {});
+  }
+
+  async function doRecover() {
+    const btn = document.getElementById('btn-recover');
+    const email = document.getElementById('recover-email').value.trim();
+    const code = document.getElementById('recover-code').value.trim();
+    const password = document.getElementById('recover-password').value;
+    if (!email || !code || !password) return showError('recover-error', 'Please fill in all fields');
+    btn.disabled = true;
+    try {
+      const r = await fetch('/users/recover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, code, password }) });
+      const data = await r.json();
+      if (!r.ok) return showError('recover-error', data.error);
+      // Signed in with the new password next; first keep the NEW code (the old one is used up)
+      document.getElementById('login-email').value = email;
+      document.getElementById('code-box').textContent = data.recovery_code;
+      document.querySelector('#panel-code h3').textContent = 'Password changed. Save your new recovery code';
+      document.getElementById('btn-code-done').onclick = () => { document.querySelector('.auth-tabs').style.display = ''; switchAuthTab('login'); };
+      document.getElementById('btn-code-done').textContent = 'Sign in →';
+      document.querySelector('.auth-tabs').style.display = 'none';
+      switchAuthTab('code');
+    } catch { showError('recover-error', 'Connection error — is the server running?'); }
+    finally { btn.disabled = false; }
   }
 
   // Enter key support
@@ -364,6 +481,8 @@
     const active = document.querySelector('.auth-panel.active').id;
     if (active === 'panel-login')    doLogin();
     if (active === 'panel-register') doRegister();
+    if (active === 'panel-forgot')   doForgot();
+    if (active === 'panel-reset')    doReset();
   });
 </script>
 </body>

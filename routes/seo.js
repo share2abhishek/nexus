@@ -1,39 +1,69 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../services/database');
-const { aiGenerate, aiJSON } = require('../services/aiHelper');
+const { aiGenerate, aiJSON, aiArgsFromReq } = require('../services/aiHelper');
+const knexInstance  = require('../services/knex');
+const seoRepo       = require('../repos/seoRepo')(knexInstance);
+const historyRepo   = require('../repos/historyRepo')(knexInstance);
 
-function apiKey(req) {
-  return req.headers['x-api-key'] || process.env.GOOGLE_AI_KEY;
-}
+const seoCheck = require('../services/seoCheck');
 
-// POST /api/seo/meta — generate SEO meta tags
+// The user's own AI keys / Ollama / chosen model (not just the shared .env key)
+function ai(req) { return aiArgsFromReq(req); }
+const str = (v) => (typeof v === 'string' ? v.trim() : '');
+
+// POST /api/seo/check — open a page the way Google's crawler does and measure it
+router.post('/check', async (req, res) => {
+  const { url, keyword } = req.body || {};
+  if (!str(url)) return res.status(400).json({ error: 'Type the address of the page to check.' });
+  try {
+    res.json(await seoCheck.checkPage(url, { keyword: str(keyword) }));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// POST /api/seo/meta — write a title and description (reads the page when an address is given)
 router.post('/meta', async (req, res) => {
-  const { page_title, page_content, target_keyword, url } = req.body;
-  if (!page_title && !page_content) return res.status(400).json({ error: 'page_title or page_content is required' });
+  let { page_title, page_content, target_keyword, url } = req.body || {};
+  page_title = str(page_title); page_content = str(page_content); target_keyword = str(target_keyword); url = str(url);
+  let current = null;
+  if (url) {
+    try {
+      const r = await seoCheck.checkPage(url, { keyword: target_keyword });
+      current = { title: r.page.title, description: r.page.description, h1: r.page.h1[0] || '' };
+      page_title = page_title || r.page.title || r.page.h1[0] || '';
+      page_content = page_content || r.page.text_sample;
+    } catch (err) {
+      return res.status(400).json({ error: `Couldn’t read that page: ${err.message}` });
+    }
+  }
+  if (!page_title && !page_content) return res.status(400).json({ error: 'Type the page address, or its title and what it is about.' });
 
-  const prompt = `Generate optimized SEO meta tags for the following page.
-Page Title: ${page_title || 'Not provided'}
-Target Keyword: ${target_keyword || 'Not specified'}
-URL: ${url || 'Not provided'}
-Content: ${page_content ? page_content.substring(0, 600) : 'Not provided'}
+  const prompt = `Write the Google search title and description for this web page.
+Page title now: ${page_title || '(none)'}
+Main search phrase: ${target_keyword || '(not given)'}
+What the page says: ${page_content ? page_content.substring(0, 1500) : '(not given)'}
 
-Return ONLY valid JSON (no markdown):
-{
-  "meta_title": "SEO title 50-60 chars",
-  "meta_description": "Compelling description 150-160 chars",
-  "focus_keywords": ["kw1", "kw2", "kw3"],
-  "og_title": "Open Graph title",
-  "og_description": "Open Graph description",
-  "schema_type": "WebPage",
-  "seo_score": 82,
-  "suggestions": ["suggestion 1", "suggestion 2"]
-}`;
+Rules: only say what the page really offers; no made-up numbers or claims.
+The title is 50-60 characters and starts with the main search phrase if one is given.
+The description is 140-160 characters and ends with a reason to click.
+
+Reply with JSON only:
+{"meta_title":"...","meta_description":"...","focus_keywords":["...","...","..."],"og_title":"...","og_description":"...","suggestions":["...","..."]}`;
 
   try {
-    const { data, model } = await aiJSON(prompt, apiKey(req));
-    db.saveHistory({ prompt: `SEO meta: ${page_title}`, response: JSON.stringify(data), type: 'seo_meta', model });
-    res.json(data);
+    const { data, model } = await aiJSON(prompt, ai(req).apiKey, 1024, ai(req).options, ai(req).model);
+    const out = {
+      meta_title: str(data.meta_title),
+      meta_description: str(data.meta_description),
+      focus_keywords: Array.isArray(data.focus_keywords) ? data.focus_keywords.map(str).filter(Boolean).slice(0, 6) : [],
+      og_title: str(data.og_title) || str(data.meta_title),
+      og_description: str(data.og_description) || str(data.meta_description),
+      suggestions: Array.isArray(data.suggestions) ? data.suggestions.map(str).filter(Boolean).slice(0, 6) : [],
+      current,
+    };
+    historyRepo.save(req.workspaceId, req.session?.userId, { prompt: `SEO meta: ${page_title || url}`, response: JSON.stringify(out), type: 'seo_meta', model }).catch(() => {});
+    res.json(out);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -44,28 +74,32 @@ router.post('/keywords', async (req, res) => {
   const { topic, niche, competitors } = req.body;
   if (!topic) return res.status(400).json({ error: 'topic is required' });
 
-  const prompt = `Generate keyword research for: "${topic}"
+  const prompt = `Suggest search phrases people might type into Google for: "${topic}"
 Niche: ${niche || 'general'}
 Competitors: ${competitors || 'not specified'}
 
-Return ONLY valid JSON (no markdown):
-{
-  "primary_keywords": [
-    {"keyword": "example", "intent": "commercial", "difficulty": "medium", "notes": "why valuable"}
-  ],
-  "long_tail_keywords": [
-    {"keyword": "long tail example", "intent": "informational", "difficulty": "low", "notes": "use case"}
-  ],
-  "questions": ["What is...", "How to..."],
-  "negative_keywords": ["irrelevant1", "irrelevant2"],
-  "content_ideas": ["Blog post 1", "Blog post 2", "Tutorial on X"]
-}
-Include 6 primary, 10 long-tail, 5 questions, 3 negatives, 5 content ideas.`;
+"competition" is your rough guess (low / medium / high) of how hard it is to rank, from general knowledge: you have no search data.
+"intent" is what the searcher wants: informational, commercial, transactional or local.
+
+Reply with JSON only:
+{"primary_keywords":[{"keyword":"...","intent":"...","competition":"low|medium|high"}],
+ "long_tail_keywords":[{"keyword":"...","intent":"...","competition":"low|medium|high"}],
+ "questions":["..."],"content_ideas":["..."]}
+Give 6 primary, 10 long-tail, 5 questions and 5 content ideas.`;
 
   try {
-    const { data, model } = await aiJSON(prompt, apiKey(req), 2048);
-    db.saveHistory({ prompt: `Keyword research: ${topic}`, response: JSON.stringify(data), type: 'seo_keywords', model });
-    res.json(data);
+    const { data, model } = await aiJSON(prompt, ai(req).apiKey, 2048, ai(req).options, ai(req).model);
+    const level = (v) => (['low', 'medium', 'high'].includes(String(v).toLowerCase()) ? String(v).toLowerCase() : null);
+    const kw = (list) => (Array.isArray(list) ? list : []).map((k) => (typeof k === 'string' ? { keyword: k } : k))
+      .filter((k) => str(k?.keyword)).map((k) => ({ keyword: str(k.keyword), intent: str(k.intent) || null, competition: level(k.competition || k.difficulty) }));
+    const out = {
+      primary_keywords: kw(data.primary_keywords),
+      long_tail_keywords: kw(data.long_tail_keywords),
+      questions: (data.questions || []).map(str).filter(Boolean),
+      content_ideas: (data.content_ideas || []).map(str).filter(Boolean),
+    };
+    historyRepo.save(req.workspaceId, req.session?.userId, { prompt: `Keyword research: ${topic}`, response: JSON.stringify(out), type: 'seo_keywords', model }).catch(() => {});
+    res.json(out);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -76,50 +110,53 @@ router.post('/optimize', async (req, res) => {
   const { content, target_keyword, content_type = 'blog_post' } = req.body;
   if (!content) return res.status(400).json({ error: 'content is required' });
 
-  const prompt = `Analyze and optimize this ${content_type} for SEO.
-Target Keyword: ${target_keyword || 'not specified'}
-Content: ${content.substring(0, 2000)}
+  // Numbers are measured here; AI only suggests improvements
+  const stats = seoCheck.analyzeText(content, str(target_keyword));
+  const prompt = `Suggest how to improve this ${content_type.replace(/_/g, ' ')} so it ranks better on Google.
+Main search phrase: ${target_keyword || 'not given'}
+Measured: ${stats.word_count} words, ${stats.avg_sentence_words} words per sentence, the phrase appears ${stats.keyword_count} times${stats.keyword_in_first_100_words === false ? ', not in the first 100 words' : ''}.
+Text: ${content.substring(0, 3000)}
 
-Return ONLY valid JSON (no markdown):
-{
-  "seo_score": 72,
-  "readability_score": 80,
-  "keyword_density": "1.8%",
-  "word_count": 420,
-  "issues": [
-    {"type": "warning", "message": "Keyword missing from first paragraph"},
-    {"type": "error", "message": "No meta description detected"}
-  ],
-  "suggestions": ["Add keyword to H1", "Include 2-3 internal links"],
-  "optimized_intro": "Improved intro paragraph suggestion",
-  "suggested_headings": ["H2: Main Topic", "H2: Benefits", "H3: Examples"]
-}`;
+Only point out things that are really in (or missing from) this text.
+Reply with JSON only:
+{"suggestions":["..."],"better_intro":"a rewritten first paragraph","headings":["..."]}`;
 
+  let advice = { suggestions: [], better_intro: '', headings: [] };
+  let ai_error = null;
   try {
-    const { data } = await aiJSON(prompt, apiKey(req));
-    res.json(data);
+    const { data } = await aiJSON(prompt, ai(req).apiKey, 1024, ai(req).options, ai(req).model);
+    advice = {
+      suggestions: (data.suggestions || []).map(str).filter(Boolean).slice(0, 8),
+      better_intro: str(data.better_intro || data.optimized_intro),
+      headings: (data.headings || data.suggested_headings || []).map(str).filter(Boolean).slice(0, 8),
+    };
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    ai_error = err.message; // the measured numbers are still useful
   }
+  res.json({ ...stats, ...advice, ai_error });
 });
 
 // GET /api/seo/keywords/tracked — list tracked keywords
-router.get('/keywords/tracked', (req, res) => {
-  res.json(db.getSEOKeywords());
+router.get('/keywords/tracked', async (req, res) => {
+  try { res.json(await seoRepo.list(req.workspaceId)); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // POST /api/seo/keywords/tracked — add keyword to track
-router.post('/keywords/tracked', (req, res) => {
+router.post('/keywords/tracked', async (req, res) => {
   const { keyword, url, notes } = req.body;
   if (!keyword) return res.status(400).json({ error: 'keyword is required' });
-  const id = db.saveSEOKeyword({ keyword, url, notes });
-  res.json({ success: true, id });
+  try {
+    const id = await seoRepo.save(req.workspaceId, { keyword, url, notes });
+    res.json({ success: true, id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // DELETE /api/seo/keywords/tracked/:id
-router.delete('/keywords/tracked/:id', (req, res) => {
-  db.deleteSEOKeyword(parseInt(req.params.id));
-  res.json({ success: true });
+router.delete('/keywords/tracked/:id', async (req, res) => {
+  try {
+    await seoRepo.remove(req.workspaceId, parseInt(req.params.id));
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // POST /api/seo/aso — App Store Optimization
@@ -127,37 +164,46 @@ router.post('/aso', async (req, res) => {
   const { app_name, app_description, category, platform = 'both', competitors } = req.body;
   if (!app_name) return res.status(400).json({ error: 'app_name is required' });
 
-  const prompt = `Generate optimized App Store listing for:
-App Name: ${app_name}
-Description: ${app_description || 'Not provided'}
+  const wantIos = platform !== 'android';
+  const wantAndroid = platform !== 'ios';
+  const prompt = `Write store listing text for this app. Only describe what it really does (from the description); no made-up awards, ratings or user numbers.
+App name: ${app_name}
+What it does: ${app_description || 'Not provided'}
 Category: ${category || 'Not specified'}
-Platform: ${platform}
 Competitors: ${competitors || 'Not specified'}
 
-Return ONLY valid JSON (no markdown):
-{
-  "app_store": {
-    "title": "App Name (max 30 chars)",
-    "subtitle": "Value prop (max 30 chars)",
-    "keywords": "kw1,kw2,kw3 (max 100 chars)",
-    "short_description": "First hook paragraph",
-    "description": "Full 4000-char description with features and benefits"
-  },
-  "play_store": {
-    "title": "App Title (max 50 chars)",
-    "short_description": "Short desc (max 80 chars)",
-    "full_description": "Detailed description with features",
-    "keywords": ["kw1", "kw2", "kw3"]
-  },
-  "screenshots_suggestions": ["Screenshot 1 idea", "Screenshot 2 idea", "Screenshot 3 idea"],
-  "icon_suggestions": "Icon design brief",
-  "aso_tips": ["Tip 1", "Tip 2", "Tip 3"]
-}`;
+Reply with JSON only:
+{${wantIos ? `"app_store":{"name":"app name, at most 30 characters","subtitle":"at most 30 characters","promotional_text":"at most 170 characters","keywords":"comma separated words, at most 100 characters","description":"up to 4000 characters"},` : ''}${wantAndroid ? `"play_store":{"title":"at most 30 characters","short_description":"at most 80 characters","full_description":"up to 4000 characters"},` : ''}"screenshot_ideas":["...","...","..."],"tips":["...","...","..."]}`;
 
   try {
-    const { data, model } = await aiJSON(prompt, apiKey(req), 3000);
-    db.saveHistory({ prompt: `ASO: ${app_name}`, response: JSON.stringify(data), type: 'aso', model });
-    res.json(data);
+    const { data, model } = await aiJSON(prompt, ai(req).apiKey, 3000, ai(req).options, ai(req).model);
+    const field = (value, max) => { const v = str(value); return { text: v, length: v.length, max, too_long: v.length > max }; };
+    const out = { screenshot_ideas: (data.screenshot_ideas || data.screenshots_suggestions || []).map(str).filter(Boolean), tips: (data.tips || data.aso_tips || []).map(str).filter(Boolean) };
+    if (wantIos && data.app_store) {
+      const a = data.app_store;
+      const name = str(a.name || a.title); const subtitle = str(a.subtitle);
+      // Apple's keyword field: commas, no spaces, no words already in the name or subtitle (they count anyway)
+      const used = new Set(`${name} ${subtitle}`.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean));
+      const kw = [];
+      for (const k of String(Array.isArray(a.keywords) ? a.keywords.join(',') : a.keywords || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)) {
+        if (used.has(k) || kw.includes(k)) continue;
+        if ([...kw, k].join(',').length > 100) break;
+        kw.push(k);
+      }
+      out.app_store = {
+        name: field(name, 30), subtitle: field(subtitle, 30), promotional_text: field(a.promotional_text || a.short_description, 170),
+        keywords: field(kw.join(','), 100), description: field(a.description, 4000),
+      };
+    }
+    if (wantAndroid && data.play_store) {
+      const p = data.play_store;
+      out.play_store = { title: field(p.title, 30), short_description: field(p.short_description, 80), full_description: field(p.full_description || p.description, 4000) };
+    }
+    if (!out.app_store && !out.play_store) return res.status(502).json({ error: 'The AI didn’t return a listing. Try again.' });
+    // Small AI models sometimes leave one store out: say so instead of showing nothing
+    out.missing = [wantIos && !out.app_store && 'App Store', wantAndroid && !out.play_store && 'Google Play'].filter(Boolean);
+    historyRepo.save(req.workspaceId, req.session?.userId, { prompt: `ASO: ${app_name}`, response: JSON.stringify(out), type: 'aso', model }).catch(() => {});
+    res.json(out);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

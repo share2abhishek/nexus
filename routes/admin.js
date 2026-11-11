@@ -1,12 +1,13 @@
 const express = require('express');
 const router  = express.Router();
-const db      = require('../services/database');
 const { requireAuth } = require('../middleware/auth');
+const knexInstance = require('../services/knex');
+const usersRepo    = require('../repos/usersRepo')(knexInstance);
 
 // ── Admin guard ───────────────────────────────────────────────────────────────
 
-function requireAdmin(req, res, next) {
-  const user = db.getUserById(req.userId);
+async function requireAdmin(req, res, next) {
+  const user = await usersRepo.findById(req.userId);
   if (!user || user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
   next();
 }
@@ -22,15 +23,80 @@ router.post('/users/create', async (req, res) => {
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email' });
   try {
-    const hash   = await bcrypt.hash(password, 10);
-    // createUser auto-makes first user admin, subsequent ones are 'user' unless overridden
-    const result = db.db.prepare(`INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)`)
-      .run(email.toLowerCase().trim(), hash, name?.trim() || null, ['admin','user'].includes(role) ? role : 'user');
-    res.json({ success: true, id: result.lastInsertRowid, email, role });
+    // Edition limit on user accounts, same rule as registration
+    const { withinLimit, limitMessage } = require('../middleware/license');
+    const [{ c }] = await knexInstance('users').count('id as c');
+    if (!withinLimit('users', parseInt(c, 10))) return res.status(402).json({ error: limitMessage('users'), code: 'LICENSE_LIMIT' });
+    const hash = await bcrypt.hash(password, 10);
+    const safeRole = ['admin', 'user'].includes(role) ? role : 'user';
+    const rows = await knexInstance('users').insert({
+      email: email.toLowerCase().trim(), password_hash: hash, name: name?.trim() || null, role: safeRole,
+    }).returning('id');
+    const id = rows[0]?.id ?? rows[0];
+    res.json({ success: true, id, email, role: safeRole });
   } catch (err) {
-    if (err.message?.includes('UNIQUE')) return res.status(409).json({ error: 'Email already exists' });
+    if (err.message?.includes('UNIQUE') || err.message?.includes('unique')) return res.status(409).json({ error: 'Email already exists' });
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── Server edition: businesses and their plans ──────────────────────────────
+// Until billing sets plans automatically (phase 4), a Radixile admin can set a
+// business's plan, its status and the end of the paid period, or extend a trial.
+
+router.get('/organizations', async (req, res) => {
+  if (!require('../services/edition').isServer()) return res.status(404).json({ error: 'Only on the server edition.' });
+  const ent = require('../services/entitlements');
+  const orgs = await knexInstance('organizations as o').leftJoin('users as u', 'u.id', 'o.owner_user_id')
+    .select('o.id', 'o.name', 'o.plan', 'o.plan_status', 'o.paid_until', 'o.trial_ends_at', 'o.created_at', 'u.email as owner_email')
+    .orderBy('o.id', 'desc').limit(500);
+  const out = [];
+  for (const o of orgs) {
+    const s = await ent.forOrg(o.id);
+    out.push({
+      ...o, can_publish: s.can_publish, state: s.state, plan_name: s.plan_name, message: s.message, trial_days_left: s.trial_days_left ?? null,
+      usage: { workspaces: await ent.usage(o.id, 'workspaces'), users: await ent.usage(o.id, 'users'), seo_sites: await ent.usage(o.id, 'seo_sites') },
+      limits: s.limits || {},
+    });
+  }
+  res.json({ organizations: out, plans: Object.entries(await ent.plans(true)).map(([id, p]) => ({ id, name: p.name, limits: p.limits })) });
+});
+
+router.patch('/organizations/:id/plan', async (req, res) => {
+  if (!require('../services/edition').isServer()) return res.status(404).json({ error: 'Only on the server edition.' });
+  const ent = require('../services/entitlements');
+  const id = Number(req.params.id);
+  const org = await knexInstance('organizations').where({ id }).first();
+  if (!org) return res.status(404).json({ error: 'Business not found' });
+  const b = req.body || {};
+  const patch = {};
+  const plans = await ent.plans(true);
+  if (b.plan !== undefined) {
+    if (!plans[b.plan]) return res.status(400).json({ error: `Unknown plan. Choose one of: ${Object.keys(plans).join(', ')}.` });
+    patch.plan = b.plan;
+  }
+  if (b.plan_status !== undefined) {
+    if (![null, 'active', 'past_due', 'cancelled', 'suspended'].includes(b.plan_status)) return res.status(400).json({ error: 'Status must be active, past_due, cancelled or suspended.' });
+    patch.plan_status = b.plan_status;
+  }
+  // Dates as YYYY-MM-DD (end of that day, India time) or seconds
+  const toEpoch = (v) => {
+    if (v === null || v === '') return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return Math.floor(new Date(`${v}T23:59:59+05:30`).getTime() / 1000);
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+  };
+  for (const k of ['paid_until', 'trial_ends_at']) {
+    if (b[k] === undefined) continue;
+    const e = toEpoch(b[k]);
+    if (e === undefined) return res.status(400).json({ error: `${k === 'paid_until' ? 'Paid until' : 'Trial ends'} must be a date (YYYY-MM-DD).` });
+    patch[k] = e;
+  }
+  if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nothing to change.' });
+  await knexInstance('organizations').where({ id }).update(patch);
+  ent.forget(id); // takes effect straight away
+  console.log(`[Admin] ${req.session?.userEmail || req.userId} changed the plan of business #${id}:`, JSON.stringify(patch));
+  res.json({ success: true, status: await ent.forOrg(id) });
 });
 
 // ── Admin reset user password ─────────────────────────────────────────────────
@@ -40,123 +106,149 @@ router.patch('/users/:id/password', async (req, res) => {
   const { password } = req.body;
   if (!password || password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
   const hash = await bcrypt.hash(password, 10);
-  db.db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, parseInt(req.params.id));
+  await knexInstance('users').where({ id: parseInt(req.params.id) }).update({ password_hash: hash });
   res.json({ success: true });
 });
 
 // ── Platform overview stats ───────────────────────────────────────────────────
 
-router.get('/stats', (req, res) => {
-  res.json(db.getPlatformStats());
+router.get('/stats', async (req, res) => {
+  try { res.json(await usersRepo.getPlatformStats()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── All users ─────────────────────────────────────────────────────────────────
 
-router.get('/users', (req, res) => {
-  const users = db.getAllUsers().map(u => ({
-    ...u,
-    ...db.getUserStats(u.id),
-    password_hash: undefined,
-  }));
-  res.json(users);
+router.get('/users', async (req, res) => {
+  try {
+    const users = await usersRepo.list();
+    // Per-user activity counts for the table (posts sent, AI generations, accounts
+    // connected in the workspaces they belong to)
+    const count = (q) => q.then(rows => Object.fromEntries(rows.map(r => [r.user_id, parseInt(r.c, 10)]))).catch(() => ({}));
+    const [posts, ai, platforms] = await Promise.all([
+      count(knexInstance('posts').whereNot({ status: 'failed' }).select('user_id').count('id as c').groupBy('user_id')),
+      count(knexInstance('history').select('user_id').count('id as c').groupBy('user_id')),
+      count(knexInstance('memberships as m').join('social_accounts as s', 's.workspace_id', 'm.workspace_id')
+        .select('m.user_id').countDistinct('s.id as c').groupBy('m.user_id')),
+    ]);
+    res.json(users.map(u => ({
+      ...u, password_hash: undefined,
+      posts: posts[u.id] || 0, ai_generations: ai[u.id] || 0, platforms_connected: platforms[u.id] || 0,
+    })));
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Single user detail ────────────────────────────────────────────────────────
 
-router.get('/users/:id', (req, res) => {
-  const user = db.getUserById(parseInt(req.params.id));
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  const stats    = db.getUserStats(user.id);
-  const settings = db.getUserSettings(user.id);
-  const history  = db.getHistory ? [] : [];
-
-  res.json({
-    ...user,
-    stats,
-    has_google_key:     !!settings.google_ai_key,
-    has_anthropic_key:  !!settings.anthropic_key,
-    has_stability_key:  !!settings.stability_key,
-    has_openai_key:     !!settings.openai_key,
-    has_luma_key:       !!settings.luma_key,
-    ollama_enabled:     !!settings.ollama_enabled,
-    ollama_model:       settings.ollama_model,
-  });
+router.get('/users/:id', async (req, res) => {
+  try {
+    const user = await usersRepo.findById(parseInt(req.params.id));
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const settings = await usersRepo.getSettings(user.id);
+    res.json({
+      ...user,
+      has_google_key:    !!settings.google_ai_key,
+      has_anthropic_key: !!settings.anthropic_key,
+      has_stability_key: !!settings.stability_key,
+      has_openai_key:    !!settings.openai_key,
+      has_luma_key:      !!settings.luma_key,
+      ollama_enabled:    !!settings.ollama_enabled,
+      ollama_model:      settings.ollama_model,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Update user role ──────────────────────────────────────────────────────────
 
-router.patch('/users/:id/role', (req, res) => {
+router.patch('/users/:id/role', async (req, res) => {
   const { role } = req.body;
-  if (!['user','admin'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
+  if (!['user', 'admin'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
   if (parseInt(req.params.id) === req.userId) return res.status(400).json({ error: 'Cannot change your own role' });
-  db.updateUserRole(parseInt(req.params.id), role);
-  res.json({ success: true });
+  try {
+    await usersRepo.updateRole(parseInt(req.params.id), role);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Suspend / activate user ───────────────────────────────────────────────────
 
-router.patch('/users/:id/status', (req, res) => {
+router.patch('/users/:id/status', async (req, res) => {
   const { status } = req.body;
-  if (!['active','suspended'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+  if (!['active', 'suspended'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
   if (parseInt(req.params.id) === req.userId) return res.status(400).json({ error: 'Cannot suspend yourself' });
-  db.updateUserStatus(parseInt(req.params.id), status);
-  res.json({ success: true });
+  try {
+    await usersRepo.updateStatus(parseInt(req.params.id), status);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Delete user ───────────────────────────────────────────────────────────────
 
-router.delete('/users/:id', (req, res) => {
+router.delete('/users/:id', async (req, res) => {
   if (parseInt(req.params.id) === req.userId) return res.status(400).json({ error: 'Cannot delete yourself' });
-  db.deleteUserData(parseInt(req.params.id));
-  res.json({ success: true });
+  try {
+    await usersRepo.remove(parseInt(req.params.id));
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Invite codes ──────────────────────────────────────────────────────────────
 
-router.get('/invite-codes', (req, res) => {
-  res.json(db.getAllInviteCodes());
+router.get('/invite-codes', async (req, res) => {
+  try { res.json(await usersRepo.listInviteCodes()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/invite-codes', (req, res) => {
+router.post('/invite-codes', async (req, res) => {
   const { note, expires_hours = 168, max_uses = 1 } = req.body;
-  const result = db.createInviteCode(req.userId, note, expires_hours, max_uses);
-  res.json({ success: true, ...result });
+  try {
+    const result = await usersRepo.createInviteCode(req.userId, note, expires_hours, max_uses);
+    res.json({ success: true, ...result });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.delete('/invite-codes/:id', (req, res) => {
-  db.deleteInviteCode(parseInt(req.params.id));
-  res.json({ success: true });
+router.delete('/invite-codes/:id', async (req, res) => {
+  try {
+    await usersRepo.deleteInviteCode(parseInt(req.params.id));
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Registration mode config ──────────────────────────────────────────────────
-// Modes: 'open' (anyone can register), 'invite' (invite code required), 'closed'
 
-router.get('/config', (req, res) => {
-  res.json({
-    registration_mode: db.getConfig('registration_mode', 'open'),
-    app_name:          db.getConfig('app_name', 'NEXUS'),
-    max_users:         db.getConfig('max_users', '0'),
-  });
+router.get('/config', async (req, res) => {
+  try {
+    res.json({
+      registration_mode: await usersRepo.getConfig('registration_mode', 'open'),
+      app_name:          await usersRepo.getConfig('app_name', 'Social-Nexus'),
+      max_users:         await usersRepo.getConfig('max_users', '0'),
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/config', (req, res) => {
+router.post('/config', async (req, res) => {
   const { registration_mode, app_name, max_users } = req.body;
-  if (registration_mode) db.setConfig('registration_mode', registration_mode);
-  if (app_name)          db.setConfig('app_name',          app_name);
-  if (max_users !== undefined) db.setConfig('max_users',   max_users);
-  res.json({ success: true });
+  try {
+    if (registration_mode) await usersRepo.setConfig('registration_mode', registration_mode);
+    if (app_name)          await usersRepo.setConfig('app_name',          app_name);
+    if (max_users !== undefined) await usersRepo.setConfig('max_users',   max_users);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Activity feed (last 50 posts across all users) ────────────────────────────
 
-router.get('/activity', (req, res) => {
-  const posts = db.db.prepare(`
-    SELECT p.*, u.email, u.name
-    FROM posts p
-    LEFT JOIN users u ON u.id = p.user_id
-    ORDER BY p.created_at DESC LIMIT 50
-  `).all().map(p => ({ ...p, platforms: JSON.parse(p.platforms || '[]') }));
-  res.json(posts);
+router.get('/activity', async (req, res) => {
+  try {
+    const posts = await knexInstance('posts as p')
+      .leftJoin('users as u', 'u.id', 'p.user_id')
+      .orderBy('p.created_at', 'desc')
+      .limit(50)
+      .select('p.*', 'u.email', 'u.name');
+    res.json(posts.map(p => ({ ...p, platforms: safe(p.platforms) })));
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+function safe(v) { if (!v) return v; try { return JSON.parse(v); } catch { return v; } }
 
 module.exports = router;

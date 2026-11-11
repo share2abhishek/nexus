@@ -1,638 +1,1106 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NEXUS — Documentation & Help</title>
-  <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Social-Nexus Help</title>
+<meta name="description" content="Help and documentation for Social-Nexus by Radixile Technology Solutions" />
+<link rel="icon" type="image/svg+xml" href="icon.svg" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --bg: #080c14; --bg2: #0d1421; --bg3: #111827;
+    --card: rgba(17,25,40,0.75); --border: rgba(255,255,255,0.08);
+    --text: #f0f4ff; --muted: #94a3b8; --dim: #64748b;
+    --purple: #7c3aed; --purple-soft: #a78bfa; --blue: #3b82f6; --link: #60a5fa; --cyan: #06b6d4;
+    --green: #10b981; --orange: #f59e0b; --red: #ef4444;
+    --code-bg: rgba(255,255,255,0.06);
+    --note-bg: rgba(59,130,246,0.10); --note-border: rgba(59,130,246,0.35);
+    --warn-bg: rgba(245,158,11,0.10); --warn-border: rgba(245,158,11,0.40);
+    --grad: linear-gradient(135deg,#7c3aed 0%,#3b82f6 50%,#06b6d4 100%);
+    --side: 290px;
+  }
+  @media (prefers-color-scheme: light) {
     :root {
-      --bg: #080c14; --bg2: #0d1421; --bg3: #111827;
-      --card: rgba(17,25,40,0.75); --border: rgba(255,255,255,0.07);
-      --purple: #7c3aed; --blue: #3b82f6; --cyan: #06b6d4;
-      --green: #10b981; --orange: #f59e0b;
-      --grad: linear-gradient(135deg,#7c3aed,#3b82f6,#06b6d4);
-      --text: #f0f4ff; --muted: #94a3b8; --dim: #475569;
-      --sidebar-w: 280px;
+      --bg: #f0f4ff; --bg2: #ffffff; --bg3: #f8faff;
+      --card: rgba(255,255,255,0.95); --border: rgba(15,23,42,0.12);
+      --text: #0f172a; --muted: #334155; --dim: #64748b;
+      --purple-soft: #6d28d9; --link: #1d4ed8;
+      --code-bg: rgba(15,23,42,0.06);
+      --note-bg: rgba(59,130,246,0.08); --note-border: rgba(59,130,246,0.35);
+      --warn-bg: rgba(245,158,11,0.12); --warn-border: rgba(217,119,6,0.45);
     }
-    html { scroll-behavior: smooth; }
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+  }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 15px; line-height: 1.65; background: var(--bg); color: var(--text); }
+  a { color: var(--link); }
+  code { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 0.9em; background: var(--code-bg); padding: 1px 6px; border-radius: 5px; word-break: break-word; }
+  kbd { font-family: inherit; font-size: 0.85em; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: var(--bg3); }
 
-    /* ── Sidebar ── */
-    .help-sidebar {
-      width: var(--sidebar-w); position: fixed; top: 0; left: 0; bottom: 0;
-      background: rgba(8,12,20,0.97); border-right: 1px solid var(--border);
-      overflow-y: auto; display: flex; flex-direction: column; z-index: 100;
+  /* Layout */
+  .side { position: fixed; top: 0; left: 0; bottom: 0; width: var(--side); background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; }
+  .brand { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); }
+  .brand-name { font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; font-size: 20px; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .brand-sub { font-size: 12px; color: var(--dim); margin-top: 2px; }
+  .search { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .search input { width: 100%; padding: 9px 12px; border-radius: 9px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); font: inherit; font-size: 14px; }
+  .search input:focus { outline: 2px solid var(--purple); outline-offset: 1px; }
+  .search-info { font-size: 12px; color: var(--dim); margin-top: 6px; min-height: 18px; }
+  nav.toc { overflow-y: auto; padding: 8px 10px 24px; flex: 1; }
+  .toc-group { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); margin: 14px 10px 4px; }
+  .toc a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--muted); text-decoration: none; font-size: 13.5px; }
+  .toc a:hover, .toc a:focus { background: var(--code-bg); color: var(--text); }
+  .toc a.hidden { display: none; }
+  main { margin-left: var(--side); padding: 32px 48px 80px; max-width: calc(var(--side) + 920px); }
+  .hero { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px 28px; margin-bottom: 28px; }
+  .hero h1 { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 28px; margin: 0 0 6px; }
+  .hero p { margin: 4px 0; color: var(--muted); }
+  .menu-btn { display: none; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .back { font-size: 14px; font-weight: 600; text-decoration: none; }
+  .back:hover { text-decoration: underline; }
+  .print-btn { padding: 7px 14px; border-radius: 9px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+  .print-btn:hover, .print-btn:focus { border-color: var(--purple); }
+  .print-only { display: none; }
+
+  /* Content */
+  section.doc { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 26px; margin-bottom: 20px; scroll-margin-top: 16px; }
+  section.doc.hidden { display: none; }
+  h2 { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 21px; margin: 0 0 10px; }
+  h3 { font-size: 16px; margin: 20px 0 6px; }
+  h4 { font-size: 14.5px; margin: 16px 0 4px; color: var(--purple-soft); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; margin: 8px 0; }
+  li { margin: 3px 0; }
+  .table-wrap { overflow-x: auto; margin: 10px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { border-bottom: 1px solid var(--border); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; background: var(--code-bg); }
+  .note, .warn { border-radius: 10px; padding: 10px 14px; margin: 12px 0; font-size: 14px; }
+  .note { background: var(--note-bg); border: 1px solid var(--note-border); }
+  .warn { background: var(--warn-bg); border: 1px solid var(--warn-border); }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: rgba(124,58,237,0.18); color: var(--purple-soft); vertical-align: middle; }
+
+  details.platform { border: 1px solid var(--border); border-radius: 12px; margin: 12px 0; background: var(--bg3); }
+  details.platform > summary { cursor: pointer; padding: 14px 18px; font-weight: 700; font-size: 16px; list-style: none; display: flex; align-items: center; gap: 10px; }
+  details.platform > summary::-webkit-details-marker { display: none; }
+  details.platform > summary::after { content: '▸'; margin-left: auto; color: var(--dim); transition: transform .2s; }
+  details.platform[open] > summary::after { transform: rotate(90deg); }
+  details.platform > .body { padding: 0 18px 16px; }
+  details.platform.hidden { display: none; }
+  .empty { display: none; text-align: center; color: var(--dim); padding: 40px 0; }
+  .empty.show { display: block; }
+  footer { color: var(--dim); font-size: 13px; text-align: center; margin-top: 40px; }
+
+  /* Narrow screens */
+  @media (max-width: 860px) {
+    .side { position: static; width: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    nav.toc { display: none; max-height: 60vh; }
+    nav.toc.open { display: block; }
+    .menu-btn { display: inline-block; margin-top: 10px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
+    main { margin-left: 0; padding: 16px 14px 60px; }
+    section.doc { padding: 16px; }
+    .hero { padding: 18px; }
+    .hero h1 { font-size: 22px; }
+  }
+  /* Print / Save as PDF: whole guide, light colours, no menu or search */
+  @media print {
+    :root {
+      --bg: #ffffff; --bg2: #ffffff; --bg3: #ffffff; --card: #ffffff; --border: #cbd5e1;
+      --text: #000000; --muted: #1e293b; --dim: #475569; --purple-soft: #5b21b6; --link: #1d4ed8;
+      --code-bg: #f1f5f9; --note-bg: #eff6ff; --note-border: #93c5fd; --warn-bg: #fffbeb; --warn-border: #fbbf24;
     }
-    .help-sidebar-logo {
-      padding: 20px; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; gap: 10px;
-    }
-    .help-sidebar-logo img { width: 34px; height: 34px; border-radius: 8px; }
-    .help-sidebar-logo span { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-    .help-sidebar-logo a { font-size: 11px; color: var(--dim); text-decoration: none; margin-left: auto; }
-    .help-sidebar-logo a:hover { color: var(--muted); }
-
-    .help-search { padding: 12px 16px; border-bottom: 1px solid var(--border); }
-    .help-search input {
-      width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border);
-      border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 13px; outline: none;
-      font-family: 'Inter', sans-serif;
-    }
-    .help-search input:focus { border-color: var(--purple); }
-    .help-search input::placeholder { color: var(--dim); }
-
-    .help-nav { flex: 1; padding: 12px 12px; }
-    .help-nav-section { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--dim); text-transform: uppercase; padding: 10px 8px 6px; }
-    .help-nav a {
-      display: block; padding: 8px 12px; border-radius: 7px; font-size: 13px;
-      color: var(--muted); text-decoration: none; transition: all 0.15s; margin-bottom: 1px;
-    }
-    .help-nav a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-    .help-nav a.active { color: #a78bfa; background: rgba(124,58,237,0.15); }
-
-    /* ── Main Content ── */
-    .help-main { margin-left: var(--sidebar-w); flex: 1; padding: 0; max-width: 860px; margin-right: auto; }
-
-    /* ── Back to app bar ── */
-    .help-topbar {
-      background: rgba(8,12,20,0.8); border-bottom: 1px solid var(--border);
-      padding: 12px 40px; display: flex; align-items: center; gap: 12px;
-      backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 50;
-    }
-    .help-topbar a { font-size: 13px; color: var(--muted); text-decoration: none; display: flex; align-items: center; gap: 6px; transition: color 0.2s; }
-    .help-topbar a:hover { color: var(--text); }
-    .help-topbar-title { font-size: 14px; font-weight: 600; color: var(--text); margin-left: auto; }
-
-    /* ── Content ── */
-    .help-content { padding: 48px 40px 80px; }
-
-    .help-hero {
-      background: linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(59,130,246,0.08) 100%);
-      border: 1px solid rgba(124,58,237,0.2); border-radius: 16px;
-      padding: 36px; margin-bottom: 48px;
-    }
-    .help-hero h1 { font-family: 'Space Grotesk', sans-serif; font-size: 32px; font-weight: 800; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 10px; }
-    .help-hero p { font-size: 15px; color: var(--muted); line-height: 1.7; }
-
-    h2.section { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 800; margin: 48px 0 20px; padding-top: 48px; border-top: 1px solid var(--border); scroll-margin-top: 80px; }
-    h2.section:first-of-type { border-top: none; padding-top: 0; }
-    h3 { font-size: 17px; font-weight: 700; margin: 28px 0 12px; color: #a78bfa; }
-
-    p { font-size: 14px; color: var(--muted); line-height: 1.8; margin-bottom: 14px; }
-    ul, ol { padding-left: 20px; margin-bottom: 14px; }
-    li { font-size: 14px; color: var(--muted); line-height: 1.8; margin-bottom: 4px; }
-    li strong { color: var(--text); }
-
-    code {
-      background: rgba(124,58,237,0.15); color: #a78bfa;
-      padding: 2px 7px; border-radius: 5px; font-size: 13px; font-family: monospace;
-    }
-    pre {
-      background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 10px;
-      padding: 16px; overflow-x: auto; margin-bottom: 16px;
-    }
-    pre code { background: none; color: #7dd3fc; padding: 0; font-size: 13px; }
-
-    .callout {
-      border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; font-size: 13px; line-height: 1.7;
-      display: flex; gap: 10px;
-    }
-    .callout.info    { background: rgba(59,130,246,0.1);  border: 1px solid rgba(59,130,246,0.2);  color: #93c5fd; }
-    .callout.warning { background: rgba(245,158,11,0.1);  border: 1px solid rgba(245,158,11,0.2);  color: #fcd34d; }
-    .callout.success { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.2);  color: #6ee7b7; }
-    .callout.tip     { background: rgba(124,58,237,0.1);  border: 1px solid rgba(124,58,237,0.2);  color: #c4b5fd; }
-
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
-    th { background: rgba(255,255,255,0.04); padding: 10px 14px; text-align: left; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--border); }
-    td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--muted); }
-    td strong { color: var(--text); }
-    tr:hover td { background: rgba(255,255,255,0.02); }
-
-    .kbd { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 2px 7px; font-size: 12px; font-family: monospace; color: var(--text); }
-
-    .badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-    .badge-free    { background: rgba(16,185,129,0.15); color: #34d399; }
-    .badge-paid    { background: rgba(245,158,11,0.15);  color: #fbbf24; }
-    .badge-local   { background: rgba(124,58,237,0.15); color: #a78bfa; }
-
-    .steps-list { counter-reset: steps; }
-    .steps-list li {
-      counter-increment: steps; list-style: none; padding-left: 0;
-      display: flex; gap: 14px; margin-bottom: 16px; align-items: flex-start;
-    }
-    .steps-list li::before {
-      content: counter(steps); min-width: 26px; height: 26px; border-radius: 50%;
-      background: var(--grad); display: flex; align-items: center; justify-content: center;
-      font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0; margin-top: 2px;
-    }
-
-    @media (max-width: 900px) {
-      .help-sidebar { transform: translateX(-100%); }
-      .help-main { margin-left: 0; }
-      .help-content { padding: 24px 20px 60px; }
-    }
-  </style>
+    body { font-size: 11pt; background: #fff; color: #000; }
+    .side, .toolbar, .empty, .no-print { display: none !important; }
+    .print-only { display: block; }
+    main { margin: 0; padding: 0; max-width: none; }
+    section.doc, details.platform, .hero { border: none; border-radius: 0; padding: 0; margin: 0 0 14pt; background: #fff; }
+    section.doc.hidden, details.platform.hidden { display: block !important; }
+    details.platform > summary::after { content: ''; }
+    details.platform > .body { padding: 0; }
+    h2, h3, h4 { break-after: avoid; }
+    table, .note, .warn, li { break-inside: avoid; }
+    a { color: #000; }
+  }
+</style>
 </head>
 <body>
 
-<!-- ── Sidebar ──────────────────────────────────────────────────────────────── -->
-<aside class="help-sidebar">
-  <div class="help-sidebar-logo">
-    <img src="icon.svg" alt="NEXUS" />
-    <span>NEXUS Docs</span>
-    <a href="/">← App</a>
+<aside class="side">
+  <div class="brand">
+    <div class="brand-name">◆ Social-Nexus</div>
+    <div class="brand-sub">by Radixile Technology Solutions</div>
   </div>
-
-  <div class="help-search">
-    <input type="text" id="search-input" placeholder="🔍 Search docs…" oninput="searchDocs(this.value)" />
+  <div class="search">
+    <label for="q" style="position:absolute;left:-9999px">Search the help</label>
+    <input id="q" type="search" placeholder="Search help… (e.g. Instagram, Ollama, 503)" autocomplete="off" />
+    <div class="search-info" id="search-info" aria-live="polite"></div>
+    <button class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="toc">☰ Contents</button>
   </div>
-
-  <nav class="help-nav" id="help-nav">
-    <div class="help-nav-section">Getting Started</div>
-    <a href="#quickstart">Quick Start</a>
-    <a href="#installation">Installation</a>
-    <a href="#first-login">First Login & Admin</a>
-    <a href="#ai-setup">Setting Up AI</a>
-
-    <div class="help-nav-section">Social Media</div>
-    <a href="#platforms">Platform Connections</a>
-    <a href="#compose">Compose & Post</a>
-    <a href="#scheduling">Scheduling</a>
-    <a href="#calendar">Content Calendar</a>
-
-    <div class="help-nav-section">AI Tools</div>
-    <a href="#ai-generate">AI Content Generator</a>
-    <a href="#ai-media">AI Image & Video</a>
-    <a href="#hashtags">Hashtag Research</a>
-    <a href="#templates">Content Templates</a>
-
-    <div class="help-nav-section">Marketing</div>
-    <a href="#seo">SEO Tools</a>
-    <a href="#aso">App Store (ASO)</a>
-    <a href="#email">Email Marketing</a>
-    <a href="#adcopy">Ad Copy & PR</a>
-    <a href="#utm">UTM Builder</a>
-    <a href="#brand">Brand Kit</a>
-
-    <div class="help-nav-section">Administration</div>
-    <a href="#admin">Admin Dashboard</a>
-    <a href="#invite-codes">Invite Codes</a>
-    <a href="#user-management">User Management</a>
-    <a href="#settings">Settings</a>
-
-    <div class="help-nav-section">Reference</div>
-    <a href="#api-keys">API Keys Guide</a>
-    <a href="#ollama">Ollama Local AI</a>
+  <nav class="toc" id="toc" aria-label="Contents">
+    <div class="toc-group">Getting started</div>
+    <a href="#new">What's new</a>
+    <a href="#quick-start">Getting started in 10 minutes</a>
+    <a href="#help-in-app">Opening help in the app</a>
+    <a href="#what">What Social-Nexus is</a>
+    <a href="#requirements">System requirements</a>
+    <a href="#install">Installing</a>
+    <a href="#first-run">First run &amp; admin account</a>
+    <a href="#licence">Licence &amp; coupons</a>
+    <a href="#tour">A quick tour</a>
+    <div class="toc-group">AI</div>
+    <a href="#ai-ollama">Ollama (local AI)</a>
+    <a href="#ai-keys">Free cloud AI keys</a>
+    <a href="#ai-fallback">How the AI is chosen</a>
+    <div class="toc-group">Connect accounts</div>
+    <a href="#connect">How connecting works</a>
+    <a href="#p-linkedin">LinkedIn</a>
+    <a href="#p-facebook">Facebook + Instagram</a>
+    <a href="#p-pinterest">Pinterest</a>
+    <a href="#p-x">X (Twitter)</a>
+    <a href="#p-google">Google Business</a>
+    <a href="#p-tiktok">TikTok</a>
+    <a href="#connect-errors">Connection errors</a>
+    <div class="toc-group">Posting</div>
+    <a href="#write">Writing &amp; publishing</a>
+    <a href="#limits">Character limits &amp; images</a>
+    <a href="#schedule">Scheduling &amp; calendar</a>
+    <a href="#failed">Failed posts &amp; Retry</a>
+    <a href="#festivals">Festivals &amp; languages</a>
+    <div class="toc-group">Tools</div>
+    <a href="#templates">Templates &amp; Brand Kit</a>
+    <a href="#hashtags">Hashtags &amp; UTM links</a>
+    <a href="#seo">Website SEO, app listing &amp; other tools</a>
+    <a href="#email">Email campaigns</a>
+    <a href="#sellbird">Sales outreach</a>
+    <a href="#lead-pipeline">Ad Leads &amp; Messenger Pipeline</a>
+    <div class="toc-group">Teams &amp; data</div>
+    <a href="#clients">Clients &amp; workspaces</a>
+    <a href="#team">Team members &amp; roles</a>
+    <a href="#data">Backup &amp; data location</a>
+    <a href="#privacy">Privacy</a>
+    <a href="#uninstall">Uninstalling</a>
+    <div class="toc-group">Help</div>
     <a href="#troubleshooting">Troubleshooting</a>
-    <a href="#shortcuts">Keyboard Shortcuts</a>
+    <a href="#faq">FAQ</a>
+    <a href="#support">Contact support</a>
   </nav>
 </aside>
 
-<!-- ── Main ─────────────────────────────────────────────────────────────────── -->
-<main class="help-main">
-  <div class="help-topbar">
-    <a href="/">← Back to App</a>
-    <a href="/landing.html">Home</a>
-    <span class="help-topbar-title">NEXUS Documentation v2.0</span>
+<main id="main">
+  <div class="toolbar">
+    <a class="back" id="back-link" href="/">← Back to Social-Nexus</a>
+    <button class="print-btn" id="print-btn" type="button" title="Print the whole guide, or choose &quot;Save as PDF&quot; as the printer">🖨 Print / Save as PDF</button>
+  </div>
+  <div class="hero">
+    <h1>Social-Nexus Help</h1>
+    <p><strong>Social-Nexus by Radixile Technology Solutions</strong>: manage all your social media from one place, with AI writing, scheduling, a festival-aware calendar, email campaigns, SEO tools and client workspaces.</p>
+    <p>Support: <a href="mailto:info@radixile.com">info@radixile.com</a> · Licences: <a href="https://license.radixile.com" target="_blank" rel="noopener">license.radixile.com</a></p>
   </div>
 
-  <div class="help-content" id="docs-content">
+  <section class="doc" id="new">
+    <h2>What's new</h2>
+    <h3>In the next version</h3>
+    <ul>
+      <li><strong>A shorter menu in plain words</strong>, and Settings grouped into Connected accounts, AI, Email sending, Backups, Licence, Team and Account. Settings shows a badge when an account needs signing in again.</li>
+      <li><strong>Design a picture</strong> in Create post, in your Brand Kit colours. <strong>Signatures</strong>, <strong>post sets</strong> (groups of platforms in one click) and <strong>Blog &amp; news feeds</strong> (More tools) that turn new articles into drafts.</li>
+      <li><strong>WhatsApp:</strong> Setup in numbered steps, <strong>Auto-replies</strong> (welcome, menu, keyword answers, away hours, STOP), <strong>Templates</strong> with a live preview, and <strong>Broadcasts</strong> in 3 steps with a test to yourself and live progress.</li>
+      <li><strong>Sales outreach</strong> in four steps: campaign, companies, approve, replies. Emails are written from what you offer, follow-ups go out in order and stop when someone replies, and every number on the page is real. See <a href="#sellbird">Sales outreach</a>.</li>
+      <li><strong>Website SEO → Check a page</strong> opens your page like Google’s crawler and shows what keeps it out of Google or ranks it lower. Numbers are measured, not AI guesses. The <strong>App store listing</strong> writes only the fields each store has, within their limits.</li>
+      <li><strong>Google Business</strong> finds your locations in any of your Google accounts and lets you choose which one to post to.</li>
+      <li><strong>Privacy:</strong> the internet tunnel for WhatsApp only starts when you turn it on in WhatsApp Setup.</li>
+    </ul>
+    <h3>Posting</h3>
+    <ul>
+      <li><strong>Photos and videos from your PC.</strong> In Create Post, use <em>Upload photo or video</em>, drag a file in, or pick from the <strong>Media library</strong> (More tools). Files stay on your PC.</li>
+      <li><strong>Several photos in one post.</strong> Add up to 10: Instagram makes a carousel; Facebook, LinkedIn and Pinterest post them together; X takes 4. Use ‹ › to change the order.</li>
+      <li><strong>Instagram Reels and Stories</strong> (choose under <em>Instagram: post as</em>), and a <strong>first comment</strong> for Instagram and Facebook — handy for hashtags.</li>
+      <li><strong>Threads and Bluesky.</strong> Bluesky connects with your handle and an app password. Threads connects in one click through Radixile's app.</li>
+      <li><strong>Bulk scheduling.</strong> Calendar → <em>Bulk schedule</em>: a spreadsheet (Excel or CSV) with date, time, text and platforms. You see every row before anything is scheduled.</li>
+      <li><strong>Design in Canva</strong> opens Canva at the right size; download your design and drag it into Create Post. <strong>Copy for WhatsApp</strong> copies the text for your Channel or Status.</li>
+      <li><strong>Logins renew themselves</strong> where the platform allows. If one can't, its card says "Reconnect in N days" well before it stops.</li>
+    </ul>
+    <h3>Clients and teams</h3>
+    <ul>
+      <li><strong>Client approval by link.</strong> In the Calendar, open a post → <em>Get approval link</em>, or <em>Client approval</em> at the top for all draft posts shown. Send it on WhatsApp; your client taps Approve or Ask for changes on their phone, no account needed. Approved posts with a time are scheduled automatically (if you may schedule). The link is encrypted: only people with it can see the post.</li>
+      <li><strong>Inbox.</strong> Comments on your published Facebook, Instagram and Threads posts in one place, with <em>Suggest a reply</em>.</li>
+      <li><strong>Phone companion.</strong> Your name (top right) → <em>Phone companion</em> → Pair my phone. See posts waiting for your OK, failed posts and what's next, and approve from your phone.</li>
+      <li><strong>Client report.</strong> Analytics → choose a month → <em>Client report (PDF)</em>, with your Brand Kit logo and colour. Numbers (likes, comments, reach) are fetched from the platforms daily; <em>Refresh numbers</em> gets them now. Analytics also shows your <strong>best times to post</strong>.</li>
+      <li><strong>Link in bio.</strong> More tools → Link in bio: one page with your links for your Instagram profile. Visits are counted without cookies.</li>
+    </ul>
+    <h3>Safety</h3>
+    <ul>
+      <li><strong>Starts with Windows</strong> (in the tray), because posts only go out while Social-Nexus runs. It warns you before quitting or shutting down when a post is due. Turn it off from the tray icon.</li>
+      <li><strong>Cloud posting</strong> (Agency and Full editions): tick <em>Post from the cloud if this PC is off</em> on a post. If your PC is off at the time, Radixile posts it 10 minutes later and deletes its copy straight after.</li>
+      <li><strong>Backups.</strong> Settings → Backups: a backup every day (7 kept), <em>Back up now</em>, and <em>Export a backup file</em> protected with a passphrase — keep it on a USB stick to move to a new PC.</li>
+      <li><strong>Saved logins are encrypted</strong> with a key protected by Windows. After a Windows password reset or on a new PC, connect your accounts again.</li>
+      <li><strong>Recovery code.</strong> Make one (your name → Recovery code) so you can reset a forgotten password from the sign-in page. After 5 wrong passwords, sign-in pauses for a minute or more.</li>
+      <li><strong>Automatic updates</strong> download in the background and install when you close the app, or choose <em>Restart to update</em> in the tray.</li>
+    </ul>
+  </section>
 
-    <div class="help-hero">
-      <h1>NEXUS Documentation</h1>
-      <p>Complete guide to using NEXUS — your AI-powered one-stop digital marketing platform. Find step-by-step setup guides, feature documentation, and troubleshooting tips.</p>
+  <section class="doc" id="quick-start">
+    <h2>Getting started in 10 minutes</h2>
+    <ol>
+      <li><strong>Install</strong> <code>Social-Nexus-Setup-….exe</code> from Radixile and open the app. (<a href="#install">Installing</a>)</li>
+      <li><strong>Create the admin account</strong>: Create Account → name, email, password. The first account is the admin. (<a href="#first-run">First run</a>)</li>
+      <li><strong>Activate</strong>: Settings → 🔑 Licence → paste your licence key or coupon, your email and name → <strong>Activate</strong>. No key yet? You can still write and plan. (<a href="#licence">Licence</a>)</li>
+      <li><strong>Set up AI</strong>: install <strong>Ollama</strong> and download <code>llama3.2</code>, or paste a <strong>free Gemini or Groq key</strong> in your name → ⚙️ My API Keys → 💾 Save All Keys. (<a href="#ai-ollama">Ollama</a> · <a href="#ai-keys">Free keys</a>)</li>
+      <li><strong>Connect one platform</strong>: Settings → 🔗 Social Platforms → follow the card's <strong>📘 Setup guide</strong>, use <strong>📋 Copy</strong> for the callback address, then <strong>Connect</strong>. LinkedIn or Facebook is easiest. (<a href="#connect">Connecting</a>)</li>
+      <li><strong>Write with AI</strong>: ✨ AI Generate → describe the post with real details → <strong>✨ Generate Content</strong> → <strong>→ Compose</strong>. (<a href="#write">Writing</a>)</li>
+      <li><strong>Schedule</strong>: in Compose click <strong>📅 Schedule</strong>, pick the time → <strong>📅 Schedule Post</strong>. Keep Social-Nexus running in the tray at that time. (<a href="#schedule">Scheduling</a>)</li>
+    </ol>
+  </section>
+
+  <section class="doc" id="help-in-app">
+    <h2>Opening help in the app</h2>
+    <ul>
+      <li><strong>❓ Help &amp; User Guide</strong> is the last item in the left menu.</li>
+      <li>The <strong>❓</strong> button in the top bar opens help <strong>at the section for the screen you're on</strong>. <kbd>F1</kbd> does the same.</li>
+      <li>Help normally opens in its own window. If it opened in the app's window instead, click <strong>← Back to Social-Nexus</strong> at the top of this page.</li>
+      <li>Use the search box to find a topic, and <strong>🖨 Print / Save as PDF</strong> to print the whole guide or save it as a PDF (choose "Save as PDF" or "Microsoft Print to PDF" as the printer).</li>
+    </ul>
+  </section>
+
+  <div class="empty" id="empty">No help topics match your search. Try a simpler word, or email <a href="mailto:info@radixile.com">info@radixile.com</a>.</div>
+
+  <!-- ─────────────── Getting started ─────────────── -->
+  <section class="doc" id="what">
+    <h2>What Social-Nexus is</h2>
+    <p>Social-Nexus is a Windows app that helps you run all your social media from one place:</p>
+    <ul>
+      <li><strong>Write posts with AI</strong> in English and 8 Indian languages.</li>
+      <li><strong>Publish or schedule</strong> to LinkedIn, Facebook, Instagram, Pinterest, X (Twitter) and Google Business Profile. (YouTube and TikTok are coming later; the AI tools can already write for them.)</li>
+      <li><strong>Plan on a calendar</strong>, with review and approval for teams, and <strong>Indian festival</strong> reminders.</li>
+      <li>Use <strong>templates, a Brand Kit, hashtag research, UTM links, SEO tools, ad copy and email campaigns</strong>.</li>
+      <li><strong>Manage several clients</strong> (agencies), each with their own accounts and team.</li>
+    </ul>
+    <p><strong>Your data stays on your PC.</strong> Social-Nexus is not a website. It only goes online when you publish, use a cloud AI or check your licence. <strong>You choose the AI:</strong> free local AI (Ollama), or your own keys for Gemini, Groq, OpenRouter, Mistral or Claude.</p>
+  </section>
+
+  <section class="doc" id="requirements">
+    <h2>System requirements</h2>
+    <div class="table-wrap"><table>
+      <tr><th></th><th>Minimum</th><th>Recommended</th></tr>
+      <tr><td>Windows</td><td>Windows 10 version 1903 or later, or Windows 11 (64-bit, x64)</td><td>Windows 11</td></tr>
+      <tr><td>RAM</td><td>4 GB (cloud AI only)</td><td>8 GB+ for local AI; 16 GB for larger models</td></tr>
+      <tr><td>Disk</td><td>500 MB free</td><td>+2–5 GB per local AI model</td></tr>
+      <tr><td>Internet</td><td colspan="2">Needed to publish, use cloud AI and activate the licence once</td></tr>
+    </table></div>
+    <p><strong>Ollama is optional.</strong> Install it only if you want free, private AI on your own PC.</p>
+  </section>
+
+  <section class="doc" id="install">
+    <h2>Installing</h2>
+    <ol>
+      <li>Download <code>Social-Nexus-Setup-….exe</code> from Radixile only.</li>
+      <li>Double-click it. <strong>If Windows shows "Windows protected your PC"</strong>: early versions are not yet code-signed, so SmartScreen doesn't recognise them. Click <strong>More info</strong>, check that the name is the Social-Nexus installer, then click <strong>Run anyway</strong>.</li>
+      <li>Choose who to install for and a folder (the default is fine), then click <strong>Install → Finish</strong>.</li>
+      <li>Open <strong>Social-Nexus</strong> from the Start menu.</li>
+    </ol>
+    <div class="note">Closing the window with ✕ keeps Social-Nexus <strong>running in the system tray</strong>, so scheduled posts go out on time. To quit, right-click the tray icon → <strong>Quit Social-Nexus</strong>. Scheduled posts are not sent while the app is closed. The app only accepts connections from this PC and adds no firewall rule.</div>
+    <p><strong>Coming from the older "NEXUS" app?</strong> Your old data is moved to <code>%APPDATA%\Social-Nexus</code> automatically the first time you start. The app then offers to delete the old copy.</p>
+  </section>
+
+  <section class="doc" id="first-run">
+    <h2>First run: creating the admin account</h2>
+    <ol>
+      <li>Click <strong>Create Account</strong>, enter your name, email and a password (6+ characters).</li>
+      <li>The notice "You're the first user — your account will be the Super Admin" confirms you are the <strong>admin</strong>.</li>
+      <li>Click <strong>Create Account →</strong>.</li>
+    </ol>
+    <p>The admin manages app-wide settings: social platform app details, email (SMTP) and users. Each other person gets their own login, posts and AI keys.</p>
+    <p>You may see <strong>"Set up your local AI"</strong> (3 steps for Ollama). Follow it now, or click <strong>Skip for now — use cloud AI →</strong>. A 4-step welcome box (Connect · Setup AI · Generate · Publish) can be skipped too. On <strong>Setup AI</strong> it checks for Ollama: if it's running and your model is downloaded, you'll see "✅ Ollama is running on this computer and llama3.2 is ready. Nothing else to set up."</p>
+    <p><strong>Who can register:</strong> Admin Dashboard → Platform Config → Registration Mode: <em>Open</em>, <em>Invite Only</em> (codes from Admin Dashboard → Invite Codes) or <em>Closed</em>. There is no "forgot password" link: the admin resets passwords in Admin Dashboard → Users.</p>
+  </section>
+
+  <section class="doc" id="licence">
+    <h2>Licence &amp; coupons</h2>
+    <p>Without a licence you can still write, use AI, plan and export. <strong>Publishing, scheduling, Retry, CSV schedule import and sending email campaigns</strong> need an <strong>active licence</strong>.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Licence</th><th>Looks like</th><th>Works</th><th>Updates</th></tr>
+      <tr><td>One-time (perpetual)</td><td><code>SNXP-…</code></td><td>Forever</td><td>1 year included; renew optionally</td></tr>
+      <tr><td>Yearly subscription</td><td><code>SNXS-…</code></td><td>While paid, plus 7 days' grace</td><td>Always</td></tr>
+      <tr><td>Coupon</td><td><code>SNX-7K3Q-M9PD</code></td><td>Usually 3 or 6 months, Full edition (all features)</td><td>During the period</td></tr>
+    </table></div>
+    <p>Current prices: <a href="https://license.radixile.com/buy" target="_blank" rel="noopener">license.radixile.com/buy</a>. <strong>Settings → 🔑 Licence → Includes</strong> shows what your licence allows. <strong>Limits on users and workspaces count the whole installation</strong>, not per person.</p>
+    <h3>Activate a key or coupon</h3>
+    <p>Only the <strong>admin</strong> can do this, and the PC must be online.</p>
+    <ol>
+      <li>Open <strong>Settings → 🔑 Licence</strong> (or click <strong>Activate</strong> on the banner).</li>
+      <li>Paste your licence key or coupon into the first box.</li>
+      <li>Enter your email (needed for coupons) and your name or business (shown as "Licensed to"). Optionally name this computer.</li>
+      <li>Click <strong>Activate</strong>. You'll see "Social-Nexus is activated ✅" and <strong>Status: ✅ Active</strong>.</li>
+    </ol>
+    <p><strong>Keep your key safe.</strong> Radixile stores only a scrambled copy and can't read it back to you. Coupons work <strong>once per PC and once per email</strong>, online only.</p>
+    <h3>What the status means</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Status</th><th>Meaning</th><th>What to do</th></tr>
+      <tr><td>⚪ Not activated</td><td>No licence yet.</td><td>Activate. Writing, AI and planning still work.</td></tr>
+      <tr><td>Checking your licence…</td><td>The first few seconds after start-up.</td><td>Wait a few seconds, then try again.</td></tr>
+      <tr><td>✅ Active</td><td>Everything your edition allows works.</td><td>Nothing.</td></tr>
+      <tr><td>🟠 Needs internet</td><td>Offline time ran out, or the PC's date looks wrong.</td><td>Go online and click <strong>Check now</strong>. Fix the date if asked.</td></tr>
+      <tr><td>🔴 Ended</td><td>Subscription or coupon is over.</td><td>Renew or buy. Your data is still here.</td></tr>
+      <tr><td>🔴 Not valid on this PC</td><td>Licence from another PC or install, cancelled, or this copy was modified.</td><td>Follow the message. Usually: activate again here.</td></tr>
+    </table></div>
+    <h3>Working offline</h3>
+    <p>After activation Social-Nexus works <strong>without internet</strong> until the <strong>Works offline until</strong> date shown in Settings → 🔑 Licence. When online, it checks in by itself and moves the date forward.</p>
+    <ul>
+      <li>With <strong>3 days or fewer</strong> left, a banner asks you to connect.</li>
+      <li>After that date, publishing pauses until you're online for a moment. Click <strong>Check now</strong> on the banner, or <strong>🔄 Check licence now</strong> in Settings → 🔑 Licence (also handy right after renewing).</li>
+      <li>Don't move the PC clock back: the app will ask you to fix the date and go online.</li>
+    </ul>
+    <h3>Limited mode</h3>
+    <p>Without an active licence: ✅ view, draft, AI writing, calendar planning, export and backup keep working. ⛔ Publishing, scheduling, Retry, CSV import and email sending pause. Your data is never locked. Already-scheduled posts wait; more than 6 hours late, they're marked <a href="#failed">Missed</a>.</p>
+    <h3>Moving to a new PC</h3>
+    <ol>
+      <li>Old PC, <strong>while online</strong>: <strong>Settings → 🔑 Licence → Deactivate this PC</strong>. This frees your seat.</li>
+      <li>New PC: install and activate with the same key.</li>
+      <li>Copy your data folder across (see <a href="#data">Backup</a>).</li>
+    </ol>
+    <p><strong>Deactivate needs the internet.</strong> Offline you'll see "Deactivating needs the internet so your seat is freed for another PC." Nothing is removed and the licence keeps working; go online and try again. Old PC broken? Email support with the last 4 characters of your key and your purchase email. <strong>"Already active on N of N computers"</strong> means all seats are in use.</p>
+    <h3>Reinstalling on the same PC</h3>
+    <p>Just <strong>activate again with the same key</strong> (or coupon). Social-Nexus recognises the PC and gives back your seat. A coupon gives back the same period.</p>
+    <h3>"This copy of Social-Nexus has been modified"</h3>
+    <p>Program files were changed or damaged, so the licence can't be used. <strong>Reinstall from radixile.com. Your data is safe</strong>: it's stored separately.</p>
+    <h3>PC with no internet</h3>
+    <p>Settings → 🔑 Licence → <strong>No internet on this computer? Activate offline</strong> → enter the key → <strong>💾 Save request file</strong> (<code>activation.snreq</code>) → upload it at <a href="https://license.radixile.com/offline" target="_blank" rel="noopener">license.radixile.com/offline</a> from any device → bring back <code>license.snlic</code> → <strong>📥 Import licence file</strong>. Paid keys only, not coupons.</p>
+  </section>
+
+  <section class="doc" id="tour">
+    <h2>A quick tour</h2>
+    <p><strong>Left menu:</strong> Dashboard · AI Generate · Compose &amp; Post · Content Calendar · Post History · Templates · Local Files · SEO Tools · App Store (ASO) · Email Marketing · Ad Copy &amp; PR · AI Media Creator · Hashtag Research · UTM Builder · Brand Kit · Analytics · Clients &amp; Brands · Admin Dashboard (admins) · AI Tools Directory · Settings · <strong>❓ Help &amp; User Guide</strong>.</p>
+    <p><strong>Top bar:</strong> 🌙 theme · 🔄 Refresh (only the 🔄 icon on narrow windows) · <strong>❓</strong> help for this screen (or <kbd>F1</kbd>) · <strong>🏢 workspace switcher</strong> · <strong>your name</strong> (⚙️ My API Keys, 🛠️ AI Tools Directory, 🚪 Sign Out) · ✏️ New Post.</p>
+    <p><strong>Settings tabs:</strong> 🔗 Social Platforms · 🔑 Licence · 🦙 Local AI (Ollama) · 🤖 AI Keys · 🎨 Media AI · 📧 Email / SMTP · ℹ️ About · 👥 Members.</p>
+    <div class="note"><strong>Analytics:</strong> the 🎲 Simulate Data button shows <em>sample</em> numbers, not your real results.</div>
+  </section>
+
+  <!-- ─────────────── AI ─────────────── -->
+  <section class="doc" id="ai-ollama">
+    <h2>Setting up AI: Ollama (free, private, offline)</h2>
+    <p>Ollama runs AI on your PC. Nothing you write leaves the computer. It's free with no daily limits, but it's slower than cloud AI on ordinary laptops.</p>
+    <ol>
+      <li>Download and install from <a href="https://ollama.com/download" target="_blank" rel="noopener">ollama.com/download</a>. No account is needed. It runs in the tray.</li>
+      <li>Download a model: in <strong>Settings → 🦙 Local AI (Ollama) → Pull a New Model</strong> type <code>llama3.2</code> and click <strong>Pull</strong> (admin). Or open Command Prompt and run <code>ollama pull llama3.2</code>.</li>
+      <li>Click <strong>🔄 Check</strong>. The dot turns green and the model is listed.</li>
+      <li>Choose the <strong>Active Model</strong>, tick <strong>Use Ollama as Primary AI</strong>, and click <strong>💾 Save Ollama Settings</strong>. Or, per user: <strong>My API Keys → Local AI → Use Ollama as primary AI</strong> → 💾 Save All Keys.</li>
+    </ol>
+    <div class="table-wrap"><table>
+      <tr><th>Your RAM</th><th>Model</th><th>Download</th></tr>
+      <tr><td>Under 8 GB</td><td><code>llama3.2:1b</code></td><td>~1.3 GB (fastest)</td></tr>
+      <tr><td>8–16 GB</td><td><code>llama3.2</code> (3B) <strong>recommended</strong></td><td>~2 GB</td></tr>
+      <tr><td>16 GB+</td><td><code>llama3.1:8b</code></td><td>~4.7 GB (better writing)</td></tr>
+      <tr><td>Alternatives</td><td><code>mistral</code>, <code>phi3</code>, <code>gemma2</code></td><td>2–5 GB</td></tr>
+      <tr><td>High-end GPU only</td><td><code>llama3.3:70b</code></td><td>40 GB+</td></tr>
+    </table></div>
+    <p>Small local models are weaker in Indian languages. For Hindi, Tamil and other languages, a cloud key such as Gemini often gives better results.</p>
+    <h3>How fast is Ollama?</h3>
+    <ul>
+      <li><strong>The first AI request after starting can take about 30 seconds</strong> while Ollama loads the model. After that it's much quicker. After about half an hour without AI, the model is unloaded and the next request is slow again.</li>
+      <li><strong>Ollama works on only a small number of requests at a time.</strong> If you start several AI actions at once, they <strong>wait in a queue</strong> and run one after another. Wait for each to finish; don't click again.</li>
+      <li>Faster: use <code>llama3.2:1b</code>, close heavy programs, or pick a cloud AI (Groq is fastest) on the 🤖 Model: bar.</li>
+    </ul>
+  </section>
+
+  <section class="doc" id="ai-keys">
+    <h2>Free cloud AI keys</h2>
+    <p>An <strong>API key</strong> is a password that lets Social-Nexus use an AI service on your behalf. Each person uses <strong>their own</strong> key and the provider's free limits.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Service</th><th>Get the key</th><th>Looks like</th></tr>
+      <tr><td>Google Gemini</td><td><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></td><td><code>AIza…</code>. Generous free tier, good in Indian languages.</td></tr>
+      <tr><td>Groq</td><td><a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a></td><td><code>gsk_…</code>. Free and fastest.</td></tr>
+      <tr><td>OpenRouter</td><td><a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a></td><td><code>sk-or-v1-…</code>. Includes free models.</td></tr>
+      <tr><td>Mistral</td><td><a href="https://console.mistral.ai/api-keys" target="_blank" rel="noopener">console.mistral.ai/api-keys</a></td><td>Free tier available.</td></tr>
+      <tr><td>Anthropic Claude (paid)</td><td><a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a></td><td><code>sk-ant-…</code></td></tr>
+    </table></div>
+    <h3>Where to enter them</h3>
+    <ol>
+      <li>Click <strong>your name</strong> (top right) → <strong>⚙️ My API Keys</strong>.</li>
+      <li>Paste each key in its box and choose your <strong>Default AI Model</strong>.</li>
+      <li>Click <strong>💾 Save All Keys</strong>.</li>
+    </ol>
+    <div class="note">Every key screen (<strong>Settings → 🤖 AI Keys</strong>, <strong>🎨 Media AI</strong> and <strong>My API Keys</strong>) saves to <strong>your own</strong> login. Keys set up in the app's configuration at install time are used only by the admin who installed it. Other users must add their own keys or use Ollama.</div>
+    <p><strong>Images and video</strong> (AI Media Creator: Stability, OpenAI, Gemini Image, Luma, Runway) are paid or have small free credits. Add those keys in My API Keys too.</p>
+  </section>
+
+  <section class="doc" id="ai-fallback">
+    <h2>How Social-Nexus chooses an AI</h2>
+    <p><strong>If you click a model</strong> on the <strong>🤖 Model:</strong> bar in AI Generate, that exact model is used. If it fails, you see why, and there's no silent switch.</p>
+    <p><strong>Otherwise</strong> it tries, in order: <strong>1 Ollama</strong> (if on, running and the model is downloaded) → <strong>2 Gemini</strong> → <strong>3 Groq</strong> → <strong>4 OpenRouter</strong> → <strong>5 Mistral</strong> → <strong>6 Claude</strong>. A busy provider is retried once. If Ollama is installed but your model isn't downloaded, the app tells you and uses your cloud AI. If everything fails, you see each provider's reason.</p>
+    <p><strong>Tip:</strong> set up two options (e.g. Ollama + Gemini, or Gemini + Groq), so a busy service never stops you. If the Model bar says "No text models configured", add a key or start Ollama, then reload.</p>
+  </section>
+
+  <!-- ─────────────── Connect ─────────────── -->
+  <section class="doc" id="connect">
+    <h2>Connecting social accounts: how it works</h2>
+    <p>Social-Nexus runs on your PC, so each network asks you to create a free <strong>developer app</strong> once. This also means Radixile never holds your social logins.</p>
+    <div class="note"><strong>Easiest way:</strong> open <strong>Settings → 🔗 Social Platforms</strong>. Every card has a <strong>📘 Setup guide</strong> with the same steps as below, <strong>Open ↗</strong> links to the right developer page, and a <strong>📋 Copy</strong> button for your exact callback address.</div>
+    <p>The steps are the same everywhere:</p>
+    <ol>
+      <li>Create the developer app on the network's website.</li>
+      <li>Add the products or permissions for posting.</li>
+      <li>Paste the <strong>callback (redirect) address</strong>. <strong>Click 📋 Copy on the card and paste it. Don't type it</strong>: it must match exactly.</li>
+      <li>Copy the app's ID and secret into the card's <strong>🔑 API Credentials</strong>, then click <strong>💾 Save Credentials</strong>.</li>
+      <li>Click <strong>Connect</strong> and allow access.</li>
+    </ol>
+    <h3>What the badges mean</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Badge on the Setup guide</th><th>Platforms</th><th>Meaning</th></tr>
+      <tr><td><em>(no badge)</em></td><td>LinkedIn, Facebook, Instagram, Pinterest</td><td>Ready. Works fully.</td></tr>
+      <tr><td>🟠 Works with limits</td><td>X (Twitter), Google Business</td><td>Works, but the network's own rules may block posting.</td></tr>
+      <tr><td>🔴 Not available yet</td><td>YouTube, TikTok</td><td>Can't be posted to from Social-Nexus yet.</td></tr>
+    </table></div>
+    <h3>Callback addresses</h3>
+    <p>Yours are on the cards (use 📋 Copy). Normally they look like this:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Card</th><th>Callback address (normally)</th></tr>
+      <tr><td>LinkedIn</td><td><code>http://localhost:3000/auth/linkedin/callback</code></td></tr>
+      <tr><td>Facebook + Instagram</td><td><code>http://localhost:3000/auth/facebook/callback</code></td></tr>
+      <tr><td>Pinterest</td><td><code>http://localhost:3000/auth/pinterest/callback</code></td></tr>
+      <tr><td>Twitter / X</td><td><code>http://127.0.0.1:3000/auth/twitter/callback</code> (X needs 127.0.0.1)</td></tr>
+      <tr><td>Google Business</td><td><code>http://localhost:3000/auth/google/callback</code></td></tr>
+    </table></div>
+    <p>Card status: 🔴 <strong>Credentials Needed</strong> → 🟠 <strong>Ready to Connect</strong> → 🟢 <strong>Connected</strong> (🔄 Refresh / Disconnect).</p>
+    <div class="note">Only the <strong>admin</strong> saves app details, and they're shared by all workspaces. Only workspace <strong>Managers</strong> can connect or disconnect accounts and choose the Facebook Page or Pinterest board. Agencies: switch to the client's workspace (🏢) before clicking Connect.</div>
+    <p>Developer websites change often, so the steps name what to look for. If your screen looks different, look for the closest match. Never share your Client Secret.</p>
+  </section>
+
+  <details class="platform" id="p-linkedin">
+    <summary>🔵 LinkedIn <span class="badge">Ready · about 10 minutes</span></summary>
+    <div class="body">
+      <h4>You need</h4>
+      <p>A LinkedIn account · A LinkedIn Page for your business (LinkedIn asks for one when you create the app)</p>
+      <h4>Steps</h4>
+      <ol>
+        <li>Open the LinkedIn developer portal and click <strong>"Create app"</strong>. (<a href="https://www.linkedin.com/developers/apps/new" target="_blank" rel="noopener">Open ↗</a>)</li>
+        <li>Fill in the app name (e.g. "My Social-Nexus"), choose your LinkedIn Page, upload a logo and accept the terms.</li>
+        <li>Open the <strong>"Products"</strong> tab and add <strong>"Sign In with LinkedIn using OpenID Connect"</strong> and <strong>"Share on LinkedIn"</strong>. Both are approved straight away.</li>
+        <li>Open the <strong>"Auth"</strong> tab. Under <strong>"Authorized redirect URLs for your app"</strong> add the exact address: click <strong>📋 Copy</strong> on the card and paste it.</li>
+        <li>Still on "Auth", copy the <strong>Client ID</strong> and the <strong>Primary Client Secret</strong> into the boxes on the card, then click <strong>💾 Save Credentials</strong>.</li>
+        <li>Click <strong>Connect</strong> and sign in to LinkedIn when asked.</li>
+      </ol>
+      <h4>Good to know</h4>
+      <ul>
+        <li><strong>Posts appear on your personal LinkedIn profile.</strong></li>
+        <li>Posting as a company Page needs LinkedIn's Community Management API, which LinkedIn must approve first.</li>
+        <li>The login lasts about 60 days. Then click Disconnect → Connect.</li>
+      </ul>
+      <h4>Common errors</h4>
+      <ul>
+        <li><strong>redirect_uri does not match</strong>: paste the address again using 📋 Copy.</li>
+        <li><strong>connection failed — check your app credentials</strong>: paste the ID and the <em>Primary</em> Client Secret again.</li>
+        <li><strong>Scope … is not authorized</strong>: check both products are added on the Products tab.</li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="platform" id="p-facebook">
+    <summary>📘 Facebook + Instagram <span class="badge">Ready · about 15 minutes</span></summary>
+    <div class="body">
+      <h4>You need</h4>
+      <ul>
+        <li>A Facebook Page that you manage. Apps can't post to personal profiles.</li>
+        <li>For Instagram: an Instagram Business or Creator account linked to that Page (Instagram app → Settings → Account type). <em>Why?</em> Instagram only lets apps publish to professional accounts that belong to a Page.</li>
+      </ul>
+      <h4>Steps</h4>
+      <ol>
+        <li>Open Meta for Developers and click <strong>"Create app"</strong>. (<a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">Open ↗</a>)</li>
+        <li>Choose the use case for managing a Page (for example <strong>"Manage everything on your Page"</strong>), and a <strong>Business</strong> app type if asked. Give it a name.</li>
+        <li>Add the <strong>"Facebook Login for Business"</strong> (or "Facebook Login") product. In its Settings, add the address to <strong>"Valid OAuth Redirect URIs"</strong>: click <strong>📋 Copy</strong> on the card and paste it.</li>
+        <li>Go to <strong>App settings → Basic</strong> and copy the <strong>App ID</strong> and <strong>App Secret</strong> into the boxes on the card, then click <strong>💾 Save Credentials</strong>.</li>
+        <li>Click <strong>Connect</strong>, sign in, and allow access to your Page (and Instagram account). If you manage several Pages, choose one with <strong>"📄 Select Facebook Page"</strong>.</li>
+      </ol>
+      <p>One Page: chosen automatically, and Instagram connects too if it's linked. "Instagram Business account also detected ✅" confirms Instagram.</p>
+      <h4>Good to know</h4>
+      <ul>
+        <li>While your Meta app is in <strong>Development mode</strong>, it works for you and anyone you add as a tester or admin on the app. That's enough for your own Pages.</li>
+        <li>Letting people outside your app use it needs <strong>Meta App Review</strong> for <code>pages_manage_posts</code> and <code>instagram_content_publish</code>. Agencies can add each client as a Tester instead.</li>
+        <li><strong>Instagram posts need an image at a public web address (https://…).</strong></li>
+        <li>The login lasts about 60 days. Then Disconnect → Connect.</li>
+      </ul>
+      <p><strong>If Connect fails:</strong> the Facebook card (only Facebook) offers <strong>🔑 Paste token manually (if OAuth fails)</strong>. In the <a href="https://developers.facebook.com/tools/explorer" target="_blank" rel="noopener">Graph API Explorer</a> select your app → Generate Access Token → paste it → <strong>✅ Connect with Token</strong>. It's short-lived, so use it only as a temporary fix.</p>
+      <h4>Common errors</h4>
+      <ul>
+        <li><strong>URL blocked / redirect URI not whitelisted</strong>: paste the address with 📋 Copy and save.</li>
+        <li><strong>No Facebook Page selected</strong>: 📄 Select Facebook Page.</li>
+        <li><strong>No pages found</strong>: reconnect and tick your Page.</li>
+        <li><strong>Missing permission: pages_manage_posts</strong>: add the permission (App Review if needed) and reconnect.</li>
+        <li><strong>Instagram not detected</strong>: check that the account is Business/Creator and linked to that Page, then select the Page again.</li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="platform" id="p-pinterest">
+    <summary>📌 Pinterest <span class="badge">Ready · about 10 minutes</span></summary>
+    <div class="body">
+      <h4>You need</h4>
+      <p>A Pinterest Business account</p>
+      <h4>Steps</h4>
+      <ol>
+        <li>Open <strong>Pinterest Developers → My apps</strong> and connect a new app. (<a href="https://developers.pinterest.com/apps/" target="_blank" rel="noopener">Open ↗</a>)</li>
+        <li>In the app settings, add the redirect URI: click <strong>📋 Copy</strong> on the card and paste it.</li>
+        <li>Copy the <strong>App ID</strong> and <strong>App secret key</strong> into the boxes on the card, then click <strong>💾 Save Credentials</strong>.</li>
+        <li>Click <strong>Connect</strong>, then choose the board to pin to with <strong>"📌 Select Board"</strong>.</li>
+      </ol>
+      <h4>Good to know</h4>
+      <ul>
+        <li>New Pinterest apps start with <strong>Trial access</strong>. Pins may only be visible to you until Pinterest grants <strong>Standard access</strong>.</li>
+        <li><strong>Every pin needs an image.</strong></li>
+      </ul>
+      <h4>Common errors</h4>
+      <ul><li><strong>401/403 when posting</strong>: the app is still on Trial access. <strong>Pin fails</strong>: add an image.</li></ul>
+    </div>
+  </details>
+
+  <details class="platform" id="p-x">
+    <summary>🐦 X (Twitter) <span class="badge">🟠 Works with limits · about 15 minutes</span></summary>
+    <div class="body">
+      <h4>You need</h4>
+      <p>An X developer account · An X API plan that allows posting (check current plans on the developer portal)</p>
+      <h4>Steps</h4>
+      <ol>
+        <li>Open the <strong>X Developer Portal</strong> and create a Project and App. (<a href="https://developer.x.com/en/portal/dashboard" target="_blank" rel="noopener">Open ↗</a>)</li>
+        <li>Open the app's <strong>"User authentication settings"</strong>. Choose App permissions <strong>"Read and write"</strong> and type <strong>"Web App, Automated App or Bot"</strong>.</li>
+        <li>Set <strong>"Callback URI / Redirect URL"</strong> to the exact address (X needs <code>127.0.0.1</code>, not "localhost"): click <strong>📋 Copy</strong> on the card and paste it.</li>
+        <li>Enter any website address you own as the <strong>Website URL</strong>, then save.</li>
+        <li>Open <strong>"Keys and tokens"</strong> and copy the <strong>API Key</strong> and <strong>API Key Secret</strong> into the boxes on the card. The Access Token fields are optional. Click <strong>💾 Save Credentials</strong>.</li>
+        <li>Click <strong>Connect</strong> and authorise the app.</li>
+      </ol>
+      <h4>Good to know</h4>
+      <ul>
+        <li>X changes its API plans and limits often. <strong>If posting fails with a 403 error, your plan may not include posting.</strong></li>
+        <li><strong>Images are not attached to X posts yet; the text is posted.</strong> Limit: 280 characters.</li>
+        <li>Changed permissions to Read and write after connecting? Disconnect and connect again.</li>
+      </ul>
+      <h4>Common errors</h4>
+      <ul><li><strong>Callback URL not approved</strong>: paste the address again with 📋 Copy (it starts with <code>http://127.0.0.1</code>). <strong>429</strong>: rate limit, try later.</li></ul>
+    </div>
+  </details>
+
+  <details class="platform" id="p-google">
+    <summary>🏢 Google Business Profile <span class="badge">🟠 Works with limits</span></summary>
+    <div class="body">
+      <h3>Google Business Profile <span class="badge">🟠 Works with limits · about 20 minutes, plus Google's approval</span></h3>
+      <h4>You need</h4>
+      <p>A verified Google Business Profile</p>
+      <h4>Steps</h4>
+      <ol>
+        <li>Open <strong>Google Cloud Console</strong> and create a project. (<a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Open ↗</a>)</li>
+        <li>Request access to the <strong>Google Business Profile APIs</strong>. Google reviews these requests; it can take a few days. (<a href="https://developers.google.com/my-business/content/prereqs" target="_blank" rel="noopener">Open ↗</a>)</li>
+        <li>In <strong>APIs &amp; Services → OAuth consent screen</strong>, choose <strong>"External"</strong> and add your own Google account as a <strong>Test user</strong>.</li>
+        <li>In <strong>APIs &amp; Services → Credentials</strong>, create an <strong>"OAuth client ID"</strong> of type <strong>"Web application"</strong>. Add the <strong>Authorised redirect URI</strong>: click <strong>📋 Copy</strong> on the card and paste it.</li>
+        <li>Copy the <strong>Client ID</strong> and <strong>Client secret</strong> into the boxes on the card, then click <strong>💾 Save Credentials</strong> and <strong>Connect</strong>.</li>
+      </ol>
+      <p>"Google hasn't verified this app" is expected for your own app: click <strong>Continue</strong> and tick all boxes.</p>
+      <h4>Good to know</h4>
+      <ul>
+        <li><strong>Until Google approves API access, posting returns a permission error.</strong></li>
+        <li>In Testing mode Google ends the login after <strong>7 days</strong>, so reconnect weekly.</li>
+        <li><strong>Which location:</strong> with one location, posts go there. With several, click <strong>Choose location</strong> on the card and pick one; the card then shows <em>Posting to …</em>. Max 1,500 characters.</li>
+        <li><strong>Post types:</strong> in Create post choose Update, <strong>Offer</strong> (dates, coupon, link, terms) or <strong>Event</strong> (dates and times), with an optional button such as Book or Order online. See <a href="#write">Writing &amp; publishing</a>.</li>
+      </ul>
+      <h4>Common errors</h4>
+      <ul><li><strong>redirect_uri_mismatch</strong>: paste the address with 📋 Copy into the <em>Web application</em> client. <strong>access_denied</strong>: add yourself as a test user. <strong>Fails after a week</strong>: reconnect.</li>
+        <li><strong>“Google hasn’t given your Google Cloud project access…”</strong>: Google hasn’t approved Business Profile API access yet. Request it, wait, then connect again. <strong>“Turn on the My Business … API”</strong>: turn on the My Business Account Management and Business Information APIs in Google Cloud Console.</li></ul>
+      <h3>YouTube <span class="badge">🔴 Not available yet</span></h3>
+      <p>YouTube's public API can upload videos, but it can't create Community posts (text or image). Social-Nexus doesn't upload videos yet, so YouTube isn't offered for posting yet (the AI tools can still write your video descriptions). <strong>Publish to YouTube from YouTube Studio for now.</strong></p>
+    </div>
+  </details>
+
+  <details class="platform" id="p-tiktok">
+    <summary>🎵 TikTok <span class="badge">🔴 Not available yet</span></summary>
+    <div class="body">
+      <p>TikTok only allows web apps with a public https redirect address, and posts from unaudited apps must be private. A desktop app on your own PC can't meet these rules yet.</p>
+      <p><strong>Post to TikTok from the TikTok app for now.</strong></p>
+    </div>
+  </details>
+
+  <section class="doc" id="connect-errors">
+    <h2>Connection errors (any platform)</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Message</th><th>What to do</th></tr>
+      <tr><td>Before connecting …, add your … app details</td><td>Open 🔑 API Credentials, paste the details, click 💾 Save Credentials, then Connect.</td></tr>
+      <tr><td>… authorization was denied</td><td>You cancelled. Connect again and approve.</td></tr>
+      <tr><td>… connection failed — check your app credentials</td><td>Paste the ID and secret again, and paste the callback address again with 📋 Copy.</td></tr>
+      <tr><td>Sign-in link expired or was not started from Social-Nexus</td><td>Click Connect again and finish within 10 minutes.</td></tr>
+      <tr><td>… rejected the connection (401/403) … Reconnect</td><td>Disconnect → Connect, accept all permissions, then 🔁 Retry the post.</td></tr>
+      <tr><td>Only an admin can change app-wide settings</td><td>Ask the admin to save the app details.</td></tr>
+    </table></div>
+    <p><strong>Callback checklist:</strong> use <strong>📋 Copy</strong>, don't type · <code>http</code> (not https) · X uses <code>127.0.0.1</code>, others <code>localhost</code> · no trailing <code>/</code>.</p>
+  </section>
+
+  <!-- ─────────────── Posting ─────────────── -->
+  <section class="doc" id="write">
+    <h2>Writing &amp; publishing a post</h2>
+    <h3>With AI (✨ AI Generate)</h3>
+    <ol>
+      <li>Describe the post, with real details (prices, dates, places). The AI only knows what you tell it and your Brand Kit.</li>
+      <li>Choose the platforms, tone, language and length, then click <strong>✨ Generate Content</strong>.</li>
+      <li>You get <strong>one card per platform</strong>. Click <strong>→ Compose</strong> on a card to open it in Create Post with that platform selected.</li>
+    </ol>
+    <h3>Create Post (two steps)</h3>
+    <ol>
+      <li><strong>Write:</strong> type or paste the text, optionally add an <strong>Image URL</strong>, and pick the platforms.</li>
+      <li>Click <strong>Save &amp; continue →</strong>. The post is saved as a draft (it's on the Calendar now).</li>
+      <li><strong>Choose what happens:</strong>
+        <ul>
+          <li><strong>Publish now</strong>: posts straight away (Social-Nexus asks you to confirm).</li>
+          <li><strong>Schedule</strong>: pick the time, and optionally <a href="#repeat">repeat it</a> every day, week or month.</li>
+          <li><strong>Send for review</strong>: it waits on the Calendar as "In review" until someone approves it. You can suggest a time.</li>
+          <li><strong>Keep as draft</strong>: finish it later from the Calendar.</li>
+        </ul>
+      </li>
+    </ol>
+    <p>Changed your mind? <strong>← Back to editing</strong> returns to the text. Saving again updates the same draft, it doesn't create a second one. If you can't publish in this workspace (for example as a Creator on a client's workspace), you'll see only <strong>Send for review</strong> and <strong>Keep as draft</strong>.</p>
+    <h3>Google Business: update, offer or event</h3>
+    <p>When <strong>Google Biz</strong> is ticked, choose <strong>Google Business: post as</strong>:</p>
+    <ul>
+      <li><strong>Update:</strong> news or photos, optionally with a <strong>button</strong>: Book, Order online, Buy, Learn more, Sign up (each needs an https:// link) or Call now (uses the phone number on your profile).</li>
+      <li><strong>Offer:</strong> a title (up to 58 characters), start and end dates, and optionally a coupon code, a link to use the offer and terms. Offers have no button.</li>
+      <li><strong>Event:</strong> a title, start and end dates, optional times (leave both empty for all day) and an optional button.</li>
+    </ul>
+    <p>The preview’s <strong>Google Biz</strong> tab shows how it looks on Search and Maps. Google posts take one photo and no video.</p>
+    <h3>Preview and first comment</h3>
+    <ul>
+      <li><strong>👁 Preview</strong> (right side) shows the post as it will look, for each chosen platform: picture, text with your signature, where a long text gets cut, and the first comment underneath.</li>
+      <li><strong>First comment</strong> (Instagram and Facebook): often used for hashtags or “Order on WhatsApp…”. Under <strong>Add it</strong>, choose <em>right after the post goes out</em> or 1, 2, 5, 10, 15, 30 minutes or 1 hour after. A short wait looks more natural and gives Instagram time to finish the post. Delayed comments are added while Social-Nexus is running.</li>
+      <li>Instagram Stories can’t have comments. If a comment can’t be added, you’re told why (for example, Instagram wasn’t given permission to add comments: click <strong>Connect</strong> on the Instagram card in Settings and allow everything it asks). The Calendar shows for each post whether the first comment was added, is waiting, or why not.</li>
+    </ul>
+    <p>You see a result for each platform. Create Post sends the <strong>same text</strong> to every selected platform. For per-platform versions, send each AI card to Compose separately. In the Calendar, <strong>AI Assist → 📱 Variants</strong> suggests versions.</p>
+    <p>Publishing needs the workspace <strong>publish</strong> permission (Manager). <strong>WhatsApp:</strong> Post History → Edit &amp; Repost → 💬 Share on WhatsApp.</p>
+  </section>
+
+  <section class="doc" id="limits">
+    <h2>Character limits &amp; images</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Platform</th><th>Limit</th><th>Media</th></tr>
+      <tr><td>X (Twitter)</td><td>280</td><td>Text only for now</td></tr>
+      <tr><td>Pinterest</td><td>500</td><td>Image needed</td></tr>
+      <tr><td>Google Business Profile</td><td>1,500</td><td>Optional image</td></tr>
+      <tr><td>Instagram</td><td>2,200</td><td><strong>Image required</strong></td></tr>
+      <tr><td>TikTok</td><td>2,200</td><td><strong>Video required</strong></td></tr>
+      <tr><td>LinkedIn</td><td>3,000</td><td>Optional image</td></tr>
+      <tr><td>YouTube</td><td>5,000</td><td>—</td></tr>
+      <tr><td>Facebook</td><td>63,206</td><td>Optional image</td></tr>
+    </table></div>
+    <p>Compose warns you and won't post if the text is too long or a required image or video is missing. Images are added as a <strong>public https:// link</strong>; uploading from your PC isn't available yet. AI-made images: <strong>→ Use in Post</strong> if there's a link; otherwise ⬇️ Download, upload it somewhere public, and paste the link.</p>
+  </section>
+
+  <section class="doc" id="schedule">
+    <h2>Scheduling &amp; the calendar</h2>
+    <p><strong>From Create Post:</strong> <strong>📅 Schedule</strong> is already selected, with a time one hour ahead. Change <strong>First post</strong> if you like (<strong>your PC's local time</strong>, IST in India) → <strong>📅 Schedule post</strong>. Everything you schedule shows on the <strong>Calendar</strong> and in the <strong>Scheduled Queue</strong>. Scheduling needs an active licence.</p>
+    <p><strong>📤 Publish now</strong> posts straight away. Social-Nexus asks you to confirm first, because it can't be undone from here.</p>
+
+    <h3 id="repeat">Repeating posts (every day, week or month)</h3>
+    <ol>
+      <li>Write the post and pick the platforms.</li>
+      <li>Set <strong>First post</strong> to the date and time of the first one. Later posts go out at the same time of day.</li>
+      <li><strong>Repeat</strong>: <em>Every day</em>, <em>Every week</em> (same weekday) or <em>Every month</em> (same date. On the 29th–31st, shorter months use their last day).</li>
+      <li><strong>Ends</strong>: <em>After N posts</em> (2–365) or <em>On</em> a date (the post on that day still goes out).</li>
+      <li>Read the summary, e.g. <em>"6 posts, every Wednesday at 10:55 am. First: 28 Oct. Last: 2 Dec, then the schedule ends."</em> The button shows how many posts it will schedule.</li>
+    </ol>
+    <p>Each repeat is its own post on the Calendar (marked <strong>🔁 Every week · post 2 of 6</strong>), so you can edit or unschedule one without touching the others. To end the whole series early, click <strong>Stop series</strong> in the Scheduled Queue or on any of its posts on the Calendar. Posts that already went out stay in your history.</p>
+    <div class="note">Some platforms (X especially) refuse a post that is <strong>exactly the same</strong> as an earlier one. For daily or weekly repeats on those platforms, open a few of the posts on the Calendar and change the wording a little. A repeating schedule can run for up to 2 years.</div>
+
+    <div class="warn"><strong>Keep Social-Nexus running at your posting times.</strong> Close the window with ✕ (it stays in the system tray) instead of quitting, and don't let the PC sleep. Posts <strong>more than 6 hours overdue</strong> (PC off or asleep, app closed, or licence not active) are <strong>not posted late</strong>: a "Happy Diwali" a week after Diwali does more harm than good. They're marked failed with a message starting <strong>"Missed:"</strong>, and you can <a href="#failed">🔁 Retry</a> to post now. Posts less than 6 hours late go out as soon as the app runs again.</div>
+
+    <p><strong>Calendar:</strong> Week / Month / Agenda views, with status filters.</p>
+    <ol>
+      <li><strong>✏️ New Content</strong>: enter the text, an optional image, and tick the connected accounts → <strong>Save Draft</strong>.</li>
+      <li>Open the draft → pick a time → <strong>📅 Schedule</strong>. (If you're allowed to approve posts, this is one step.)</li>
+      <li><strong>Agency mode</strong> adds a review step: <strong>📤 Ask for review</strong> → a manager <strong>✅ Approves</strong> or <strong>❌ Asks for changes</strong> → schedule.</li>
+      <li><strong>✨ AI Assist</strong>: Generate, Rewrite, Shorten, Hashtags, Variants. <strong>💬 Comments</strong> for the team.</li>
+    </ol>
+  </section>
+
+  <section class="doc" id="failed">
+    <h2>Failed posts &amp; Retry</h2>
+    <ul>
+      <li><strong>Compose:</strong> <strong>⚠️ Failed in the last 14 days</strong> lists each failed post with the reason. Fix it (e.g. reconnect), then click <strong>🔁 Retry</strong>. It's tried again in about a minute.</li>
+      <li><strong>"Interrupted while publishing — check the platform, then Retry"</strong>: the app closed mid-send. Check your page first, and Retry only if the post is missing, to avoid duplicates.</li>
+      <li><strong>"Missed: it was due … but Social-Nexus wasn't running or wasn't licensed then. Use Retry to post it now."</strong>: the post was more than 6 hours overdue, so it wasn't posted late on purpose. Still relevant? Click <strong>🔁 Retry</strong> and it goes out in about a minute. Out of date? Delete it with 🗑.</li>
+      <li><strong>Calendar:</strong> failed items (including Missed ones) show the error. Click ✏️ Edit (this returns it to Draft) and schedule again.</li>
+      <li>Retry needs an active licence.</li>
+      <li>A post that worked on some platforms counts as published. Check the messages and Post History.</li>
+    </ul>
+  </section>
+
+  <section class="doc" id="festivals">
+    <h2>Festivals &amp; Indian languages</h2>
+    <p>On festival days (Diwali, Holi, Eid, Independence Day, Ganesh Chaturthi, Navratri and about 40 more) a <strong>banner on the Dashboard</strong> offers ✨ Generate Post, and AI Generate shows <strong>🎉 Today's Festival</strong>. Upcoming festivals may appear on the calendar. Lunar and Islamic dates can shift by a day.</p>
+    <p><strong>Languages:</strong> English, Hindi, Tamil, Telugu, Marathi, Bengali, Punjabi, Kannada and Gujarati. Have a fluent speaker check posts before publishing.</p>
+  </section>
+
+  <!-- ─────────────── Tools ─────────────── -->
+  <section class="doc" id="templates">
+    <h2>Templates &amp; Brand Kit</h2>
+    <p><strong>🗂️ Templates:</strong> + New Template → name, content, type, tags → 💾 Save. Use one with <strong>→ Use in Compose</strong>. Words like <code>{product}</code> aren't filled in automatically, so replace them yourself.</p>
+    <p><strong>🎯 Brand Kit:</strong> enter your company name, tagline, target audience and <strong>brand voice</strong> → 💾 Save Brand Kit. <strong>Why:</strong> AI Generate reads it every time, so posts use your real name and voice, suit your audience, and the AI is told not to invent facts. Be specific ("friendly Hinglish, always mention free home delivery"). Each client workspace has its own Brand Kit.</p>
+  </section>
+
+  <section class="doc" id="hashtags">
+    <h2>Hashtags &amp; UTM links</h2>
+    <p><strong>#️⃣ Hashtag Research:</strong> enter a topic, platform and count → Research → 📋 Copy All. These are AI suggestions, not live trends.</p>
+    <p><strong>🔗 UTM Builder:</strong> enter the destination URL, Source (e.g. <code>instagram</code>) and Campaign Name (e.g. <code>diwali_2026</code>) → 🔗 Build Link → 📋 Copy. Google Analytics then shows which post brought visitors. 💾 Save keeps the link.</p>
+  </section>
+
+  <section class="doc" id="seo">
+    <h2>Website SEO, app store listing and other tools</h2>
+    <ul>
+      <li><strong>🤖 SEO autopilot (server edition only):</strong> in Website SEO → <strong>Autopilot</strong>, add your website and the phrases you want to be found for. Social-Nexus re-checks it every week or day by itself and keeps a <strong>To do</strong> list, most urgent first, in plain words: pages Google can’t open or mustn’t show, titles and descriptions, duplicate titles, broken links, soft 404s, sitemap and canonical problems, structured data, phone set-up, blocked AI assistants, phrases no page is about, and phone page speed. <strong>Write it for me</strong> drafts the text to copy into your website; <strong>Done</strong> is confirmed (or reopened) by the next check; <strong>Not relevant</strong> hides it. When your Google Business profile has been quiet, it drafts a post and puts it on the Calendar <em>In review</em>: nothing is posted without approval. The Home page shows the top to-dos. Not available in the desktop app.</li>
+      <li><strong>🔍 Website SEO → 🔎 Check a page:</strong> type a page address. Social-Nexus opens it the way Google’s crawler does and lists what’s fine, what to improve and what to fix: does it open, https, <code>robots.txt</code>, “noindex”, sitemap, main address (canonical), title and description (with a Google preview), main heading, amount of text, pictures without alt text, phone set-up, share preview, and where your search phrase appears. All measured from the page. Pages on your PC or local network can’t be checked.</li>
+      <li><strong>🏷️ Write title &amp; description</strong> reads your page (or uses the title and text you type) and writes a title and description with length badges. <strong>🔑 Search phrase ideas</strong> come from AI (“competition” is its rough guess). <strong>⚡ Check my text</strong> measures words, sentence length, reading ease and how often your phrase appears; AI adds suggestions. <strong>📍 My search phrases</strong> is your list, with <strong>Search on Google</strong> to look yourself: Social-Nexus doesn’t look up Google positions (use Google Search Console for those).</li>
+      <li><strong>📱 App store listing:</strong> the fields each store really has, with their limits checked. App Store: name 30, subtitle 30, promotional text 170, keywords 100 (words already in the name or subtitle are left out), description 4,000. Google Play: name 30, short description 80, full description 4,000 (Play has no keyword box). A red badge means too long.</li>
+      <li><strong>📣 Ad Copy &amp; PR</strong> (ads, press releases, ⏰ Best Times), <strong>🎨 AI Media Creator</strong> (images, video, animation, captions).</li>
+      <li><strong>📁 Local Files:</strong> use files from your content folder. <strong>📥 Import CSV Schedule</strong> reads <code>schedule.csv</code> with the columns <code>content, platforms, scheduled_at, image_url</code> (platforms separated by <code>;</code>, dates like <code>2026-11-08 09:00</code>). Check the rows yourself: limit warnings don't apply. Importing needs an active licence.</li>
+    </ul>
+  </section>
+
+  <section class="doc" id="email">
+    <h2>Email campaigns</h2>
+    <p><strong>Setup (admin): Settings → 📧 Email / SMTP</strong></p>
+    <div class="table-wrap"><table>
+      <tr><th>Provider</th><th>Host</th><th>Port</th><th>Password</th></tr>
+      <tr><td>Gmail</td><td><code>smtp.gmail.com</code></td><td>587</td><td>An <strong>App Password</strong> (<a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a>, needs 2-Step Verification)</td></tr>
+      <tr><td>Outlook / Microsoft 365</td><td><code>smtp.office365.com</code></td><td>587</td><td>Password or app password</td></tr>
+      <tr><td>Zoho Mail (India)</td><td><code>smtp.zoho.in</code></td><td>587</td><td>Password or app-specific password</td></tr>
+    </table></div>
+    <ol>
+      <li><strong>👥 Subscribers:</strong> add people or Bulk Import (one email per line).</li>
+      <li><strong>✨ AI Generate</strong> → → Save as Campaign.</li>
+      <li><strong>📨 Campaigns:</strong> 💾 Save Campaign → 📤 Send Now (to all active subscribers). Send the first one to yourself to test.</li>
+    </ol>
+    <p>Sending needs the <strong>publish</strong> permission (Manager) and an active licence. <strong>Sent campaigns can't be edited or resent</strong>, so duplicate one instead. Every email includes an <strong>Unsubscribe</strong> button and footer. When someone replies "unsubscribe", mark them in <strong>Email Marketing → Subscribers</strong> promptly. Only email people who agreed to hear from you.</p>
+  </section>
+
+  <section class="doc" id="sellbird">
+    <h2>Sales outreach</h2>
+    <p><strong>Grow → Sales outreach</strong> writes a short, personal email to each business you pick, waits for your OK, sends it, and stops following up as soon as they answer. It uses the same email account as Email campaigns (<strong>Settings → Email sending</strong>). Until that is set up, nothing is sent and the page says <strong>Email not set up</strong>. Sending also needs an active licence.</p>
+
+    <div class="note">
+      <strong>Nothing goes out without your OK.</strong> Every email waits in the <strong>Outbox</strong> until you approve it, unless you turned on <em>Send without asking me</em> for a campaign (not recommended).
     </div>
 
-    <!-- ── Quick Start ── -->
-    <h2 class="section" id="quickstart">⚡ Quick Start</h2>
-    <p>Get NEXUS running in under 10 minutes:</p>
-    <ol class="steps-list">
-      <li><div><strong>Run the installer</strong><br><code>.\install\setup.ps1</code> (Windows, run as Administrator). Automatically installs Node.js and all dependencies.</div></li>
-      <li><div><strong>Open NEXUS</strong><br>Double-click the <strong>NEXUS</strong> shortcut on your Desktop, or run <code>npm start</code> in the NEXUS folder.</div></li>
-      <li><div><strong>Create your admin account</strong><br>Go to <code>http://localhost:3000</code> → you'll be redirected to the login page. The first registered user becomes Super Admin.</div></li>
-      <li><div><strong>Set up free AI</strong><br>In Settings → Local AI (Ollama): install Ollama, pull <code>llama3.2</code>, enable it. Free forever.</div></li>
-      <li><div><strong>Connect social accounts</strong><br>Settings → Social Platforms → enter your API credentials → Connect each platform.</div></li>
-      <li><div><strong>Generate your first post</strong><br>AI Generate → type a prompt → click Generate → use in Compose → Post Now ✅</div></li>
-    </ol>
-
-    <!-- ── Installation ── -->
-    <h2 class="section" id="installation">💾 Installation</h2>
-
-    <h3>Windows (Recommended)</h3>
-    <pre><code># Run in PowerShell as Administrator
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\install\setup.ps1
-
-# With Ollama local AI bundled:
-.\install\setup.ps1 -InstallOllama
-
-# Custom install path:
-.\install\setup.ps1 -InstallPath "D:\NEXUS" -InstallOllama</code></pre>
-
-    <div class="callout info">ℹ️ The installer automatically downloads Node.js v20 LTS if it's not installed. Requires ~500MB disk space (+ 2GB per AI model).</div>
-
-    <h3>Manual Installation</h3>
-    <pre><code>cd nexus
-npm install
-copy .env.example .env
-npm start</code></pre>
-
-    <h3>System Requirements</h3>
-    <table>
-      <tr><th>Component</th><th>Minimum</th><th>Recommended</th></tr>
-      <tr><td><strong>OS</strong></td><td>Windows 10 / macOS 12 / Ubuntu 20</td><td>Windows 11</td></tr>
-      <tr><td><strong>RAM</strong></td><td>4 GB</td><td>8+ GB (for local AI)</td></tr>
-      <tr><td><strong>Disk</strong></td><td>500 MB</td><td>20 GB (for AI models)</td></tr>
-      <tr><td><strong>Node.js</strong></td><td>v18+</td><td>v20 LTS</td></tr>
-      <tr><td><strong>CPU</strong></td><td>Any modern CPU</td><td>8+ cores for faster AI</td></tr>
-      <tr><td><strong>GPU</strong></td><td>Optional</td><td>NVIDIA 8GB+ for fast local AI</td></tr>
-    </table>
-
-    <!-- ── First Login ── -->
-    <h2 class="section" id="first-login">🔐 First Login & Admin Account</h2>
-    <p>NEXUS uses email + password authentication. The <strong>first user to register</strong> automatically becomes the Super Admin (👑).</p>
-
-    <div class="callout success">✅ When you register as the first user, you'll see "👑 You are the Super Admin" message. This account controls all platform settings and user access.</div>
-
-    <h3>Admin Capabilities</h3>
-    <ul>
-      <li><strong>Monitor all users</strong> — see post counts, AI usage, last active time</li>
-      <li><strong>Manage user roles</strong> — promote/demote between Admin and User</li>
-      <li><strong>Suspend/activate accounts</strong> — suspended users can't log in</li>
-      <li><strong>Generate invite codes</strong> — for invite-only registration mode</li>
-      <li><strong>View activity log</strong> — all posts across all users</li>
-      <li><strong>Control registration</strong> — Open, Invite Only, or Closed</li>
-    </ul>
-
-    <!-- ── AI Setup ── -->
-    <h2 class="section" id="ai-setup">🤖 Setting Up AI</h2>
-
-    <h3>Option 1: Free Local AI with Ollama <span class="badge badge-free">Recommended</span></h3>
-    <ol class="steps-list">
-      <li><div>Download Ollama from <a href="https://ollama.com/download" style="color:#60a5fa">ollama.com/download</a> and install it.</div></li>
-      <li><div>Open PowerShell and run: <code>ollama pull llama3.2</code> (downloads ~2GB)</div></li>
-      <li><div>In NEXUS: Settings → 🦙 Local AI → Check → Enable → Save</div></li>
-    </ol>
-
-    <div class="callout tip">💡 Best Ollama models for marketing content: <code>llama3.2</code> (fast, 2GB), <code>mistral</code> (best writing, 4GB), <code>llama3.1:8b</code> (highest quality, 5GB)</div>
-
-    <h3>Option 2: Google Gemini <span class="badge badge-free">Free Tier Available</span></h3>
-    <ol class="steps-list">
-      <li><div>Go to <a href="https://aistudio.google.com" style="color:#60a5fa">aistudio.google.com</a> → Sign in → Get API Key</div></li>
-      <li><div>In NEXUS: Settings → 🤖 AI Keys → paste your key → Save</div></li>
-    </ol>
-
-    <h3>Option 3: Anthropic Claude <span class="badge badge-paid">API Key Required</span></h3>
-    <ol class="steps-list">
-      <li><div>Go to <a href="https://console.anthropic.com" style="color:#60a5fa">console.anthropic.com</a> → Create API Key</div></li>
-      <li><div>In NEXUS: Settings → 🤖 AI Keys → Anthropic Claude → paste → Save</div></li>
-    </ol>
-
-    <h3>AI Priority Order</h3>
-    <p>NEXUS tries AI providers in this order, falling back if unavailable:</p>
+    <h3>1. Create a campaign</h3>
     <ol>
-      <li><strong>Ollama</strong> (if enabled and running)</li>
-      <li><strong>Google Gemini</strong> (if GOOGLE_AI_KEY is set)</li>
-      <li><strong>Anthropic Claude</strong> (if ANTHROPIC_API_KEY is set)</li>
+      <li>Open <strong>1. Campaigns</strong> in the side menu and click <strong>+ New campaign</strong>.</li>
+      <li>Give it a name and <strong>say what you offer in a sentence or two</strong>. The emails are written from this. Your business name comes from <strong>Brand Kit</strong>, so fill that in too.</li>
+      <li>Set <strong>Most emails per day</strong> (25 is a safe start) and click <strong>Create campaign</strong>.</li>
     </ol>
 
-    <!-- ── Platforms ── -->
-    <h2 class="section" id="platforms">🔗 Platform Connections</h2>
-    <p>NEXUS connects to 8 social platforms. Each requires API credentials from the platform's developer portal.</p>
-
-    <table>
-      <tr><th>Platform</th><th>Developer Portal</th><th>Required Credentials</th></tr>
-      <tr><td><strong>LinkedIn</strong></td><td><a href="https://linkedin.com/developers/apps" style="color:#60a5fa">linkedin.com/developers</a></td><td>Client ID, Client Secret</td></tr>
-      <tr><td><strong>Facebook + Instagram</strong></td><td><a href="https://developers.facebook.com" style="color:#60a5fa">developers.facebook.com</a></td><td>App ID, App Secret</td></tr>
-      <tr><td><strong>Pinterest</strong></td><td><a href="https://developers.pinterest.com" style="color:#60a5fa">developers.pinterest.com</a></td><td>App ID, App Secret</td></tr>
-      <tr><td><strong>Twitter / X</strong></td><td><a href="https://developer.twitter.com" style="color:#60a5fa">developer.twitter.com</a></td><td>API Key, API Secret</td></tr>
-      <tr><td><strong>YouTube + Google Business</strong></td><td><a href="https://console.cloud.google.com" style="color:#60a5fa">console.cloud.google.com</a></td><td>OAuth Client ID, Secret</td></tr>
-      <tr><td><strong>TikTok</strong></td><td><a href="https://developers.tiktok.com" style="color:#60a5fa">developers.tiktok.com</a></td><td>Client Key, Client Secret</td></tr>
-    </table>
-
-    <div class="callout warning">⚠️ Facebook requires the "Manage everything on your Page" Use Case to be added to your app before page posting works. Use Graph API Explorer with a <strong>Page Token</strong> (not User Token) for best results.</div>
-
-    <!-- ── Compose ── -->
-    <h2 class="section" id="compose">✏️ Compose & Post</h2>
-    <p>The Compose page lets you write content and publish immediately or schedule for later.</p>
+    <h3>2. Add companies</h3>
     <ul>
-      <li><strong>Write or paste</strong> your content (or use AI Generate and click → Compose)</li>
-      <li><strong>Select platforms</strong> by clicking the platform toggles</li>
-      <li><strong>Add an image URL</strong> (optional — required for Instagram)</li>
-      <li><strong>Post Now</strong> — publishes immediately to all selected platforms</li>
-      <li><strong>Schedule</strong> — pick a date/time, post is added to the queue</li>
-    </ul>
-    <div class="callout info">ℹ️ Instagram requires an image URL — text-only posts are not supported by Instagram's API.</div>
-
-    <!-- ── Scheduling ── -->
-    <h2 class="section" id="scheduling">📅 Scheduling Posts</h2>
-    <p>NEXUS checks for due posts every minute and publishes them automatically.</p>
-
-    <h3>Schedule a post</h3>
-    <p>Compose → click <strong>Schedule</strong> → pick date/time → click <strong>Schedule Post</strong></p>
-
-    <h3>Bulk scheduling via CSV</h3>
-    <p>Create a CSV file in your <code>CONTENT_FOLDER</code> (default: <code>D:/social</code>):</p>
-    <pre><code>content,platforms,scheduled_at,image_url
-"Your post text","linkedin,facebook","2026-07-01 09:00",
-"Another post","instagram","2026-07-02 10:00","https://example.com/img.jpg"</code></pre>
-    <p>Then: Local Files → Import CSV Schedule</p>
-
-    <!-- ── AI Generate ── -->
-    <h2 class="section" id="ai-generate">✨ AI Content Generator</h2>
-    <p>Generates platform-optimized social media content from a text prompt.</p>
-
-    <h3>How to use</h3>
-    <ol class="steps-list">
-      <li><div>Select your <strong>AI model</strong> from the model bar at the top</div></li>
-      <li><div>Enter a <strong>prompt</strong> describing what you want to post about</div></li>
-      <li><div>Select <strong>target platforms</strong> (affects content style)</div></li>
-      <li><div>Pick a <strong>tone</strong> (Professional, Casual, Witty, Inspirational, Educational)</div></li>
-      <li><div>Click <strong>Generate Content</strong></div></li>
-      <li><div>Edit if needed → click <strong>→ Compose</strong> → Post or Schedule</div></li>
-    </ol>
-
-    <h3>Content Types (via SEO / Tools routes)</h3>
-    <table>
-      <tr><th>Type</th><th>Description</th></tr>
-      <tr><td><code>social_post</code></td><td>Standard social media post</td></tr>
-      <tr><td><code>seo_meta</code></td><td>SEO meta title + description</td></tr>
-      <tr><td><code>aso</code></td><td>App Store listing content</td></tr>
-      <tr><td><code>email_campaign</code></td><td>Email newsletter / campaign</td></tr>
-      <tr><td><code>ad_copy</code></td><td>Google + Meta ad copy</td></tr>
-      <tr><td><code>press_release</code></td><td>Publication-ready press release</td></tr>
-    </table>
-
-    <!-- ── AI Media ── -->
-    <h2 class="section" id="ai-media">🎨 AI Image & Video Generator</h2>
-
-    <h3>Image Generation</h3>
-    <p>Go to <strong>AI Media Creator → Images</strong></p>
-    <ul>
-      <li>Requires <code>STABILITY_API_KEY</code> (free credits at stability.ai) or <code>OPENAI_API_KEY</code></li>
-      <li>8 style presets: Photorealistic, Cartoon, Anime, Digital Illustration, 3D Render, Watercolor, Sketch, Abstract</li>
-      <li>Use <strong>Enhance Prompt</strong> to improve your prompt before generating</li>
-      <li>Use <strong>→ Use in Post</strong> to add the image URL to your Compose</li>
+      <li>In <strong>2. Companies &amp; people</strong>, click <strong>+ Add a company</strong>, or <strong>Add many companies</strong> for a list of up to 20 websites.</li>
+      <li>Social-Nexus reads their website, picks who to email and writes 3 emails: a first email, a short follow-up 3 days later and a last note 7 days later.</li>
+      <li>The address is marked <strong>✓ Verified</strong> when it was found on their own website, <strong>⚠ Guessed</strong> when it wasn't (it may bounce: check it if you can), and <strong>✕ Won't work</strong> when the domain can't receive email. "Won't work" addresses are never emailed.</li>
+      <li>If a website doesn't open, the company isn't added and you're told why.</li>
     </ul>
 
-    <h3>Video Generation</h3>
-    <p>Go to <strong>AI Media Creator → Video</strong></p>
+    <h3>3. Approve in the Outbox</h3>
     <ul>
-      <li>Requires <code>LUMA_API_KEY</code> (30 free/month) or <code>RUNWAY_API_KEY</code> (125 free credits)</li>
-      <li>Text-to-video or Image-to-video (provide an image URL as the starting frame)</li>
-      <li>Video generation takes 30–120 seconds — click <strong>Check Status</strong> to poll for completion</li>
+      <li>Read each email, edit it if needed and click <strong>Approve</strong> or <strong>Approve all</strong>.</li>
+      <li>An email that still has a blank like <code>[Name]</code> or <code>{{first_name}}</code> can't be approved until you fill it in.</li>
+      <li>Each email shows its real state: <strong>✓ Sent</strong>, <strong>Approved · goes out</strong> (with the date), <strong>Not sent</strong> (with the reason, such as "they replied") or <strong>Failed</strong> (with the error).</li>
     </ul>
 
-    <h3>Animation</h3>
-    <p>Animate a static image into a short video clip:</p>
-    <ol class="steps-list">
-      <li><div>Generate an image first (Images tab)</div></li>
-      <li><div>Go to Animation tab → paste the base64 image data or image URL</div></li>
-      <li><div>Select motion intensity → click Generate Animation</div></li>
-    </ol>
-    <div class="callout warning">⚠️ Animation requires <code>STABILITY_API_KEY</code>.</div>
-
-    <!-- ── SEO ── -->
-    <h2 class="section" id="seo">🔍 SEO Tools</h2>
-
-    <h3>Meta Tag Generator</h3>
-    <p>Enter your page title, target keyword, and URL → generates optimized meta title, description, Open Graph tags, focus keywords, and SEO score with improvement suggestions.</p>
-
-    <h3>Keyword Research</h3>
-    <p>Enter a topic/product + niche → generates primary keywords, long-tail keywords, question keywords, content ideas, and negative keywords — all with intent labels (informational/commercial/transactional) and difficulty ratings.</p>
-
-    <h3>Content Optimizer</h3>
-    <p>Paste existing content + target keyword → returns SEO score (0–100), readability score, keyword density, issues list, and improvement suggestions with suggested headings structure.</p>
-
-    <h3>Tracked Keywords</h3>
-    <p>Add keywords to monitor your rankings over time. Enter keyword + target URL → saved to your dashboard for manual rank tracking.</p>
-
-    <!-- ── ASO ── -->
-    <h2 class="section" id="aso">📱 App Store Optimization</h2>
-    <p>Generates complete app store listings optimized for both Apple App Store and Google Play.</p>
+    <h3>4. How sending works</h3>
     <ul>
-      <li><strong>App Store (iOS)</strong>: Title (30 chars), Subtitle (30 chars), Keyword field (100 chars), Full description</li>
-      <li><strong>Google Play</strong>: Title (50 chars), Short description (80 chars), Full description (4000 chars)</li>
-      <li>Screenshot ideas + icon design suggestions + ASO ranking tips</li>
+      <li>Approved emails go out by themselves (checked every 15 minutes), a few seconds apart and never more than each campaign's daily limit. The rest wait for the next day. Click <strong>⚡</strong> at the top to send what's due right away.</li>
+      <li><strong>Follow-ups go out in order:</strong> email 2 only after email 1 has really been sent, and at least the planned number of days after it. If email 1 went out late, the follow-ups move by the same amount. If an earlier email was cancelled or failed, the later ones aren't sent.</li>
+      <li><strong>Pause sending</strong> stops everything until you click <strong>Resume sending</strong>. To stop one campaign, pause it under Campaigns.</li>
+      <li>Every email ends with a line telling people how to opt out.</li>
     </ul>
 
-    <!-- ── Email ── -->
-    <h2 class="section" id="email">📧 Email Marketing</h2>
-
-    <h3>Adding Subscribers</h3>
+    <h3>5. Replies</h3>
+    <p>Social-Nexus doesn't read your mailbox yet. When someone answers, open <strong>4. Replies</strong>, click <strong>+ Add a reply you received</strong> and paste it in. Then:</p>
     <ul>
-      <li><strong>Single add</strong>: Email Marketing → Subscribers → fill form → Add Subscriber</li>
-      <li><strong>Bulk import</strong>: paste comma/newline-separated email list → Bulk Import</li>
+      <li>Their follow-ups stop at once and the company shows <strong>Replied</strong>.</li>
+      <li>The reply is sorted as <strong>Interested</strong>, <strong>Question</strong>, <strong>Not now</strong>, <strong>Not interested</strong> or <strong>Asked to stop</strong>. People who said "not interested" or asked to stop are never emailed again, by any campaign.</li>
+      <li>The conversation shows the email of yours they answered. An answer is drafted from your campaign's description: click <strong>Edit</strong> to change it and <strong>Send answer</strong> to send it, under the subject of your original email. It's only marked as answered if it was really sent, and it can't be sent twice by accident.</li>
     </ul>
+    <p>Only email businesses that are likely to find your offer useful, and keep the daily limit low: Gmail and Outlook limit how much you can send, and many unanswered cold emails can hurt your email reputation.</p>
+  </section>
 
-    <h3>Sending Campaigns</h3>
-    <ol class="steps-list">
-      <li><div>Configure SMTP in Settings → Email / SMTP (Gmail: use App Password)</div></li>
-      <li><div>Use AI Generate to create email content, or write your own</div></li>
-      <li><div>Save as campaign → Send Now</div></li>
-    </ol>
+  <section class="doc" id="lead-pipeline">
 
-    <div class="callout tip">💡 Gmail SMTP: Go to myaccount.google.com/apppasswords → Create App Password → use it as SMTP_PASS</div>
+    <h2>Meta Lead Ads &amp; Click-to-Messenger Pipeline</h2>
+    <p>Pipeline 1 provides an automated, 100% compliant ingestion bridge for incoming Facebook and Instagram leads. When prospects submit a Meta Instant Form or initiate a Click-to-Messenger conversation, Social-Nexus instantly captures their data, runs automated AI qualification, pushes the payload to your <strong>n8n automation workflow</strong>, and syncs the contact into your <strong>Chatwoot shared inbox CRM</strong> for live agent takeover.</p>
 
-    <h3>Email Types</h3>
-    <table>
-      <tr><th>Type</th><th>Use for</th></tr>
-      <tr><td>Newsletter</td><td>Regular updates, content roundups</td></tr>
-      <tr><td>Product Launch</td><td>New feature or product announcements</td></tr>
-      <tr><td>Promotional</td><td>Discounts, special offers, CTAs</td></tr>
-      <tr><td>Welcome / Onboarding</td><td>New user welcome sequences</td></tr>
-      <tr><td>Re-engagement</td><td>Win back inactive users</td></tr>
-      <tr><td>Product Update</td><td>Release notes, changelog</td></tr>
-    </table>
-
-    <!-- ── Ad Copy ── -->
-    <h2 class="section" id="adcopy">📣 Ad Copy & Press Release</h2>
-
-    <h3>Ad Copy Generator</h3>
-    <p>Enter product name, target audience, USP, and campaign goal → generates complete Google Ads (3 headlines + 2 descriptions) and Meta Ads (primary text + headline) with 2 A/B variations and suggested keywords.</p>
-
-    <h3>Press Release Generator</h3>
-    <p>Enter app name, announcement, company name, key features, and a quote → generates a complete, publication-ready press release with FOR IMMEDIATE RELEASE header, dateline, body, spokesperson quote, boilerplate, and contact section.</p>
-
-    <h3>Best Posting Times</h3>
-    <p>Enter your industry and target audience → AI recommends best days and times to post for each platform with frequency guidelines.</p>
-
-    <!-- ── UTM ── -->
-    <h2 class="section" id="utm">🔗 UTM Link Builder</h2>
-    <p>Build trackable URLs for Google Analytics campaign tracking.</p>
-    <table>
-      <tr><th>Parameter</th><th>Description</th><th>Example</th></tr>
-      <tr><td><strong>Source</strong></td><td>Where traffic comes from</td><td>linkedin, newsletter</td></tr>
-      <tr><td><strong>Medium</strong></td><td>Marketing channel type</td><td>social, email, cpc</td></tr>
-      <tr><td><strong>Campaign</strong></td><td>Campaign identifier</td><td>summer_launch</td></tr>
-      <tr><td><strong>Term</strong></td><td>Paid search keywords</td><td>task management app</td></tr>
-      <tr><td><strong>Content</strong></td><td>A/B test identifier</td><td>hero_cta, sidebar</td></tr>
-    </table>
-
-    <!-- ── Admin ── -->
-    <h2 class="section" id="admin">👑 Admin Dashboard</h2>
-    <p>Only visible to users with the <strong>Admin</strong> role. Access via the sidebar or user menu.</p>
-
-    <h3>Overview Tab</h3>
-    <p>Shows platform-wide stats: total users, users active today, total posts published, AI generations, and scheduled posts in queue.</p>
-
-    <h3>Users Tab</h3>
-    <p>Lists all registered users with their activity stats, role, and status.</p>
-    <ul>
-      <li><strong>👑 Make Admin</strong> — promote a user to admin role</li>
-      <li><strong>🚫 Suspend</strong> — block a user from logging in</li>
-      <li><strong>✅ Activate</strong> — re-enable a suspended account</li>
-      <li><strong>🗑 Delete</strong> — permanently delete user and all their data</li>
-    </ul>
-
-    <!-- ── Invite Codes ── -->
-    <h2 class="section" id="invite-codes">🎟️ Invite Codes</h2>
-    <p>Control who can register with invite codes when using <strong>Invite Only</strong> registration mode.</p>
-
-    <h3>Generate a code</h3>
-    <p>Admin Dashboard → Invite Codes → set note, expiry, max uses → Generate Code</p>
-
-    <h3>Share a code</h3>
-    <ul>
-      <li><strong>Direct link</strong>: <code>http://localhost:3000/login.html?invite=YOURCODE</code></li>
-      <li><strong>Code only</strong>: share the 12-character code, user enters it at registration</li>
-    </ul>
-
-    <h3>Registration Modes</h3>
-    <table>
-      <tr><th>Mode</th><th>Behavior</th></tr>
-      <tr><td><strong>🌐 Open</strong></td><td>Anyone can register — no code needed (default)</td></tr>
-      <tr><td><strong>🎟️ Invite Only</strong></td><td>Registration requires a valid invite code from admin</td></tr>
-      <tr><td><strong>🔒 Closed</strong></td><td>No new registrations allowed at all</td></tr>
-    </table>
-
-    <!-- ── API Keys ── -->
-    <h2 class="section" id="api-keys">🔑 API Keys Guide</h2>
-    <table>
-      <tr><th>Key</th><th>Service</th><th>Free Tier?</th><th>Get it at</th></tr>
-      <tr><td><code>GOOGLE_AI_KEY</code></td><td>Gemini AI (text gen)</td><td>✅ Yes</td><td>aistudio.google.com</td></tr>
-      <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Claude AI (text gen)</td><td>❌ No</td><td>console.anthropic.com</td></tr>
-      <tr><td><code>STABILITY_API_KEY</code></td><td>Stable Diffusion (images)</td><td>✅ 25 credits</td><td>stability.ai</td></tr>
-      <tr><td><code>OPENAI_API_KEY</code></td><td>DALL-E 3 (images)</td><td>❌ No</td><td>platform.openai.com</td></tr>
-      <tr><td><code>LUMA_API_KEY</code></td><td>Dream Machine (video)</td><td>✅ 30/month</td><td>lumalabs.ai</td></tr>
-      <tr><td><code>RUNWAY_API_KEY</code></td><td>Gen-3 (video)</td><td>✅ 125 credits</td><td>runwayml.com</td></tr>
-    </table>
-
-    <div class="callout tip">💡 Per-user API keys: Each user can set their own keys in <strong>My API Keys</strong> (user menu). These override the global .env keys for that user's sessions.</div>
-
-    <!-- ── Ollama ── -->
-    <h2 class="section" id="ollama">🦙 Ollama Local AI Guide</h2>
-
-    <h3>Best models by use case</h3>
-    <table>
-      <tr><th>Model</th><th>Size</th><th>Best for</th><th>Min RAM</th></tr>
-      <tr><td><code>llama3.2:1b</code></td><td>1.3 GB</td><td>Fast basic tasks</td><td>4 GB</td></tr>
-      <tr><td><code>llama3.2</code></td><td>2 GB</td><td>General content</td><td>4 GB</td></tr>
-      <tr><td><code>mistral</code></td><td>4.1 GB</td><td>Best writing</td><td>8 GB</td></tr>
-      <tr><td><code>gemma2:2b</code></td><td>1.6 GB</td><td>Balanced quality/speed</td><td>4 GB</td></tr>
-      <tr><td><code>deepseek-r1:7b</code></td><td>4.7 GB</td><td>Analysis & reasoning</td><td>8 GB</td></tr>
-      <tr><td><code>qwen2.5:7b</code></td><td>4.4 GB</td><td>Multilingual content</td><td>8 GB</td></tr>
-      <tr><td><code>llama3.1:8b</code></td><td>4.7 GB</td><td>Highest quality text</td><td>8 GB</td></tr>
-    </table>
-
-    <h3>Common Ollama commands</h3>
-    <pre><code>ollama list              # list downloaded models
-ollama pull mistral      # download a model
-ollama run llama3.2      # test a model interactively
-ollama rm mistral        # remove a model
-ollama ps                # show running models</code></pre>
-
-    <div class="callout warning">⚠️ Ollama must be running before NEXUS can use it. If you restart your PC, open the Ollama app from the system tray before starting NEXUS.</div>
-
-    <!-- ── Troubleshooting ── -->
-    <h2 class="section" id="troubleshooting">🔧 Troubleshooting</h2>
-
-    <h3>Server won't start (EADDRINUSE)</h3>
-    <p>Port 3000 is already in use. Kill existing Node.js processes:</p>
-    <pre><code>Get-Process node | Stop-Process -Force   # PowerShell
-# then restart: npm start</code></pre>
-
-    <h3>Facebook posting error 403</h3>
-    <p>The stored token is missing <code>pages_manage_posts</code> permission. Solution:</p>
-    <ol>
-      <li>Go to <a href="https://developers.facebook.com/tools/explorer" style="color:#60a5fa">Graph API Explorer</a></li>
-      <li>Select your app → User or Page → <strong>select your Page name</strong> (not User Token)</li>
-      <li>Add permission: <code>pages_manage_posts</code></li>
-      <li>Generate token → copy → Settings → Facebook → Paste token manually</li>
-    </ol>
-
-    <h3>Ollama not responding</h3>
-    <ul>
-      <li>Ensure Ollama app is open (system tray icon)</li>
-      <li>Or run <code>ollama serve</code> in a terminal</li>
-      <li>Check URL in Settings → Local AI (default: <code>http://localhost:11434</code>)</li>
-    </ul>
-
-    <h3>AI generation returns empty response</h3>
-    <ul>
-      <li>If using Ollama: model might still be loading. Wait 30 seconds and retry.</li>
-      <li>Check the model is downloaded: <code>ollama list</code></li>
-      <li>Try switching to a different AI model in the model selector bar</li>
-    </ul>
-
-    <h3>Google AI 404 error</h3>
-    <p>The API version was incorrect. This is fixed in NEXUS v2.0. Restart the server: <code>npm start</code></p>
-
-    <!-- ── Shortcuts ── -->
-    <h2 class="section" id="shortcuts">⌨️ Keyboard Shortcuts</h2>
-    <table>
-      <tr><th>Shortcut</th><th>Action</th></tr>
-      <tr><td><span class="kbd">Enter</span> on login page</td><td>Submit login/register form</td></tr>
-      <tr><td>Click platform chip</td><td>Select AI model for generation</td></tr>
-      <tr><td>Click platform toggle</td><td>Select/deselect social platform</td></tr>
-      <tr><td>☀️ / 🌙 button (header)</td><td>Toggle light / dark mode</td></tr>
-      <tr><td>Click hashtag badge</td><td>Copy individual hashtag to clipboard</td></tr>
-      <tr><td>Click platform card (Settings)</td><td>Expand/collapse credentials form</td></tr>
-    </table>
-
-    <div style="margin-top:60px;padding:24px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.2);border-radius:12px;text-align:center">
-      <div style="font-size:20px;margin-bottom:8px">🚀</div>
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;margin-bottom:8px">Ready to start?</div>
-      <div style="font-size:14px;color:var(--muted);margin-bottom:16px">Open NEXUS and start marketing smarter.</div>
-      <a href="/" style="background:var(--grad);padding:10px 28px;border-radius:8px;color:#fff;text-decoration:none;font-weight:700;font-size:14px">Open NEXUS App →</a>
+    <div class="note">
+      <strong>🔒 100% Meta TOS Compliant:</strong> Operates strictly via Meta's official Graph Webhooks and Messenger Platform within the authorized 24-hour customer service window. Zero scraping, zero unauthorized automation.
     </div>
 
-  </div><!-- /help-content -->
+    <h3>How It Works</h3>
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;margin:16px 0;font-family:monospace;font-size:13px;line-height:1.6">
+      [ Lead Form / Click-to-Messenger Ad ]<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ Social-Nexus Meta Webhook ]<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│ (Instant AI Scoring 0-100 &amp; Reply Draft)<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;┌─────────┴─────────┐<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ n8n Workflow ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ Chatwoot CRM / Inbox ]<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- Instant lead alert&nbsp;&nbsp;- Live agent takeover<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- CRM / SMS / Slack&nbsp;&nbsp;&nbsp;- 24-hr Messenger reply<br/>
+    </div>
+
+    <h3>Non-Technical 3-Step Setup Guide</h3>
+    <ol>
+      <li>
+        <strong>Step 1 — Connect Meta Webhook:</strong>
+        <p>In Social-Nexus, open <strong>📥 Lead Ads Pipeline</strong>. You will see your unique <strong>Webhook Callback URL</strong> and <strong>Verify Token</strong>. Simply click <strong>Copy</strong> on each, and paste them into your Meta App settings at <a href="https://developers.facebook.com" target="_blank" rel="noopener">developers.facebook.com</a> under <em>Webhooks → Page → Subscribe to leadgen &amp; messages</em>.</p>
+      </li>
+      <li>
+        <strong>Step 2 — 1-Click Page Subscription:</strong>
+        <p>Ensure your Facebook Page is connected in <em>Settings → Social Platforms</em>. Once connected, click the <strong>⚡ 1-Click Page Subscribe</strong> button in the Lead Pipeline page. Social-Nexus automatically calls Meta's Graph API to subscribe your Page to real-time events. No curl or terminal commands required!</p>
+      </li>
+      <li>
+        <strong>Step 3 — Connect n8n &amp; Chatwoot (Optional):</strong>
+        <p>Paste your <strong>n8n Webhook URL</strong> to trigger custom multi-step workflows (e.g., Slack notifications, Google Sheets, internal CRM). If you use <strong>Chatwoot</strong>, enter your server URL and API Access Token — leads will automatically appear as contacts and open conversations in your shared team inbox.</p>
+      </li>
+    </ol>
+
+    <h3>Instant AI Qualification &amp; WhatsApp Follow-up</h3>
+    <ul>
+      <li><strong>Automatic Intent Scoring:</strong> Every lead is analyzed by AI and given a Relevancy Score (0–100) with a badge (<span class="badge" style="background:#10b981;color:#fff;">🔥 Hot</span>, <span class="badge" style="background:#f59e0b;color:#fff;">🟡 Warm</span>, or <span class="badge" style="background:#3b82f6;color:#fff;">❄️ Low</span>) and an executive intent summary.</li>
+      <li><strong>AI Suggested Reply:</strong> The system drafts a context-aware follow-up reply customized to the questions they answered in the Meta form.</li>
+      <li><strong>💬 1-Click WhatsApp Chat:</strong> Click the green <strong>💬 WhatsApp</strong> button next to any lead with a phone number. It immediately opens a pre-composed chat on WhatsApp Web or mobile with the AI-suggested follow-up text ready to send.</li>
+      <li><strong>🧪 1-Click Test Ingestion:</strong> Use the <strong>🧪 Test Lead Ingestion</strong> button to simulate a live Meta Lead Ad submission without spending any advertising budget.</li>
+    </ul>
+  </section>
+
+  <!-- ─────────────── Teams & data ─────────────── -->
+  <section class="doc" id="clients">
+    <h2>Clients &amp; workspaces</h2>
+    <p>A <strong>workspace</strong> is one brand or client, with its own accounts, posts, calendar, Brand Kit and team.</p>
+    <ol>
+      <li><strong>👥 Clients &amp; Brands → ➕ Add Client Brand</strong>: enter the name; the short name fills in automatically. The timezone defaults to India (IST). Choose the Organization → ➕ Create Client.</li>
+      <li>Switch clients with the <strong>🏢 workspace name</strong> in the top bar.</li>
+      <li>Connect each client's own accounts while their workspace is selected. The developer app details are entered once for the whole install.</li>
+    </ol>
+  </section>
+
+  <section class="doc" id="team">
+    <h2>Team members &amp; roles</h2>
+    <ol>
+      <li><strong>Settings → 👥 Members</strong> (or 🏢 → Manage Members): enter the email, choose a role → <strong>📩 Send Invite</strong>.</li>
+      <li>Social-Nexus shows a <strong>link</strong>; it doesn't email it. Send the link yourself.</li>
+      <li>The person opens it, <strong>signs in with the invited email</strong>, and is taken back to the invite → <strong>Join workspace</strong>. The link doesn't work for other emails. Existing members keep their role.</li>
+    </ol>
+    <div class="table-wrap"><table>
+      <tr><th>Role</th><th>Can do</th></tr>
+      <tr><td>Manager</td><td>Everything: connect accounts, choose Page or board, manage members, approve, schedule, <strong>publish</strong>, <strong>send email campaigns</strong></td></tr>
+      <tr><td>Creator</td><td>Create, edit, submit for review; view analytics</td></tr>
+      <tr><td>Reviewer</td><td>Approve or request changes, comment, view</td></tr>
+      <tr><td>Client</td><td>Approve or request changes, comment, view (client sign-off)</td></tr>
+      <tr><td>Analyst</td><td>View content and analytics</td></tr>
+    </table></div>
+    <div class="note">Social-Nexus only accepts connections from its own PC, so teammates sign in on the same PC for now. Multi-PC access is planned for the Agency edition.</div>
+  </section>
+
+  <section class="doc" id="data">
+    <h2>Backup &amp; data location</h2>
+    <p>All data is in <code>%APPDATA%\Social-Nexus</code>. Press <kbd>Win</kbd>+<kbd>R</kbd>, paste it, and press Enter.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Item</th><th>Contents</th></tr>
+      <tr><td><code>nexus.db</code> (+ <code>-wal</code>, <code>-shm</code>)</td><td>Posts, drafts, calendar, templates, subscribers, connected accounts, users, personal API keys</td></tr>
+      <tr><td><code>sessions.db</code></td><td>Sign-in sessions</td></tr>
+      <tr><td><code>.env</code></td><td>App-wide settings (social app details, SMTP password)</td></tr>
+      <tr><td><code>content\</code></td><td>Local content folder</td></tr>
+      <tr><td><code>logs\server.log</code></td><td>Technical log for troubleshooting</td></tr>
+    </table></div>
+    <p><strong>Back up:</strong> tray icon → Quit Social-Nexus → copy the whole folder to a USB drive or private cloud. <strong>Restore:</strong> quit the app and copy the folder back. Treat backups like passwords: tokens and keys are stored without extra encryption.</p>
+  </section>
+
+  <section class="doc" id="privacy">
+    <h2>Privacy</h2>
+    <ul>
+      <li><strong>On your PC:</strong> everything above. Radixile can't see it.</li>
+      <li><strong>AI providers:</strong> your prompt and text go to the one provider being used, only when you use AI, with your own key. <strong>Ollama: nothing leaves your PC.</strong></li>
+      <li><strong>Social networks:</strong> contacted only when you connect, publish, schedule or refresh.</li>
+      <li><strong>Licence server</strong> (license.radixile.com): your licence or coupon code, <strong>scrambled (hashed) computer identifiers</strong> (never raw serial numbers), an optional PC name, the app version, and your email for coupons and purchases. <strong>Never</strong> your posts, contacts, accounts or keys.</li>
+      <li><strong>Payments:</strong> handled by Razorpay. Card and UPI details never reach Radixile.</li>
+    </ul>
+    <p><strong>Delete everything:</strong> deactivate the licence → uninstall → answer <strong>Yes</strong> to "Also delete all Social-Nexus data" → delete backups. Remove the app's access in each network's security settings. To delete your licence-server record, email support (invoices are kept as tax law requires).</p>
+  </section>
+
+  <section class="doc" id="uninstall">
+    <h2>Uninstalling</h2>
+    <ol>
+      <li>Quit Social-Nexus from the tray.</li>
+      <li>Windows Settings → Apps → Installed apps → Social-Nexus → Uninstall.</li>
+      <li><strong>"Also delete all Social-Nexus data on this PC?"</strong> <strong>No</strong> (the default) keeps your data; <strong>Yes</strong> deletes it permanently.</li>
+    </ol>
+    <p>Deactivate your licence first if you're moving PCs. Updates never delete data.</p>
+  </section>
+
+  <!-- ─────────────── Help ─────────────── -->
+  <section class="doc" id="troubleshooting">
+    <h2>Troubleshooting</h2>
+    <h3>Log file</h3>
+    <p><code>%APPDATA%\Social-Nexus\logs\server.log</code> (older: <code>server.1.log</code>, <code>server.2.log</code>). Attach it when you email support. It stays on your PC unless you send it.</p>
+    <h3>"Ollama: not running on this computer"</h3>
+    <ol>
+      <li>Open Ollama from the Start menu (look for the llama icon in the tray).</li>
+      <li>Still red? Run <code>ollama serve</code> in Command Prompt and leave it open.</li>
+      <li>Run <code>ollama list</code>. If it's empty, run <code>ollama pull llama3.2</code>.</li>
+      <li>Settings → Local AI → 🔄 Check; make sure Active Model matches a downloaded model. If the model isn't downloaded, the app falls back to your cloud AI and tells you.</li>
+    </ol>
+    <h3>Ollama is slow, or AI seems stuck</h3>
+    <p>The first request after start takes about <strong>30 seconds</strong> while the model loads. Several AI actions at once <strong>wait in a queue</strong> and run in turn. Wait, and don't click again. Still slow? Use <code>llama3.2:1b</code> or a cloud AI such as Groq.</p>
+    <h3>"API key rejected — check it in Settings → My API Keys"</h3>
+    <p><strong>My API Keys</strong> is under <strong>your name</strong> (top right). Paste the key again with no spaces, in the right box. Check it's still active on the provider's site (Claude needs credit).</p>
+    <h3>"busy right now (503)" / "rate limit reached (429)"</h3>
+    <p>The AI service is overloaded or your free allowance is used. It's not a Social-Nexus fault. Wait a minute, choose another model, or add a second free key so the app can fall back automatically.</p>
+    <h3>"No AI provider available" / "timed out"</h3>
+    <p>Add a free key in My API Keys or install Ollama. "Timed out" (30 seconds) is for cloud AI: check the internet or pick a faster model such as Groq.</p>
+    <h3>Posts fail with "… rejected the connection … Reconnect"</h3>
+    <p>The network login expired (Google Testing apps: every 7 days). Settings → 🔗 Social Platforms → Disconnect → Connect (accept all permissions) → 🔁 Retry.</p>
+    <h3>"No Facebook Page selected"</h3>
+    <p>Click 📄 Select Facebook Page on the Facebook card (Managers only).</p>
+    <h3>"Port 3000 In Use"</h3>
+    <ol>
+      <li>Click <strong>Try to Connect</strong>. Social-Nexus may already be running in the tray.</li>
+      <li>Otherwise quit from the tray, end <em>Social-Nexus</em> in Task Manager (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Esc</kbd>), and restart.</li>
+      <li>Close any other program using port 3000. Don't change the port: the social callback URLs depend on it.</li>
+    </ol>
+    <h3>Error when starting / blank window</h3>
+    <p>Startup errors show the real reason and the log folder. A blank window usually recovers within 20 seconds. If not, quit and restart, then email support with <code>server.log</code>.</p>
+    <h3>Scheduled post didn't go out</h3>
+    <p>Was the app running (at least in the tray), the PC online and awake, and the licence active? Check <strong>⚠️ Failed in the last 14 days</strong> in Compose and click 🔁 Retry.</p>
+    <h3>"Missed: it was due …"</h3>
+    <p>The post was more than 6 hours overdue, so it wasn't posted late. Click <strong>🔁 Retry</strong> to post it now, or delete it. Keep the app in the tray at posting times. See <a href="#failed">Failed posts</a>.</p>
+    <h3>Licence: "Checking your licence…"</h3>
+    <p>Normal for the first few seconds after start-up. Wait a moment and try again.</p>
+    <h3>Licence: 🟠 Needs internet</h3>
+    <p>The <strong>Works offline until</strong> date has passed. Go online and click <strong>Check now</strong> (banner) or <strong>🔄 Check licence now</strong> (Settings → 🔑 Licence). If it says the computer's date looks wrong, fix the Windows date first.</p>
+    <h3>Licence: 🔴 Not valid on this PC</h3>
+    <p>Read the message. "…another installation" or "…a different computer": activate again with the same key. "This copy of Social-Nexus has been modified": reinstall from radixile.com; your data is safe. "Licence file is damaged": activate again. Cancelled or on hold: email support.</p>
+    <h3>"Deactivating needs the internet so your seat is freed for another PC"</h3>
+    <p>You tried to deactivate offline. Nothing was removed and the licence still works here. Go online and click <strong>Deactivate this PC</strong> again.</p>
+    <h3>"Publishing needs an active licence"</h3>
+    <p>Publishing, scheduling, Retry, CSV import and email sending need an active licence: Settings → 🔑 Licence. Writing, AI, planning and export keep working.</p>
+  </section>
+
+  <section class="doc" id="faq">
+    <h2>FAQ</h2>
+    <h4>Is my data uploaded to Radixile?</h4>
+    <p>No. It stays on your PC.</p>
+    <h4>Do I have to pay for AI?</h4>
+    <p>No. Ollama is free; Gemini, Groq, OpenRouter and Mistral have free tiers. You pay providers directly, never Radixile.</p>
+    <h4>Why do I need a developer app?</h4>
+    <p>Social-Nexus runs privately on your PC, so it connects to each network with your own app. Radixile never holds your social logins.</p>
+    <h4>Why does Instagram need a Business account?</h4>
+    <p>Instagram only lets apps publish to professional (Business or Creator) accounts linked to a Facebook Page. Switching is free.</p>
+    <h4>Does it work offline?</h4>
+    <p>Drafting, the calendar, templates, Brand Kit and Ollama AI work offline. Publishing, cloud AI, email and activation need internet. The licence works offline until the <strong>Works offline until</strong> date in Settings → 🔑 Licence.</p>
+    <h4>Will scheduled posts go out if my PC is off?</h4>
+    <p>No. Social-Nexus must be running (the tray is enough). Posts more than 6 hours late are marked Missed; you can Retry them.</p>
+    <h4>I reinstalled. Do I need a new key?</h4>
+    <p>No. On the same PC, just activate again with the same key or coupon.</p>
+    <h4>Can teammates use their own PCs?</h4>
+    <p>Not yet. They sign in on the same PC.</p>
+    <h4>I forgot my password.</h4>
+    <p>Your admin resets it in Admin Dashboard → Users. Admins should email support.</p>
+  </section>
+
+  <section class="doc" id="support">
+    <h2>Contact support</h2>
+    <p>Email <a href="mailto:info@radixile.com">info@radixile.com</a> with what happened, a screenshot and <code>server.log</code>. <strong>Never send passwords, API keys or Client Secrets.</strong> Licence purchases and offline activation: <a href="https://license.radixile.com" target="_blank" rel="noopener">license.radixile.com</a>.</p>
+  </section>
+
+  <footer>Social-Nexus by Radixile Technology Solutions · Help for version 2.1 · info@radixile.com</footer>
 </main>
 
 <script>
-  // Highlight active nav link on scroll
-  const sections = document.querySelectorAll('h2.section');
-  const navLinks  = document.querySelectorAll('.help-nav a');
-  const observer  = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        navLinks.forEach(a => a.classList.remove('active'));
-        const id   = entry.target.id;
-        const link = document.querySelector(`.help-nav a[href="#${id}"]`);
-        if (link) link.classList.add('active');
+(function () {
+  var input = document.getElementById('q');
+  var info = document.getElementById('search-info');
+  var empty = document.getElementById('empty');
+  var toc = document.getElementById('toc');
+  var menuBtn = document.getElementById('menu-btn');
+  var items = Array.prototype.slice.call(document.querySelectorAll('main section.doc, main details.platform'));
+  var links = Array.prototype.slice.call(toc.querySelectorAll('a[href^="#"]'));
+  var openedBySearch = [];
+
+  // Cache lower-case text once (static content only; nothing is inserted as HTML)
+  var texts = items.map(function (el) { return el.textContent.toLowerCase(); });
+
+  function filter() {
+    var q = input.value.trim().toLowerCase();
+    var words = q.split(/\s+/).filter(Boolean);
+    var shown = 0;
+
+    openedBySearch.forEach(function (d) { d.open = false; });
+    openedBySearch = [];
+
+    items.forEach(function (el, i) {
+      var match = words.every(function (w) { return texts[i].indexOf(w) !== -1; });
+      el.classList.toggle('hidden', !match);
+      if (match) {
+        shown++;
+        if (words.length && el.tagName === 'DETAILS' && !el.open) { el.open = true; openedBySearch.push(el); }
       }
     });
-  }, { rootMargin: '-20% 0px -70% 0px' });
-  sections.forEach(s => observer.observe(s));
 
-  // Search
-  function searchDocs(query) {
-    const q = query.toLowerCase().trim();
-    const content = document.getElementById('docs-content');
-    if (!q) { content.querySelectorAll('.search-highlight').forEach(e => e.replaceWith(e.firstChild)); return; }
-    navLinks.forEach(link => {
-      const text = link.textContent.toLowerCase();
-      link.style.opacity = text.includes(q) ? '1' : '0.3';
+    links.forEach(function (a) {
+      var target = document.getElementById(a.getAttribute('href').slice(1));
+      a.classList.toggle('hidden', !!target && target.classList.contains('hidden'));
     });
+
+    empty.classList.toggle('show', shown === 0);
+    info.textContent = words.length ? (shown + (shown === 1 ? ' topic matches' : ' topics match')) : '';
   }
 
-  // Handle ?invite= param — open register tab
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('from') === 'app') document.title = 'NEXUS Help — In App';
+  input.addEventListener('input', filter);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { input.value = ''; filter(); }
+  });
+
+  // Opening a platform from the contents (or a #link) expands it
+  function openFromHash() {
+    var id = decodeURIComponent(location.hash.slice(1));
+    var el = id && document.getElementById(id);
+    if (el && el.tagName === 'DETAILS') el.open = true;
+  }
+  window.addEventListener('hashchange', openFromHash);
+  openFromHash();
+
+  links.forEach(function (a) {
+    a.addEventListener('click', function () {
+      if (window.matchMedia('(max-width: 860px)').matches) {
+        toc.classList.remove('open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+  });
+
+  // Print / Save as PDF: clear the search and expand every section first
+  var printOpened = [];
+  function expandAll() {
+    if (input.value) { input.value = ''; filter(); }
+    document.querySelectorAll('details').forEach(function (d) { if (!d.open) { d.open = true; printOpened.push(d); } });
+  }
+  function restore() {
+    printOpened.forEach(function (d) { d.open = false; });
+    printOpened = [];
+  }
+  window.addEventListener('beforeprint', expandAll);
+  window.addEventListener('afterprint', restore);
+  document.getElementById('print-btn').addEventListener('click', function () { expandAll(); window.print(); });
+
+  // In its own help window, "Back" just closes help and returns to the app
+  document.getElementById('back-link').addEventListener('click', function (e) {
+    try {
+      if (window.opener && !window.opener.closed) { e.preventDefault(); window.opener.focus(); window.close(); }
+    } catch (err) { /* fall back to the link */ }
+  });
+
+  menuBtn.addEventListener('click', function () {
+    var open = toc.classList.toggle('open');
+    menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+})();
 </script>
 </body>
 </html>

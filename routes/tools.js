@@ -1,62 +1,86 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../services/database');
-const { aiGenerate, aiJSON } = require('../services/aiHelper');
+const { aiGenerate, aiJSON, aiArgsFromReq } = require('../services/aiHelper');
+const knexInstance   = require('../services/knex');
+const appsRepo       = require('../repos/appsRepo')(knexInstance);
+const brandKitRepo   = require('../repos/brandKitRepo')(knexInstance);
+const templatesRepo  = require('../repos/templatesRepo')(knexInstance);
+const utmRepo        = require('../repos/utmRepo')(knexInstance);
+const historyRepo    = require('../repos/historyRepo')(knexInstance);
 
-function apiKey(req) {
-  return req.headers['x-api-key'] || process.env.GOOGLE_AI_KEY;
-}
+// The user's own AI keys / Ollama / chosen model (not just the shared .env key)
+function ai(req) { return aiArgsFromReq(req); }
 
 // ── Apps ──────────────────────────────────────────────────────────────────────
 
-router.get('/apps', (req, res) => res.json(db.getApps()));
+router.get('/apps', async (req, res) => {
+  try { res.json(await appsRepo.list(req.workspaceId)); } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
-router.post('/apps', (req, res) => {
+router.post('/apps', async (req, res) => {
   if (!req.body.name) return res.status(400).json({ error: 'name is required' });
-  const id = db.saveApp(req.body);
-  res.json({ success: true, id });
+  try {
+    const id = await appsRepo.save(req.workspaceId, req.body);
+    res.json({ success: true, id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.put('/apps/:id', (req, res) => {
-  db.updateApp(parseInt(req.params.id), req.body);
-  res.json({ success: true });
+router.put('/apps/:id', async (req, res) => {
+  try {
+    await appsRepo.update(req.workspaceId, parseInt(req.params.id), req.body);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.delete('/apps/:id', (req, res) => {
-  db.deleteApp(parseInt(req.params.id));
-  res.json({ success: true });
+router.delete('/apps/:id', async (req, res) => {
+  try {
+    await appsRepo.remove(req.workspaceId, parseInt(req.params.id));
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── Brand Kit ────────────────────────────────────────────────────────────────
 
-router.get('/brand-kit', (req, res) => res.json(db.getBrandKit()));
+router.get('/brand-kit', async (req, res) => {
+  try { res.json(await brandKitRepo.get(req.workspaceId) || {}); } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
-router.post('/brand-kit', (req, res) => {
-  db.saveBrandKit(req.body);
-  res.json({ success: true });
+router.post('/brand-kit', async (req, res) => {
+  try {
+    await brandKitRepo.upsert(req.workspaceId, req.body);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── Content Templates ─────────────────────────────────────────────────────────
 
-router.get('/templates', (req, res) => res.json(db.getTemplates(req.query.type)));
-
-router.post('/templates', (req, res) => {
-  const { name, content } = req.body;
-  if (!name || !content) return res.status(400).json({ error: 'name and content are required' });
-  const id = db.saveTemplate(req.body);
-  res.json({ success: true, id });
+router.get('/templates', async (req, res) => {
+  try { res.json(await templatesRepo.list(req.workspaceId, req.query.type)); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.delete('/templates/:id', (req, res) => {
-  db.deleteTemplate(parseInt(req.params.id));
-  res.json({ success: true });
+router.post('/templates', async (req, res) => {
+  const { name, content } = req.body;
+  if (!name || !content) return res.status(400).json({ error: 'name and content are required' });
+  try {
+    const id = await templatesRepo.save(req.workspaceId, req.body);
+    res.json({ success: true, id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/templates/:id', async (req, res) => {
+  try {
+    await templatesRepo.remove(req.workspaceId, parseInt(req.params.id));
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── UTM Links ─────────────────────────────────────────────────────────────────
 
-router.get('/utm-links', (req, res) => res.json(db.getUTMLinks()));
+router.get('/utm-links', async (req, res) => {
+  try { res.json(await utmRepo.list(req.workspaceId)); } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
-router.post('/utm-links', (req, res) => {
+router.post('/utm-links', async (req, res) => {
   const { original_url, utm_source, utm_campaign } = req.body;
   if (!original_url || !utm_source || !utm_campaign) {
     return res.status(400).json({ error: 'original_url, utm_source, utm_campaign are required' });
@@ -69,13 +93,17 @@ router.post('/utm-links', (req, res) => {
   const sep = original_url.includes('?') ? '&' : '?';
   const full_url = `${original_url}${sep}${params.toString()}`;
 
-  const id = db.saveUTMLink({ ...req.body, full_url });
-  res.json({ success: true, id, full_url });
+  try {
+    const id = await utmRepo.save(req.workspaceId, { ...req.body, full_url });
+    res.json({ success: true, id, full_url });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.delete('/utm-links/:id', (req, res) => {
-  db.deleteUTMLink(parseInt(req.params.id));
-  res.json({ success: true });
+router.delete('/utm-links/:id', async (req, res) => {
+  try {
+    await utmRepo.remove(req.workspaceId, parseInt(req.params.id));
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── Hashtag Research ──────────────────────────────────────────────────────────
@@ -100,7 +128,7 @@ Return ONLY valid JSON (no markdown):
 }`;
 
   try {
-    const { data } = await aiJSON(prompt, apiKey(req));
+    const { data } = await aiJSON(prompt, ai(req).apiKey, 1024, ai(req).options, ai(req).model);
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -143,8 +171,8 @@ Return ONLY valid JSON (no markdown):
 }`;
 
   try {
-    const { data, model } = await aiJSON(prompt, apiKey(req));
-    db.saveHistory({ prompt: `Ad copy: ${product}`, response: JSON.stringify(data), type: 'ad_copy', model });
+    const { data, model } = await aiJSON(prompt, ai(req).apiKey, 1024, ai(req).options, ai(req).model);
+    historyRepo.save(req.workspaceId, req.session?.userId, { prompt: `Ad copy: ${product}`, response: JSON.stringify(data), type: 'ad_copy', model }).catch(() => {});
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -178,8 +206,8 @@ Write a complete, publication-ready press release with:
 Return as plain text.`;
 
   try {
-    const { text, model } = await aiGenerate(prompt, apiKey(req), 2000);
-    db.saveHistory({ prompt: `Press release: ${app_name}`, response: text, type: 'press_release', model });
+    const { text, model } = await aiGenerate(prompt, ai(req).apiKey, 2000, ai(req).model, ai(req).options);
+    historyRepo.save(req.workspaceId, req.session?.userId, { prompt: `Press release: ${app_name}`, response: text, type: 'press_release', model }).catch(() => {});
     res.json({ content: text });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -211,7 +239,7 @@ Return ONLY valid JSON (no markdown):
 }`;
 
   try {
-    const { data } = await aiJSON(prompt, apiKey(req));
+    const { data } = await aiJSON(prompt, ai(req).apiKey, 1024, ai(req).options, ai(req).model);
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
