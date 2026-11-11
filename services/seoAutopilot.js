@@ -337,7 +337,11 @@ async function processDue(db) {
   if (!require('./edition').isServer()) return; // server edition only (runs all the time)
   if (!(await db.schema.hasTable('seo_sites'))) return;
   const due = await db('seo_sites').where({ enabled: true }).where((q) => q.whereNull('next_run_at').orWhere('next_run_at', '<=', now())).limit(3);
-  for (const site of due) await runSite(db, site);
+  for (const site of due) {
+    // Only for businesses whose trial or plan is active
+    if (!(await require('./entitlements').canPublish(site.workspace_id))) continue;
+    await runSite(db, site);
+  }
 }
 
 // ── AI suggestions for a to-do (only when someone asks) ─────────────────────

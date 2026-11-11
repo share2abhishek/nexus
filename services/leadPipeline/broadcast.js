@@ -17,9 +17,9 @@ const chatbot = require('./chatbot');
 
 const now = () => Math.floor(Date.now() / 1000);
 
-// Sending to customers needs an active licence, like posting does
-function licensed() {
-  try { return !!require('../license').status().can_publish; } catch { return false; }
+// Sending to customers needs an active licence (desktop) or plan (server edition), like posting does
+function licensed(workspaceId) {
+  return require('../entitlements').canPublish(workspaceId);
 }
 const LICENSE_ERROR = 'Broadcasts need an active licence. Go to Settings → Licence to activate.';
 const MAX_RECIPIENTS = 5000;
@@ -130,7 +130,7 @@ function validateMessage(engine, msg) {
 }
 
 async function start(db, { workspaceId, userId, title, audience, message }) {
-  if (!licensed()) throw Object.assign(new Error(LICENSE_ERROR), { status: 402, code: 'LICENSE_REQUIRED' });
+  if (!(await licensed(workspaceId))) throw Object.assign(new Error(LICENSE_ERROR), { status: 402, code: 'LICENSE_REQUIRED' });
   const repo = leadPipelineRepoFactory(db);
   const config = await repo.getOrCreateConfig(workspaceId);
   const engine = config.delivery_engine === 'evolution' ? 'evolution' : 'cloud_api';
@@ -181,7 +181,7 @@ async function run(db, { id, workspaceId, config, engine, message, recipients, s
   let stoppedReason = null;
   for (let i = 0; i < recipients.length; i++) {
     if (job.cancel) break;
-    if (!licensed()) { stoppedReason = 'The licence stopped being active, so sending stopped.'; break; }
+    if (!(await licensed(workspaceId))) { stoppedReason = 'The licence or plan stopped being active, so sending stopped.'; break; }
     const person = recipients[i];
     let res;
     try { res = await sendOne(config, engine, message, person); } catch (err) { res = { success: false, error: err.message }; }

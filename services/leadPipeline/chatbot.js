@@ -342,7 +342,7 @@ async function handleInbound(db, { workspaceId, lead, text, name, send, askN8n }
   // Auto-replies (and n8n answers) need an active licence, like posting does;
   // the customer's message is still saved in Chats
   let licensed = false;
-  try { licensed = !!require('../license').status().can_publish; } catch {}
+  try { licensed = await require('../entitlements').canPublish(workspaceId); } catch {}
   if (!licensed && !consent) return { sent: [], reason: 'unlicensed', action: d.action || null };
 
   let replies = d.replies;

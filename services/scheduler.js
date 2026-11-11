@@ -121,6 +121,8 @@ async function processDueContent(db, repo) {
   const dueItems = await repo.getDueForPublish(now);
 
   for (const item of dueItems) {
+    // Server edition: only businesses whose trial or plan is active (the rest wait, still scheduled)
+    if (require('./edition').isServer() && !(await require('./entitlements').canPublish(item.workspace_id))) continue;
     if (repo.claimForPublish && !(await repo.claimForPublish(item.id))) continue; // another run has it
     if (item.scheduled_at && item.scheduled_at < now - MISSED_AFTER) {
       await repo.markFailed(item.id, missedNote(item.scheduled_at));
@@ -142,6 +144,7 @@ async function processDueScheduled(db) {
   const postsRepo = postsRepoFactory(db);
 
   for (const post of due) {
+    if (require('./edition').isServer() && !(await require('./entitlements').canPublish(post.workspace_id))) continue;
     // Claim it first (pending -> publishing) so it can never be posted twice
     const claimed = await db('scheduled_posts').where({ id: post.id, status: 'pending' }).update({ status: 'publishing' });
     if (!claimed) continue;
@@ -216,7 +219,9 @@ function start() {
     try {
       // Without an active licence nothing is published; due posts wait (they stay
       // "scheduled"/"pending") and go out once the licence is active again.
-      if (!require('./license').status().can_publish) return;
+      // Server edition: checked per business instead (see the loops), so one
+      // business's ended trial never stops another's posts.
+      if (!require('./edition').isServer() && !require('./license').status().can_publish) return;
       await processDueScheduled(knex);
       await processDueContent(knex, contentRepo);
       // First comments chosen to go a few minutes after their post

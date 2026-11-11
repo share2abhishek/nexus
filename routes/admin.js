@@ -40,6 +40,65 @@ router.post('/users/create', async (req, res) => {
   }
 });
 
+// ── Server edition: businesses and their plans ──────────────────────────────
+// Until billing sets plans automatically (phase 4), a Radixile admin can set a
+// business's plan, its status and the end of the paid period, or extend a trial.
+
+router.get('/organizations', async (req, res) => {
+  if (!require('../services/edition').isServer()) return res.status(404).json({ error: 'Only on the server edition.' });
+  const ent = require('../services/entitlements');
+  const orgs = await knexInstance('organizations as o').leftJoin('users as u', 'u.id', 'o.owner_user_id')
+    .select('o.id', 'o.name', 'o.plan', 'o.plan_status', 'o.paid_until', 'o.trial_ends_at', 'o.created_at', 'u.email as owner_email')
+    .orderBy('o.id', 'desc').limit(500);
+  const out = [];
+  for (const o of orgs) {
+    const s = await ent.forOrg(o.id);
+    out.push({
+      ...o, can_publish: s.can_publish, state: s.state, plan_name: s.plan_name, message: s.message, trial_days_left: s.trial_days_left ?? null,
+      usage: { workspaces: await ent.usage(o.id, 'workspaces'), users: await ent.usage(o.id, 'users'), seo_sites: await ent.usage(o.id, 'seo_sites') },
+      limits: s.limits || {},
+    });
+  }
+  res.json({ organizations: out, plans: Object.entries(await ent.plans(true)).map(([id, p]) => ({ id, name: p.name, limits: p.limits })) });
+});
+
+router.patch('/organizations/:id/plan', async (req, res) => {
+  if (!require('../services/edition').isServer()) return res.status(404).json({ error: 'Only on the server edition.' });
+  const ent = require('../services/entitlements');
+  const id = Number(req.params.id);
+  const org = await knexInstance('organizations').where({ id }).first();
+  if (!org) return res.status(404).json({ error: 'Business not found' });
+  const b = req.body || {};
+  const patch = {};
+  const plans = await ent.plans(true);
+  if (b.plan !== undefined) {
+    if (!plans[b.plan]) return res.status(400).json({ error: `Unknown plan. Choose one of: ${Object.keys(plans).join(', ')}.` });
+    patch.plan = b.plan;
+  }
+  if (b.plan_status !== undefined) {
+    if (![null, 'active', 'past_due', 'cancelled', 'suspended'].includes(b.plan_status)) return res.status(400).json({ error: 'Status must be active, past_due, cancelled or suspended.' });
+    patch.plan_status = b.plan_status;
+  }
+  // Dates as YYYY-MM-DD (end of that day, India time) or seconds
+  const toEpoch = (v) => {
+    if (v === null || v === '') return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return Math.floor(new Date(`${v}T23:59:59+05:30`).getTime() / 1000);
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+  };
+  for (const k of ['paid_until', 'trial_ends_at']) {
+    if (b[k] === undefined) continue;
+    const e = toEpoch(b[k]);
+    if (e === undefined) return res.status(400).json({ error: `${k === 'paid_until' ? 'Paid until' : 'Trial ends'} must be a date (YYYY-MM-DD).` });
+    patch[k] = e;
+  }
+  if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nothing to change.' });
+  await knexInstance('organizations').where({ id }).update(patch);
+  ent.forget(id); // takes effect straight away
+  console.log(`[Admin] ${req.session?.userEmail || req.userId} changed the plan of business #${id}:`, JSON.stringify(patch));
+  res.json({ success: true, status: await ent.forOrg(id) });
+});
+
 // ── Admin reset user password ─────────────────────────────────────────────────
 
 router.patch('/users/:id/password', async (req, res) => {

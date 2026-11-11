@@ -86,6 +86,7 @@ async function processDue(db) {
   const now = Math.floor(Date.now() / 1000);
   const due = await db('post_comments').where({ status: 'pending' }).where('due_at', '<=', now).limit(20);
   for (const c of due) {
+    if (require('./edition').isServer() && !(await require('./entitlements').canPublish(c.workspace_id))) continue;
     const claimed = await db('post_comments').where({ id: c.id, status: 'pending' }).update({ status: 'posting', updated_at: now });
     if (!claimed) continue;
     const account = await db('social_accounts').where({ id: c.social_account_id, workspace_id: c.workspace_id }).first();

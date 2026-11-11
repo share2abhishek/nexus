@@ -99,3 +99,21 @@ Server edition only; the desktop app keeps today's behaviour.
   desktop sign-up unchanged.
 
 **Status:** built and tested (tests/saasSignup.test.js) and tried in a fresh server-edition copy: sign-up → business on a 14-day trial → confirm-email banner → link confirms → forgot password → emailed link → new password (link single-use). Settings: APP_URL, PLATFORM_ADMIN_EMAILS, PLATFORM_SMTP_* (see .env.example). Until phase 3, the desktop licence check still blocks publishing on the server edition.
+
+## Phase 3 (plans and limits per business) — built 2026-11-13
+
+- `services/entitlements.js` answers "may this business publish?" for every check:
+  posting and scheduling (routes + scheduler), broadcasts, WhatsApp auto-replies,
+  client approval links, Sales outreach sending, first comments and the SEO autopilot.
+  Desktop keeps the install's licence; the server edition uses the business's
+  trial (`trial_ends_at`) or plan (`plan`, `plan_status`, `paid_until` with 3 days'
+  grace; `suspended` pauses a business). The scheduler checks each business, so an
+  ended trial leaves only that business's posts waiting (still scheduled).
+- Limits per business (workspaces, team members, SEO autopilot websites) from the
+  plan; defaults in `DEFAULT_PLANS`, overridable with the `saas_plans` config value.
+- Settings → **Plan** (the Licence tab on the desktop) shows plan, status, trial days
+  left and usage. Admin → **Businesses** lets Radixile staff set a business's plan,
+  status, paid-until and trial end (`PATCH /admin/organizations/:id/plan`) until
+  online payment (phase 4) does it.
+- Tests: tests/businessPlans.test.js. Tried in a fresh server-edition copy: trial
+  publishes; admin ends the trial; publishing and scheduling answer with the reason.

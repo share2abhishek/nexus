@@ -11,7 +11,12 @@ function messageFor(s) {
 }
 
 // Blocks publishing / scheduling / sending when the licence doesn't allow it
-function requirePublishLicense(req, res, next) {
+async function requirePublishLicense(req, res, next) {
+  // Server edition: the business's trial or plan (services/entitlements)
+  if (require('../services/edition').isServer()) {
+    if (await require('../services/entitlements').blockPublishing(req, res)) return;
+    return next();
+  }
   const s = license.status();
   if (s.can_publish) return next();
   return res.status(402).json({ error: messageFor(s), license_state: s.state, code: 'LICENSE_REQUIRED' });

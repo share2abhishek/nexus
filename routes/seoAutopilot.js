@@ -78,6 +78,8 @@ module.exports = (knex, requirePermission) => {
       }
       await knex('seo_sites').where({ id: existing.id }).update(row);
     } else {
+      const problem = await require('../services/entitlements').limitProblem(req.workspaceId, 'seo_sites');
+      if (problem) return res.status(402).json({ error: problem, code: 'LICENSE_LIMIT' });
       await knex('seo_sites').insert({ ...row, workspace_id: req.workspaceId, created_at: now(), next_run_at: null });
     }
     res.json({ site: siteView(await knex('seo_sites').where({ workspace_id: req.workspaceId }).first()) });

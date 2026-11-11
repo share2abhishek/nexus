@@ -42,7 +42,7 @@ module.exports = (knex, requirePermission) => {
       const schedule = can(req.role, 'content.schedule') && can(req.role, 'content.approve');
       if (req.query.dry_run === '1') return res.json({ ...parsed, will: schedule ? 'schedule' : 'draft', timezone });
       if (!parsed.counts.ok) return res.status(400).json({ error: 'No rows could be imported. Fix the rows shown and try again.', ...parsed });
-      if (schedule && licenceBlock(res)) return;
+      if (schedule && await licenceBlock(req, res)) return;
 
       const now = Math.floor(Date.now() / 1000);
       const ok = parsed.rows.filter(r => r.ok);
@@ -84,7 +84,7 @@ module.exports = (knex, requirePermission) => {
       const canSchedule = can(req.role, 'content.schedule') && can(req.role, 'content.approve');
       const shouldSchedule = (status === 'scheduled') && canSchedule;
 
-      if (shouldSchedule && licenceBlock(res)) return;
+      if (shouldSchedule && await licenceBlock(req, res)) return;
 
       // Find social accounts for the workspace
       const targetAccountIds = [];
@@ -333,10 +333,7 @@ module.exports = (knex, requirePermission) => {
 
       // Scheduling/publishing needs an active licence (drafting and review don't)
       if (['scheduled', 'published'].includes(toStatus)) {
-        const lic = require('../services/license').status();
-        if (!lic.can_publish) {
-          return res.status(402).json({ error: 'Scheduling needs an active licence. Go to Settings → Licence to activate.', code: 'LICENSE_REQUIRED', license_state: lic.state });
-        }
+        if (await require('../services/entitlements').blockPublishing(req, res, 'Scheduling')) return;
       }
 
       const fields = {};
@@ -361,11 +358,9 @@ module.exports = (knex, requirePermission) => {
 
   // ── Create Post, step 2: what to do with a saved post ─────────────────────
   // Publishing and scheduling need an active licence; review and drafts don't.
-  function licenceBlock(res) {
-    const lic = require('../services/license').status();
-    if (lic.can_publish) return false;
-    res.status(402).json({ error: 'Publishing and scheduling need an active licence. Go to Settings → Licence to activate. Your post is saved as a draft.', code: 'LICENSE_REQUIRED', license_state: lic.state });
-    return true;
+  // Desktop: the licence; server edition: this business's trial or plan
+  function licenceBlock(req, res) {
+    return require('../services/entitlements').blockPublishing(req, res, 'Publishing and scheduling', 'Your post is saved as a draft.');
   }
   // Publishing or scheduling a draft skips review, so only someone who could approve it may
   const mayDecide = (role, item) => item.status === 'approved' || can(role, 'content.approve');
@@ -379,7 +374,7 @@ module.exports = (knex, requirePermission) => {
         return res.status(400).json({ error: `This post is ${item.status.replace('_', ' ')}, so it can't be published from here.` });
       }
       if (!mayDecide(req.role, item)) return res.status(403).json({ error: 'This post needs approval first. Send it for review.' });
-      if (licenceBlock(res)) return;
+      if (await licenceBlock(req, res)) return;
       // Claim it so a double click (or the scheduler) can't post it twice
       const claimed = await knex('content_items')
         .where({ id: item.id, workspace_id: req.workspaceId }).whereIn('status', ['draft', 'approved', 'failed'])
@@ -404,7 +399,7 @@ module.exports = (knex, requirePermission) => {
       if (!mayDecide(req.role, item)) return res.status(403).json({ error: 'This post needs approval first. Send it for review.' });
       const at = Number(req.body?.scheduled_at);
       if (!Number.isFinite(at) || at <= Math.floor(Date.now() / 1000)) return res.status(400).json({ error: 'Pick a time in the future.' });
-      if (licenceBlock(res)) return;
+      if (await licenceBlock(req, res)) return;
 
       const now = Math.floor(Date.now() / 1000);
       const repeat = req.body?.repeat;

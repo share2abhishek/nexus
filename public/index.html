@@ -2755,6 +2755,7 @@
                 <th>AI Gen</th><th>Platforms</th><th>Joined</th><th>Last Active</th><th>Actions</th>
               </tr></thead>
               <tbody id="admin-users-tbody"><tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted)">Loading…</td></tr></tbody>
+        <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-businesses" hidden onclick="switchAdminTab('businesses',this)">🏢 Businesses</button>
             </table>
           </div>
         </div>
@@ -2773,6 +2774,11 @@
                   <option value="720">30 days</option>
                   <option value="0">Never</option>
                 </select>
+      <!-- Server edition: businesses and their plans (until online billing sets them) -->
+      <div class="admin-panel" id="admin-panel-businesses" style="display:none">
+        <div class="card"><div class="card-header"><div class="card-title">🏢 Businesses</div></div>
+          <div class="card-body" id="admin-businesses"><span class="spinner"></span></div></div>
+      </div>
               </div>
               <div class="form-group"><label class="form-label">Max Uses</label>
                 <select class="form-select" id="inv-max-uses">

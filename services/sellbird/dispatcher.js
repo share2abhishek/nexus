@@ -126,6 +126,8 @@ async function processDueOutbox(knex, repo, options = {}) {
   for (const item of dueItems) {
     if (!pausedWs.has(item.workspace_id)) pausedWs.set(item.workspace_id, await isPaused(knex, item.workspace_id));
     if (pausedWs.get(item.workspace_id)) continue;
+    // Server edition: only businesses with an active trial or plan send
+    if (require('../edition').isServer() && !(await require('../entitlements').canPublish(item.workspace_id))) continue;
 
     // Check daily cap for this campaign
     const [todayCount] = await knex('sellbird_outbox')

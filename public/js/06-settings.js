@@ -672,6 +672,7 @@ async function loadAdminUsers() {
 async function adminCreateUser() {
   const email    = document.getElementById('new-user-email')?.value.trim();
   const password = document.getElementById('new-user-password')?.value;
+  if (tab === 'businesses') loadAdminBusinesses();
   const name     = document.getElementById('new-user-name')?.value.trim();
   const role     = document.getElementById('new-user-role')?.value;
   if (!email || !password) return toast('Email and password are required', 'warning');
@@ -679,6 +680,9 @@ async function adminCreateUser() {
     await api('POST', '/admin/users/create', { email, password, name, role });
     toast(`✅ User created: ${email}`, 'success');
     document.getElementById('new-user-email').value    = '';
+  // Server edition: the Businesses tab (plans per business)
+  const bizTab = document.getElementById('admin-tab-businesses');
+  if (bizTab) bizTab.hidden = !State.server;
     document.getElementById('new-user-password').value = '';
     document.getElementById('new-user-name').value     = '';
     loadAdminUsers(); loadAdminDashboard();
@@ -1021,3 +1025,42 @@ function selectModel(model, type) {
 
 // Show/hide video model bar when switching media tabs
 const _origSwitchMediaTab = window.switchMediaTab;
+
+// ── Server edition: businesses and their plans (Radixile admins) ────────────
+async function loadAdminBusinesses() {
+  const box = document.getElementById('admin-businesses');
+  if (!box) return;
+  box.innerHTML = '<span class="spinner"></span>';
+  try {
+    const { organizations, plans } = await api('GET', '/admin/organizations');
+    if (!organizations.length) { box.innerHTML = '<div class="form-hint">No businesses yet.</div>'; return; }
+    const day = (ts) => ts ? new Date(ts * 1000).toISOString().slice(0, 10) : '';
+    const n = (v) => (v === -1 || v === undefined ? '∞' : v);
+    box.innerHTML = `
+      <div class="form-hint" style="margin-bottom:10px">Set a business’s plan until online payment does it. Changes apply straight away.</div>
+      <div style="overflow-x:auto"><table class="analytics-table"><thead><tr><th>Business</th><th>Now</th><th>Plan</th><th>Status</th><th>Paid until</th><th>Trial ends</th><th>Use</th><th></th></tr></thead><tbody>
+      ${organizations.map(o => `<tr>
+        <td><b>${escapeHtml(o.name)}</b><div class="form-hint">${escapeHtml(o.owner_email || '')}</div></td>
+        <td><span class="badge badge-${o.can_publish ? 'green' : 'red'}">${o.can_publish ? (o.plan === 'trial' ? `trial · ${o.trial_days_left}d` : 'active') : o.state}</span></td>
+        <td><select class="form-select" id="biz-plan-${o.id}">${plans.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === o.plan ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}</select></td>
+        <td><select class="form-select" id="biz-status-${o.id}">${['', 'active', 'past_due', 'cancelled', 'suspended'].map(st => `<option value="${st}" ${st === (o.plan_status || '') ? 'selected' : ''}>${st || '—'}</option>`).join('')}</select></td>
+        <td><input type="date" class="form-input" id="biz-paid-${o.id}" value="${day(o.paid_until)}" /></td>
+        <td><input type="date" class="form-input" id="biz-trial-${o.id}" value="${day(o.trial_ends_at)}" /></td>
+        <td class="form-hint">${n(o.usage.workspaces)}/${n(o.limits.workspaces)} ws · ${n(o.usage.users)}/${n(o.limits.users)} people</td>
+        <td><button class="btn btn-primary btn-sm" onclick="saveBusinessPlan(${o.id}, this)">Save</button></td>
+      </tr>`).join('')}
+      </tbody></table></div>`;
+  } catch (err) { box.innerHTML = `<div class="state-error">${escapeHtml(err.message)}</div>`; }
+}
+
+async function saveBusinessPlan(id, btn) {
+  btn.disabled = true;
+  try {
+    const v = (k) => document.getElementById(`biz-${k}-${id}`).value;
+    const r = await api('PATCH', `/admin/organizations/${id}/plan`, {
+      plan: v('plan'), plan_status: v('status') || null, paid_until: v('paid') || null, trial_ends_at: v('trial') || null,
+    });
+    toast(r.status.can_publish ? 'Saved. The business can publish.' : `Saved. ${r.status.message || 'Publishing is stopped for this business.'}`, r.status.can_publish ? 'success' : 'warning', 7000);
+    loadAdminBusinesses();
+  } catch (err) { toast(err.message, 'error'); btn.disabled = false; }
+}

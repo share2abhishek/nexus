@@ -16,6 +16,16 @@ function fail(res, err) {
 }
 
 router.get('/', async (req, res) => {
+  // Server edition: the signed-in person's business plan, in the same shape
+  if (require('../services/edition').isServer()) {
+    const b = req.session?.userId ? await require('../services/accounts').businessFor(knex, req.session.userId) : null;
+    if (!b) return res.json({ can_publish: false, state: 'unlicensed', message: 'No business yet.', limits: {} });
+    const ent = require('../services/entitlements');
+    const s = await ent.forOrg(b.id);
+    const usage = {};
+    for (const k of Object.keys(s.limits || {})) usage[k] = await ent.usage(b.id, k);
+    return res.json({ ...s, server: true, business: b.name, business_role: b.role, usage });
+  }
   res.json(license.status());
 });
 

@@ -104,7 +104,7 @@ module.exports = (knex, requirePermission) => {
         failed,
         reply_rate: stats.sent_outreach ? Math.round((stats.total_replies / stats.sent_outreach) * 1000) / 10 : 0,
         paused: await isPaused(knex, req.workspaceId),
-        licensed: (() => { try { return !!require('../services/license').status().can_publish; } catch { return false; } })(),
+        licensed: await require('../services/entitlements').canPublish(req.workspaceId),
         // Emails always go from the address in Settings → Email sending
         sender: smtp ? { email: smtp.from, name: smtp.fromName || '' } : null,
       });
@@ -572,7 +572,7 @@ module.exports = (knex, requirePermission) => {
   router.post('/heartbeat/run', requirePermission('content.create'), async (req, res) => {
     try {
       let licensed = false;
-      try { licensed = !!require('../services/license').status().can_publish; } catch {}
+      try { licensed = await require('../services/entitlements').canPublish(req.workspaceId); } catch {}
       if (!licensed) return res.status(402).json({ error: 'Sending needs an active licence. Go to Settings → Licence to activate.', code: 'LICENSE_REQUIRED' });
       // Scoped to req.workspaceId for multi-tenant isolation
       const result = await runHeartbeat(knex, { workspaceId: req.workspaceId, maxBatch: 20 });

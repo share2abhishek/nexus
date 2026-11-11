@@ -149,7 +149,7 @@ async function mayAutoSchedule(db, link) {
     .catch(() => null);
   const { can } = require('./rbac');
   let licensed = false;
-  try { licensed = !!require('./license').status().can_publish; } catch {}
+  try { licensed = await require('./entitlements').canPublish(link.workspace_id); } catch {}
   return !!m && can(m.role, 'content.schedule') && can(m.role, 'content.approve') && licensed;
 }
 

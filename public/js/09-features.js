@@ -321,6 +321,7 @@ function renderLicensePanel(s) {
   if (typeof updateSettingsNavStatus === 'function') setTimeout(updateSettingsNavStatus);
   const box = document.getElementById('license-panel');
   if (!box) return;
+  if (s.server) return renderPlanPanel(box, s);
   const isAdmin = State.user?.role === 'admin';
   const el = (tag, attrs = {}, ...kids) => {
     const e = document.createElement(tag);
@@ -513,4 +514,38 @@ async function licenseRefresh() {
     renderLicenseBanner(r);
     renderLicensePanel(r);
   } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── Server edition: the business's plan (no licence keys) ────────────────────
+function renderPlanPanel(box, s) {
+  // The tab is about the plan here
+  const nav = document.querySelector('.settings-nav-item[data-tab="license"]');
+  if (nav) {
+    nav.querySelector('.settings-nav-title').textContent = 'Plan';
+    nav.querySelector('.settings-nav-sub').textContent = s.plan === 'trial' ? 'Free trial' : (s.plan_name || 'Your plan');
+  }
+  const panel = document.getElementById('settings-panel-license');
+  if (panel) {
+    panel.querySelector('.panel-title').textContent = 'Plan';
+    panel.querySelector('.panel-desc').textContent = 'What your business’s plan includes. Writing and planning always work; publishing and automation need an active trial or plan.';
+  }
+  const n = (v) => (v === -1 || v === undefined ? 'unlimited' : v);
+  const label = { workspaces: 'Brand/client workspaces', users: 'Team members', seo_sites: 'SEO autopilot websites' };
+  const state = s.can_publish
+    ? (s.plan === 'trial' ? `✅ Free trial · ${s.trial_days_left} day${s.trial_days_left === 1 ? '' : 's'} left` : '✅ Active')
+    : (s.state === 'invalid' ? '🔴 Paused' : '🔴 Ended');
+  const rows = Object.keys(s.limits || {}).map((k) => {
+    const used = s.usage?.[k] ?? 0;
+    const lim = s.limits[k];
+    const full = lim !== -1 && used >= lim;
+    return `<div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">${escapeHtml(label[k] || k)}</div></div>
+      <div style="font-size:13px;color:${full ? '#b45309' : 'var(--text-secondary)'}">${used} of ${n(lim)}${full ? ' · full' : ''}</div></div>`;
+  }).join('');
+  box.innerHTML = `
+    ${s.message ? `<div style="padding:10px 12px;border-radius:8px;background:var(--glass);margin-bottom:12px;font-size:13px">${escapeHtml(s.message)}</div>` : ''}
+    <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Business</div></div><div style="font-size:13px;color:var(--text-secondary)">${escapeHtml(s.business || '')}</div></div>
+    <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Plan</div></div><div style="font-size:13px;color:var(--text-secondary)">${escapeHtml(s.plan_name || s.plan || '')}</div></div>
+    <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Status</div></div><div style="font-size:13px;color:var(--text-secondary)">${state}</div></div>
+    ${rows}
+    <p class="form-hint" style="margin-top:12px">To choose or change a plan, contact Radixile for now. Paying online here is coming soon.</p>`;
 }
