@@ -642,6 +642,49 @@
                     <option value="story">Story (shown for 24 hours)</option>
                   </select>
                 </div>
+                <div id="compose-gbp-options" class="compose-gbp" style="display:none;margin-bottom:12px" oninput="updateComposeCharCount()" onchange="updateComposeCharCount()">
+                  <label class="form-label" for="gbp-type">Google Business: post as</label>
+                  <select class="form-select" id="gbp-type">
+                    <option value="update">Update (news, photos, what’s new)</option>
+                    <option value="offer">Offer (discount or deal, with dates)</option>
+                    <option value="event">Event (with dates and times)</option>
+                  </select>
+                  <div class="gbp-dated" style="display:none">
+                    <label class="form-label" for="gbp-title" style="margin-top:10px">Title <span class="form-hint" style="display:inline">(up to 58 characters)</span></label>
+                    <input type="text" class="form-input" id="gbp-title" maxlength="58" placeholder="e.g. Diwali sweets: 20% off" />
+                    <div class="gbp-row">
+                      <div><label class="form-label" for="gbp-start-date">Starts</label><input type="date" class="form-input" id="gbp-start-date" /></div>
+                      <div class="gbp-event-only"><label class="form-label" for="gbp-start-time">at <span class="form-hint" style="display:inline">(optional)</span></label><input type="time" class="form-input" id="gbp-start-time" /></div>
+                      <div><label class="form-label" for="gbp-end-date">Ends</label><input type="date" class="form-input" id="gbp-end-date" /></div>
+                      <div class="gbp-event-only"><label class="form-label" for="gbp-end-time">at</label><input type="time" class="form-input" id="gbp-end-time" /></div>
+                    </div>
+                  </div>
+                  <div class="gbp-offer-only" style="display:none">
+                    <div class="gbp-row">
+                      <div><label class="form-label" for="gbp-coupon">Coupon code <span class="form-hint" style="display:inline">(optional)</span></label><input type="text" class="form-input" id="gbp-coupon" maxlength="58" placeholder="e.g. DIWALI20" /></div>
+                      <div><label class="form-label" for="gbp-redeem-url">Link to use the offer <span class="form-hint" style="display:inline">(optional)</span></label><input type="url" class="form-input" id="gbp-redeem-url" placeholder="https://…" /></div>
+                    </div>
+                    <label class="form-label" for="gbp-terms" style="margin-top:8px">Terms <span class="form-hint" style="display:inline">(optional)</span></label>
+                    <input type="text" class="form-input" id="gbp-terms" maxlength="5000" placeholder="e.g. Not valid with other offers" />
+                  </div>
+                  <div class="gbp-button-wrap">
+                    <div class="gbp-row" style="margin-top:10px">
+                      <div><label class="form-label" for="gbp-button">Button</label>
+                        <select class="form-select" id="gbp-button">
+                          <option value="NONE">No button</option>
+                          <option value="BOOK">Book</option>
+                          <option value="ORDER">Order online</option>
+                          <option value="SHOP">Buy</option>
+                          <option value="LEARN_MORE">Learn more</option>
+                          <option value="SIGN_UP">Sign up</option>
+                          <option value="CALL">Call now</option>
+                        </select></div>
+                      <div class="gbp-button-link" style="display:none"><label class="form-label" for="gbp-button-url">Button link</label><input type="url" class="form-input" id="gbp-button-url" placeholder="https://…" /></div>
+                    </div>
+                    <div class="form-hint gbp-call-hint" style="display:none">“Call now” uses the phone number on your Google Business Profile.</div>
+                  </div>
+                </div>
+                <div id="compose-first-comment-wrap">
                 <label class="form-label" for="compose-first-comment">First comment (Instagram and Facebook, optional)</label>
                 <textarea class="form-textarea" id="compose-first-comment" maxlength="2200" style="min-height:60px" placeholder="e.g. hashtags or “Order on WhatsApp: …”" oninput="updateComposeCharCount()"></textarea>
                 <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
@@ -658,6 +701,7 @@
                   </select>
                 </div>
                 <div class="form-hint" style="margin-top:4px">A short wait looks more natural and gives Instagram time to finish the post. Delayed comments are added while Social-Nexus is running. Not for Instagram Stories.</div>
+                </div>
               </div>
               <div class="form-group">
                 <button type="button" class="btn btn-secondary btn-sm" onclick="shareToWhatsApp()" title="WhatsApp has no way for apps to post to Channels or Status: this copies the text and opens WhatsApp">💬 Copy for WhatsApp (Channel or Status)</button>

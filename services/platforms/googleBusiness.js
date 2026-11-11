@@ -57,6 +57,38 @@ async function listLocations(token) {
   return out;
 }
 
+// Google's post body for an update, offer or event (options.gbp, checked by postOptions)
+function localPostBody(content, gbp, photoUrl) {
+  const date = (s) => { const [year, month, day] = s.split('-').map(Number); return { year, month, day }; };
+  const time = (s) => { const [hours, minutes] = s.split(':').map(Number); return { hours, minutes, seconds: 0, nanos: 0 }; };
+  const type = gbp?.type || 'update';
+  const body = {
+    languageCode: 'en',
+    summary: content.substring(0, 1500),
+    topicType: type === 'offer' ? 'OFFER' : type === 'event' ? 'EVENT' : 'STANDARD',
+    ...(photoUrl && { media: [{ mediaFormat: 'PHOTO', sourceUrl: photoUrl }] }),
+  };
+  if (type === 'offer' || type === 'event') {
+    body.event = {
+      title: gbp.title,
+      schedule: {
+        startDate: date(gbp.start_date), endDate: date(gbp.end_date),
+        ...(gbp.start_time && { startTime: time(gbp.start_time), endTime: time(gbp.end_time) }),
+      },
+    };
+  }
+  if (type === 'offer') {
+    const offer = {};
+    if (gbp.coupon) offer.couponCode = gbp.coupon;
+    if (gbp.redeem_url) offer.redeemOnlineUrl = gbp.redeem_url;
+    if (gbp.terms) offer.termsConditions = gbp.terms;
+    if (Object.keys(offer).length) body.offer = offer;
+  } else if (gbp?.button) {
+    body.callToAction = { actionType: gbp.button, ...(gbp.button !== 'CALL' && { url: gbp.button_url }) };
+  }
+  return body;
+}
+
 async function postToGoogleBusiness(token, accountName, content, imageRef = null, { workspaceId = null, options = {}, location = null } = {}) {
   const items = mediaList(imageRef, options, workspaceId);
   const media = items[0] || null;
@@ -82,12 +114,9 @@ async function postToGoogleBusiness(token, accountName, content, imageRef = null
 
   let res;
   try {
-    res = await axios.post(`https://mybusiness.googleapis.com/v4/${target}/localPosts`, {
-      languageCode: 'en',
-      summary: content.substring(0, 1500),
-      topicType: 'STANDARD',
-      ...(url && { media: [{ mediaFormat: 'PHOTO', sourceUrl: url }] }),
-    }, { headers: { ...auth.headers, 'Content-Type': 'application/json' } });
+    res = await axios.post(`https://mybusiness.googleapis.com/v4/${target}/localPosts`,
+      localPostBody(content, options.gbp, url),
+      { headers: { ...auth.headers, 'Content-Type': 'application/json' } });
   } catch (err) { throw googleError(err); }
   return {
     success: true, id: res.data.name, platform: 'google_business',
@@ -96,4 +125,4 @@ async function postToGoogleBusiness(token, accountName, content, imageRef = null
   };
 }
 
-module.exports = { postToGoogleBusiness, listLocations, googleError };
+module.exports = { postToGoogleBusiness, listLocations, googleError, localPostBody };

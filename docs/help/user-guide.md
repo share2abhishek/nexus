@@ -376,6 +376,13 @@ If Facebook's **Connect** keeps failing, the Facebook card also offers **🔑 Pa
 
 **👁 Preview:** the right side shows the post as it will look on each chosen platform (picture, text with your signature, where a long text gets cut) with the first comment underneath.
 
+**Google Business: update, offer or event.** When **Google Biz** is ticked, choose **Google Business: post as**:
+- **Update:** news or photos, optionally with a **button** (Book, Order online, Buy, Learn more, Sign up, or Call now, which uses the phone number on your profile). Buttons other than Call now need a link starting with https://.
+- **Offer:** a title (up to 58 characters), start and end dates, and optionally a coupon code, a link to use the offer, and terms. Google shows offers with their dates and code; offers have no button.
+- **Event:** a title, start and end dates, optional start and end times (leave both empty for all day), and an optional button.
+
+The preview's **Google Biz** tab shows how it will look on Search and Maps. Google posts take one photo and no video. Missing titles, dates or links are pointed out before you save.
+
 **First comment** (Instagram and Facebook): often used for hashtags or "Order on WhatsApp…". Under **Add it**, choose *right after the post goes out* or 1, 2, 5, 10, 15, 30 minutes or 1 hour after. A short wait looks more natural and gives Instagram time to finish the post; delayed comments are added while Social-Nexus is running. Stories can't have comments. If a comment can't be added you're told why: most often Instagram wasn't given permission to add comments, so click **Connect** on the Instagram card in Settings and allow everything it asks. The Calendar shows for each post whether the first comment was added, is waiting, or why not.
 
 **← Back to editing** returns to the text; saving again updates the same draft. Without publish permission in a workspace (e.g. as a Creator on a client's workspace) you'll see only **Send for review** and **Keep as draft**.

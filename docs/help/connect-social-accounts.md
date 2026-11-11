@@ -244,6 +244,7 @@ When you connect, Google may warn **"Google hasn't verified this app"**. That's 
 - In **Testing** mode Google ends the login after **7 days**, so you'll need to click **Disconnect → Connect** about once a week. Publishing the app "In production" avoids this but needs Google's app verification.
 - **Which location:** Social-Nexus looks through every account this Google login manages. With one location, posts go there. With several, the card says **Choose which location to post to**: click **Choose location** and pick one (you can change it any time with **Change location**). The card then shows **Posting to …**.
 - Keep posts under **1,500 characters** (longer text is cut off, and you're told).
+- **Post types:** in Create post choose **Update**, **Offer** (dates, coupon code, link, terms) or **Event** (dates and times), with an optional button such as Book, Order online or Call now. One photo per post; Google doesn't take videos through its API.
 
 ### Common Google errors
 | You see | What to do |

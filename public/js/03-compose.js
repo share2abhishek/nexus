@@ -20,8 +20,13 @@ function composeWarnings() {
   const opts = document.getElementById('compose-post-options');
   if (opts) {
     const sel = getSelectedPlatforms('compose-platforms');
-    opts.style.display = sel.includes('instagram') || sel.includes('facebook') ? '' : 'none';
+    opts.style.display = sel.includes('instagram') || sel.includes('facebook') || sel.includes('google_business') ? '' : 'none';
     document.getElementById('compose-ig-options').style.display = sel.includes('instagram') ? '' : 'none';
+    document.getElementById('compose-gbp-options').style.display = sel.includes('google_business') ? '' : 'none';
+    // The first comment is only for Facebook and Instagram
+    const fcWrap = document.getElementById('compose-first-comment-wrap');
+    if (fcWrap) fcWrap.style.display = sel.includes('instagram') || sel.includes('facebook') ? '' : 'none';
+    gbpShowFields();
   }
   const cloudWrap = document.getElementById('compose-cloud-wrap');
   if (cloudWrap) {
@@ -47,6 +52,19 @@ function composeWarnings() {
     const igFormat = document.getElementById('compose-ig-format')?.value || 'feed';
     if (p === 'instagram' && igFormat === 'reel' && !composeMediaRefs().some(r => /\.(mp4|mov)(\?|$)/i.test(r) || State.mediaKinds?.[r] === 'video')) warnings.push('An Instagram Reel needs a video.');
     if (isVideo && PLATFORM_NO_VIDEO.includes(p)) warnings.push(`${label} can’t take videos from Social-Nexus yet — use a photo, or post the video from the ${label} app.`);
+  }
+  // Google Business offer / event: what's still missing (the server checks too)
+  if (getSelectedPlatforms('compose-platforms').includes('google_business')) {
+    const g = gbpFields() || { type: 'update' };
+    if (g.type !== 'update') {
+      const kind = g.type === 'offer' ? 'offer' : 'event';
+      if (!g.title) warnings.push(`Google ${kind}: add a title.`);
+      if (!g.start_date || !g.end_date) warnings.push(`Google ${kind}: pick the start and end dates.`);
+      else if (g.end_date < g.start_date) warnings.push(`Google ${kind}: it ends before it starts.`);
+      if (g.type === 'event' && (!!g.start_time !== !!g.end_time)) warnings.push('Google event: give both times, or neither (all day).');
+    }
+    if (g.button && g.button !== 'CALL' && !/^https?:\/\//i.test(g.button_url || '')) warnings.push('Google button: add a link starting with https://');
+    if (g.redeem_url && !/^https?:\/\//i.test(g.redeem_url)) warnings.push('Google offer: the link must start with https://');
   }
   // First comment: where it can't be added
   const firstComment = (document.getElementById('compose-first-comment')?.value || '').trim();
@@ -155,6 +173,7 @@ function composeFields() {
     if (delay) opts.first_comment_delay = delay;
   }
   if (document.getElementById('compose-cloud')?.checked) opts.cloud = true;
+  if (platforms.includes('google_business')) { const g = gbpFields(); if (g) opts.gbp = g; }
   return { content, platforms, image_url, options: Object.keys(opts).length ? opts : null };
 }
 
@@ -185,6 +204,7 @@ function resetCompose() {
   if (document.getElementById('compose-ig-format')) document.getElementById('compose-ig-format').value = 'feed';
   if (document.getElementById('compose-first-comment')) document.getElementById('compose-first-comment').value = '';
   if (document.getElementById('compose-first-comment-delay')) document.getElementById('compose-first-comment-delay').value = '0';
+  gbpFill(null);
   if (document.getElementById('compose-cloud')) document.getElementById('compose-cloud').checked = false;
   document.getElementById('compose-content').value = '';
   document.getElementById('compose-image').value = '';
@@ -265,6 +285,7 @@ function startEditCompose(item) {
   document.getElementById('compose-ig-format').value = item.options?.ig_format || 'feed';
   document.getElementById('compose-first-comment').value = item.options?.first_comment || '';
   if (document.getElementById('compose-first-comment-delay')) document.getElementById('compose-first-comment-delay').value = String(item.options?.first_comment_delay || 0);
+  gbpFill(item.options?.gbp || null);
   document.getElementById('compose-cloud').checked = !!item.options?.cloud;
   const platforms = Array.isArray(item.platforms) ? item.platforms : [];
   document.querySelectorAll('#compose-platforms .platform-toggle').forEach(el => {
@@ -836,6 +857,15 @@ function renderComposePostPreview() {
   const textHtml = isStory ? '<div class="pp-note">Stories show no text (put words on the picture).</div>'
     : shown ? `<div class="pp-text">${escapeHtml(shown)}${shown.length < content.length ? '<span class="pp-cut">… (cut here)</span>' : ''}</div>`
     : '<div class="pp-note">Your text will appear here.</div>';
+  // Google: its own card (offer / event / button); one photo, no video
+  if (p === 'google_business') {
+    const gName = status.profile?.location_title || name;
+    const gMedia = firstIsVideo ? '<div class="pp-media pp-empty">Google Business posts take photos, not videos</div>' : (first ? `<div class="pp-media"><img src="${escapeHtml(mediaSrc(first))}" alt=""></div>` : '');
+    box.innerHTML = gbpPreviewHtml(gName, content, gMedia)
+      + (media.length > 1 ? '<div class="form-hint" style="margin-top:8px">Google shows only the first photo.</div>' : '');
+    return;
+  }
+
   // Instagram shows the picture first, then the caption; Facebook the text first
   const body = p === 'instagram' ? mediaHtml + textHtml : textHtml + mediaHtml;
 
@@ -857,4 +887,98 @@ function renderComposePostPreview() {
       ${commentHtml}
     </div>
     ${platforms.length ? '' : '<div class="form-hint" style="margin-top:8px">Pick where to post to see it for that platform.</div>'}`;
+}
+
+// ── Google Business: update, offer or event ─────────────────────────────────
+const GBP_BUTTON_LABELS = { BOOK: 'Book', ORDER: 'Order online', SHOP: 'Buy', LEARN_MORE: 'Learn more', SIGN_UP: 'Sign up', CALL: 'Call now' };
+const gbpVal = (id) => (document.getElementById(id)?.value || '').trim();
+
+// Show only the fields for the chosen type
+function gbpShowFields() {
+  const wrap = document.getElementById('compose-gbp-options');
+  if (!wrap) return;
+  const type = gbpVal('gbp-type') || 'update';
+  wrap.querySelector('.gbp-dated').style.display = type === 'update' ? 'none' : '';
+  wrap.querySelectorAll('.gbp-event-only').forEach(el => { el.style.display = type === 'event' ? '' : 'none'; });
+  wrap.querySelector('.gbp-offer-only').style.display = type === 'offer' ? '' : 'none';
+  wrap.querySelector('.gbp-button-wrap').style.display = type === 'offer' ? 'none' : ''; // offers use their own link
+  const btn = gbpVal('gbp-button');
+  wrap.querySelector('.gbp-button-link').style.display = btn && btn !== 'NONE' && btn !== 'CALL' ? '' : 'none';
+  wrap.querySelector('.gbp-call-hint').style.display = btn === 'CALL' ? '' : 'none';
+}
+
+// What's filled in, in the shape the server checks (null = a plain update)
+function gbpFields() {
+  if (!document.getElementById('gbp-type')) return null;
+  const type = gbpVal('gbp-type') || 'update';
+  const g = { type };
+  if (type !== 'update') {
+    g.title = gbpVal('gbp-title');
+    g.start_date = gbpVal('gbp-start-date');
+    g.end_date = gbpVal('gbp-end-date');
+  }
+  if (type === 'event' && (gbpVal('gbp-start-time') || gbpVal('gbp-end-time'))) {
+    g.start_time = gbpVal('gbp-start-time');
+    g.end_time = gbpVal('gbp-end-time');
+  }
+  if (type === 'offer') {
+    if (gbpVal('gbp-coupon')) g.coupon = gbpVal('gbp-coupon');
+    if (gbpVal('gbp-redeem-url')) g.redeem_url = gbpVal('gbp-redeem-url');
+    if (gbpVal('gbp-terms')) g.terms = gbpVal('gbp-terms');
+  } else {
+    const btn = gbpVal('gbp-button');
+    if (btn && btn !== 'NONE') {
+      g.button = btn;
+      if (btn !== 'CALL') g.button_url = gbpVal('gbp-button-url');
+    }
+  }
+  return type === 'update' && !g.button ? null : g;
+}
+
+function gbpFill(g) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+  set('gbp-type', g?.type || 'update');
+  set('gbp-title', g?.title); set('gbp-start-date', g?.start_date); set('gbp-end-date', g?.end_date);
+  set('gbp-start-time', g?.start_time); set('gbp-end-time', g?.end_time);
+  set('gbp-coupon', g?.coupon); set('gbp-redeem-url', g?.redeem_url); set('gbp-terms', g?.terms);
+  set('gbp-button', g?.button || 'NONE'); set('gbp-button-url', g?.button_url);
+  gbpShowFields();
+}
+
+// "12 Nov – 15 Nov 2026" / "20 Nov 2026, 10:00 – 17:30"
+function gbpDates(g) {
+  const d = (s) => new Date(`${s}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (!g.start_date || !g.end_date) return 'Pick the dates';
+  const days = g.start_date === g.end_date ? d(g.start_date) : `${d(g.start_date)} – ${d(g.end_date)}`;
+  return g.start_time && g.end_time ? `${days}, ${g.start_time} – ${g.end_time}` : days;
+}
+
+// The Google Business card in the preview
+function gbpPreviewHtml(name, content, mediaHtml) {
+  const g = gbpFields() || { type: 'update' };
+  const limit = PLATFORM_CHAR_LIMITS.google_business || 1500;
+  const text = content.length > limit ? content.slice(0, limit) : content;
+  const dated = g.type !== 'update' ? `
+    <div class="pp-gbp-head">
+      <div class="pp-gbp-kind">${g.type === 'offer' ? '🏷️ Offer' : '📅 Event'}</div>
+      <div class="pp-gbp-title">${escapeHtml(g.title || (g.type === 'offer' ? 'Offer title' : 'Event title'))}</div>
+      <div class="pp-gbp-dates">${escapeHtml(gbpDates(g))}</div>
+    </div>` : '';
+  const offer = g.type === 'offer' && (g.coupon || g.terms || g.redeem_url) ? `
+    <div class="pp-gbp-offer">
+      ${g.coupon ? `<div class="pp-gbp-coupon">Code: <b>${escapeHtml(g.coupon)}</b></div>` : ''}
+      ${g.redeem_url ? '<div class="pp-gbp-button">Redeem online</div>' : ''}
+      ${g.terms ? `<div class="pp-note" style="padding:4px 0 0">${escapeHtml(g.terms)}</div>` : ''}
+    </div>` : '';
+  const button = g.button ? `<div class="pp-gbp-button">${escapeHtml(GBP_BUTTON_LABELS[g.button] || g.button)}</div>` : '';
+  return `
+    <div class="pp-card pp-google_business">
+      <div class="pp-head"><div class="pp-avatar">${escapeHtml(name.charAt(0).toUpperCase())}</div>
+        <div><div class="pp-name">${escapeHtml(name)}</div><div class="pp-sub">Google Business Profile · on Search and Maps</div></div></div>
+      ${mediaHtml}
+      ${dated}
+      ${text ? `<div class="pp-text">${escapeHtml(text)}${text.length < content.length ? '<span class="pp-cut">… (cut here)</span>' : ''}</div>` : '<div class="pp-note">Your text will appear here.</div>'}
+      ${offer}
+      ${button ? `<div style="padding:0 12px 12px">${button}</div>` : ''}
+    </div>`;
 }

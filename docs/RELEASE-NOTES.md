@@ -42,6 +42,7 @@ Newest first. Paste the section for a version into the GitHub Release
 - **Write title & description** now reads your page when you give its address. **Check my text** measures words, sentence length, reading ease and phrase use; AI only adds suggestions. The made-up "SEO score" is gone.
 - **My search phrases** no longer shows a "Position" column that was never filled in; **Search on Google** opens the search in your browser.
 - **App store listing** writes the fields each store really has (App Store promotional text and keywords; Google Play has no keyword box), checks every length limit, and leaves out keywords Apple already counts from the name and subtitle.
+- **Google Business post types:** post an **Update**, an **Offer** (title, dates, coupon code, link, terms) or an **Event** (dates and times), with an optional button (Book, Order online, Buy, Learn more, Sign up, Call now). The preview has a Google tab showing how it looks on Search and Maps.
 - **Google Business** finds your locations in every account your Google login manages (before, it only looked at the first account, often a personal one with none), lets you **choose the location** to post to, and explains Google's errors (API access not approved yet, APIs turned off).
 
 ### Fixed
