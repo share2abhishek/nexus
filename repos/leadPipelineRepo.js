@@ -46,10 +46,11 @@ module.exports = (knex) => ({
 
     if (data.page_id !== undefined) patch.page_id = data.page_id;
     if (data.verify_token !== undefined) patch.verify_token = data.verify_token;
-    if (data.app_secret !== undefined) patch.app_secret = data.app_secret;
+    const masked = (v) => typeof v === 'string' && v.includes('••');
+    if (data.app_secret !== undefined && !masked(data.app_secret)) patch.app_secret = data.app_secret;
     if (data.n8n_webhook_url !== undefined) patch.n8n_webhook_url = data.n8n_webhook_url;
     if (data.chatwoot_url !== undefined) patch.chatwoot_url = data.chatwoot_url;
-    if (data.chatwoot_api_token !== undefined) patch.chatwoot_api_token = data.chatwoot_api_token;
+    if (data.chatwoot_api_token !== undefined && !masked(data.chatwoot_api_token)) patch.chatwoot_api_token = data.chatwoot_api_token;
     if (data.chatwoot_account_id !== undefined) patch.chatwoot_account_id = data.chatwoot_account_id ? Number(data.chatwoot_account_id) : null;
     if (data.chatwoot_inbox_id !== undefined) patch.chatwoot_inbox_id = data.chatwoot_inbox_id ? Number(data.chatwoot_inbox_id) : null;
     if (data.auto_qualify_ai !== undefined) patch.auto_qualify_ai = !!data.auto_qualify_ai ? 1 : 0;
@@ -57,10 +58,10 @@ module.exports = (knex) => ({
     if (data.whatsapp_phone_number_id !== undefined) patch.whatsapp_phone_number_id = data.whatsapp_phone_number_id;
     if (data.whatsapp_business_account_id !== undefined) patch.whatsapp_business_account_id = data.whatsapp_business_account_id;
     if (data.whatsapp_test_recipient !== undefined) patch.whatsapp_test_recipient = data.whatsapp_test_recipient;
-    if (data.whatsapp_access_token !== undefined) patch.whatsapp_access_token = data.whatsapp_access_token;
+    if (data.whatsapp_access_token !== undefined && !masked(data.whatsapp_access_token)) patch.whatsapp_access_token = data.whatsapp_access_token;
     if (data.delivery_engine !== undefined) patch.delivery_engine = data.delivery_engine;
     if (data.evolution_api_url !== undefined) patch.evolution_api_url = data.evolution_api_url;
-    if (data.evolution_api_key !== undefined) patch.evolution_api_key = data.evolution_api_key;
+    if (data.evolution_api_key !== undefined && !masked(data.evolution_api_key)) patch.evolution_api_key = data.evolution_api_key;
     if (data.evolution_instance_name !== undefined) patch.evolution_instance_name = data.evolution_instance_name;
     if (data.evolution_status !== undefined) patch.evolution_status = data.evolution_status;
     if (data.meta_two_step_pin_set !== undefined) patch.meta_two_step_pin_set = !!data.meta_two_step_pin_set;
@@ -115,6 +116,7 @@ module.exports = (knex) => ({
       forwarded_to_n8n: !!data.forwarded_to_n8n ? 1 : 0,
       forwarded_to_chatwoot: !!data.forwarded_to_chatwoot ? 1 : 0,
       status: data.status || 'new',
+      ...(data.tags_json !== undefined ? { tags_json: typeof data.tags_json === 'string' ? data.tags_json : JSON.stringify(data.tags_json) } : {}),
       created_at: now,
       updated_at: now,
     }).returning('id');
@@ -331,18 +333,19 @@ module.exports = (knex) => ({
     for (const c of contacts) {
       const cleanPhone = String(c.phone_number || c.phone || '').replace(/[^0-9+]/g, '');
       if (!cleanPhone) continue;
+      if (await this.findLeadByPhone(workspaceId, cleanPhone)) continue; // already a contact
 
       const [newId] = await knex('meta_lead_events').insert({
         workspace_id: workspaceId,
-        full_name: c.name || c.full_name || 'Society Member',
+        full_name: c.name || c.full_name || 'WhatsApp contact',
         phone_number: cleanPhone,
         email: c.email || null,
         lead_score: c.lead_score || 75,
-        intent_summary: c.notes || `Imported contact for ${c.society || 'Housing Society'}`,
+        intent_summary: c.notes || 'Imported from a spreadsheet',
         suggested_reply: c.suggested_reply || `Hi ${c.name || 'there'}, thanks for reaching out!`,
         channel_source: c.channel_source || 'csv_upload',
         status: 'new',
-        tags_json: JSON.stringify(c.tags || ['audience_upload', 'rwa_prospect']),
+        tags_json: JSON.stringify(c.tags || ['imported']),
         created_at: now,
         updated_at: now,
       }).returning('id');

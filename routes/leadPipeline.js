@@ -16,6 +16,19 @@ const { DEFAULT_NODES, getWorkflowNodes, executeWorkflowPipeline } = require('..
 const tunnelManager = require('../services/leadPipeline/tunnelManager');
 const chatbot = require('../services/leadPipeline/chatbot');
 const { handleInboundWhatsApp } = require('../services/leadPipeline/inbound');
+const broadcast = require('../services/leadPipeline/broadcast');
+
+// Secrets are never sent to the browser: anyone in the workspace (a client, an
+// analyst) can open WhatsApp setup. The screen gets "••••1234" and sends it back
+// unchanged, which means "keep the saved one".
+const SECRET_FIELDS = ['whatsapp_access_token', 'app_secret', 'evolution_api_key', 'chatwoot_api_token'];
+const maskSecret = (v) => (v ? `••••••••${String(v).slice(-4)}` : '');
+function publicConfig(config) {
+  const out = { ...config };
+  for (const k of SECRET_FIELDS) { out[`${k}_set`] = !!config[k]; out[k] = maskSecret(config[k]); }
+  return out;
+}
+const unmask = (v, saved) => (typeof v === 'string' && v.includes('••') ? saved : v);
 
 module.exports = (knex, requirePermission) => {
   const repo = leadPipelineRepoFactory(knex);
@@ -33,7 +46,7 @@ module.exports = (knex, requirePermission) => {
         .first();
 
       res.json({
-        config,
+        config: publicConfig(config),
         stats,
         tunnel: tunnelManager.getStatus(),
         facebook_page: fbAccount ? {
@@ -113,10 +126,16 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Test Chatwoot Connection ────────────────────────────────────────────────
-  router.post('/test-chatwoot', requirePermission('content.view'), async (req, res) => {
+  router.post('/test-chatwoot', requirePermission('content.edit'), async (req, res) => {
     try {
       const config = await repo.getOrCreateConfig(req.workspaceId);
-      const merged = { ...config, ...(req.body || {}) };
+      const body = req.body || {};
+      // The saved token is only ever sent to the saved Chatwoot address
+      const sameUrl = !body.chatwoot_url || body.chatwoot_url === config.chatwoot_url;
+      const token = typeof body.chatwoot_api_token === 'string' && !body.chatwoot_api_token.includes('••') && body.chatwoot_api_token
+        ? body.chatwoot_api_token : (sameUrl ? config.chatwoot_api_token : null);
+      if (!token) return res.status(400).json({ success: false, error: 'Paste the Chatwoot API token for this address.' });
+      const merged = { ...config, ...body, chatwoot_api_token: token };
       const testRes = await testChatwootConnection(merged);
       res.json(testRes);
     } catch (err) {
@@ -902,7 +921,7 @@ module.exports = (knex, requirePermission) => {
       const { api_url, api_key, instance_name } = req.body || {};
 
       const apiUrl = api_url || config.evolution_api_url || 'http://localhost:8080';
-      const apiKey = api_key || config.evolution_api_key;
+      const apiKey = unmask(api_key, config.evolution_api_key) || config.evolution_api_key;
       const instanceName = instance_name || config.evolution_instance_name || 'social-nexus';
 
       const host = req.get('host') || 'localhost:3000';
@@ -1287,6 +1306,96 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
+  // ── Broadcasts (background sending with progress) ─────────────────────────
+  // What the screen needs: engine, connection, tags with counts
+  router.get('/whatsapp/broadcasts/setup', requirePermission('content.view'), async (req, res) => {
+    try {
+      const config = await repo.getOrCreateConfig(req.workspaceId);
+      const engine = config.delivery_engine === 'evolution' ? 'evolution' : 'cloud_api';
+      const connected = engine === 'evolution' ? !!config.evolution_api_url
+        : !!((config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN) && config.whatsapp_phone_number_id);
+      const rows = await knex('meta_lead_events').where({ workspace_id: req.workspaceId }).whereNotNull('phone_number').select('tags_json');
+      const tags = {};
+      for (const r of rows) { let t = []; try { t = JSON.parse(r.tags_json || '[]'); } catch {} for (const x of (Array.isArray(t) ? t : [])) tags[x] = (tags[x] || 0) + 1; }
+      res.json({ engine, connected, contacts_with_phone: rows.length, tags: Object.entries(tags).map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count), test_recipient: config.whatsapp_test_recipient || '' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  router.post('/whatsapp/broadcasts/audience', requirePermission('content.view'), async (req, res) => {
+    try {
+      const r = await broadcast.resolveAudience(knex, req.workspaceId, req.body?.audience || {});
+      res.json({ count: r.recipients.length, skipped: r.skipped, too_many: r.too_many, sample: r.recipients.slice(0, 5).map(p => p.name || ('+' + p.phone)) });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // A spreadsheet of people (Excel or CSV): finds the name and phone columns
+  router.post('/whatsapp/broadcasts/read-file', requirePermission('content.create'), express.raw({ type: () => true, limit: '5mb' }), async (req, res) => {
+    try {
+      if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'No file was sent.' });
+      let name = String(req.get('X-File-Name') || ''); try { name = decodeURIComponent(name); } catch {}
+      const rows = require('../services/bulkImport').readRows(req.body, name);
+      if (!rows.length) return res.status(400).json({ error: 'The file is empty.' });
+      const header = rows[0].map(h => String(h || '').trim().toLowerCase());
+      const find = (names) => header.findIndex(h => names.includes(h));
+      let phoneCol = find(['phone', 'phone number', 'mobile', 'mobile number', 'whatsapp', 'whatsapp number', 'number', 'contact']);
+      let nameCol = find(['name', 'full name', 'full_name', 'customer', 'customer name', 'contact name']);
+      let body = rows.slice(1);
+      if (phoneCol < 0) {
+        // No header row: the column that looks like phone numbers
+        phoneCol = rows[0].findIndex(v => /\d{8,}/.test(String(v || '').replace(/[^0-9]/g, '')));
+        nameCol = phoneCol === 0 ? 1 : 0;
+        body = rows;
+      }
+      if (phoneCol < 0) return res.status(400).json({ error: 'Couldn’t find a phone number column. Name it “Phone”.' });
+      const contacts = body.slice(0, broadcast.MAX_RECIPIENTS)
+        .map(r => ({ name: nameCol >= 0 ? String(r[nameCol] || '').trim() : '', phone: String(r[phoneCol] || '').trim() }))
+        .filter(c => c.phone);
+      res.json({ contacts, rows: body.length });
+    } catch (err) { res.status(400).json({ error: `Couldn’t read this file: ${err.message}` }); }
+  });
+
+  // Send the message to yourself first
+  router.post('/whatsapp/broadcasts/test', requirePermission('content.create'), async (req, res) => {
+    try {
+      const config = await repo.getOrCreateConfig(req.workspaceId);
+      const to = String(req.body?.to || config.whatsapp_test_recipient || '');
+      if (!broadcast.normalizePhone(to)) return res.status(400).json({ error: 'Type your own WhatsApp number to get the test.' });
+      const r = await broadcast.resolveAudience(knex, req.workspaceId, { type: 'list', contacts: [{ name: req.user?.name || '', phone: to }] });
+      const person = r.recipients[0] || { name: '', phone: broadcast.normalizePhone(to) };
+      const engine = config.delivery_engine === 'evolution' ? 'evolution' : 'cloud_api';
+      const problem = broadcast.validateMessage(engine, req.body?.message || {});
+      if (problem) return res.status(400).json({ error: problem });
+      const msg = req.body.message;
+      const result = engine === 'evolution'
+        ? await evolutionApi.sendTextMessage({ apiUrl: config.evolution_api_url, apiKey: config.evolution_api_key, instanceName: config.evolution_instance_name || 'social-nexus', number: person.phone, text: String(msg.text).replace(/\{\{\s*name\s*\}\}/gi, 'there') })
+        : await whatsappCloud.sendWhatsAppMessage({ phoneNumberId: config.whatsapp_phone_number_id, wabaId: config.whatsapp_business_account_id, accessToken: config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN, to: person.phone, templateName: msg.template.name, languageCode: msg.template.language, templateParams: broadcast.paramsFor(msg.template.params, person) });
+      if (!result.success) return res.status(400).json({ error: result.error || 'Not sent' });
+      if (!config.whatsapp_test_recipient) await repo.updateConfig(req.workspaceId, { whatsapp_test_recipient: person.phone });
+      res.json({ success: true, to: '+' + person.phone });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  router.post('/whatsapp/broadcasts', requirePermission('content.create'), async (req, res) => {
+    try {
+      const { title, audience, message } = req.body || {};
+      res.json(await broadcast.start(knex, { workspaceId: req.workspaceId, userId: req.session?.userId, title, audience, message }));
+    } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+  });
+
+  router.get('/whatsapp/broadcasts/:id', requirePermission('content.view'), async (req, res) => {
+    try {
+      const b = await broadcast.get(knex, req.workspaceId, Number(req.params.id));
+      if (!b) return res.status(404).json({ error: 'Not found' });
+      res.json(b);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  router.post('/whatsapp/broadcasts/:id/stop', requirePermission('content.create'), async (req, res) => {
+    const b = await broadcast.get(knex, req.workspaceId, Number(req.params.id)).catch(() => null);
+    if (!b) return res.status(404).json({ error: 'Not found' });
+    res.json({ stopping: broadcast.cancel(b.id) });
+  });
+
   router.post('/whatsapp/broadcast', requirePermission('content.create'), async (req, res) => {
     try {
       const {
@@ -1455,8 +1564,9 @@ module.exports = (knex, requirePermission) => {
 
   router.post('/whatsapp/verify-connection', requirePermission('content.edit'), async (req, res) => {
     try {
-      const { phone_number_id, access_token, waba_id, test_recipient, delivery_engine } = req.body || {};
+      const { phone_number_id, waba_id, test_recipient, delivery_engine } = req.body || {};
       const config = await repo.getOrCreateConfig(req.workspaceId);
+      const access_token = unmask(req.body?.access_token, config.whatsapp_access_token);
 
       const targetToken = access_token || config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN;
       const targetPhoneId = phone_number_id || config.whatsapp_phone_number_id;

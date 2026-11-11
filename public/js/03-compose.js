@@ -28,7 +28,8 @@ function composeWarnings() {
     const sel = getSelectedPlatforms('compose-platforms');
     cloudWrap.style.display = State.cloudEnabled && sel.some(p => ['facebook', 'instagram', 'linkedin', 'pinterest'].includes(p)) ? '' : 'none';
   }
-  const content = document.getElementById('compose-content').value;
+  const typedText = document.getElementById('compose-content').value;
+  const content = typeof withSignature === 'function' && typedText.trim() ? withSignature(typedText.trim()) : typedText; // with the signature, as posted
   const mediaRef = composeMediaRefs()[0] || '';
   const hasMedia = !!mediaRef;
   const isVideo = /\.(mp4|mov)(\?|$)/i.test(mediaRef) || State.mediaKinds?.[mediaRef] === 'video';
@@ -51,7 +52,8 @@ function composeWarnings() {
 }
 
 function updateComposeCharCount() {
-  const content = document.getElementById('compose-content').value;
+  const typedText = document.getElementById('compose-content').value;
+  const content = typeof withSignature === 'function' && typedText.trim() ? withSignature(typedText.trim()) : typedText; // with the signature, as posted
   renderComposeMediaPreview();
   composeAiToolsState();
   updateCharCount('compose-char-count', content.length);
@@ -121,7 +123,8 @@ function setPostMode(mode) {
 State.composeDraftId = null; // the draft saved from this editor (re-saving updates it)
 
 function composeFields() {
-  const content = document.getElementById('compose-content').value.trim();
+  const typed = document.getElementById('compose-content').value.trim();
+  const content = typeof withSignature === 'function' ? withSignature(typed) : typed; // the chosen signature, if ticked
   const platforms = getSelectedPlatforms('compose-platforms');
   const media = composeMediaRefs();
   const image_url = media[0] || null;

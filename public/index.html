@@ -150,6 +150,10 @@
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-link"/></svg>
         <span class="nav-label">Link tracker</span>
       </a>
+      <a class="nav-item" data-page="feeds" id="nav-feeds">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-history"/></svg>
+        <span class="nav-label">Blog &amp; news feeds</span>
+      </a>
       <a class="nav-item" data-page="files" id="nav-files">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-folder-open"/></svg>
         <span class="nav-label">Files on this PC</span>
@@ -595,6 +599,7 @@
                   <span class="compose-ai-status" id="compose-ai-status" role="status" aria-live="polite"></span>
                 </div>
                 <div class="char-count" id="compose-char-count"></div>
+                <div class="px-row" id="compose-signature-row"></div>
               </div>
 
               <div class="form-group">
@@ -614,7 +619,8 @@
               </div>
 
               <div class="form-group">
-                <label class="form-label">Target Platforms</label>
+                <label class="form-label">Post to</label>
+                <div class="px-row" id="compose-sets-row"></div>
                 <div class="platform-selector" id="compose-platforms">
                   <label class="platform-toggle linkedin selected" data-platform="linkedin">🔵 LinkedIn</label>
                   <label class="platform-toggle facebook" data-platform="facebook">📘 Facebook</label>
@@ -3026,255 +3032,9 @@
 
     <!-- 📢 Screen 3: Dedicated Bulk WhatsApp Broadcast Studio -->
     <section class="page" id="page-leads-broadcast">
-      <div id="panel-lead-outbound" style="display:block">
-        <!-- Outbound Header Ribbon -->
-        <div class="card" style="padding:18px 24px;margin-bottom:20px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(17,24,39,0.85));border:1px solid rgba(34,197,94,0.3);border-radius:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
-            <div>
-              <div style="font-size:18px;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:8px">
-                <span>📢 Outbound Bulk WhatsApp Broadcast Studio</span>
-                <span class="badge" style="background:#22c55e;color:#000;font-size:10px;font-weight:800">WhatsApp</span>
-              </div>
-              <div style="font-size:12.5px;color:var(--text-muted);margin-top:4px">
-                Send bulk personalized WhatsApp messages to residential society contacts via Excel / CSV upload or manual list.
-              </div>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button class="btn btn-secondary btn-sm" id="btn-open-wa-cfg" onclick="openWhatsAppConfigModal()" style="display:flex;align-items:center;gap:6px;border-color:rgba(56,189,248,0.4)"><span>⚙️ WhatsApp API</span><span id="wa-broadcast-status-badge" class="badge" style="background:#ef4444;color:#fff;font-size:9.5px;padding:1px 5px">Token Needed</span></button>
-              <button class="btn btn-secondary btn-sm" onclick="downloadSampleWhatsAppCsv()" style="display:flex;align-items:center;gap:6px">
-                <span>📥 Download Sample CSV</span>
-              </button>
-              <button class="btn btn-secondary btn-sm" onclick="openPasteExcelModal()" style="display:flex;align-items:center;gap:6px">
-                <span>📋 Paste from Excel</span>
-              </button>
-              <button class="btn btn-primary btn-sm" onclick="openAddManualContactModal()" style="background:#22c55e;color:#000;font-weight:700;border:0;display:flex;align-items:center;gap:6px">
-                <span>➕ Add Contact</span>
-              </button>
-            </div>
-          </div>
-        </div>
+      <div id="bc-root"></div>
+    </section>
 
-        <!-- WhatsApp Token Alert Banner -->
-        <div id="outbound-token-alert-banner" style="margin-bottom:16px;padding:12px 18px;border-radius:10px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:20px" id="outbound-token-icon">⚠️</span>
-            <div>
-              <strong style="color:#f87171;font-size:13px" id="outbound-token-title">WhatsApp Cloud API Permanent Token Not Configured</strong>
-              <div style="font-size:12px;color:var(--text-muted);margin-top:2px" id="outbound-token-desc">Configure your Meta token to dispatch bulk messages via official Cloud API, or use WhatsApp Web Queue.</div>
-            </div>
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="openWhatsAppConfigModal()" id="btn-outbound-setup-token" style="background:#22c55e;color:#000;font-weight:700;border:0;flex-shrink:0">⚙️ Setup WhatsApp Token</button>
-        </div>
-
-        <!-- Outbound Main 2-Column Grid -->
-        <div style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:20px;align-items:start">
-          
-          <!-- Column 1: Contact Upload & Table -->
-          <div style="display:flex;flex-direction:column;gap:18px">
-            <!-- File Upload Dropzone -->
-            <div class="card" style="padding:22px;border:2px dashed rgba(34,197,94,0.35);background:rgba(34,197,94,0.03);border-radius:12px;text-align:center;cursor:pointer" onclick="document.getElementById('broadcast-csv-file').click()" ondragover="event.preventDefault()" ondrop="handleBroadcastFileDrop(event)">
-              <input type="file" id="broadcast-csv-file" accept=".csv,.xlsx,.xls,.tsv,.txt" style="display:none" onchange="handleBroadcastFileSelect(this.files)" />
-              <div style="font-size:36px;margin-bottom:8px">📊</div>
-              <div style="font-size:15px;font-weight:700;color:var(--text-primary)">
-                Upload Excel (.xlsx, .xls) or CSV Spreadsheet
-              </div>
-              <div style="font-size:12.5px;color:var(--text-muted);margin-top:4px">
-                Drag and drop your spreadsheet here, or <span style="color:#22c55e;font-weight:600;text-decoration:underline">browse files</span>
-              </div>
-              <div style="font-size:11px;color:var(--text-dim);margin-top:10px">
-                Auto-detects columns: <code>name</code>, <code>phone</code>, <code>society</code>, <code>role</code>, <code>units</code>
-              </div>
-            </div>
-
-            <!-- Contacts List Card -->
-            <div class="card" style="padding:18px">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                <div style="display:flex;align-items:center;gap:8px">
-                  <strong style="font-size:14px;color:var(--text-primary)">Campaign Recipients</strong>
-                  <span class="badge" style="background:var(--bg3);color:var(--text-muted);font-size:11px" id="broadcast-contacts-count">0 contacts loaded</span>
-                </div>
-                <button class="btn btn-secondary btn-sm" onclick="clearBroadcastContacts()" style="font-size:11px;color:#ef4444">
-                  🗑️ Clear All
-                </button>
-              </div>
-
-              <div class="table-wrap" style="max-height:380px;overflow-y:auto">
-                <table class="table" style="width:100%;font-size:12.5px">
-                  <thead>
-                    <tr>
-                      <th style="width:36px"><input type="checkbox" id="broadcast-select-all" checked onchange="toggleSelectAllBroadcast(this.checked)" /></th>
-                      <th>Name</th>
-                      <th>Phone</th>
-                      <th>Society / RWA</th>
-                      <th>Role</th>
-                      <th style="text-align:right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody id="broadcast-contacts-table-body">
-                    <tr>
-                      <td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted)">
-                        No contacts loaded. Upload a spreadsheet or click "Add Contact" above.
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- Column 2: Message Composer, Live WhatsApp Mockup, & Dispatch -->
-          <div style="display:flex;flex-direction:column;gap:18px">
-            
-            <!-- Message Composer Card -->
-            <div class="card" style="padding:20px">
-              <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text-primary);display:flex;align-items:center;gap:6px">
-                <span>💬</span>
-                <span>Personalized Message Composer</span>
-              </div>
-
-              <!-- Template Preset & Meta Approved Template Selector -->
-              <div class="form-group" style="margin-bottom:12px">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                  <label class="form-label" style="font-size:11.5px;margin-bottom:0">Meta Message Template &amp; Preset</label>
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="fetchMetaApprovedTemplates()" style="font-size:11px;padding:2px 8px;color:#38bdf8;border-color:rgba(56,189,248,0.3)" title="Sync live approved templates from your Meta WhatsApp Business Account">
-                    🔄 Sync Meta Templates
-                  </button>
-                </div>
-                <select id="broadcast-template-select" class="form-input form-input-sm" onchange="onBroadcastTemplateChange(this.value)">
-                  <option value="official_test">Meta’s test template (hello_world)</option>
-                  <option value="custom" selected>Write my own message</option>
-                </select>
-              </div>
-
-              <!-- Template Details (Solves #132001 Translation Error) -->
-              <div id="broadcast-template-details-row" style="display:grid;grid-template-columns:1.4fr 1fr;gap:8px;margin-bottom:12px">
-                <div class="form-group">
-                  <label class="form-label" style="font-size:10.5px;color:var(--text-muted)">Approved Template Name</label>
-                  <input type="text" id="broadcast-template-name" class="form-input form-input-sm" placeholder="e.g. hello_world or custom_template" value="" style="font-size:12px;font-family:monospace" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label" style="font-size:10.5px;color:var(--text-muted)">Language Code</label>
-                  <select id="broadcast-template-lang" class="form-input form-input-sm" style="font-size:12px">
-                    <option value="en_US" selected>en_US (English US)</option>
-                    <option value="en">en (English generic)</option>
-                    <option value="en_GB">en_GB (English UK)</option>
-                    <option value="hi">hi (Hindi)</option>
-                    <option value="mr">mr (Marathi)</option>
-                    <option value="gu">gu (Gujarati)</option>
-                    <option value="ta">ta (Tamil)</option>
-                    <option value="te">te (Telugu)</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Personalization Variable Chips -->
-              <div style="margin-bottom:10px">
-                <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Insert Personalization Tag:</div>
-                <div style="display:flex;gap:6px;flex-wrap:wrap">
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="insertBroadcastVariable('{{name}}')" style="font-size:11px;padding:2px 8px">
-                    + {{name}}
-                  </button>
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="insertBroadcastVariable('{{society}}')" style="font-size:11px;padding:2px 8px">
-                    + {{society}}
-                  </button>
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="insertBroadcastVariable('{{role}}')" style="font-size:11px;padding:2px 8px">
-                    + {{role}}
-                  </button>
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="insertBroadcastVariable('{{units}}')" style="font-size:11px;padding:2px 8px">
-                    + {{units}}
-                  </button>
-                </div>
-              </div>
-
-              <!-- Textarea -->
-              <div class="form-group" style="margin-bottom:12px">
-                <textarea id="broadcast-message-text" rows="5" class="form-input" style="font-size:13px;line-height:1.5;resize:vertical" oninput="updateBroadcastPhoneMockup()"></textarea>
-                <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text-muted);margin-top:4px">
-                  <span>Formatting: *bold*, _italics_</span>
-                  <span id="broadcast-char-count">0 chars</span>
-                </div>
-              </div>
-
-              <!-- Realistic Mobile Phone Preview -->
-              <div style="margin-top:14px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#0b141a;box-shadow:0 8px 24px rgba(0,0,0,0.3)">
-                <!-- Phone Top Bar -->
-                <div style="background:#202c33;padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,0.06)">
-                  <div style="width:30px;height:30px;border-radius:50%;background:#0284c7;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800">
-                    US
-                  </div>
-                  <div style="flex:1">
-                    <div style="font-size:12.5px;font-weight:700;color:#e9edef;display:flex;align-items:center;gap:4px">
-                      <span>WhatsApp</span>
-                      <span style="color:#22c55e;font-size:11px">✓</span>
-                    </div>
-                    <div style="font-size:10px;color:#8696a0">Official Business Cloud API</div>
-                  </div>
-                </div>
-
-                <!-- Chat Canvas with Doodle Pattern -->
-                <div style="padding:14px;background-color:#0b141a;background-image:radial-gradient(rgba(255,255,255,0.04) 1px, transparent 0);background-size:16px 16px;min-height:130px;display:flex;align-items:flex-end">
-                  <!-- Green Chat Bubble -->
-                  <div style="background:#005c4b;color:#e9edef;padding:10px 12px;border-radius:8px 8px 2px 8px;max-width:92%;margin-left:auto;box-shadow:0 1px 3px rgba(0,0,0,0.3)">
-                    <div id="broadcast-phone-preview-bubble" style="font-size:12px;line-height:1.45;white-space:pre-wrap;word-break:break-word">
-                      Message preview will appear here...
-                    </div>
-                    <div style="display:flex;justify-content:flex-end;align-items:center;gap:3px;margin-top:4px;font-size:10px;color:#8696a0">
-                      <span>Just now</span>
-                      <span style="color:#53bdeb;font-weight:800">✓✓</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Dispatch Mode & Sending Controls -->
-              <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-                  <div class="form-group">
-                    <label class="form-label" style="font-size:11px">Delivery Engine</label>
-                    <select id="broadcast-delivery-mode" class="form-input form-input-sm">
-                      <option value="cloud_api">Official WhatsApp Business API</option>
-                      <option value="evolution">Evolution API (QR-Code WhatsApp Web - 0 Ban / Any Text)</option>
-                      <option value="web_bridge">1-Click WhatsApp Web Queue</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" style="font-size:11px">Safety Jitter / Delay</label>
-                    <select id="broadcast-safety-delay" class="form-input form-input-sm">
-                      <option value="1500">1.5s delay (Recommended)</option>
-                      <option value="2500">2.5s delay (Gentle)</option>
-                      <option value="4000">4.0s delay (Ultra safe)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <!-- Progress Bar (Shown during send) -->
-                <div id="broadcast-progress-container" style="display:none;margin-bottom:12px">
-                  <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px">
-                    <span id="broadcast-progress-label" style="color:var(--text-primary);font-weight:600">Sending 0 of 0...</span>
-                    <span id="broadcast-progress-percent" style="color:#22c55e;font-weight:700">0%</span>
-                  </div>
-                  <div style="width:100%;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden">
-                    <div id="broadcast-progress-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#22c55e,#10b981);transition:width 0.2s"></div>
-                  </div>
-                </div>
-
-                <!-- Action Button -->
-                <button class="btn btn-primary" id="btn-start-broadcast" onclick="startWhatsAppBroadcast()" style="width:100%;background:#22c55e;color:#000;font-weight:800;font-size:14px;padding:12px;border:0;display:flex;align-items:center;justify-content:center;gap:8px">
-                  <span>🚀</span>
-                  <span>Send Bulk WhatsApp Broadcast</span>
-                </button>
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-      </div><!-- End of #panel-lead-outbound -->
-    </section><!-- End of Screen 3: Bulk Broadcast -->
-
-    <!-- 💬 Screen 2: Dedicated Live Chat & CRM -->
-        <!-- 💬 Screen 2: Dedicated Live Chat & CRM (Matching Reference Design Image 1) -->
     <section class="page" id="page-leads-inbox">
       <div id="panel-lead-inbox" style="display:block">
         
@@ -3487,6 +3247,11 @@
       <div id="bot-root"><div class="state-loading"><span class="spinner lg"></span><div>Loading auto-replies…</div></div></div>
     </section>
 
+    <!-- ── Blog & news feeds (RSS) ─────────────────────────────────────── -->
+    <section class="page" id="page-feeds">
+      <div id="feeds-root" style="max-width:880px"></div>
+    </section>
+
     <!-- ── WhatsApp templates ──────────────────────────────────────────── -->
     <section class="page" id="page-leads-templates">
       <div id="tpl-root"></div>
@@ -3596,6 +3361,14 @@
                 <input type="text" class="form-input" id="pipeline-verify-token" readonly style="font-family:monospace" />
                 <button class="btn btn-secondary btn-sm" onclick="copyPipelineVerifyToken()">Copy</button>
               </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="pipeline-app-secret">App secret <span class="form-hint" style="display:inline">(recommended)</span></label>
+              <div class="wa-inline">
+                <input type="password" class="form-input" id="pipeline-app-secret" placeholder="Meta app → App settings → Basic → App secret" autocomplete="off" />
+                <button class="btn btn-secondary btn-sm" onclick="savePipelineConfig()">Save</button>
+              </div>
+              <div class="form-hint">With it, Social-Nexus only accepts messages that really come from Meta.</div>
             </div>
             <ol class="wa-steps-list">
               <li>In your Meta app, open <b>WhatsApp → Configuration</b> and click <b>Edit</b> next to Webhook.</li>
@@ -4203,6 +3976,8 @@
 <script src="js/14-whatsapp-bot.js"></script>
 <script src="js/15-post-designer.js"></script>
 <script src="js/16-whatsapp-templates.js"></script>
+<script src="js/17-whatsapp-broadcast.js"></script>
+<script src="js/18-post-extras.js"></script>
 
 <!-- ── Modal: 7-Step Meta Business Verification & Official Blue/Green Tick Hub ── -->
 <div class="modal" id="modal-meta-verification" style="display:none">

@@ -368,29 +368,5 @@ async function deleteWhatsAppTemplate(name, id, language) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-// Open Broadcasts with this template filled in
-function useTemplateInBroadcast(name, language) {
-  navigateTo('leads-broadcast');
-  setTimeout(() => {
-    const t = TplState.list.find(x => x.name === name && x.language === language);
-    const sel = document.getElementById('broadcast-template-select');
-    if (sel && t) {
-      if (![...sel.options].some(o => o.value === name)) {
-        const o = document.createElement('option');
-        o.value = name; o.dataset.lang = language;
-        o.textContent = `${tplTitle(name)} (${language})`;
-        sel.appendChild(o);
-      }
-      sel.value = name;
-    }
-    const nameInput = document.getElementById('broadcast-template-name');
-    if (nameInput) nameInput.value = name;
-    const lang = document.getElementById('broadcast-template-lang');
-    if (lang) { if (![...lang.options || []].some(o => o.value === language) && lang.tagName === 'SELECT') lang.add(new Option(language, language)); lang.value = language; }
-    toast(`“${tplTitle(name)}” is ready to send. Choose who gets it.`, 'success');
-  }, 150);
-}
-
 window.loadWhatsAppTemplates = loadWhatsAppTemplates;
 window.openTemplateEditor = openTemplateEditor;
-window.useTemplateInBroadcast = useTemplateInBroadcast;

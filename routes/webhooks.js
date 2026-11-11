@@ -37,17 +37,20 @@ module.exports = (knex) => {
   router.post('/meta', express.json(), async (req, res) => {
     // Only Meta may post here: check its signature with the app secret (when one
     // is saved). Without this, anyone who knows the address could add fake chats.
-    const secrets = [...new Set([
-      ...(await knex('meta_lead_configs').whereNotNull('app_secret').pluck('app_secret').catch(() => [])),
-      process.env.FACEBOOK_APP_SECRET,
-    ].filter(Boolean))];
-    if (secrets.length) {
-      const sig = req.get('X-Hub-Signature-256');
-      const raw = req.rawBody || Buffer.from(JSON.stringify(req.body || {}));
-      if (!secrets.some(sec => verifyMetaSignature(raw, sig, sec))) {
+    // The secret saved in WhatsApp → Setup is enforced. The Facebook login app's
+    // secret may belong to a different Meta app than the one sending WhatsApp
+    // messages, so a mismatch with it is only logged (refusing would silently
+    // drop every customer message).
+    const saved = [...new Set(await knex('meta_lead_configs').whereNotNull('app_secret').pluck('app_secret').catch(() => []))].filter(Boolean);
+    const sig = req.get('X-Hub-Signature-256');
+    const raw = req.rawBody || Buffer.from(JSON.stringify(req.body || {}));
+    if (saved.length) {
+      if (!saved.some(sec => verifyMetaSignature(raw, sig, sec))) {
         console.warn('[Meta Webhook] Ignored a request with a missing or wrong signature');
         return res.status(401).send('Invalid signature');
       }
+    } else if (process.env.FACEBOOK_APP_SECRET && !verifyMetaSignature(raw, sig, process.env.FACEBOOK_APP_SECRET)) {
+      console.warn('[Meta Webhook] Signature didn’t match the Facebook app secret. Add the App secret of the app that sends webhooks in WhatsApp → Setup to refuse unsigned requests.');
     }
 
     // Immediately acknowledge Meta with 200 OK so Meta doesn't retry or drop webhook

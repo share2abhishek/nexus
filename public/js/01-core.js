@@ -61,6 +61,7 @@ const PAGE_META = {
   admin:             { title: 'Users & access',     subtitle: 'Who can use Social-Nexus on this PC' },
   settings:          { title: 'Settings',           subtitle: 'Accounts, AI, email, backups and licence' },
   clients:           { title: 'Clients',            subtitle: 'A separate brand for each client' },
+  feeds:             { title: 'Blog & news feeds', subtitle: 'New articles become posts automatically' },
   inbox:             { title: 'Inbox',              subtitle: 'Comments on your posts' },
   library:           { title: 'Media library',      subtitle: 'Your pictures and videos' },
   bio:               { title: 'Link in bio',        subtitle: 'One page with all your links' },
@@ -170,7 +171,9 @@ function navigateTo(page) {
       else if (typeof loadScheduled === 'function') loadScheduled();
       if (typeof window.loadModels === 'function') window.loadModels();
       else if (typeof loadModels === 'function') loadModels();
+      if (typeof window.loadPostExtras === 'function') window.loadPostExtras(); // signatures, quick platform choices
     },
+    feeds:     () => (typeof window.loadFeedsPage === 'function' ? window.loadFeedsPage() : null),
     templates: () => (typeof window.loadTemplates === 'function' ? window.loadTemplates() : (typeof loadTemplates === 'function' ? loadTemplates() : null)),
     utm:       () => (typeof window.loadUTMLinks === 'function' ? window.loadUTMLinks() : (typeof loadUTMLinks === 'function' ? loadUTMLinks() : null)),
     email:     () => (typeof window.loadEmailPage === 'function' ? window.loadEmailPage() : (typeof loadEmailPage === 'function' ? loadEmailPage() : null)),
@@ -178,7 +181,7 @@ function navigateTo(page) {
     'lead-ads':        () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : (typeof loadLeadPipeline === 'function' ? loadLeadPipeline() : null)),
     'leads-contacts':   () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : (typeof loadLeadPipeline === 'function' ? loadLeadPipeline() : null)),
     'leads-inbox':      () => (typeof window.loadWhatsAppConversations === 'function' ? window.loadWhatsAppConversations() : (typeof loadWhatsAppConversations === 'function' ? loadWhatsAppConversations() : null)),
-    'leads-broadcast':  () => (typeof window.renderBroadcastContacts === 'function' ? window.renderBroadcastContacts() : (typeof renderBroadcastContacts === 'function' ? renderBroadcastContacts() : null)),
+    'leads-broadcast':  () => (typeof window.loadBroadcastPage === 'function' ? window.loadBroadcastPage() : null),
     'leads-templates':  () => (typeof window.loadWhatsAppTemplates === 'function' ? window.loadWhatsAppTemplates() : null),
     'leads-bot':        () => (typeof window.loadWhatsAppBot === 'function' ? window.loadWhatsAppBot() : null),
     'leads-settings':   () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : (typeof loadLeadPipeline === 'function' ? loadLeadPipeline() : null)),

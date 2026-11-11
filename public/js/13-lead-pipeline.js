@@ -162,6 +162,9 @@ function renderPipelineConfig() {
   const cwInboxInput = document.getElementById('pipeline-chatwoot-inbox');
   if (cwInboxInput) cwInboxInput.value = cfg.chatwoot_inbox_id || '';
 
+  const appSecretInput = document.getElementById('pipeline-app-secret');
+  if (appSecretInput && cfg.app_secret_set) appSecretInput.placeholder = 'Saved — paste a new one to replace it';
+
   const autoQualifyInput = document.getElementById('pipeline-auto-qualify');
   if (autoQualifyInput) autoQualifyInput.checked = !!cfg.auto_qualify_ai;
   const cardToken = document.getElementById("card-wa-access-token");
@@ -201,6 +204,8 @@ async function savePipelineConfig() {
   const chatwoot_account_id = document.getElementById('pipeline-chatwoot-account')?.value?.trim();
   const chatwoot_inbox_id = document.getElementById('pipeline-chatwoot-inbox')?.value?.trim();
   const auto_qualify_ai = document.getElementById('pipeline-auto-qualify')?.checked;
+  const appSecretEl = document.getElementById('pipeline-app-secret');
+  const app_secret = appSecretEl?.value?.trim();
 
   try {
     const updated = await api('POST', '/api/lead-pipeline/config', {
@@ -210,7 +215,9 @@ async function savePipelineConfig() {
       chatwoot_account_id: chatwoot_account_id ? Number(chatwoot_account_id) : null,
       chatwoot_inbox_id: chatwoot_inbox_id ? Number(chatwoot_inbox_id) : null,
       auto_qualify_ai: !!auto_qualify_ai,
+      ...(app_secret && !app_secret.includes('••') ? { app_secret } : {}),
     });
+    if (appSecretEl && app_secret) { appSecretEl.value = ''; appSecretEl.placeholder = 'Saved — paste a new one to replace it'; }
 
     LeadPipelineState.config = updated;
     renderPipelineConfig();

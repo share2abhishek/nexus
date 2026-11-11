@@ -177,6 +177,7 @@ app.use('/api/tools',  requireAuth, withWorkspace, injectUserKeys, toolsRoutes);
 app.use('/api/media',  requireAuth, withWorkspace, injectUserKeys, mediaRoutes);
 app.use('/api/config', requireAuth, withWorkspace, injectUserKeys, configRoutes);
 app.use('/api/content', requireAuth, withWorkspace, injectUserKeys, require('../routes/content')(knex, requirePermission));
+app.use('/api/post-extras', requireAuth, withWorkspace, require('../routes/postExtras')(knex, requirePermission)); // signatures, post sets, RSS feeds
 app.use('/api/sellbird', requireAuth, withWorkspace, injectUserKeys, require('../routes/sellbird')(knex, requirePermission));
 app.use('/api/lead-pipeline', requireAuth, withWorkspace, injectUserKeys, require('../routes/leadPipeline')(knex, requirePermission));
 
@@ -266,6 +267,8 @@ async function bootstrap() {
     require('../services/festivals').start(require('../services/license').serverUrl()); // festival calendar updates
     require('../services/insights').start(knex); // likes, comments and reach, daily
     require('../services/approvals').start(knex); // answers to client approval links
+    require('../services/rss').start(knex); // blog / news feeds → new posts
+    require('../services/leadPipeline/broadcast').recoverInterrupted(knex).catch(() => {}); // broadcasts cut off by a restart
     require('../services/inbox').start(knex); // new comments on published posts
     require('../services/companion').start(knex); // phone companion summaries and actions
     require('../services/cloudPosting').start(knex); // PC-off safety net (paid editions)
