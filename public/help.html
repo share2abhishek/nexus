@@ -172,7 +172,7 @@
     <a href="#hashtags">Hashtags &amp; UTM links</a>
     <a href="#seo">SEO &amp; other tools</a>
     <a href="#email">Email campaigns</a>
-    <a href="#sellbird">B2B Sales Agent</a>
+    <a href="#sellbird">Sales outreach</a>
     <a href="#lead-pipeline">Ad Leads &amp; Messenger Pipeline</a>
     <div class="toc-group">Teams &amp; data</div>
     <a href="#clients">Clients &amp; workspaces</a>
@@ -200,6 +200,14 @@
 
   <section class="doc" id="new">
     <h2>What's new</h2>
+    <h3>In the next version</h3>
+    <ul>
+      <li><strong>A shorter menu in plain words</strong>, and Settings grouped into Connected accounts, AI, Email sending, Backups, Licence, Team and Account. Settings shows a badge when an account needs signing in again.</li>
+      <li><strong>Design a picture</strong> in Create post, in your Brand Kit colours. <strong>Signatures</strong>, <strong>post sets</strong> (groups of platforms in one click) and <strong>Blog &amp; news feeds</strong> (More tools) that turn new articles into drafts.</li>
+      <li><strong>WhatsApp:</strong> Setup in numbered steps, <strong>Auto-replies</strong> (welcome, menu, keyword answers, away hours, STOP), <strong>Templates</strong> with a live preview, and <strong>Broadcasts</strong> in 3 steps with a test to yourself and live progress.</li>
+      <li><strong>Sales outreach</strong> in four steps: campaign, companies, approve, replies. Emails are written from what you offer, follow-ups go out in order and stop when someone replies, and every number on the page is real. See <a href="#sellbird">Sales outreach</a>.</li>
+      <li><strong>Privacy:</strong> the internet tunnel for WhatsApp only starts when you turn it on in WhatsApp Setup.</li>
+    </ul>
     <h3>Posting</h3>
     <ul>
       <li><strong>Photos and videos from your PC.</strong> In Create Post, use <em>Upload photo or video</em>, drag a file in, or pick from the <strong>Media library</strong> (More tools). Files stay on your PC.</li>
@@ -745,71 +753,51 @@
   </section>
 
   <section class="doc" id="sellbird">
-    <h2>B2B Sales Agent (Autonomous Outbound)</h2>
-    <p>The <strong>B2B Sales Agent</strong> is an autonomous sales development representative (SDR) built directly into Social-Nexus. It crawls prospect websites, discovers high-intent buying signals, identifies decision makers, validates email deliverability via DNS MX checks, generates bespoke hyper-personalized 3-step outreach sequences, and triages inbound prospect replies.</p>
-    
+    <h2>Sales outreach</h2>
+    <p><strong>Grow → Sales outreach</strong> writes a short, personal email to each business you pick, waits for your OK, sends it, and stops following up as soon as they answer. It uses the same email account as Email campaigns (<strong>Settings → Email sending</strong>). Until that is set up, nothing is sent and the page says <strong>Email not set up</strong>. Sending also needs an active licence.</p>
+
     <div class="note">
-      <strong>🛡️ Human-in-the-Loop Safety First:</strong> By default, the sales agent drafts outreach emails into the <strong>Safety Approval Outbox</strong> with status <code>pending_approval</code>. No email is sent until you or your manager review and click <strong>Approve</strong> or <strong>Batch Approve</strong>.
+      <strong>Nothing goes out without your OK.</strong> Every email waits in the <strong>Outbox</strong> until you approve it, unless you turned on <em>Send without asking me</em> for a campaign (not recommended).
     </div>
 
-    <h3>1. Quick Setup &amp; Training</h3>
+    <h3>1. Create a campaign</h3>
     <ol>
-      <li>Click <strong>🎯 B2B Sales Agent</strong> in the left sidebar menu.</li>
-      <li>Switch to the <strong>🚀 Campaigns &amp; ICP</strong> tab and click <strong>+ New Campaign</strong>.</li>
-      <li>Enter your product or service URL (e.g. <code>https://yourbusiness.com</code>) and click <strong>Train from URL</strong>. The agent will crawl your homepage, extract your key value propositions, target audience, and generate tailored sequence templates.</li>
-      <li>Define your ICP (Ideal Customer Profile) target titles (e.g. <em>Founder, CTO, Head of Sales, Society Chairman</em>) and daily outreach caps (default 25 emails/day for safety).</li>
-      <li>Click <strong>Create Campaign</strong>.</li>
+      <li>Open <strong>1. Campaigns</strong> in the side menu and click <strong>+ New campaign</strong>.</li>
+      <li>Give it a name and <strong>say what you offer in a sentence or two</strong>. The emails are written from this. Your business name comes from <strong>Brand Kit</strong>, so fill that in too.</li>
+      <li>Set <strong>Most emails per day</strong> (25 is a safe start) and click <strong>Create campaign</strong>.</li>
     </ol>
 
-    <h3>2. Prospect Discovery &amp; Buying Signals</h3>
+    <h3>2. Add companies</h3>
     <ul>
-      <li>In the <strong>🏢 Prospect Explorer</strong> tab, click <strong>+ Add Target Account</strong> to crawl a specific company domain, or click <strong>🌐 Bulk Domain Discovery</strong> to paste a list of target websites.</li>
-      <li>The agent crawls the target website and extracts actionable buying signals:
-        <ul>
-          <li><strong>Hiring / Expansion:</strong> Open positions, tech stack expansion, funding news.</li>
-          <li><strong>Pain points &amp; tech signals:</strong> Analytics tooling, CMS, legacy platforms.</li>
-          <li><strong>Leadership contacts:</strong> Key decision makers, predicted email patterns (<code>firstname@domain.com</code>), and real-time DNS MX record verification.</li>
-        </ul>
-      </li>
-      <li>A relevancy score (0–100) is calculated based on how closely the prospect's signals match your campaign ICP.</li>
+      <li>In <strong>2. Companies &amp; people</strong>, click <strong>+ Add a company</strong>, or <strong>Add many companies</strong> for a list of up to 20 websites.</li>
+      <li>Social-Nexus reads their website, picks who to email and writes 3 emails: a first email, a short follow-up 3 days later and a last note 7 days later.</li>
+      <li>The address is marked <strong>✓ Verified</strong> when it was found on their own website, <strong>⚠ Guessed</strong> when it wasn't (it may bounce: check it if you can), and <strong>✕ Won't work</strong> when the domain can't receive email. "Won't work" addresses are never emailed.</li>
+      <li>If a website doesn't open, the company isn't added and you're told why.</li>
     </ul>
 
-    <h3>3. The Safety Approval Outbox</h3>
-    <p>All AI-generated outreach drafts land in the <strong>🛡️ Safety Approval Outbox</strong>. Each item features a split-card layout:</p>
+    <h3>3. Approve in the Outbox</h3>
     <ul>
-      <li><strong>Left Side (Prospect Dossier):</strong> Company name, verified domain, extracted buying signals pills, and decision maker contact info with MX validity badge.</li>
-      <li><strong>Right Side (Editable Email Draft):</strong> Subject line, personalized opening hook referencing their exact buying signal, core value proposition, and frictionless CTA.</li>
-      <li><strong>Actions:</strong>
-        <ul>
-          <li><strong>✓ Approve:</strong> Queues the email for dispatch during the next 15-minute sending window.</li>
-          <li><strong>✕ Reject:</strong> Cancels the outreach draft so it is never sent.</li>
-          <li><strong>💾 Save Draft:</strong> Lets you modify the subject or body before approving.</li>
-          <li><strong>Batch Approve:</strong> Select multiple drafts using checkboxes and click <em>Approve Selected</em> for high-volume productivity.</li>
-        </ul>
-      </li>
+      <li>Read each email, edit it if needed and click <strong>Approve</strong> or <strong>Approve all</strong>.</li>
+      <li>An email that still has a blank like <code>[Name]</code> or <code>{{first_name}}</code> can't be approved until you fill it in.</li>
+      <li>Each email shows its real state: <strong>✓ Sent</strong>, <strong>Approved · goes out</strong> (with the date), <strong>Not sent</strong> (with the reason, such as "they replied") or <strong>Failed</strong> (with the error).</li>
     </ul>
 
-    <h3>4. Autonomous Heartbeat &amp; Deliverability Engine</h3>
+    <h3>4. How sending works</h3>
     <ul>
-      <li><strong>15-Minute Heartbeat Loop:</strong> Every 15 minutes, the background scheduler runs the sales agent loop to check for approved outbox items and send them according to your daily volume limits.</li>
-      <li><strong>Randomized Jitter:</strong> Outreach emails are sent with human-like delays (30 to 120 seconds between sends) to protect your sender domain reputation.</li>
-      <li><strong>Warmup Schedule:</strong> Daily volume caps ramp gradually (Week 1: 15/day, Week 2: 30/day, Week 3: 50/day, Week 4: 75/day) matching industry best practices.</li>
-      <li><strong>Instant Opt-Out:</strong> Any recipient requesting removal is suppressed immediately across all future outreach.</li>
+      <li>Approved emails go out by themselves (checked every 15 minutes), a few seconds apart and never more than each campaign's daily limit. The rest wait for the next day. Click <strong>⚡</strong> at the top to send what's due right away.</li>
+      <li><strong>Follow-ups go out in order:</strong> email 2 only after email 1 has really been sent, and at least the planned number of days after it. If email 1 went out late, the follow-ups move by the same amount. If an earlier email was cancelled or failed, the later ones aren't sent.</li>
+      <li><strong>Pause sending</strong> stops everything until you click <strong>Resume sending</strong>. To stop one campaign, pause it under Campaigns.</li>
+      <li>Every email ends with a line telling people how to opt out.</li>
     </ul>
 
-    <h3>5. Inbound Reply Triage</h3>
-    <p>When prospects reply to your outreach, navigate to the <strong>💬 Replies &amp; Deals</strong> tab:</p>
+    <h3>5. Replies</h3>
+    <p>Social-Nexus doesn't read your mailbox yet. When someone answers, open <strong>4. Replies</strong>, click <strong>+ Add a reply you received</strong> and paste it in. Then:</p>
     <ul>
-      <li>The sales agent automatically classifies incoming replies by intent:
-        <ul>
-          <li><span class="badge" style="background:#10b981;color:#fff;">🔥 Interested</span> — Warm lead asking for a demo, pricing, or meeting.</li>
-          <li><span class="badge" style="background:#3b82f6;color:#fff;">❓ Question</span> — Prospect inquiring about specific features or compatibility.</li>
-          <li><span class="badge" style="background:#f59e0b;color:#fff;">⚠️ Objection</span> — Budget, timing, or competitor mentions.</li>
-          <li><span class="badge" style="background:#ef4444;color:#fff;">🛑 Not Interested</span> — Opt-out or decline.</li>
-        </ul>
-      </li>
-      <li>The agent drafts an AI response tailored to their specific objection or meeting request. You can review, edit, and click <strong>Approve &amp; Send Reply</strong> with 1 click.</li>
+      <li>Their follow-ups stop at once and the company shows <strong>Replied</strong>.</li>
+      <li>The reply is sorted as <strong>Interested</strong>, <strong>Question</strong>, <strong>Not now</strong>, <strong>Not interested</strong> or <strong>Asked to stop</strong>. People who said "not interested" or asked to stop are never emailed again, by any campaign.</li>
+      <li>The conversation shows the email of yours they answered. An answer is drafted from your campaign's description: click <strong>Edit</strong> to change it and <strong>Send answer</strong> to send it, under the subject of your original email. It's only marked as answered if it was really sent, and it can't be sent twice by accident.</li>
     </ul>
+    <p>Only email businesses that are likely to find your offer useful, and keep the daily limit low: Gmail and Outlook limit how much you can send, and many unanswered cold emails can hurt your email reputation.</p>
   </section>
 
   <section class="doc" id="lead-pipeline">

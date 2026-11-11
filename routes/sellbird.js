@@ -2,7 +2,6 @@
 // REST API routes for Sellbird autonomous B2B sales agent in Social-Nexus.
 
 const express = require('express');
-const router = express.Router();
 const sellbirdRepoFactory = require('../repos/sellbirdRepo');
 const { crawlWebsite } = require('../services/sellbird/crawler');
 const { extractProspectNames, predictEmailPatterns, verifyContactEmail } = require('../services/sellbird/contacts');
@@ -12,7 +11,77 @@ const { sendOutreachEmail } = require('../services/sellbird/dispatcher');
 const { aiOptionsFromReq } = require('../services/aiHelper');
 
 module.exports = (knex, requirePermission) => {
+  const router = express.Router();
   const repo = sellbirdRepoFactory(knex);
+
+  // What the emails say about the sender: the business name from Brand kit and
+  // what the campaign offers (the campaign's name was used as the product name before)
+  async function productFor(workspaceId, campaign) {
+    const brand = await knex('brand_kit').where({ workspace_id: workspaceId }).first('company_name').catch(() => null);
+    return { name: brand?.company_name || '', description: campaign.product_description || '', url: campaign.product_url || '' };
+  }
+
+  // Who to email at a company. An address found on their website is used as is;
+  // otherwise it is a guess and marked "guessed" (it used to be marked "verified"
+  // when only the domain had a mail server).
+  async function pickContact(crawl, hint = {}) {
+    let name = hint.executive_name;
+    let role = hint.executive_role;
+    if (!name) {
+      const p = extractProspectNames(crawl.buying_signals?.snippet || '', crawl.domain)[0];
+      name = p.full_name;
+      role = p.role;
+    }
+    const sameDomain = (crawl.emails || []).filter((e) => e.endsWith('@' + crawl.domain) || e.endsWith('.' + crawl.domain));
+    let email = hint.executive_email || sameDomain[0] || (crawl.emails || [])[0];
+    let guessed = false;
+    if (!email) {
+      guessed = true;
+      const realName = name && !/leadership|committee|office|decision maker/i.test(name);
+      const parts = realName ? name.split(/\s+/) : [];
+      email = (realName && predictEmailPatterns(parts[0], parts[1] || '', crawl.domain)[0]) || `contact@${crawl.domain}`;
+    }
+    const check = await verifyContactEmail(email);
+    const email_status = check.status === 'invalid' ? 'invalid' : guessed ? 'guessed' : 'verified';
+    return { full_name: name, role: role || 'Decision maker', email, email_status };
+  }
+
+  // Add one company: open its website, pick who to email, write the emails.
+  async function addCompanyWithEmails(req, campaign, target) {
+    const crawl = await crawlWebsite(target.domain);
+    if (!crawl.success) {
+      const why = /private|local/i.test(crawl.description || '') ? 'it’s a private or local address' : 'the website didn’t open';
+      const err = new Error(`Couldn’t add ${crawl.domain || target.domain}: ${why}. Check the address and try again.`);
+      err.status = 400;
+      throw err;
+    }
+    const company = await repo.addCompany(req.workspaceId, campaign.id, {
+      // 'Acme Interiors — office fit-outs in Pune' → 'Acme Interiors'
+      name: target.name || (String(crawl.title || '').split(/\s+[|–—:-]\s+/).find((p) => p.trim() && !/^(home|welcome|homepage)$/i.test(p.trim())) || '').trim().slice(0, 120) || crawl.domain,
+      domain: crawl.domain,
+      location: target.location || null,
+      industry: target.industry || null,
+      buying_signals: crawl.buying_signals,
+      score: crawl.buying_signals?.signals?.length >= 2 ? 80 : crawl.buying_signals?.signals?.length ? 65 : 50,
+    });
+    const contact = await repo.addContact(req.workspaceId, company.id, await pickContact(crawl, target));
+    const sequence = await generateOutreachSequence({ product: await productFor(req.workspaceId, campaign), company, contact }, aiOptionsFromReq(req));
+    const now = Math.floor(Date.now() / 1000);
+    const outbox = [];
+    for (const step of sequence) {
+      outbox.push(await repo.addOutboxItem(req.workspaceId, {
+        campaign_id: campaign.id,
+        contact_id: contact.id,
+        step_number: step.step,
+        subject: step.subject,
+        body: step.body,
+        status: campaign.auto_approve ? 'approved' : 'pending_approval',
+        scheduled_at: now + (Number(step.delay_days) || 0) * 86400,
+      }));
+    }
+    return { company, contact, outbox };
+  }
+
 
   // ── Metrics & Stats ────────────────────────────────────────────────────────
   router.get('/stats', requirePermission('content.view'), async (req, res) => {
@@ -84,7 +153,7 @@ module.exports = (knex, requirePermission) => {
         product_description: desc,
         icp_definition,
         sequence_template_json,
-        max_emails_per_day: Number(max_emails_per_day) || 25,
+        max_emails_per_day: Math.min(200, Math.max(1, Number(max_emails_per_day) || 25)),
         auto_approve: !!auto_approve,
       });
 
@@ -172,90 +241,19 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  // Add a company, auto-crawl website, detect decision-maker, and draft sequence
+  // Add a company: open its website, pick who to email, write the emails
   router.post('/companies', requirePermission('content.create'), async (req, res) => {
     const { campaign_id, domain, name, location, industry } = req.body || {};
-    if (!domain) return res.status(400).json({ error: 'Domain or website URL is required' });
-    if (!campaign_id) return res.status(400).json({ error: 'campaign_id is required' });
-
+    if (!domain) return res.status(400).json({ error: 'Type the company’s website address.' });
+    if (!campaign_id) return res.status(400).json({ error: 'Pick a campaign first.' });
     try {
       const campaign = await repo.getCampaign(req.workspaceId, Number(campaign_id));
       if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
-
-      // 1. Crawl Website & Extract Signals
-      const crawl = await crawlWebsite(domain);
-      const companyName = name || crawl.title || crawl.domain;
-
-      const company = await repo.addCompany(req.workspaceId, campaign.id, {
-        name: companyName,
-        domain: crawl.domain,
-        location: location || null,
-        industry: industry || 'Target Enterprise',
-        buying_signals: crawl.buying_signals,
-        score: crawl.buying_signals?.signals?.length ? 80 : 50,
-      });
-
-      // 2. Discover / Predict Contacts & Validate Email
-      const discoveredProspects = extractProspectNames(crawl.buying_signals?.snippet || '', crawl.domain);
-      const primaryProspect = discoveredProspects[0];
-
-      let targetEmail = crawl.emails[0];
-      let emailStatus = 'unverified';
-
-      if (!targetEmail) {
-        const parts = primaryProspect.full_name.split(' ');
-        const predicted = predictEmailPatterns(parts[0], parts[1] || '', crawl.domain);
-        targetEmail = predicted[0] || `contact@${crawl.domain}`;
-      }
-
-      // Check MX verification
-      const check = await verifyContactEmail(targetEmail);
-      emailStatus = check.status;
-
-      const contact = await repo.addContact(req.workspaceId, company.id, {
-        full_name: primaryProspect.full_name,
-        role: primaryProspect.role,
-        email: targetEmail,
-        email_status: emailStatus,
-      });
-
-      // 3. Generate Autonomous Personalized Outreach Sequence
-      const aiOpts = aiOptionsFromReq(req);
-      const sequence = await generateOutreachSequence(
-        {
-          product: { name: campaign.name, description: campaign.product_description, url: campaign.product_url },
-          company,
-          contact,
-        },
-        aiOpts
-      );
-
-      // 4. Queue steps into Outbox (Default: pending_approval for safety)
-      const now = Math.floor(Date.now() / 1000);
-      const outboxItems = [];
-
-      for (const step of sequence) {
-        const scheduledTime = now + (Number(step.delay_days) || 0) * 86400;
-        const outbox = await repo.addOutboxItem(req.workspaceId, {
-          campaign_id: campaign.id,
-          contact_id: contact.id,
-          step_number: step.step,
-          subject: step.subject,
-          body: step.body,
-          status: campaign.auto_approve ? 'approved' : 'pending_approval',
-          scheduled_at: scheduledTime,
-        });
-        outboxItems.push(outbox);
-      }
-
-      res.status(201).json({
-        success: true,
-        company,
-        contact,
-        outbox: outboxItems,
-      });
+      const out = await addCompanyWithEmails(req, campaign, { domain, name, location, industry });
+      res.status(201).json({ success: true, ...out });
     } catch (err) {
-      console.error('[Sellbird] Error adding company:', err);
+      if (err.status) return res.status(err.status).json({ error: err.message });
+      console.error('[Sales outreach] Error adding company:', err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -273,57 +271,15 @@ module.exports = (knex, requirePermission) => {
       if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
 
       const processed = [];
-      const aiOpts = aiOptionsFromReq(req);
-
+      const skipped = [];
       for (const rawItem of items.slice(0, 20)) {
         const domain = typeof rawItem === 'string' ? rawItem : rawItem.domain || rawItem.url;
         if (!domain) continue;
-
         try {
-          const crawl = await crawlWebsite(domain);
-          const company = await repo.addCompany(req.workspaceId, campaign.id, {
-            name: crawl.title || crawl.domain,
-            domain: crawl.domain,
-            buying_signals: crawl.buying_signals,
-            score: crawl.buying_signals?.signals?.length ? 75 : 50,
-          });
-
-          const prospect = extractProspectNames(crawl.buying_signals?.snippet || '', crawl.domain)[0];
-          const targetEmail = crawl.emails[0] || `contact@${crawl.domain}`;
-          const check = await verifyContactEmail(targetEmail);
-
-          const contact = await repo.addContact(req.workspaceId, company.id, {
-            full_name: prospect.full_name,
-            role: prospect.role,
-            email: targetEmail,
-            email_status: check.status,
-          });
-
-          const sequence = await generateOutreachSequence(
-            {
-              product: { name: campaign.name, description: campaign.product_description, url: campaign.product_url },
-              company,
-              contact,
-            },
-            aiOpts
-          );
-
-          const now = Math.floor(Date.now() / 1000);
-          for (const step of sequence) {
-            await repo.addOutboxItem(req.workspaceId, {
-              campaign_id: campaign.id,
-              contact_id: contact.id,
-              step_number: step.step,
-              subject: step.subject,
-              body: step.body,
-              status: campaign.auto_approve ? 'approved' : 'pending_approval',
-              scheduled_at: now + (Number(step.delay_days) || 0) * 86400,
-            });
-          }
-
-          processed.push({ domain: crawl.domain, name: company.name, contact: contact.full_name });
+          const { company, contact } = await addCompanyWithEmails(req, campaign, { domain });
+          processed.push({ domain: company.domain, name: company.name, contact: contact.full_name, email_status: contact.email_status });
         } catch (subErr) {
-          console.warn('[Sellbird Discover] Error on domain:', domain, subErr.message);
+          skipped.push({ domain, reason: subErr.message });
         }
       }
 
@@ -331,6 +287,7 @@ module.exports = (knex, requirePermission) => {
         success: true,
         count: processed.length,
         processed,
+        skipped,
       });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -355,6 +312,11 @@ module.exports = (knex, requirePermission) => {
   // ── Discover & Enrich Real-World Targets ────────────────────────────────────
   router.post('/discover-real', requirePermission('content.create'), async (req, res) => {
     let { campaign_id, targets } = req.body || {};
+    // Only companies the user chose. (A built-in list of real executives at real
+    // companies used to be added for everyone — and could then be emailed.)
+    if (!Array.isArray(targets) || !targets.length) {
+      return res.status(400).json({ error: 'Type the website addresses of the companies you want to look up (one per line).' });
+    }
 
     try {
       let campaign;
@@ -364,131 +326,45 @@ module.exports = (knex, requirePermission) => {
         const campaigns = await repo.listCampaigns(req.workspaceId);
         campaign = campaigns[0];
         if (!campaign) {
-          // Create primary campaign if none exists
           campaign = await repo.createCampaign(req.workspaceId, {
             name: 'My first campaign',
             product_url: '',
-            product_description: 'AI-Powered Society Maintenance, Billing & Gate Management for Housing Societies & RWAs.',
-            icp_definition: { industry: 'Residential Societies', roles: ['President', 'Secretary', 'Treasurer', 'Facility Manager'], location: 'India' },
-            sequence_template_json: [
-              { step: 1, delay_days: 0, subject: 'Automating maintenance collection at {{company_name}}', template: 'Hi {{first_name}}, we help housing societies eliminate unpaid maintenance dues.' },
-              { step: 2, delay_days: 3, subject: 'Re: Maintenance collection at {{company_name}}', template: 'Hi {{first_name}}, our automated WhatsApp payment links cut defaulters by 40%.' }
-            ],
-            max_emails_per_day: 35,
+            product_description: '',
+            max_emails_per_day: 25,
             auto_approve: false,
           });
         }
       }
-
-      // Only companies the user chose. (A built-in list of real executives at real
-      // companies used to be added for everyone — and could then be emailed.)
-      if (!Array.isArray(targets) || !targets.length) {
-        return res.status(400).json({ error: 'Type the website addresses of the companies you want to look up (one per line).' });
-      }
+      if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
       const domainList = targets.map((t) => (typeof t === 'string' ? { domain: t } : t));
 
-      const aiOpts = aiOptionsFromReq(req);
       const discoveredResults = [];
-
+      const skipped = [];
       for (const item of domainList.slice(0, 8)) {
         const cleanDomain = (item.domain || '').trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').toLowerCase();
         if (!cleanDomain) continue;
-
         try {
-          // 1. Live Crawl Target Website
-          const crawl = await crawlWebsite(cleanDomain);
-          const compName = item.name || crawl.title || cleanDomain;
-
-          // 2. Add real company to Sellbird
-          const company = await repo.addCompany(req.workspaceId, campaign.id, {
-            name: compName,
-            domain: crawl.domain || cleanDomain,
-            location: item.location || 'India',
-            industry: item.industry || 'Residential & Commercial Real Estate',
-            buying_signals: crawl.buying_signals,
-            score: crawl.buying_signals?.signals?.length >= 2 ? 88 : 72,
-          });
-
-          // 3. Extract Real Contacts & DNS MX Verification
-          let contactName = item.executive_name;
-          let contactRole = item.executive_role;
-          let targetEmail = item.executive_email;
-
-          if (!contactName) {
-            const prospects = extractProspectNames(crawl.buying_signals?.snippet || '', crawl.domain);
-            const primary = prospects[0] || { full_name: 'Managing Committee / Operations Office', role: 'Decision Maker' };
-            contactName = primary.full_name;
-            contactRole = primary.role;
-          }
-
-          if (!targetEmail) {
-            targetEmail = crawl.emails[0];
-            if (!targetEmail) {
-              if (contactName && !contactName.includes('Leadership') && !contactName.includes('Committee') && !contactName.includes('Office')) {
-                const parts = contactName.split(' ');
-                const predicted = predictEmailPatterns(parts[0], parts[1] || '', crawl.domain);
-                targetEmail = predicted[0] || `contact@${crawl.domain}`;
-              } else {
-                targetEmail = `contact@${crawl.domain}`;
-              }
-            }
-          }
-
-          // Real DNS MX check
-          const mxCheck = await verifyContactEmail(targetEmail);
-
-          const contact = await repo.addContact(req.workspaceId, company.id, {
-            full_name: contactName,
-            role: contactRole || 'Decision Maker',
-            email: targetEmail,
-            email_status: mxCheck.status || 'verified',
-          });
-
-          // 4. Generate Personalized Outreach Sequence using AI
-          const sequence = await generateOutreachSequence(
-            {
-              product: { name: campaign.name, description: campaign.product_description, url: campaign.product_url },
-              company,
-              contact,
-            },
-            aiOpts
-          );
-
-          // 5. Queue into Outbox
-          const now = Math.floor(Date.now() / 1000);
-          const outboxItems = [];
-          for (const step of sequence) {
-            const out = await repo.addOutboxItem(req.workspaceId, {
-              campaign_id: campaign.id,
-              contact_id: contact.id,
-              step_number: step.step,
-              subject: step.subject,
-              body: step.body,
-              status: campaign.auto_approve ? 'approved' : 'pending_approval',
-              scheduled_at: now + (Number(step.delay_days) || 0) * 86400,
-            });
-            outboxItems.push(out);
-          }
-
+          const { company, contact, outbox } = await addCompanyWithEmails(req, campaign, { ...item, domain: cleanDomain });
           discoveredResults.push({
-            domain: crawl.domain,
+            domain: company.domain,
             company_name: company.name,
             contact_name: contact.full_name,
             contact_email: contact.email,
             email_status: contact.email_status,
-            signals_count: crawl.buying_signals?.signals?.length || 0,
-            steps_queued: outboxItems.length,
+            signals_count: company.buying_signals?.signals?.length || 0,
+            steps_queued: outbox.length,
           });
         } catch (itemErr) {
-          console.warn('[Discover Real] Warning on target:', cleanDomain, itemErr.message);
+          skipped.push({ domain: cleanDomain, reason: itemErr.message });
         }
       }
 
       res.json({
         success: true,
-        message: `Successfully discovered and enriched ${discoveredResults.length} real-world targets!`,
+        message: `Added ${discoveredResults.length} compan${discoveredResults.length === 1 ? 'y' : 'ies'}${skipped.length ? `; ${skipped.length} couldn’t be added` : ''}.`,
         count: discoveredResults.length,
         targets: discoveredResults,
+        skipped,
       });
     } catch (err) {
       console.error('[Sellbird Discover Real] Error:', err);
@@ -516,6 +392,12 @@ module.exports = (knex, requirePermission) => {
     try {
       const item = await repo.getOutboxItem(req.workspaceId, Number(req.params.id));
       if (!item) return res.status(404).json({ error: 'Outbox item not found' });
+      if (!['pending_approval', 'failed'].includes(item.status)) {
+        return res.status(400).json({ error: item.status === 'sent' || item.status === 'sending' ? 'This email has already gone out.' : item.status === 'approved' ? 'Already approved.' : 'This email was cancelled and can’t be sent.' });
+      }
+      const { findPlaceholder } = require('../services/sellbird/dispatcher');
+      const unfilled = findPlaceholder(item.subject, item.body);
+      if (unfilled) return res.status(400).json({ error: `Fill in “${unfilled}” before approving.` });
 
       const updated = await repo.updateOutboxItem(req.workspaceId, item.id, {
         status: 'approved',
@@ -531,6 +413,7 @@ module.exports = (knex, requirePermission) => {
     try {
       const item = await repo.getOutboxItem(req.workspaceId, Number(req.params.id));
       if (!item) return res.status(404).json({ error: 'Outbox item not found' });
+      if (['sent', 'sending'].includes(item.status)) return res.status(400).json({ error: 'This email has already gone out.' });
 
       const updated = await repo.updateOutboxItem(req.workspaceId, item.id, {
         status: 'rejected',
@@ -593,7 +476,13 @@ module.exports = (knex, requirePermission) => {
     try {
       const aiOpts = aiOptionsFromReq(req);
       const intent = await classifyReplyIntent(message_text, aiOpts);
-      const drafted = await draftReplyResponse({ originalMessage: message_text, intent, product: { name: (await knex('brand_kit').where({ workspace_id: req.workspaceId }).first('company_name').catch(() => null))?.company_name || '' } }, aiOpts);
+      // The answer knows what the campaign that emailed them offers
+      const fromContact = await knex('sellbird_contacts as c').join('sellbird_companies as comp', 'c.company_id', 'comp.id')
+        .where('c.workspace_id', req.workspaceId).whereRaw('LOWER(c.email) = ?', [String(sender_email).toLowerCase().trim()])
+        .orderBy('c.id', 'desc').first('comp.campaign_id');
+      const campaign = fromContact ? await repo.getCampaign(req.workspaceId, fromContact.campaign_id) : null;
+      const product = campaign ? await productFor(req.workspaceId, campaign) : await productFor(req.workspaceId, {});
+      const drafted = await draftReplyResponse({ originalMessage: message_text, intent, product }, aiOpts);
 
       // Their follow-ups waiting in the outbox won't go out now
       const contactIds = await knex('sellbird_contacts').where({ workspace_id: req.workspaceId })
@@ -602,12 +491,14 @@ module.exports = (knex, requirePermission) => {
         await knex('sellbird_outbox').where({ workspace_id: req.workspaceId }).whereIn('contact_id', contactIds)
           .whereIn('status', ['pending_approval', 'approved'])
           .update({ status: 'rejected', error_message: 'Not sent: they replied.', updated_at: Math.floor(Date.now() / 1000) });
+        const companyIds = await knex('sellbird_contacts').whereIn('id', contactIds).pluck('company_id');
+        await knex('sellbird_companies').where({ workspace_id: req.workspaceId }).whereIn('id', companyIds).update({ status: 'replied', updated_at: Math.floor(Date.now() / 1000) });
       }
 
       const reply = await repo.addReply(req.workspaceId, {
         outbox_id: outbox_id ? Number(outbox_id) : null,
         sender_email,
-        subject: subject || 'Re: Partnership',
+        subject: subject || '',
         message_text,
         intent_category: intent,
         ai_drafted_reply: drafted,
@@ -622,7 +513,12 @@ module.exports = (knex, requirePermission) => {
 
   router.patch('/replies/:id', requirePermission('content.edit'), async (req, res) => {
     try {
-      const updated = await repo.updateReply(req.workspaceId, Number(req.params.id), req.body);
+      const { ai_drafted_reply, status, intent_category } = req.body || {};
+      const patch = {};
+      if (typeof ai_drafted_reply === 'string') patch.ai_drafted_reply = ai_drafted_reply;
+      if (['pending_review', 'dismissed'].includes(status)) patch.status = status;
+      if (['interested', 'question', 'objection', 'not_interested', 'unsubscribe'].includes(intent_category)) patch.intent_category = intent_category;
+      const updated = await repo.updateReply(req.workspaceId, Number(req.params.id), patch);
       res.json(updated);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -633,6 +529,7 @@ module.exports = (knex, requirePermission) => {
     try {
       const reply = await repo.getReply(req.workspaceId, Number(req.params.id));
       if (!reply) return res.status(404).json({ error: 'Reply not found' });
+      if (reply.status === 'replied') return res.status(400).json({ error: 'You already answered this reply.' });
 
       const replyText = req.body?.ai_drafted_reply || reply.ai_drafted_reply;
       if (!replyText) {
@@ -643,7 +540,18 @@ module.exports = (knex, requirePermission) => {
       try {
         await sendOutreachEmail({
           to: reply.sender_email,
-          subject: reply.subject?.startsWith('Re:') ? reply.subject : `Re: ${reply.subject || 'Outreach'}`,
+          subject: await (async () => {
+            // their subject, or else the subject of our email they answered
+            let subj = reply.subject;
+            if (!subj) {
+              const sent = await knex('sellbird_outbox as o').join('sellbird_contacts as c', 'o.contact_id', 'c.id')
+                .where('o.workspace_id', req.workspaceId).where('o.status', 'sent')
+                .whereRaw('LOWER(c.email) = ?', [String(reply.sender_email).toLowerCase().trim()])
+                .orderBy('o.sent_at', 'desc').first('o.subject');
+              subj = sent?.subject || 'Your message';
+            }
+            return /^re:/i.test(subj) ? subj : `Re: ${subj}`;
+          })(),
           body: replyText,
         });
       } catch (smtpErr) {

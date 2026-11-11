@@ -224,7 +224,7 @@ describe('Sellbird Autonomous Sales Agent Suite', () => {
       expect(interested).toBe('interested');
 
       const objection = await classifyReplyIntent('We already use another vendor for this.');
-      expect(objection).toBe('question'); // Offline fallback routes to question/objection
+      expect(objection).toBe('objection'); // "already use another vendor"
     });
 
     test('draftReplyResponse creates courteous reply', async () => {

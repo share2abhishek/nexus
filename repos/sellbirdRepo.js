@@ -179,7 +179,8 @@ module.exports = (knex) => ({
         'comp.buying_signals_json',
         'comp.status as company_status',
         'camp.id as campaign_id',
-        'camp.name as campaign_name'
+        'camp.name as campaign_name',
+        knex.raw("(SELECT MAX(o.sent_at) FROM sellbird_outbox o WHERE o.contact_id = c.id AND o.status = 'sent') as last_sent_at")
       );
 
     if (campaignId) q = q.where('comp.campaign_id', campaignId);
@@ -341,10 +342,30 @@ module.exports = (knex) => ({
     return knex('sellbird_replies').where({ id, workspace_id: workspaceId }).first();
   },
 
-  listReplies(workspaceId, { status, limit = 50, offset = 0 } = {}) {
+  // Each reply with who sent it (if they're a contact) and the email of ours
+  // they answered, so the conversation shows what was really sent
+  async listReplies(workspaceId, { status, limit = 50, offset = 0 } = {}) {
     let q = knex('sellbird_replies').where({ workspace_id: workspaceId });
     if (status) q = q.where({ status });
-    return q.orderBy('created_at', 'desc').limit(limit).offset(offset);
+    const rows = await q.orderBy('created_at', 'desc').limit(limit).offset(offset);
+    for (const r of rows) {
+      const c = await knex('sellbird_contacts as c')
+        .join('sellbird_companies as comp', 'c.company_id', 'comp.id')
+        .leftJoin('sellbird_campaigns as camp', 'comp.campaign_id', 'camp.id')
+        .where('c.workspace_id', workspaceId)
+        .whereRaw('LOWER(c.email) = ?', [String(r.sender_email || '').toLowerCase().trim()])
+        .orderBy('c.id', 'desc')
+        .first('c.id as contact_id', 'c.full_name as contact_name', 'c.role as contact_role', 'c.email_status as contact_email_status',
+          'comp.name as company_name', 'comp.domain as company_domain', 'comp.location as company_location', 'comp.buying_signals_json', 'camp.name as campaign_name');
+      if (!c) continue;
+      let signals = [];
+      try { signals = JSON.parse(c.buying_signals_json || '{}').signals || []; } catch {}
+      delete c.buying_signals_json;
+      Object.assign(r, c, { signals });
+      r.last_sent = await knex('sellbird_outbox').where({ workspace_id: workspaceId, contact_id: c.contact_id, status: 'sent' })
+        .orderBy('sent_at', 'desc').first('subject', 'body', 'sent_at', 'step_number') || null;
+    }
+    return rows;
   },
 
   getReply(workspaceId, id) {
@@ -451,6 +472,7 @@ module.exports = (knex) => ({
     const [approvedOutboxCount] = await knex('sellbird_outbox').where({ workspace_id: workspaceId, status: 'approved' }).count('id as c');
     const [sentOutboxCount] = await knex('sellbird_outbox').where({ workspace_id: workspaceId, status: 'sent' }).count('id as c');
     const [repliesCount] = await knex('sellbird_replies').where({ workspace_id: workspaceId }).count('id as c');
+    const [unansweredCount] = await knex('sellbird_replies').where({ workspace_id: workspaceId, status: 'pending_review' }).count('id as c');
     const [interestedRepliesCount] = await knex('sellbird_replies').where({ workspace_id: workspaceId, intent_category: 'interested' }).count('id as c');
 
     return {
@@ -463,6 +485,7 @@ module.exports = (knex) => ({
       sent_outreach: parseInt(sentOutboxCount?.c || 0, 10),
       total_replies: parseInt(repliesCount?.c || 0, 10),
       interested_leads: parseInt(interestedRepliesCount?.c || 0, 10),
+      replies_to_answer: parseInt(unansweredCount?.c || 0, 10),
     };
   },
 });

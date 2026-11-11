@@ -15,7 +15,8 @@ async function verifyMxRecord(domain, timeoutMs = 3500) {
     );
 
     const records = await Promise.race([resolvePromise, timeoutPromise]);
-    return Array.isArray(records) && records.length > 0;
+    // A single empty record ("null MX") means the domain takes no email
+    return Array.isArray(records) && records.some((r) => r && r.exchange && r.exchange !== '.');
   } catch (err) {
     return false;
   }

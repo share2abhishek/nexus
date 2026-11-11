@@ -40,8 +40,12 @@ gh release create "v$ver" `
   "dist-app\NEXUS-Portable-$ver.exe" `
   --repo share2abhishek/nexus `
   --title "NEXUS v$ver" `
-  --notes "What's new in v$ver..."
+  --notes-file "release-notes-v$ver.md"
 ```
+
+Write the notes from the section for this version in the source project's
+`docs/RELEASE-NOTES.md` (copy it into `release-notes-v$ver.md`), then rename that
+section's heading from "Next version" to the version number and date.
 
 Users who downloaded before will see the new version at
 `/releases/latest` automatically.

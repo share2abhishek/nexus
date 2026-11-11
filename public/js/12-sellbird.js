@@ -81,7 +81,7 @@ async function loadSellbird() {
     }
   } catch (err) {
     console.error('[Sellbird] Error in loadSellbird:', err);
-    toast(err.message || 'Error loading Sellbird data', 'error');
+    toast(err.message || 'Couldn’t load Sales outreach', 'error');
   }
 }
 
@@ -166,7 +166,7 @@ function renderSellbirdMetrics(stats) {
   setVal('sb-metric-replied-val', stats.total_replies || 0);
 
   const subCompanies = document.getElementById('sb-metric-companies-sub');
-  if (subCompanies) subCompanies.textContent = `${stats.total_companies || 0} researched & crawled`;
+  if (subCompanies) subCompanies.textContent = "websites read";
 
   const subVerified = document.getElementById('sb-metric-verified-sub');
   if (subVerified) subVerified.textContent = 'with a working mail server';
@@ -175,7 +175,7 @@ function renderSellbirdMetrics(stats) {
   if (subInCamps) subInCamps.textContent = `across ${stats.active_campaigns || 0} active campaign${stats.active_campaigns === 1 ? '' : 's'}`;
 
   const subReplied = document.getElementById('sb-metric-replied-sub');
-  if (subReplied) subReplied.textContent = `${stats.interested_leads || 0} interested leads`;
+  if (subReplied) subReplied.textContent = `${stats.interested_leads || 0} interested`;
 
   // Top header quota pill
   const topQuota = document.getElementById('sb-top-quota-text');
@@ -211,24 +211,18 @@ function renderSellbirdMetrics(stats) {
   const sendingInFlight = document.getElementById('sb-sending-in-flight');
   if (sendingInFlight) sendingInFlight.textContent = stats.approved_queued || 0;
 
-  // Sub-sidebar badge counters
-  const subnavSignals = document.getElementById('sb-subnav-signals-count');
-  if (subnavSignals) subnavSignals.textContent = stats.total_companies || 0;
-
-  const subnavCompanies = document.getElementById('sb-subnav-companies-count');
-  if (subnavCompanies) subnavCompanies.textContent = stats.total_companies || 0;
-
+  // Side menu counters
   const subnavContacts = document.getElementById('sb-subnav-contacts-count');
   if (subnavContacts) subnavContacts.textContent = stats.total_contacts || 0;
 
   const subnavCampaigns = document.getElementById('sb-subnav-campaigns-count');
-  if (subnavCampaigns) subnavCampaigns.textContent = stats.total_campaigns || 1;
+  if (subnavCampaigns) subnavCampaigns.textContent = stats.total_campaigns || 0;
 
   const subnavOutbox = document.getElementById('sb-subnav-outbox-count');
   if (subnavOutbox) subnavOutbox.textContent = stats.pending_approvals || 0;
 
   const subnavReplies = document.getElementById('sb-subnav-replies-count');
-  if (subnavReplies) subnavReplies.textContent = stats.total_replies || 0;
+  if (subnavReplies) subnavReplies.textContent = stats.replies_to_answer || 0;
 
   // Floating tab badges
   const outboxTabBadge = document.getElementById('tab-badge-outbox');
@@ -239,8 +233,8 @@ function renderSellbirdMetrics(stats) {
 
   const repliesTabBadge = document.getElementById('tab-badge-replies');
   if (repliesTabBadge) {
-    repliesTabBadge.textContent = stats.total_replies || 0;
-    repliesTabBadge.style.display = stats.total_replies > 0 ? 'inline-flex' : 'none';
+    repliesTabBadge.textContent = stats.replies_to_answer || 0;
+    repliesTabBadge.style.display = stats.replies_to_answer > 0 ? 'inline-flex' : 'none';
   }
 
   // Pending card alert styling
@@ -327,7 +321,7 @@ async function triggerSellbirdHeartbeat() {
     await loadSellbird();
   } catch (err) {
     console.error('[Sellbird] Heartbeat failed:', err);
-    toast(err.message || 'Error executing Sellbird Heartbeat', 'error');
+    toast(err.message || 'Couldn’t send', 'error');
   } finally {
     if (btn) {
       btn.disabled = false;
@@ -353,25 +347,7 @@ async function loadCompanies() {
   try {
     // Attempt fetching detailed contacts first, fallback to companies
     let contacts = await api('GET', '/api/sellbird/contacts?limit=200').catch(() => null);
-    if (!contacts || !Array.isArray(contacts) || !contacts.length) {
-      const companies = await api('GET', '/api/sellbird/companies?limit=100').catch(() => []);
-      SellbirdState.companies = Array.isArray(companies) ? companies : [];
-      // Synthesize rich contact objects from companies if needed
-      contacts = SellbirdState.companies.map((c) => ({
-        id: c.id,
-        full_name: c.contact_name || c.name || 'Decision Maker',
-        role: c.contact_role || 'Operations Leader',
-        company_name: c.name,
-        company_domain: c.domain,
-        company_industry: c.industry || 'B2B Enterprise',
-        email: c.email || `contact@${c.domain}`,
-        email_status: c.email_status || 'verified',
-        fit_score: c.score || 90,
-        buying_signals: c.buying_signals,
-        stage: c.status === 'replied' ? 'replied' : c.status === 'contacted' ? 'contacted' : 'draft_ready',
-        last_touch: c.status === 'replied' ? '2d' : c.status === 'contacted' ? '3d' : '—',
-      }));
-    }
+    if (!Array.isArray(contacts)) contacts = [];
 
     SellbirdState.contacts = contacts;
     renderCompanies();
@@ -448,14 +424,14 @@ function renderCompanies() {
 
   const pillLocation = document.getElementById('sb-filter-location-tag');
   if (pillLocation) {
-    const loc = filtered[0]?.company_location || filtered[0]?.location || 'India (Bengaluru, Pune, Mumbai, NCR)';
-    pillLocation.textContent = `📍 ${loc}`;
+    const loc = filtered[0]?.company_location || filtered[0]?.location || '';
+    pillLocation.textContent = loc ? `📍 ${loc}` : ''; pillLocation.style.display = loc ? '' : 'none';
   }
 
   const pillSignal = document.getElementById('sb-filter-signal-tag');
   if (pillSignal) {
-    const sig = filtered[0]?.buying_signals?.signals?.[0] || 'Live Buying Signals';
-    pillSignal.textContent = `⚡ ${sig}`;
+    const sig = filtered[0]?.buying_signals?.signals?.[0] || '';
+    pillSignal.textContent = sig ? `⚡ ${sig}` : ''; pillSignal.style.display = sig ? '' : 'none';
   }
 
   if (!filtered.length) {
@@ -477,11 +453,11 @@ function renderCompanies() {
       ? c.buying_signals.signals
       : Array.isArray(c.buying_signals)
       ? c.buying_signals
-      : ['Active Target'];
-    const firstSignal = signals[0] || 'Active Target';
+      : [];
+    const firstSignal = signals[0] || '—';
     const moreCount = Math.max(0, signals.length - 1);
 
-    const fit = c.fit_score || 90;
+    const fit = c.fit_score || 0;
     const isVerified = c.email_status === 'verified' || c.email_status === 'valid';
     const stage = c.stage || (c.company_status === 'replied' ? 'replied' : c.company_status === 'contacted' ? 'contacted' : 'draft_ready');
     const isSelected = SellbirdState.selectedContactIds.has(c.id);
@@ -501,10 +477,10 @@ function renderCompanies() {
             <div>
               <div class="sb-contact-name-row">
                 <span>${escapeHtml(c.full_name)}</span>
-                <span class="sb-industry-pill">• ${escapeHtml(c.company_industry || 'Target')}</span>
+                ${c.company_industry ? `<span class="sb-industry-pill">• ${escapeHtml(c.company_industry)}</span>` : ''}
               </div>
               <div class="sb-contact-title-sub">
-                ${escapeHtml(c.role || 'Executive')} · ${escapeHtml(c.company_name || c.company_domain)}
+                ${escapeHtml(c.role || 'Contact')} · ${escapeHtml(c.company_name || c.company_domain)}
               </div>
             </div>
           </div>
@@ -517,7 +493,9 @@ function renderCompanies() {
         <td>
           ${isVerified
             ? '<span class="sb-verified-pill"><svg viewBox="0 0 20 20" width="13" height="13" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg> VERIFIED</span>'
-            : '<span class="sb-catchall-pill">⚠ CATCH-ALL</span>'
+            : c.email_status === 'invalid'
+            ? '<span class="sb-catchall-pill" style="color:#b91c1c;background:#fef2f2" title="This address can’t receive email. It won’t be sent to.">✕ WON’T WORK</span>'
+            : '<span class="sb-catchall-pill" title="Not found on their website: guessed from their name or domain. It may bounce.">⚠ GUESSED</span>'
           }
         </td>
         <td>
@@ -537,7 +515,7 @@ function renderCompanies() {
           }
         </td>
         <td style="color:#94a3b8;font-size:12px;font-weight:600">
-          ${escapeHtml(c.last_touch || '—')}
+          ${c.last_sent_at ? escapeHtml(new Date(c.last_sent_at * 1000).toLocaleDateString()) : '—'}
         </td>
       </tr>
     `;
@@ -582,8 +560,8 @@ function exportContactsCSV() {
     `"${(c.company_domain || c.domain || '').replace(/"/g, '""')}"`,
     `"${(c.company_industry || c.industry || '').replace(/"/g, '""')}"`,
     `"${(c.email || '').replace(/"/g, '""')}"`,
-    `"${(c.email_status || 'verified').replace(/"/g, '""')}"`,
-    c.fit_score || c.score || 90,
+    `"${(c.email_status || 'unverified').replace(/"/g, '""')}"`,
+    c.fit_score || c.score || 0,
     `"${(Array.isArray(c.buying_signals?.signals) ? c.buying_signals.signals.join('; ') : '').replace(/"/g, '""')}"`,
   ]);
 
@@ -757,7 +735,7 @@ async function approveOutboxItem(id) {
       fromName: sender.name,
       fromEmail: sender.email,
     });
-    toast('Outreach approved and queued for dispatch!', 'success');
+    toast(SellbirdState.sendingPaused ? 'Approved. Sending is paused, so it waits until you resume.' : 'Approved. It goes out at its planned time.', 'success');
 
     const idx = SellbirdState.outboxItems.findIndex((i) => i.id === id);
     if (idx !== -1) {
@@ -936,7 +914,7 @@ function renderOutbox() {
     const isSelected = item.id === SellbirdState.selectedOutboxId;
     const initials = formatInitials(item.contact_name);
     const timeStr = item.scheduled_at
-      ? new Date(item.scheduled_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      ? new Date(item.scheduled_at * 1000).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
       : '—';
 
     return `
@@ -951,8 +929,14 @@ function renderOutbox() {
         <div class="sb-queue-snippet">${escapeHtml(item.subject || 'Outreach email')}</div>
         <div>
           ${isApproved
-            ? '<span class="sb-sent-tag">✓ SENT</span>'
-            : `<span class="sb-needs-approval-tag">✉️ NEEDS APPROVAL Intro · ${item.step_number || 1} of 3</span>`
+            ? ({
+                sent: '<span class="sb-sent-tag">✓ SENT</span>',
+                sending: '<span class="sb-sent-tag">Sending…</span>',
+                approved: `<span class="sb-sent-tag" style="background:#eff6ff;color:#1d4ed8">Approved · goes out ${escapeHtml(timeStr)}</span>`,
+                rejected: `<span class="sb-sent-tag" style="background:#f1f5f9;color:#475569" title="${escapeHtml(item.error_message || '')}">Not sent${item.error_message ? ': ' + escapeHtml(item.error_message.replace(/^Not sent:\s*/, '')) : ''}</span>`,
+                failed: `<span class="sb-sent-tag" style="background:#fef2f2;color:#b91c1c" title="${escapeHtml(item.error_message || '')}">Failed${item.error_message ? ': ' + escapeHtml(item.error_message) : ''}</span>`,
+              }[item.status] || `<span class="sb-sent-tag">${escapeHtml(item.status)}</span>`)
+            : `<span class="sb-needs-approval-tag">✉️ NEEDS YOUR OK · email ${item.step_number || 1}${item.error_message ? ' · ' + escapeHtml(item.error_message) : ''}</span>`
           }
         </div>
       </div>
@@ -966,7 +950,7 @@ function renderOutbox() {
         ${waitingItems.length ? waitingItems.map((i) => renderQueueCard(i, false)).join('') : '<div style="font-size:12px;color:#94a3b8;padding:8px 0">Queue clear!</div>'}
       </div>
 
-      <div class="sb-queue-section-header" style="margin-top:20px">Approved today (${approvedItems.length})</div>
+      <div class="sb-queue-section-header" style="margin-top:20px">Approved, sent or stopped (${approvedItems.length})</div>
       <div>
         ${approvedItems.length ? approvedItems.map((i) => renderQueueCard(i, true)).join('') : '<div style="font-size:12px;color:#94a3b8;padding:8px 0">No sent items yet today.</div>'}
       </div>
@@ -1000,7 +984,6 @@ function renderOutbox() {
           <div class="sb-meta-row" style="align-items:center">
             <span style="font-size:10.5px;font-weight:800;color:#94a3b8;width:55px">FROM</span>
             <div style="display:inline-flex;align-items:center;gap:8px;flex:1;max-width:440px">
-              <span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;font-size:9.5px;text-align:center;line-height:18px;font-weight:800;flex-shrink:0">US</span>
               <span style="font-size:12.5px;font-weight:600;color:#0f172a">${SellbirdState.stats?.sender ? escapeHtml(`${SellbirdState.stats.sender.name ? SellbirdState.stats.sender.name + ' ' : ''}<${SellbirdState.stats.sender.email}>`) : 'Not set up — Settings → Email sending'}</span>
             </div>
             
@@ -1009,14 +992,21 @@ function renderOutbox() {
           <div class="sb-meta-row">
             <span style="font-size:10.5px;font-weight:800;color:#94a3b8;width:55px">TO</span>
             <span>
-              <strong>${escapeHtml(activeItem.contact_name)}</strong> &lt;${escapeHtml(activeItem.contact_email || 'prospect@domain.com')}&gt;
+              <strong>${escapeHtml(activeItem.contact_name)}</strong> &lt;${escapeHtml(activeItem.contact_email || '')}&gt;
             </span>
-            <span class="sb-verified-pill" style="margin-left:4px">✓ VERIFIED</span>
+            ${activeItem.contact_email_status === 'verified'
+              ? '<span class="sb-verified-pill" style="margin-left:4px" title="Found on their website; their domain receives email">✓ FOUND ON THEIR SITE</span>'
+              : activeItem.contact_email_status === 'invalid'
+              ? '<span class="sb-catchall-pill" style="margin-left:4px;color:#b91c1c;background:#fef2f2">✕ CAN’T RECEIVE EMAIL</span>'
+              : '<span class="sb-catchall-pill" style="margin-left:4px" title="Not found on their website. It may bounce: check it if you can.">⚠ GUESSED ADDRESS</span>'}
           </div>
 
           <div class="sb-meta-row">
             <span style="font-size:10.5px;font-weight:800;color:#94a3b8;width:55px">SENDS</span>
-            <span>Tue 9:10 AM · scheduled in prospect working hours</span>
+            <span>${activeItem.status === 'sent' && activeItem.sent_at
+              ? 'Sent ' + escapeHtml(new Date(activeItem.sent_at * 1000).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))
+              : (activeItem.scheduled_at ? escapeHtml(new Date(activeItem.scheduled_at * 1000).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) : '—')
+                + ((activeItem.step_number || 1) > 1 ? ' · only after email ' + ((activeItem.step_number || 1) - 1) + ' has gone out, and only if they haven’t replied' : ' · after you approve it')}</span>
           </div>
         </div>
 
@@ -1035,7 +1025,7 @@ function renderOutbox() {
         <!-- Why Your Agent Wrote This Card (Screenshot 2) -->
         <div class="sb-agent-explainer-card">
           <div class="sb-explainer-title">
-            <span>✨</span> WHY YOUR AGENT WROTE THIS
+            <span>✨</span> WHAT THE EMAIL IS BASED ON
           </div>
           <div class="sb-explainer-pills">
             ${signalPills || '<div class="sb-explainer-pill"><span>⚡</span> <strong>Automated pain-point discovery</strong></div>'}
@@ -1141,7 +1131,7 @@ function renderCampaigns() {
   if (!container) return;
 
   const cohortsLabel = document.getElementById('sb-campaigns-cohorts-label');
-  if (cohortsLabel) cohortsLabel.textContent = `${SellbirdState.campaigns.length || 4} cohorts`;
+  if (cohortsLabel) cohortsLabel.textContent = `${SellbirdState.campaigns.length} campaign${SellbirdState.campaigns.length === 1 ? "" : "s"}`;
 
   if (!SellbirdState.campaigns.length) {
     container.innerHTML = `
@@ -1323,8 +1313,8 @@ async function createCampaign() {
   }
 
   const icp_definition = {
-    roles: roles ? roles.split(',').map((r) => r.trim()) : ['Owner', 'Operations Leader'],
-    industry: industry ? industry.split(',').map((i) => i.trim()) : ['B2B Enterprise'],
+    roles: roles ? roles.split(',').map((r) => r.trim()) : [],
+    industry: industry ? industry.split(',').map((i) => i.trim()) : [],
     location: location || 'Global',
   };
 
@@ -1334,7 +1324,7 @@ async function createCampaign() {
   try {
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;margin-right:6px"></span> Launching Agent...';
+      btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;margin-right:6px"></span> Creating…';
     }
 
     const campaign = await api('POST', '/api/sellbird/campaigns', {
@@ -1346,7 +1336,7 @@ async function createCampaign() {
       auto_approve,
     });
 
-    toast(`Campaign "${campaign.name}" created and autonomous agent armed!`, 'success', 5000);
+    toast(`Campaign "${campaign.name}" created. Next: add the companies you want to reach.`, 'success', 6000);
     closeSellbirdModals();
 
     document.getElementById('wizard-campaign-name').value = '';
@@ -1416,6 +1406,12 @@ function selectConversation(id) {
 
 function filterRepliesIntent(intent, btn) {
   SellbirdState.repliesFilterIntent = intent;
+  document.querySelectorAll('.sb-reply-filter').forEach((b) => {
+    const on = b.dataset.filter === intent;
+    b.style.background = on ? '#0f172a' : '';
+    b.style.color = on ? '#fff' : '';
+    b.style.borderColor = on ? '#0f172a' : '';
+  });
   renderReplies();
 }
 
@@ -1433,7 +1429,7 @@ async function sendDraftedReply(id) {
     await api('POST', `/api/sellbird/replies/${id}/send`, {
       ai_drafted_reply: replyText,
     });
-    toast('Response sent to prospect! Lead conversation updated.', 'success');
+    toast('Answer sent.', 'success');
     SellbirdState.isEditingReply = false;
     await loadReplies();
   } catch (err) {
@@ -1448,7 +1444,8 @@ function renderReplies() {
 
   const intentFilter = SellbirdState.repliesFilterIntent;
   const filtered = SellbirdState.replies.filter((r) => {
-    if (intentFilter === 'all') return true;
+    if (!intentFilter || intentFilter === 'all') return true;
+    if (intentFilter === 'needs') return r.status === 'pending_review';
     return (r.intent_category || '').toLowerCase() === intentFilter.toLowerCase();
   });
 
@@ -1460,9 +1457,9 @@ function renderReplies() {
     container.innerHTML = `
       <div class="card" style="padding:48px 24px;text-align:center;background:#fafbfc;border:1px dashed #cbd5e1;border-radius:10px">
         <div style="font-size:36px;margin-bottom:12px">💬</div>
-        <div style="font-size:16px;font-weight:700;color:#0f172a;margin-bottom:6px">No Prospect Replies Found</div>
+        <div style="font-size:16px;font-weight:700;color:#0f172a;margin-bottom:6px">No replies yet</div>
         <div style="font-size:13px;color:#64748b;max-width:500px;margin:0 auto 16px auto">
-          When target prospects reply to your outreach, Sellbird classifies their intent and auto-drafts the ideal response.
+          When someone answers your email, add their reply here. Their follow-ups stop, the reply is sorted (interested, question, not interested…) and an answer is drafted for you to check.
         </div>
         <button class="sb-secondary-btn" onclick="openSimulateReplyModal()">+ Add a reply you received</button>
       </div>`;
@@ -1476,16 +1473,11 @@ function renderReplies() {
 
   const renderQueueItem = (r) => {
     const isSelected = activeReply && r.id === activeReply.id;
-    const name = r.sender_name || (r.sender_email ? r.sender_email.split('@')[0].replace('.', ' ') : 'Prospect');
+    const name = r.contact_name || r.sender_email || 'Unknown sender';
     const initials = formatInitials(name);
     const intent = (r.intent_category || 'question').toLowerCase();
 
-    const intentPills = {
-      question: '<span class="sb-intent-tag question">? QUESTION</span>',
-      needs_you: '<span class="sb-intent-tag needs_you">👤 NEEDS YOU</span>',
-      interested: '<span class="sb-intent-tag interested">🔥 INTERESTED</span>',
-      out_of_office: '<span class="sb-intent-tag out_of_office">💤 OUT OF OFFICE</span>',
-    };
+    const intentPills = sbIntentPills();
 
     return `
       <div class="sb-queue-card ${isSelected ? 'selected' : ''}" onclick="selectConversation(${r.id})">
@@ -1493,11 +1485,11 @@ function renderReplies() {
           <div style="display:flex;align-items:center;gap:6px">
             <div class="sb-avatar-box" style="width:24px;height:24px;font-size:10px">${initials}</div>
             <span class="sb-queue-name">${escapeHtml(name)}</span>
-            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#0284c7"></span>
+            ${r.status === 'pending_review' ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#0284c7" title="Needs an answer"></span>' : ''}
           </div>
-          <span class="sb-queue-time">8m</span>
+          <span class="sb-queue-time">${sbAgo(r.created_at)}</span>
         </div>
-        <div class="sb-queue-snippet" style="font-weight:600;color:#1e293b">${escapeHtml(r.subject || 'Re: Outreach')}</div>
+        <div class="sb-queue-snippet" style="font-weight:600;color:#1e293b">${escapeHtml(r.subject || r.company_name || '')}</div>
         <div class="sb-queue-snippet">${escapeHtml(r.message_text)}</div>
         <div>
           ${intentPills[intent] || intentPills.question}
@@ -1522,7 +1514,9 @@ function renderReplies() {
         Select a conversation thread on the left.
       </div>`;
   } else {
-    const senderName = activeReply.sender_name || activeReply.sender_email.split('@')[0].replace('.', ' ');
+    const senderName = activeReply.contact_name || activeReply.sender_email;
+    const answered = activeReply.status === 'replied';
+    const sent = activeReply.last_sent;
     const initials = formatInitials(senderName);
     const intent = (activeReply.intent_category || 'question').toLowerCase();
     const isEditing = SellbirdState.isEditingReply && SellbirdState.selectedReplyId === activeReply.id;
@@ -1533,30 +1527,26 @@ function renderReplies() {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:1px solid #f1f5f9;margin-bottom:18px">
           <div>
             <div style="font-size:17px;font-weight:800;color:#0f172a;letter-spacing:-0.02em">
-              ${escapeHtml(activeReply.subject || '(no subject)')}
+              ${escapeHtml(activeReply.subject || sent?.subject || 'Reply')}
             </div>
             <div style="font-size:12px;color:#64748b;margin-top:2px">
-              ${escapeHtml(senderName)} · ${escapeHtml(activeReply.company_name || 'Community Leadership')} · Conversation Thread
+              ${escapeHtml(senderName)}${activeReply.company_name ? ' · ' + escapeHtml(activeReply.company_name) : ''} · ${escapeHtml(activeReply.sender_email)}
             </div>
           </div>
-          <span class="sb-intent-tag ${intent}">
-            ${intent === 'question' ? '? QUESTION' : intent === 'needs_you' ? '👤 NEEDS YOU' : intent === 'interested' ? '🔥 INTERESTED' : '💤 OUT OF OFFICE'}
-          </span>
+          ${sbIntentPills()[intent] || sbIntentPills().question}
         </div>
 
-        <!-- 1. Outbound Bubble (Official Company Sender) -->
-        <div class="sb-thread-bubble outbound">
+        <!-- 1. The email of ours they answered (only if there is one) -->
+        ${sent ? `<div class="sb-thread-bubble outbound">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
             <div style="display:flex;align-items:center;gap:6px">
-              <div class="sb-avatar-box" style="width:20px;height:20px;font-size:9px;background:#0284c7;color:#fff;font-weight:800">US</div>
-              <strong style="font-size:12.5px;color:#0f172a">${escapeHtml(SellbirdState.officialSender?.name || 'You')} &lt;${escapeHtml(SellbirdState.officialSender?.email || '')}&gt;</strong>
+              <strong style="font-size:12.5px;color:#0f172a">You${SellbirdState.stats?.sender ? ' &lt;' + escapeHtml(SellbirdState.stats.sender.email) + '&gt;' : ''}</strong>
             </div>
-            <span style="font-size:11px;color:#94a3b8">Outreach · Step 1</span>
+            <span style="font-size:11px;color:#94a3b8">Email ${sent.step_number || 1} · ${escapeHtml(sbWhen(sent.sent_at))}</span>
           </div>
-          <div style="font-size:13px;line-height:1.5;color:#334155">
-            Hi ${escapeHtml(senderName.split(' ')[0])}, I noticed your team is managing residential community operations. We help businesses like yours.
-          </div>
-        </div>
+          <div style="font-size:12.5px;font-weight:600;color:#0f172a;margin-bottom:4px">${escapeHtml(sent.subject || '')}</div>
+          <div style="font-size:13px;line-height:1.5;color:#334155;white-space:pre-wrap">${escapeHtml(sent.body || '')}</div>
+        </div>` : `<div class="form-hint" style="margin-bottom:12px">No email from Sales outreach was sent to ${escapeHtml(activeReply.sender_email)}.</div>`}
 
         <!-- 2. Inbound Bubble (Prospect) -->
         <div class="sb-thread-bubble inbound">
@@ -1565,11 +1555,9 @@ function renderReplies() {
               <div class="sb-avatar-box" style="width:20px;height:20px;font-size:9px">${initials}</div>
               <strong style="font-size:12.5px;color:#0f172a">${escapeHtml(senderName)}</strong>
             </div>
-            <span style="font-size:11px;color:#94a3b8">Today 8:41 AM</span>
+            <span style="font-size:11px;color:#94a3b8">${escapeHtml(sbWhen(activeReply.created_at))}</span>
           </div>
-          <div style="font-size:13px;line-height:1.5;color:#1e293b">
-            ${escapeHtml(activeReply.message_text)}
-          </div>
+          <div style="font-size:13px;line-height:1.5;color:#1e293b;white-space:pre-wrap">${escapeHtml(activeReply.message_text)}</div>
         </div>
 
         <!-- 3. AI Reply Draft Box (Claude Code Attribution — Screenshot 4) -->
@@ -1577,8 +1565,8 @@ function renderReplies() {
           <div class="sb-draft-box-header">
             <div style="display:flex;align-items:center;gap:6px">
               <span>✨</span>
-              <span>Reply drafted by <strong>Claude Code</strong></span>
-              <span class="sb-stage-pill draft" style="font-size:10px">NEEDS APPROVAL</span>
+              <span>${answered ? 'Your answer' : 'Answer drafted by AI'}</span>
+              <span class="sb-stage-pill ${answered ? 'contacted' : 'draft'}" style="font-size:10px">${answered ? 'SENT' : 'CHECK BEFORE SENDING'}</span>
             </div>
           </div>
 
@@ -1586,20 +1574,20 @@ function renderReplies() {
             <textarea id="reply-text-${activeReply.id}" class="form-textarea" rows="4" style="font-size:13px;line-height:1.5;margin-bottom:10px;width:100%">${escapeHtml(activeReply.ai_drafted_reply || '')}</textarea>
           ` : `
             <div class="sb-draft-box-body" id="reply-text-${activeReply.id}">
-              ${escapeHtml(activeReply.ai_drafted_reply || 'Thank you for your response! Would love to walk you through how our software automates this for your team.')}
+              ${escapeHtml(activeReply.ai_drafted_reply || '')}
             </div>
           `}
 
           <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:10px">
-            <span>⚡ From your product notes</span>
-            <div style="display:flex;gap:8px">
+            <span>${answered ? 'Sent to ' + escapeHtml(activeReply.sender_email) : 'Written from your campaign’s description. Edit it if needed.'}</span>
+            <div style="display:flex;gap:8px;${answered ? 'display:none' : ''}">
               ${isEditing ? `
                 <button class="sb-secondary-btn" onclick="toggleEditReplyDraft(${activeReply.id}, false)">Cancel</button>
               ` : `
                 <button class="sb-secondary-btn" onclick="toggleEditReplyDraft(${activeReply.id}, true)">Edit</button>
               `}
               <button class="sb-primary-btn" onclick="sendDraftedReply(${activeReply.id})">
-                ✓ Approve
+                Send answer
               </button>
             </div>
           </div>
@@ -1611,21 +1599,20 @@ function renderReplies() {
             <div class="sb-explainer-title" style="margin-bottom:0">
               ABOUT ${escapeHtml(senderName.split(' ')[0].toUpperCase())}
             </div>
-            <span class="sb-verified-pill">✓ VERIFIED</span>
           </div>
 
           <div class="sb-dossier-grid">
             <div>
               <div class="sb-dossier-col-title">COMPANY</div>
-              <div class="sb-dossier-col-val">${escapeHtml(activeReply.company_name || 'Target Organization')}<br><span style="color:#64748b;font-weight:400">${escapeHtml(activeReply.company_location || 'India')}</span></div>
+              <div class="sb-dossier-col-val">${escapeHtml(activeReply.company_name || '—')}<br><span style="color:#64748b;font-weight:400">${escapeHtml(activeReply.company_location || activeReply.company_domain || '')}</span></div>
             </div>
             <div>
               <div class="sb-dossier-col-title">SIGNALS</div>
-              <div class="sb-dossier-col-val">${escapeHtml(activeReply.buying_signals?.signals?.[0] || 'Active Target')}</div>
+              <div class="sb-dossier-col-val">${escapeHtml((activeReply.signals || [])[0] || '—')}</div>
             </div>
             <div>
               <div class="sb-dossier-col-title">CAMPAIGN</div>
-              <div class="sb-dossier-col-val">${escapeHtml(activeReply.campaign_name || '—')}<br><span style="color:#64748b;font-weight:400">Step 1 of 3 · stopped on reply</span></div>
+              <div class="sb-dossier-col-val">${escapeHtml(activeReply.campaign_name || '—')}<br><span style="color:#64748b;font-weight:400">${activeReply.campaign_name ? 'Follow-ups stopped when they replied' : ''}</span></div>
             </div>
           </div>
         </div>
@@ -1736,7 +1723,7 @@ async function addProspectCompany() {
   try {
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;margin-right:6px"></span> Crawling Website & Extracting Signals...';
+      btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;margin-right:6px"></span> Reading their website and writing emails…';
     }
 
     const result = await api('POST', '/api/sellbird/companies', {
@@ -1746,7 +1733,7 @@ async function addProspectCompany() {
       industry: industry || undefined,
     });
 
-    toast(`Successfully prospected ${result.company?.name || domain}! Outreach sequence drafted into Outbox.`, 'success', 5000);
+    toast(`Added ${result.company?.name || domain}. ${result.outbox?.length || 0} emails are waiting for your OK in Outbox${result.contact?.email_status === 'guessed' ? ' (the email address is a guess: check it first)' : ''}.`, 'success', 7000);
     closeSellbirdModals();
 
     document.getElementById('add-company-domain').value = '';
@@ -1790,7 +1777,7 @@ async function submitBulkDiscover() {
   try {
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;margin-right:6px"></span> Deep Crawling Batch...';
+      btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;margin-right:6px"></span> Reading websites and writing emails…';
     }
 
     const res = await api('POST', '/api/sellbird/discover', {
@@ -1798,7 +1785,7 @@ async function submitBulkDiscover() {
       items,
     });
 
-    toast(`Bulk discovery complete: ${res.count || 0} accounts crawled, contacts verified, and queued!`, 'success', 5000);
+    toast(`Added ${res.count || 0} compan${res.count === 1 ? 'y' : 'ies'}; their emails wait for your OK in Outbox.${res.skipped?.length ? ` Not added: ${res.skipped.map(x => x.domain).join(', ')}.` : ''}`, res.skipped?.length ? 'warning' : 'success', 8000);
     closeSellbirdModals();
     document.getElementById('bulk-discover-domains').value = '';
 
@@ -1857,11 +1844,11 @@ async function triggerRealWorldDiscovery() {
   try {
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;margin-right:8px"></span> Crawling Live Web & Verifying DNS MX...';
+      btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;margin-right:8px"></span> Reading websites and checking email addresses…';
     }
 
     const res = await api('POST', '/api/sellbird/discover-real', { targets });
-    toast(`🎉 Successfully prospected ${res.count || 0} real-world companies! Live signals and verified contacts ready.`, 'success', 6000);
+    toast(`${res.message || ''}${res.skipped?.length ? ` Not added: ${res.skipped.map(x => x.domain).join(', ')}.` : ''}`, res.skipped?.length ? 'warning' : 'success', 8000);
 
     closeSellbirdModals();
 
@@ -1973,4 +1960,28 @@ if (typeof window !== 'undefined') {
     formatInitials,
     render14DaySparkline,
   });
+}
+
+// Labels for each kind of reply (AI sorts replies into these)
+function sbIntentPills() {
+  return {
+    interested: '<span class="sb-intent-tag interested">🔥 INTERESTED</span>',
+    question: '<span class="sb-intent-tag question">? QUESTION</span>',
+    objection: '<span class="sb-intent-tag needs_you">⏸ NOT NOW</span>',
+    not_interested: '<span class="sb-intent-tag out_of_office">✕ NOT INTERESTED</span>',
+    unsubscribe: '<span class="sb-intent-tag out_of_office">⛔ ASKED TO STOP</span>',
+  };
+}
+
+// "5m", "3h", "2d" since a time in seconds
+function sbAgo(ts) {
+  if (!ts) return '';
+  const s = Math.max(0, Math.floor(Date.now() / 1000) - ts);
+  if (s < 3600) return `${Math.max(1, Math.floor(s / 60))}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  return `${Math.floor(s / 86400)}d`;
+}
+
+function sbWhen(ts) {
+  return ts ? new Date(ts * 1000).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
 }

@@ -84,12 +84,12 @@ async function loadDashboardStats() {
     const sbStats = await api('GET', '/api/sellbird/stats');
     const badge = document.getElementById('dash-sellbird-badge');
     if (badge && sbStats) {
-      if (sbStats.pending_approval > 0) {
-        badge.textContent = `🛡️ ${sbStats.pending_approval} Need Review`;
+      if (sbStats.pending_approvals > 0) {
+        badge.textContent = `${sbStats.pending_approvals} to check`;
         badge.style.background = '#fef3c7';
         badge.style.color = '#92400e';
       } else {
-        badge.textContent = `⚡ ${sbStats.active_campaigns || 0} Campaigns`;
+        badge.textContent = sbStats.active_campaigns ? `${sbStats.active_campaigns} campaign${sbStats.active_campaigns === 1 ? "" : "s"}` : "";
       }
     }
   } catch {}

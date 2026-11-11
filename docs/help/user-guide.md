@@ -25,7 +25,7 @@ This guide is for business owners, marketers and agency teams. You don't need an
 11. [Festivals and Indian languages](#11-festivals-and-indian-languages)
 12. [Templates, Brand Kit, hashtags and UTM links](#12-templates-brand-kit-hashtags-and-utm-links)
 13. [SEO tools and other marketing tools](#13-seo-tools-and-other-marketing-tools)
-14. [Email campaigns](#14-email-campaigns)
+14. [Email campaigns and sales outreach](#14-email-campaigns-and-sales-outreach)
 15. [Clients, workspaces and team members (agencies)](#15-clients-workspaces-and-team-members-agencies)
 16. [Backup, data location and privacy](#16-backup-data-location-and-privacy)
 17. [Uninstalling](#17-uninstalling)
@@ -556,7 +556,7 @@ The AI estimates keyword ideas and scores. For real search numbers, use Google S
 
 ---
 
-## 14. Email campaigns
+## 14. Email campaigns and sales outreach
 
 ### One-time setup (admin): Settings → 📧 Email / SMTP
 Enter your email provider's sending details and click **💾 Save SMTP Settings**:
@@ -579,6 +579,29 @@ Sending a campaign needs the **publish** permission (the Manager role) and an ac
 **Unsubscribing:** every campaign email automatically includes an **Unsubscribe** button and a footer line. When a reader clicks it, an email addressed to you opens on their side, with "unsubscribe" in it. When you receive such a reply, open **Email Marketing → 👥 Subscribers** and **mark that person as unsubscribed** so they don't get future campaigns. Please do this promptly. It's a legal requirement in most countries.
 
 > Only email people who have agreed to hear from you. Gmail and Outlook limit how many emails you can send per day.
+
+### Sales outreach: emailing businesses you choose (Grow → Sales outreach)
+
+Sales outreach writes a short, personal email to each business you pick, waits for your OK, sends it, and stops following up as soon as they answer. It uses the same email account as Email campaigns (**Settings → Email sending**). Until that is set up, nothing is sent and the page says **Email not set up**. Sending also needs an active licence.
+
+The side menu follows the order you use it:
+
+1. **Campaigns.** Click **+ New campaign**. Give it a name and, most importantly, **say what you offer in a sentence or two**: the emails are written from this. Your business name comes from **Brand Kit**, so fill that in too. Set **Most emails per day** (25 is a safe start). Leave **Send without asking me** off.
+2. **Companies & people.** Click **+ Add a company** (or **Add many companies** for a list of up to 20 websites). Social-Nexus reads their website, picks who to email and writes 3 emails: a first email, a short follow-up 3 days later and a last note 7 days later.
+   - The email address is marked **✓ Verified** when it was found on their own website, **⚠ Guessed** when it wasn't (for example `contact@their-company.com`; it may bounce, so check it if you can) and **✕ Won't work** when the domain can't receive email. "Won't work" addresses are never emailed.
+   - If a website doesn't open, the company isn't added and you're told why.
+3. **Outbox (approve).** Read each email, edit it if needed and click **Approve** (or **Approve all**). Nothing is sent before that. An email that still has a blank like `[Name]` or `{{first_name}}` can't be approved until you fill it in.
+4. Approved emails go out by themselves (the app checks every 15 minutes), a few seconds apart and never more than the campaign's daily limit. To send what's due right away, click **⚡** at the top.
+   - **Follow-ups go out in order**: email 2 only after email 1 has really been sent, and at least the planned number of days after it. If email 1 went out late, the follow-ups move by the same amount. If an earlier email was cancelled or failed, the later ones aren't sent.
+   - The Outbox shows the real state of each email: **✓ Sent**, **Approved · goes out** (with the date), **Not sent** (with the reason, such as "they replied") or **Failed** (with the error).
+5. **Replies.** Social-Nexus doesn't read your mailbox yet. When someone answers, click **+ Add a reply you received** and paste it in. Then:
+   - Their follow-ups stop at once, and the company shows **Replied**.
+   - The reply is sorted as **Interested**, **Question**, **Not now**, **Not interested** or **Asked to stop**. People who said "not interested" or asked to stop are never emailed again, by any campaign.
+   - An answer is drafted from your campaign's description. Click **Edit** to change it and **Send answer** to send it. It goes out with the subject of your original email ("Re: …"). It's only marked as answered if it was really sent, and it can't be sent twice by accident.
+
+**Pause sending** (Outbox) stops everything at once until you click **Resume sending**. To stop just one campaign, pause it under **Campaigns**. **How sending works** in the side menu sums up these rules and shows the address emails are sent from.
+
+Every email ends with a line telling people how to opt out. Only email businesses that are likely to find your offer useful, and keep the daily limit low: Gmail and Outlook limit how much you can send, and many unanswered cold emails can hurt your email reputation.
 
 ---
 

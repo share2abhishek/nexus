@@ -145,6 +145,8 @@ async function crawlWebsite(targetUrl) {
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
       maxRedirects: 5,
+      // A website must not send us on to a private or local address
+      beforeRedirect: (opts) => { if (isPrivateOrLocalHost(opts.hostname)) throw new Error('Redirect to a private address was blocked'); },
     });
 
     const html = typeof res.data === 'string' ? res.data : JSON.stringify(res.data || '');

@@ -42,7 +42,9 @@ async function sendOutreachEmail({ to, subject, body, fromName, fromEmail }) {
   const footerText = `\n\n---\nTo opt out of future emails, reply with "unsubscribe".`;
   const footerHtml = `<p style="font-size:12px;color:#888;margin-top:28px">To opt out of future emails, reply with "unsubscribe".</p>`;
 
-  const htmlBody = body.replace(/\n/g, '<br/>') + footerHtml;
+  // The email text is shown as text: a '<' or '&' in it must not turn into HTML
+  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const htmlBody = esc(body).replace(/\n/g, '<br/>') + footerHtml;
 
   const info = await transporter.sendMail({
     from: sender,
@@ -51,7 +53,7 @@ async function sendOutreachEmail({ to, subject, body, fromName, fromEmail }) {
     text: body + footerText,
     html: htmlBody,
     headers: {
-      'X-Mailer': 'Sellbird/2.0 (Social-Nexus)',
+      'X-Mailer': 'Social-Nexus',
     },
   });
 
@@ -72,6 +74,14 @@ async function hasReplied(knex, workspaceId, email) {
   if (!email) return false;
   return !!(await knex('sellbird_replies').where({ workspace_id: workspaceId })
     .whereRaw('LOWER(sender_email) = ?', [String(email).toLowerCase().trim()]).first('id'));
+}
+
+// Text the AI (or a template) left for someone to fill in, like [Name] or {{first_name}}.
+// An email with these would go out looking unfinished, so it isn't sent.
+const PLACEHOLDER = /\[(?:name|first ?name|sender|your name|company|company name|topic|previous subject|prospect)\]|\{\{\s*[\w.]+\s*\}\}/i;
+function findPlaceholder(...texts) {
+  for (const t of texts) { const m = String(t || '').match(PLACEHOLDER); if (m) return m[0]; }
+  return null;
 }
 
 // Process due approved emails: daily cap per campaign, paused campaigns and
@@ -167,6 +177,32 @@ async function processDueOutbox(knex, repo, options = {}) {
       continue;
     }
 
+    // Follow-ups go out in order: step 2 only after step 1 really went out,
+    // and at least a day after it. (When an email goes out late, its later
+    // steps are moved by the same delay, below, so the planned gaps stay.)
+    if ((item.step_number || 1) > 1) {
+      const prev = await knex('sellbird_outbox')
+        .where({ workspace_id: item.workspace_id, campaign_id: item.campaign_id, contact_id: item.contact_id, step_number: item.step_number - 1 })
+        .orderBy('id', 'desc').first();
+      if (prev && ['rejected', 'failed'].includes(prev.status)) {
+        await repo.updateOutboxItem(item.workspace_id, item.id, { status: 'rejected', error_message: 'Not sent: the email before it wasn’t sent.' });
+        continue;
+      }
+      if (prev && prev.status !== 'sent') continue; // waits for the earlier email
+      const current = await knex('sellbird_outbox').where({ id: item.id }).first('scheduled_at');
+      if ((current?.scheduled_at || 0) > now) continue; // moved later while this batch ran
+      if (prev && (prev.sent_at || 0) + 86400 > now) {
+        await repo.updateOutboxItem(item.workspace_id, item.id, { scheduled_at: (prev.sent_at || now) + 86400 });
+        continue;
+      }
+    }
+
+    const unfilled = findPlaceholder(item.subject, item.body);
+    if (unfilled) {
+      await repo.updateOutboxItem(item.workspace_id, item.id, { status: 'pending_approval', error_message: `Not sent: “${unfilled}” needs to be filled in. Edit the email, then approve it again.` });
+      continue;
+    }
+
     // Atomically claim (approved -> sending)
     const claimed = await knex('sellbird_outbox')
       .where({ id: item.id, status: 'approved' })
@@ -186,6 +222,16 @@ async function processDueOutbox(knex, repo, options = {}) {
       const contact = await knex('sellbird_contacts').where({ id: item.contact_id }).first();
       if (contact?.company_id) {
         await knex('sellbird_companies').where({ id: contact.company_id }).update({ status: 'contacted', updated_at: now });
+      }
+
+      // Sent later than planned: move this person's next steps by the same delay
+      const late = now - (item.scheduled_at || now);
+      if (late > 0) {
+        await knex('sellbird_outbox')
+          .where({ workspace_id: item.workspace_id, campaign_id: item.campaign_id, contact_id: item.contact_id })
+          .where('step_number', '>', item.step_number || 1)
+          .whereIn('status', ['pending_approval', 'approved'])
+          .update({ scheduled_at: knex.raw('scheduled_at + ?', [late]), updated_at: now });
       }
 
       sentCount++;
@@ -208,6 +254,7 @@ async function processDueOutbox(knex, repo, options = {}) {
 }
 
 module.exports = {
+  findPlaceholder,
   isPaused,
   setPaused,
   hasReplied,
