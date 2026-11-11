@@ -5237,3 +5237,16 @@ body.light-mode :is(.btn, .sb-primary-btn, .sb-secondary-btn, .sb-icon-btn, .ton
 #account-banner { margin: 0 24px 12px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(37, 99, 235, .35); background: rgba(37, 99, 235, .07); font-size: 13px; }
 #account-banner .account-banner-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 #account-banner .account-banner-row + .account-banner-row { margin-top: 6px; }
+
+/* Server edition: Settings → Plan (choose and pay for a plan) */
+.billing-current { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card); margin-bottom: 16px; }
+.billing-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.plan-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.plan-card { border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: var(--bg-card); display: flex; flex-direction: column; }
+.plan-card:hover { border-color: var(--border-active); }
+.plan-name { font-weight: 700; color: var(--text-primary); font-size: 15px; }
+.plan-price { font-size: 26px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; margin: 6px 0 2px; }
+.plan-price span { font-size: 13px; font-weight: 500; color: var(--text-muted); margin-left: 2px; }
+.plan-limits { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 6px; font-size: 13px; color: var(--text-secondary); flex: 1; }
+.plan-limits li::before { content: '✓'; color: var(--accent-green); font-weight: 700; margin-right: 8px; }
+@media (max-width: 560px) { .billing-current { flex-direction: column; align-items: flex-start; } }

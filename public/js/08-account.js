@@ -20,6 +20,15 @@ async function checkAuth() {
       setTimeout(() => toast('Your email is confirmed. Thank you!', 'success'), 800);
       history.replaceState(null, '', '/');
     }
+    // Back from paying for a plan: show the Plan screen
+    if (new URLSearchParams(location.search).get('billing') === 'done') {
+      history.replaceState(null, '', '/');
+      setTimeout(() => {
+        toast('Thank you! Your plan is active.', 'success');
+        State.pendingSettingsTab = 'license';
+        navigateTo('settings');
+      }, 600);
+    }
     // Update user menu
     const nameEl   = document.getElementById('user-name-label');
     const avatarEl = document.getElementById('user-avatar');

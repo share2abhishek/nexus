@@ -140,3 +140,51 @@ Server edition only; the desktop app keeps today's behaviour.
   online payment (phase 4) does it.
 - Tests: tests/businessPlans.test.js. Tried in a fresh server-edition copy: trial
   publishes; admin ends the trial; publishing and scheduling answer with the reason.
+
+## Phase 4 (paying online) — built 2026-11-11
+
+- **Billing service** (licence server, `src/saas.js`): business-plan products
+  (`saas_monthly` / `saas_yearly`, one per plan and period; prices editable in
+  Admin → Pricing, each needs a Razorpay plan id), a `saas_subscriptions` row per
+  business (`org_ref` = `nexus:<organization id>`), a payment page
+  (`/saas/pay/:order`), GST invoices (same numbering as licences), Razorpay
+  events (renewal → new invoice and later end date; failed payments → past due;
+  cancelled; full refund → ends now). Each change is sent to the app
+  (`SAAS_APP_WEBHOOK_URL`). The desktop shop doesn't list these products.
+- **App** (`services/billing.js`, `routes/billing.js`): Settings → **Plan** shows
+  the plans (monthly/yearly), GST details, then the payment page; back in the
+  app (`/billing/return`) the plan shows as active with its renewal date,
+  **Cancel plan** (works until the end of the paid period) and **Invoices**. Only
+  the business owner (or a Radixile admin) can pay or cancel. The app copies the
+  status onto the business (`plan`, `plan_status`, `paid_until`) from notices,
+  on the Plan screen, after paying and every 6 hours. Plan limits come from the
+  billing service's editions. A business Radixile paused stays paused.
+- Plan rules (`services/entitlements.js`): active; payment failing (past due)
+  keeps working for 3 days after the paid end; cancelled keeps working until the
+  paid end.
+- Requests between the two are signed (HMAC-SHA256 of
+  `time.METHOD.path.body`, 5 minutes' leeway) with `BILLING_SECRET` =
+  `SAAS_APP_SECRET`.
+- Safeguards (from the code review): the plan changes only when a payment is
+  confirmed; starting a new checkout expires older unpaid ones (and stops their
+  Razorpay subscriptions); payment links work for 24 hours; Razorpay events that
+  arrive late or twice are ignored and never revive a cancelled plan; a full
+  refund of the current payment ends the plan and stops future charges, while
+  refunds of older payments leave it alone; a business whose payments fail can
+  pay again from the Plan screen (the old subscription is stopped); businesses
+  that started paying in the last week are re-checked every 6 hours even if a
+  notice was missed. Checkout needs `APP_URL`.
+- Not yet: changing plan mid-period (write to info@radixile.com; Radixile can
+  set it in Admin → Businesses), AI credits per plan.
+- Tests: license-server/test/saas.test.js (13), tests/billing.test.js (11). Tried
+  end to end with both servers locally in test-payment mode: sign up → choose
+  Individual → GST details → payment page → back to the app with the plan
+  active, invoice listed → cancel → "Ends on …".
+
+### Before taking real payments
+1. In Razorpay, create a subscription plan for each business-plan product and
+   paste its id in the licence server's Admin → Pricing.
+2. Set real prices there (the seeded ones are placeholders).
+3. Licence server: `SAAS_APP_SECRET`, `SAAS_APP_WEBHOOK_URL`, Razorpay keys and
+   webhook (subscription.* and refund events). App: `BILLING_URL`,
+   `BILLING_SECRET`, `APP_URL`.

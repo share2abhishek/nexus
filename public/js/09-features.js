@@ -547,5 +547,162 @@ function renderPlanPanel(box, s) {
     <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Plan</div></div><div style="font-size:13px;color:var(--text-secondary)">${escapeHtml(s.plan_name || s.plan || '')}</div></div>
     <div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">Status</div></div><div style="font-size:13px;color:var(--text-secondary)">${state}</div></div>
     ${rows}
-    <p class="form-hint" style="margin-top:12px">To choose or change a plan, contact Radixile for now. Paying online here is coming soon.</p>`;
+    <div id="billing-box" style="margin-top:20px"><p class="form-hint">Loading plans…</p></div>`;
+  loadBillingSection();
+}
+
+// ── Paying for the plan online (server edition) ─────────────────────────────
+const rupees = (paise) => `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: paise % 100 ? 2 : 0 })}`;
+const billingDate = (epoch) => new Date(epoch * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+State.billingInterval = State.billingInterval || 'monthly';
+
+async function loadBillingSection() {
+  const box = document.getElementById('billing-box');
+  if (!box) return;
+  let b;
+  try { b = await api('GET', '/api/billing'); } catch (err) { box.innerHTML = `<p class="form-hint">${escapeHtml(err.message)}</p>`; return; }
+  State.billing = b;
+  if (!b.configured) {
+    box.innerHTML = '<p class="form-hint">To choose or change a plan, write to <a href="mailto:info@radixile.com">info@radixile.com</a>. Paying online here is coming soon.</p>';
+    return;
+  }
+  const sub = b.subscription || {};
+  const paying = ['active', 'past_due'].includes(sub.status);
+  const parts = [];
+
+  // Current subscription
+  if (paying || sub.status === 'cancelled') {
+    const ends = sub.cancel_at_period_end || sub.status === 'cancelled';
+    const when = sub.paid_until ? `${ends ? 'Ends' : 'Renews'} on ${billingDate(sub.paid_until)}` : '';
+    parts.push(`<div class="billing-current">
+      <div><div class="settings-row-title">${escapeHtml(sub.product_name || 'Your plan')}</div>
+      <div class="form-hint" style="margin:2px 0 0">${escapeHtml(when)}${sub.status === 'past_due' ? ' · the last payment failed. Razorpay tries again, or choose a plan below to pay now' : ''}</div></div>
+      ${b.can_manage && paying && !sub.cancel_at_period_end ? '<button class="btn btn-ghost btn-ghost-danger btn-sm" data-bill="cancel">Cancel plan</button>' : ''}
+    </div>`);
+  }
+
+  // Plans to choose from
+  // A cancelled plan, or one whose payments fail, can be replaced by paying for a new one
+  const canChoose = !paying || sub.cancel_at_period_end || sub.status === 'past_due';
+  if (canChoose && b.plans?.length) {
+    const intervals = [...new Set(b.plans.map((p) => p.interval))];
+    if (!intervals.includes(State.billingInterval)) State.billingInterval = intervals[0];
+    const shown = b.plans.filter((p) => p.interval === State.billingInterval);
+    const lim = (v) => (Number(v) === -1 ? 'Unlimited' : Number(v) || 0);
+    parts.push(`<div class="billing-head">
+      <h3 class="settings-section-title" style="margin:0">${paying ? 'Choose your next plan' : 'Choose a plan'}</h3>
+      ${intervals.length > 1 ? `<div class="segmented" role="radiogroup" aria-label="Billing period" style="width:auto">
+        ${intervals.map((i) => `<button class="seg" role="radio" aria-checked="${i === State.billingInterval}" data-bill="interval" data-value="${escapeHtml(i)}">${i === 'yearly' ? 'Yearly' : 'Monthly'}</button>`).join('')}
+      </div>` : ''}
+    </div>
+    <div class="plan-grid">${shown.map((p) => `
+      <div class="plan-card">
+        <div class="plan-name">${escapeHtml(p.plan_name)}</div>
+        <div class="plan-price">${rupees(p.total)}<span>/${p.interval === 'yearly' ? 'year' : 'month'}</span></div>
+        <div class="form-hint" style="margin:0 0 10px">${rupees(p.base)} + ${p.gst_percent}% GST</div>
+        <ul class="plan-limits">
+          <li>${lim(p.limits?.workspaces)} brand/client workspace${p.limits?.workspaces === 1 ? '' : 's'}</li>
+          <li>${lim(p.limits?.users)} team member${p.limits?.users === 1 ? '' : 's'}</li>
+          <li>${lim(p.limits?.seo_sites)} SEO autopilot website${p.limits?.seo_sites === 1 ? '' : 's'}</li>
+        </ul>
+        ${b.can_manage
+          ? `<button class="btn btn-primary btn-sm" style="width:100%" ${p.ready ? '' : 'disabled title="Not available for payment yet"'} data-bill="choose" data-value="${escapeHtml(p.code)}">Choose ${escapeHtml(p.plan_name)}</button>`
+          : ''}
+      </div>`).join('')}
+    </div>
+    ${b.can_manage ? '' : '<p class="form-hint">Only the owner of the business can choose and pay for a plan.</p>'}
+    <div id="billing-form"></div>`);
+  } else if (paying) {
+    parts.push('<p class="form-hint">To change plan, write to <a href="mailto:info@radixile.com">info@radixile.com</a>.</p>');
+  }
+  if (b.plans_error) parts.push(`<p class="form-hint">${escapeHtml(b.plans_error)}</p>`);
+  if (b.mode === 'mock' && b.can_manage) parts.push('<p class="form-hint">Test mode: no real money is charged.</p>');
+
+  // Invoices
+  if (b.invoices?.length) {
+    parts.push(`<h3 class="settings-section-title" style="margin:20px 0 6px">Invoices</h3>
+      ${b.invoices.map((i) => `<div class="settings-row"><div class="settings-row-info"><div class="settings-row-title">${escapeHtml(i.invoice_no)}</div>
+        <div class="settings-row-desc">${i.paid_at ? billingDate(i.paid_at) : ''}${i.refund ? ' · refunded' : ''}</div></div>
+        <div style="display:flex;gap:12px;align-items:center;font-size:13px">${rupees(i.amount_paise)}
+        <a href="${escapeHtml(i.url)}" target="_blank" rel="noopener">Open</a></div></div>`).join('')}`);
+  }
+  parts.push('<p class="form-hint" style="margin-top:14px">Payments are handled securely by Razorpay. See the <a href="/legal/refunds" target="_blank" rel="noopener">refund and cancellation policy</a>.</p>');
+  box.innerHTML = parts.join('');
+  // Buttons are wired here (no values inside onclick text)
+  box.querySelectorAll('[data-bill]').forEach((el) => el.addEventListener('click', () => {
+    const v = el.dataset.value;
+    if (el.dataset.bill === 'cancel') cancelBillingPlan(el);
+    else if (el.dataset.bill === 'interval') setBillingInterval(v);
+    else if (el.dataset.bill === 'choose') openBillingForm(v);
+  }));
+}
+
+function setBillingInterval(i) {
+  State.billingInterval = i;
+  loadBillingSection();
+}
+
+// GST details for the invoice, then off to the payment page
+function openBillingForm(code) {
+  const b = State.billing || {};
+  const plan = (b.plans || []).find((p) => p.code === code);
+  const box = document.getElementById('billing-form');
+  if (!plan || !box) return;
+  const states = Object.entries(b.states || {}).sort((x, y) => x[1].localeCompare(y[1]));
+  box.innerHTML = `<div class="billing-form card" style="margin-top:14px">
+    <div class="card-body">
+      <div class="settings-row-title" style="margin-bottom:4px">${escapeHtml(plan.name)}: ${rupees(plan.total)} per ${plan.interval === 'yearly' ? 'year' : 'month'}</div>
+      <p class="form-hint" style="margin:0 0 12px">For the GST invoice. It renews automatically; cancel any time here.</p>
+      <div class="grid-2">
+        <div class="form-group"><label class="form-label" for="bill-name">Name on the invoice</label><input class="form-input" id="bill-name" value="${escapeHtml(b.business || '')}" maxlength="160" /></div>
+        <div class="form-group"><label class="form-label" for="bill-email">Invoice email</label><input class="form-input" id="bill-email" type="email" value="${escapeHtml(b.email || '')}" /></div>
+        <div class="form-group"><label class="form-label" for="bill-gstin">GSTIN (optional)</label><input class="form-input" id="bill-gstin" placeholder="27ABCDE1234F1Z5" maxlength="15" style="text-transform:uppercase" /></div>
+        <div class="form-group"><label class="form-label" for="bill-state">State</label><select class="form-select" id="bill-state"><option value="">Choose your state</option>${states.map(([c, n]) => `<option value="${escapeHtml(c)}">${escapeHtml(n)}</option>`).join('')}</select></div>
+      </div>
+      <div class="form-group"><label class="form-label" for="bill-address">Billing address (optional)</label><input class="form-input" id="bill-address" maxlength="400" /></div>
+      <div class="settings-actions">
+        <button class="btn btn-primary" id="bill-go">Continue to payment →</button>
+        <button class="btn btn-ghost" id="bill-close">Cancel</button>
+      </div>
+    </div></div>`;
+  document.getElementById('bill-go').addEventListener('click', (e) => startBillingCheckout(code, e.currentTarget));
+  document.getElementById('bill-close').addEventListener('click', () => { box.innerHTML = ''; });
+  // A GSTIN already says the state
+  document.getElementById('bill-gstin').addEventListener('input', (e) => {
+    const code2 = e.target.value.trim().slice(0, 2);
+    if (/^\d{2}$/.test(code2) && b.states?.[code2]) document.getElementById('bill-state').value = code2;
+  });
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  document.getElementById('bill-state').focus();
+}
+
+async function startBillingCheckout(code, btn) {
+  const v = (id) => document.getElementById(id)?.value.trim() || '';
+  if (!v('bill-state') && !v('bill-gstin')) return toast('Choose your state (needed for the GST invoice)', 'warning');
+  btn.disabled = true;
+  try {
+    const r = await api('POST', '/api/billing/checkout', {
+      product_code: code, company: v('bill-name'), email: v('bill-email'), gstin: v('bill-gstin').toUpperCase(),
+      state_code: v('bill-state'), address: v('bill-address'),
+    });
+    window.location.href = r.pay_url;
+  } catch (err) {
+    toast(err.message, 'error');
+    btn.disabled = false;
+  }
+}
+
+async function cancelBillingPlan(btn) {
+  const sub = State.billing?.subscription || {};
+  const until = sub.paid_until ? billingDate(sub.paid_until) : 'the end of the period you paid for';
+  if (!(await askConfirm(`Cancel the plan? It keeps working until ${until}; after that, publishing and sending stop. Your posts and settings are kept.`, 'Cancel plan'))) return;
+  btn.disabled = true;
+  try {
+    await api('POST', '/api/billing/cancel');
+    toast(`Plan cancelled. It keeps working until ${until}.`, 'success');
+    await loadLicense();
+  } catch (err) {
+    toast(err.message, 'error');
+    btn.disabled = false;
+  }
 }

@@ -64,7 +64,7 @@ app.use(cors({ origin: false }));
 app.use(express.json({
   limit: '10mb',
   // Meta signs the exact bytes it sends: keep them for the webhook signature check
-  verify: (req, res, buf) => { if (req.url.startsWith('/api/webhooks/')) req.rawBody = buf; },
+  verify: (req, res, buf) => { if (req.url.startsWith('/api/webhooks/') || req.url.startsWith('/billing/webhook')) req.rawBody = buf; },
 }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -149,6 +149,10 @@ app.use('/api/webhooks', require('../routes/webhooks')(knex)); // Meta Lead Ads 
 // ── Protected Routes (require login) ─────────────────────────────────────────
 
 app.use('/api/license', requireAuth, require('../routes/license'));
+// Server edition: paying for the business's plan (billing service at BILLING_URL)
+const billingRoutes = require('../routes/billing');
+app.use('/billing', billingRoutes.pub);
+app.use('/api/billing', requireAuth, withWorkspace, billingRoutes.api);
 app.use('/api/backups', requireAuth, require('../routes/backups')(knex));
 app.use('/api/bio', requireAuth, withWorkspace, require('../routes/bio')(knex, requirePermission));
 // Phone companion (per user, across workspaces)
@@ -282,6 +286,7 @@ async function bootstrap() {
     require('../services/inbox').start(knex); // new comments on published posts
     require('../services/companion').start(knex); // phone companion summaries and actions
     require('../services/cloudPosting').start(knex); // PC-off safety net (paid editions)
+    require('../services/billing').start(); // server edition: keeps business plans in step with billing
     require('../services/license').start(); // background licence check
 
     // Automated Webhook & Tunnel Manager:

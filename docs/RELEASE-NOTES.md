@@ -49,6 +49,11 @@ Newest first. Paste the section for a version into the GitHub Release
 - Contact address is now info@radixile.com.
 - Legal pages at /legal: Terms of Service, Privacy Policy (DPDP Act, Grievance Officer, Google "Limited Use"), Refund & Cancellation (with delivery), Acceptable Use, Cookies, Delete your data (for Meta and Google app review) and a Data Processing Addendum for businesses. Company address, Grievance Officer and court city come from `LEGAL_ADDRESS`, `LEGAL_GRIEVANCE_OFFICER` and `LEGAL_CITY`. Sign-up says that creating an account accepts the Terms and Privacy Policy.
 
+### Server edition: pay for your plan online
+- Settings → Plan lists the plans (monthly or yearly, prices with GST). The owner picks one, enters GST details and pays through Razorpay; the plan starts straight away.
+- The Plan screen shows the renewal date, the GST invoices, and **Cancel plan** (keeps working until the end of the period paid for).
+- If a renewal payment fails, publishing continues for 3 more days while Razorpay tries again.
+
 ### Server edition: settings for each business
 - AI keys can be shared with the whole team (Settings → AI → Shared with your team). The owner or a manager saves them; everyone else uses them unless they add their own. Keys are stored encrypted and never shown again.
 - Email sending (Settings → Email sending) belongs to the business: campaigns and Sales outreach go from the business's own address. Only the owner or a manager can change it.

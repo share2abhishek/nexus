@@ -46,10 +46,19 @@ function decide(org, plan) {
   if (!plan) {
     return { ...base, can_publish: false, state: 'unlicensed', message: `${org.name} has no plan yet. Choose a plan to start publishing.` };
   }
-  const paidOk = org.plan_status === 'active' && (!org.paid_until || org.paid_until + GRACE_DAYS * DAY > t);
-  if (paidOk) {
-    const ending = org.paid_until && org.paid_until < t ? `The ${base.plan_name} plan payment is overdue: renew within ${Math.max(1, Math.ceil((org.paid_until + GRACE_DAYS * DAY - t) / DAY))} days to keep publishing.` : null;
-    return { ...base, can_publish: true, state: 'active', message: ending };
+  const graceEnd = (org.paid_until || 0) + GRACE_DAYS * DAY;
+  const daysLeft = (until) => Math.max(1, Math.ceil((until - t) / DAY));
+  // Paying (or a payment just failed: a few days' grace)
+  if ((org.plan_status === 'active' && (!org.paid_until || graceEnd > t)) || (org.plan_status === 'past_due' && org.paid_until && graceEnd > t)) {
+    let message = null;
+    if (org.plan_status === 'past_due') message = `The last payment for the ${base.plan_name} plan didn’t go through. Update your payment method within ${daysLeft(graceEnd)} days to keep publishing.`;
+    else if (org.paid_until && org.paid_until < t) message = `The ${base.plan_name} plan payment is overdue: renew within ${daysLeft(graceEnd)} days to keep publishing.`;
+    return { ...base, can_publish: true, state: 'active', message };
+  }
+  // Cancelled: works until the end of the period already paid for
+  if (org.plan_status === 'cancelled' && org.paid_until && org.paid_until > t) {
+    const until = new Date(org.paid_until * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' });
+    return { ...base, can_publish: true, state: 'active', ends_at: org.paid_until, message: `The ${base.plan_name} plan is cancelled and ends on ${until}. Choose a plan again any time to keep publishing after that.` };
   }
   return {
     ...base, can_publish: false, state: 'expired',
