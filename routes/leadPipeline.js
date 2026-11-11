@@ -1317,7 +1317,7 @@ module.exports = (knex, requirePermission) => {
       const rows = await knex('meta_lead_events').where({ workspace_id: req.workspaceId }).whereNotNull('phone_number').select('tags_json');
       const tags = {};
       for (const r of rows) { let t = []; try { t = JSON.parse(r.tags_json || '[]'); } catch {} for (const x of (Array.isArray(t) ? t : [])) tags[x] = (tags[x] || 0) + 1; }
-      res.json({ engine, connected, contacts_with_phone: rows.length, tags: Object.entries(tags).map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count), test_recipient: config.whatsapp_test_recipient || '' });
+      res.json({ engine, connected, licensed: broadcast.licensed(), contacts_with_phone: rows.length, tags: Object.entries(tags).map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count), test_recipient: config.whatsapp_test_recipient || '' });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
@@ -1357,6 +1357,7 @@ module.exports = (knex, requirePermission) => {
   // Send the message to yourself first
   router.post('/whatsapp/broadcasts/test', requirePermission('content.create'), async (req, res) => {
     try {
+      if (!broadcast.licensed()) return res.status(402).json({ error: broadcast.LICENSE_ERROR, code: 'LICENSE_REQUIRED' });
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const to = String(req.body?.to || config.whatsapp_test_recipient || '');
       if (!broadcast.normalizePhone(to)) return res.status(400).json({ error: 'Type your own WhatsApp number to get the test.' });
@@ -1379,7 +1380,7 @@ module.exports = (knex, requirePermission) => {
     try {
       const { title, audience, message } = req.body || {};
       res.json(await broadcast.start(knex, { workspaceId: req.workspaceId, userId: req.session?.userId, title, audience, message }));
-    } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+    } catch (err) { res.status(err.status || 500).json({ error: err.message, code: err.code }); }
   });
 
   router.get('/whatsapp/broadcasts/:id', requirePermission('content.view'), async (req, res) => {
@@ -1666,7 +1667,7 @@ module.exports = (knex, requirePermission) => {
         ? !!(config.evolution_api_url && config.evolution_status === 'open')
         : !!((config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN) && config.whatsapp_phone_number_id);
       const optedOut = (await chatbot.optedOutLeadIds(knex, req.workspaceId)).size;
-      res.json({ ...settings, whatsapp_connected: connected, engine, opted_out_count: optedOut, limits: chatbot.LIMITS, n8n_configured: !!config.n8n_webhook_url });
+      res.json({ ...settings, licensed: broadcast.licensed(), whatsapp_connected: connected, engine, opted_out_count: optedOut, limits: chatbot.LIMITS, n8n_configured: !!config.n8n_webhook_url });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 

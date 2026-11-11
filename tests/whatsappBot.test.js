@@ -90,9 +90,11 @@ describe('decide(): which reply the bot gives', () => {
 });
 
 describe('Auto-replies end to end', () => {
-  let knex, app, appApi, workspaceId, sent;
+  let knex, app, appApi, workspaceId, sent, licence;
 
   beforeAll(async () => {
+    // An active licence (each test about the licence switches it off itself)
+    licence = jest.spyOn(require('../services/license'), 'status').mockReturnValue({ state: 'active', can_publish: true });
     knex = makeTestKnex();
     await knex.migrate.latest();
     const [org] = await knex('organizations').insert({ name: 'Bot Org', owner_user_id: 1 }).returning('id');
@@ -161,6 +163,20 @@ describe('Auto-replies end to end', () => {
     await request(appApi).post(`/api/lead-pipeline/bot/resume/${lead.id}`);
     await inbound('price?'); await settle();
     expect(sent.map(s => s.text)).toContain('Haircut ₹300.');
+  });
+
+  test('without an active licence: no auto-replies, but STOP is still confirmed and recorded', async () => {
+    licence.mockReturnValue({ state: 'none', can_publish: false });
+    sent.length = 0;
+    await inbound('price?', '919555000111'); await settle();
+    expect(sent).toHaveLength(0);
+    const msg = await knex('lead_conversation_messages').where({ message_text: 'price?' }).orderBy('id', 'desc').first();
+    expect(msg).toBeTruthy(); // still saved in Chats
+    await inbound('STOP', '919555000111'); await settle();
+    expect(sent.map(s => s.text)[0]).toMatch(/won’t get any more broadcast/);
+    const lead = await knex('meta_lead_events').where('phone_number', 'like', '%9555000111').first();
+    expect((await knex('whatsapp_bot_state').where({ lead_id: lead.id }).first()).opted_out).toBeTruthy();
+    licence.mockReturnValue({ state: 'active', can_publish: true });
   });
 
   test('STOP is confirmed and the contact is skipped by broadcasts', async () => {

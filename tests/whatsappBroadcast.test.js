@@ -6,10 +6,11 @@ const { makeTestKnex } = require('./helpers/db');
 const broadcast = require('../services/leadPipeline/broadcast');
 
 describe('WhatsApp broadcasts', () => {
-  let knex, app, workspaceId, sent, wc;
+  let knex, app, workspaceId, sent, wc, licence;
   const until = async (fn, ms = 4000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await fn()) return true; await new Promise(r => setTimeout(r, 25)); } return false; };
 
   beforeAll(async () => {
+    licence = jest.spyOn(require('../services/license'), 'status').mockReturnValue({ state: 'active', can_publish: true });
     knex = makeTestKnex();
     await knex.migrate.latest();
     const [org] = await knex('organizations').insert({ name: 'BC Org', owner_user_id: 1 }).returning('id');
@@ -101,6 +102,39 @@ describe('WhatsApp broadcasts', () => {
       .set('Content-Type', 'application/octet-stream').set('X-File-Name', 'list.csv').send(Buffer.from(csv));
     expect(r.status).toBe(200);
     expect(r.body.contacts).toEqual([{ name: 'Priya', phone: '98765 43210' }, { name: 'Rahul', phone: '9123456789' }]);
+  });
+
+  test('without an active licence nothing is sent: no broadcast, no test message', async () => {
+    licence.mockReturnValue({ state: 'none', can_publish: false });
+    sent.length = 0;
+    const msg = { template: { name: 'hello_world', language: 'en_US', var_count: 0, params: [] } };
+    const r = await request(app).post('/api/lead-pipeline/whatsapp/broadcasts').send({ audience: { type: 'all' }, message: msg });
+    expect(r.status).toBe(402);
+    expect(r.body).toMatchObject({ code: 'LICENSE_REQUIRED' });
+    expect(r.body.error).toMatch(/licence/);
+    const t = await request(app).post('/api/lead-pipeline/whatsapp/broadcasts/test').send({ to: '9876543210', message: msg });
+    expect(t.status).toBe(402);
+    expect(sent).toHaveLength(0);
+    const setup = await request(app).get('/api/lead-pipeline/whatsapp/broadcasts/setup');
+    expect(setup.body.licensed).toBe(false);
+    licence.mockReturnValue({ state: 'active', can_publish: true });
+  });
+
+  test('a broadcast stops if the licence stops being active while sending', async () => {
+    broadcast.DELAY.cloud_api = 60;
+    sent.length = 0;
+    const many = Array.from({ length: 15 }, (_, i) => ({ name: `P${i}`, phone: `91660000${String(i).padStart(4, '0')}` }));
+    const r = await request(app).post('/api/lead-pipeline/whatsapp/broadcasts').send({
+      audience: { type: 'list', contacts: many }, message: { template: { name: 'hello_world', language: 'en_US', var_count: 0, params: [] } },
+    });
+    licence.mockReturnValue({ state: 'expired', can_publish: false });
+    await until(async () => (await request(app).get(`/api/lead-pipeline/whatsapp/broadcasts/${r.body.id}`)).body.status !== 'sending');
+    const b = (await request(app).get(`/api/lead-pipeline/whatsapp/broadcasts/${r.body.id}`)).body;
+    expect(b.status).toBe('stopped');
+    expect(b.results.failures[0].error).toMatch(/licence/);
+    expect(sent.length).toBeLessThan(15);
+    licence.mockReturnValue({ state: 'active', can_publish: true });
+    broadcast.DELAY.cloud_api = 0;
   });
 
   test('a broadcast cut off by a restart shows as stopped', async () => {

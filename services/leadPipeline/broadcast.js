@@ -16,6 +16,12 @@ const evolutionApi = require('./evolutionApi');
 const chatbot = require('./chatbot');
 
 const now = () => Math.floor(Date.now() / 1000);
+
+// Sending to customers needs an active licence, like posting does
+function licensed() {
+  try { return !!require('../license').status().can_publish; } catch { return false; }
+}
+const LICENSE_ERROR = 'Broadcasts need an active licence. Go to Settings → Licence to activate.';
 const MAX_RECIPIENTS = 5000;
 const DELAY = { cloud_api: 250, evolution: 2500 }; // WhatsApp Web needs a slower, human pace
 const running = new Map(); // broadcast id -> { cancel: bool }
@@ -124,6 +130,7 @@ function validateMessage(engine, msg) {
 }
 
 async function start(db, { workspaceId, userId, title, audience, message }) {
+  if (!licensed()) throw Object.assign(new Error(LICENSE_ERROR), { status: 402, code: 'LICENSE_REQUIRED' });
   const repo = leadPipelineRepoFactory(db);
   const config = await repo.getOrCreateConfig(workspaceId);
   const engine = config.delivery_engine === 'evolution' ? 'evolution' : 'cloud_api';
@@ -171,8 +178,10 @@ async function run(db, { id, workspaceId, config, engine, message, recipients, s
     results_json: JSON.stringify({ skipped, failures: failures.slice(0, 50) }), ...extra,
   });
 
+  let stoppedReason = null;
   for (let i = 0; i < recipients.length; i++) {
     if (job.cancel) break;
+    if (!licensed()) { stoppedReason = 'The licence stopped being active, so sending stopped.'; break; }
     const person = recipients[i];
     let res;
     try { res = await sendOne(config, engine, message, person); } catch (err) { res = { success: false, error: err.message }; }
@@ -198,7 +207,8 @@ async function run(db, { id, workspaceId, config, engine, message, recipients, s
     if (i < recipients.length - 1) await new Promise((r) => setTimeout(r, DELAY[engine]));
   }
   running.delete(id);
-  await save({ status: job.cancel ? 'stopped' : sent ? 'completed' : 'failed', finished_at: now() });
+  if (stoppedReason) failures.unshift({ name: '', phone: '', error: stoppedReason });
+  await save({ status: job.cancel || stoppedReason ? 'stopped' : sent ? 'completed' : 'failed', finished_at: now() });
 }
 
 async function get(db, workspaceId, id) {
@@ -222,4 +232,4 @@ async function recoverInterrupted(db) {
   await db('whatsapp_broadcasts').where({ status: 'sending' }).update({ status: 'stopped', finished_at: now() });
 }
 
-module.exports = { resolveAudience, start, get, cancel, recoverInterrupted, normalizePhone, paramsFor, validateMessage, MAX_RECIPIENTS, DELAY };
+module.exports = { licensed, LICENSE_ERROR, resolveAudience, start, get, cancel, recoverInterrupted, normalizePhone, paramsFor, validateMessage, MAX_RECIPIENTS, DELAY };

@@ -58,6 +58,7 @@ function renderBroadcastPage() {
       <div class="bc-main">
         <p class="panel-desc" style="margin-bottom:14px">Send one message to many people. People who replied STOP are always left out.</p>
         ${!s.connected ? `<div class="callout callout-warn"><b>Connect WhatsApp first.</b> You can prepare the broadcast now. <button class="btn btn-secondary btn-sm" onclick="navigateTo('leads-settings')">Open WhatsApp setup</button></div>` : ''}
+        ${s.licensed === false ? `<div class="callout callout-warn"><b>Sending broadcasts needs an active licence.</b> You can prepare everything now and send once it’s active. <button class="btn btn-secondary btn-sm" onclick="openSettings('license')">Open Licence</button></div>` : ''}
 
         <div class="settings-section wa-step">
           <div class="settings-section-header"><div class="wa-step-head"><span class="wa-step-num">1</span><div>
@@ -116,13 +117,13 @@ function renderBroadcastPage() {
                 <label class="form-label" for="bc-test-to">Send a test to</label>
                 <div class="wa-inline">
                   <input class="form-input" id="bc-test-to" value="${escapeHtml(s.test_recipient || '')}" placeholder="Your own number, e.g. 9876543210" />
-                  <button class="btn btn-secondary btn-sm" id="bc-test-btn">Send test</button>
+                  <button class="btn btn-secondary btn-sm" id="bc-test-btn" ${s.licensed === false ? 'disabled title="Needs an active licence"' : ''}>Send test</button>
                 </div>
               </div>
             </div>
             <div id="bc-progress"></div>
             <div class="settings-actions">
-              <button class="btn btn-primary" id="bc-send-btn" ${s.connected ? '' : 'disabled'}>Send broadcast</button>
+              <button class="btn btn-primary" id="bc-send-btn" ${s.connected && s.licensed !== false ? '' : 'disabled'}>Send broadcast</button>
             </div>
           </div>
         </div>

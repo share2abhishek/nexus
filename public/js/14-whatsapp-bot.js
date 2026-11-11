@@ -74,6 +74,11 @@ function renderWhatsAppBot() {
               : 'Write your replies below and test them with “Try it”. Nothing is sent until you switch this on and save.'}</div>
           </div>
         </div>
+        ${d.licensed === false ? `
+        <div class="callout callout-warn">
+          <b>Auto-replies need an active licence.</b> ${d.enabled ? 'They’re switched on but won’t answer until the licence is active.' : 'You can prepare and try them now.'} Customers’ messages still arrive in Chats, and STOP is always handled.
+          <button class="btn btn-secondary btn-sm" onclick="openSettings('license')">Open Licence</button>
+        </div>` : ''}
         ${!d.whatsapp_connected ? `
         <div class="callout callout-warn">
           <b>WhatsApp isn’t connected yet.</b> You can prepare and try your replies now; they start working once your number is connected.

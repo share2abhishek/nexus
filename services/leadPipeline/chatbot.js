@@ -329,14 +329,21 @@ async function handleInbound(db, { workspaceId, lead, text, name, send, askN8n }
   const business = await businessName(db, workspaceId);
   const d = decide(settings.config, { text, name, business }, state, at);
 
-  // STOP/START are honoured even when the bot is off: it's about consent
+  // STOP/START are honoured even when the bot is off or the licence isn't
+  // active: they're the customer's consent, not a feature
   const patch = {};
   if (d.action === 'opt_out') patch.opted_out = true;
   if (d.action === 'opt_in') patch.opted_out = false;
-  if (!settings.enabled && !d.action?.startsWith('opt')) {
+  const consent = !!d.action?.startsWith('opt');
+  if (!settings.enabled && !consent) {
     if (Object.keys(patch).length) await setState(db, workspaceId, lead.id, patch);
     return { sent: [], reason: 'off', action: d.action || null };
   }
+  // Auto-replies (and n8n answers) need an active licence, like posting does;
+  // the customer's message is still saved in Chats
+  let licensed = false;
+  try { licensed = !!require('../license').status().can_publish; } catch {}
+  if (!licensed && !consent) return { sent: [], reason: 'unlicensed', action: d.action || null };
 
   let replies = d.replies;
   let n8nAsked = false;
