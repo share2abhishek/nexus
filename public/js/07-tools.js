@@ -12,6 +12,7 @@ function switchSeoTab(tab, btn) {
   document.querySelectorAll('.seo-tab-btn').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-secondary'); });
   (btn || document.querySelector(`.seo-tab-btn[data-tab="${tab}"]`))?.classList.replace('btn-secondary', 'btn-primary');
   if (tab === 'tracked') loadTrackedKeywords();
+  if (tab === 'autopilot' && typeof loadAutopilot === 'function') loadAutopilot();
 }
 
 const SEO_ICON = { good: '✅', warn: '⚠️', bad: '❌' };

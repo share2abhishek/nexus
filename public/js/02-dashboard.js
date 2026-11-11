@@ -59,6 +59,7 @@ function updateSettingsBadges() {
 }
 
 async function loadDashboard() {
+  if (typeof loadSeoHomeCard === 'function') loadSeoHomeCard();
   await refreshStatus();
   loadDashboardStats();
   loadActivityFeed();

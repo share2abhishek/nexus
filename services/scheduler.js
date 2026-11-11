@@ -222,6 +222,11 @@ function start() {
       // First comments chosen to go a few minutes after their post
       await require('./firstComment').processDue(knex).catch(err => console.error('[Scheduler] First comments:', err.message));
 
+      // SEO autopilot: websites due for a re-check (server edition only; runs in the background)
+      if (new Date().getMinutes() % 10 === 0) {
+        require('./seoAutopilot').processDue(knex).catch(err => console.error('[Scheduler] SEO autopilot:', err.message));
+      }
+
       // Sellbird autonomous loop (runs every 15 minutes)
       if (new Date().getMinutes() % 15 === 0) {
         runHeartbeat(knex).catch(err => console.error('[Scheduler] Sellbird error:', err.message));

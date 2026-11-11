@@ -107,10 +107,28 @@ function readHtml(html, baseUrl) {
   for (const tag of head.match(/<link\b[^>]*>/gi) || []) if ((attr(tag, 'rel') || '').toLowerCase().split(/\s+/).includes('canonical')) canonical = attr(tag, 'href');
   let host = ''; try { host = new URL(baseUrl).hostname; } catch {}
   let internal = 0; let external = 0;
+  const links = []; // up to 300 distinct links, for the broken-link check
   for (const tag of html.match(/<a\b[^>]*>/gi) || []) {
     const href = attr(tag, 'href');
-    if (!href || /^(#|mailto:|tel:|javascript:)/i.test(href)) continue;
-    try { (new URL(href, baseUrl).hostname === host ? internal++ : external++); } catch {}
+    if (!href || /^(#|mailto:|tel:|javascript:|data:)/i.test(href)) continue;
+    try {
+      const u = new URL(href, baseUrl);
+      u.hash = '';
+      if (!/^https?:$/.test(u.protocol)) continue;
+      u.hostname === host ? internal++ : external++;
+      if (links.length < 300 && !links.includes(u.href)) links.push(u.href);
+    } catch {}
+  }
+  // Structured data (JSON-LD): how many blocks, which types, and any that aren't valid JSON
+  const jsonLd = { count: 0, invalid: 0, types: [] };
+  for (const m of html.match(/<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>[\s\S]*?<\/script>/gi) || []) {
+    jsonLd.count++;
+    const body = m.replace(/^<script\b[^>]*>/i, '').replace(/<\/script>$/i, '').trim();
+    try {
+      const data = JSON.parse(body);
+      const items = Array.isArray(data) ? data : data['@graph'] ? data['@graph'] : [data];
+      for (const it of items) for (const t of [].concat(it?.['@type'] || [])) if (!jsonLd.types.includes(t)) jsonLd.types.push(String(t));
+    } catch { jsonLd.invalid++; }
   }
   const text = visibleText(html);
   return {
@@ -128,6 +146,8 @@ function readHtml(html, baseUrl) {
     links_internal: internal, links_external: external,
     text,
     word_count: words(text).length,
+    links,
+    json_ld: jsonLd,
   };
 }
 
@@ -307,4 +327,4 @@ function analyzeText(content, keyword = '') {
   };
 }
 
-module.exports = { checkPage, analyzeText, readHtml, robotsRules, robotsAllows, isPrivateName, isPrivateIp, normaliseUrl, fetchText };
+module.exports = { checkPage, analyzeText, readHtml, robotsRules, robotsAllows, isPrivateName, isPrivateIp, normaliseUrl, fetchText, assertPublic };

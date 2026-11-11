@@ -186,7 +186,8 @@ function navigateTo(page) {
     'leads-bot':        () => (typeof window.loadWhatsAppBot === 'function' ? window.loadWhatsAppBot() : null),
     'leads-settings':   () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : (typeof loadLeadPipeline === 'function' ? loadLeadPipeline() : null)),
     brand:     () => (typeof window.loadBrandKit === 'function' ? window.loadBrandKit() : (typeof loadBrandKit === 'function' ? loadBrandKit() : null)),
-    seo:       () => (typeof window.loadTrackedKeywords === 'function' ? window.loadTrackedKeywords() : (typeof loadTrackedKeywords === 'function' ? loadTrackedKeywords() : null)),
+    // Server edition: open on the Autopilot tab the first time
+    seo:       () => (typeof loadFeatures === 'function' ? loadFeatures().then(f => { if (f.seo_autopilot && !State.seoTabChosen) { State.seoTabChosen = true; switchSeoTab('autopilot'); } }) : null),
     settings:  () => (typeof window.loadSettings === 'function' ? window.loadSettings() : (typeof loadSettings === 'function' ? loadSettings() : null)),
     clients:   () => (typeof window.loadClients === 'function' ? window.loadClients() : (typeof loadClients === 'function' ? loadClients() : null)),
     generate:  () => (typeof window.loadModels === 'function' ? window.loadModels() : (typeof loadModels === 'function' ? loadModels() : null)),

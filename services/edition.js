@@ -1,0 +1,11 @@
+// Desktop app or server? Some features need to run all the time (the SEO
+// autopilot re-checks websites on a schedule), so they are on only for the
+// server edition: NEXUS_MODE=server, or the cloud database (DB_CLIENT=pg).
+const isServer = () => process.env.NEXUS_MODE === 'server' || process.env.DB_CLIENT === 'pg';
+
+// Features only the server edition has, for the screens to show or hide
+const features = () => ({ server: isServer(), seo_autopilot: isServer() });
+
+const SERVER_ONLY_MESSAGE = 'This is part of the Social-Nexus server edition, which runs all the time. It isn’t available in the desktop app.';
+
+module.exports = { isServer, features, SERVER_ONLY_MESSAGE };

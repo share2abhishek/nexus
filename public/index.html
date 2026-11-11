@@ -288,6 +288,26 @@
           </div>
         </div>
 
+        <!-- SEO autopilot (server edition) -->
+        <div class="card" id="dash-seo-card" data-server-only hidden style="padding:18px;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);display:flex;flex-direction:column;justify-content:space-between">
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:22px">🔍</span>
+                <div>
+                  <div style="font-size:14px;font-weight:700;color:var(--text-primary)">Google & your website</div>
+                  <div style="font-size:11.5px;color:var(--text-muted)">Checked automatically</div>
+                </div>
+              </div>
+              <span class="badge" id="dash-seo-badge"></span>
+            </div>
+            <div id="dash-seo-body"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="navigateTo('seo');setTimeout(()=>switchSeoTab('autopilot'),100)" style="flex:1">Open SEO to-do list</button>
+          </div>
+        </div>
+
         <!-- Pillar 3: B2C Leads & WhatsApp Suite -->
         <div class="card" style="padding:18px;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);display:flex;flex-direction:column;justify-content:space-between">
           <div>
@@ -1378,12 +1398,16 @@
         <div><div class="section-title">🔍 Website SEO</div><div class="section-desc">See how Google reads your page, then fix the title, description and text.</div></div>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="autopilot" data-server-only hidden onclick="switchSeoTab('autopilot',this)">🤖 Autopilot</button>
         <button class="btn btn-primary btn-sm seo-tab-btn active" data-tab="check" onclick="switchSeoTab('check',this)">🔎 Check a page</button>
         <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="meta" onclick="switchSeoTab('meta',this)">🏷️ Write title &amp; description</button>
         <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="keywords" onclick="switchSeoTab('keywords',this)">🔑 Search phrase ideas</button>
         <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="optimize" onclick="switchSeoTab('optimize',this)">⚡ Check my text</button>
         <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="tracked" onclick="switchSeoTab('tracked',this)">📍 My search phrases</button>
       </div>
+
+      <!-- Autopilot (server edition) -->
+      <div class="seo-panel" id="seo-panel-autopilot" style="display:none"></div>
 
       <!-- Check a page -->
       <div class="seo-panel" id="seo-panel-check">
@@ -3999,6 +4023,7 @@
 <script src="js/16-whatsapp-templates.js"></script>
 <script src="js/17-whatsapp-broadcast.js"></script>
 <script src="js/18-post-extras.js"></script>
+<script src="js/19-seo-autopilot.js"></script>
 
 <!-- ── Modal: 7-Step Meta Business Verification & Official Blue/Green Tick Hub ── -->
 <div class="modal" id="modal-meta-verification" style="display:none">

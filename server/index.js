@@ -171,6 +171,8 @@ app.use('/api/cloud/status', requireAuth, async (req, res) => res.json({ enabled
 app.use('/api/inbox', requireAuth, withWorkspace, injectUserKeys, require('../routes/inbox')(knex, requirePermission));
 app.use('/api/media-library', requireAuth, withWorkspace, require('../routes/mediaLibrary')(knex, requirePermission));
 app.use('/api',        requireAuth, withWorkspace, injectUserKeys, apiRoutes);
+// SEO autopilot (server edition): before /api/seo so its paths match first
+app.use('/api/seo/autopilot', requireAuth, withWorkspace, injectUserKeys, require('../routes/seoAutopilot')(knex, requirePermission));
 app.use('/api/seo',    requireAuth, withWorkspace, injectUserKeys, seoRoutes);
 app.use('/api/email',  requireAuth, withWorkspace, injectUserKeys, emailRoutes);
 app.use('/api/tools',  requireAuth, withWorkspace, injectUserKeys, toolsRoutes);

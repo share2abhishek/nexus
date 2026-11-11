@@ -545,6 +545,17 @@ UTM links show you in Google Analytics which post or campaign brought visitors t
 
 ## 13. SEO tools and other marketing tools
 
+**🤖 SEO autopilot (server edition only).** When Social-Nexus runs as a server it can look after your website by itself. In Website SEO → **Autopilot**:
+1. Type your website and the phrases you want to be found for (one per line; your saved search phrases are included too). Choose how often to check (every week or every day), how many pages (up to 10, 20 or 50) and when to remind you about Google posts.
+2. Click **Start watching my website**. The first check starts straight away. The next ones run by themselves.
+3. **To do** lists what needs attention, most urgent first (*Fix first*, *Important*, *Nice to have*), in plain words. It covers pages Google can't open or is told not to show, missing or poor titles and descriptions, the same title on several pages, broken links, missing pages that pretend to exist (soft 404), sitemap and main-address (canonical) problems, structured data, phone set-up, AI assistants blocked from your site, phrases no page is about, and phone page speed.
+   - **Write it for me** drafts titles and descriptions (or a whole page plan for a phrase) for you to copy into your website.
+   - **Done** when you've fixed it. The next check confirms it, or brings it back if it's still there. **Not relevant** hides it for good.
+   - Something that got worse since the last check jumps to the top. Problems that disappear are closed by themselves.
+4. If your Google Business profile has had no post for a while, the autopilot writes a short update and puts it on the Calendar **In review**. Nothing is posted until someone approves it.
+
+The Home page shows the top to-dos. The autopilot never changes your website and never posts by itself. Page speed needs a free Google PageSpeed API key on the server (`PAGESPEED_API_KEY`). In the desktop app the autopilot is not available; the tools below are.
+
 **🔍 Website SEO** (More tools → Website SEO):
 - **🔎 Check a page:** type your page's address (and, if you like, the phrase you want to be found for). Social-Nexus opens the page the way Google's crawler does and lists what's fine, what to improve and what to fix:
   - whether the page opens, uses https, is allowed by your `robots.txt` and isn't marked "noindex" (these decide whether Google can list it at all);

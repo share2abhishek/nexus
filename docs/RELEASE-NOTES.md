@@ -37,6 +37,11 @@ Newest first. Paste the section for a version into the GitHub Release
 - The Replies screen shows the email they answered, sorts replies (interested, question, not now, not interested, asked to stop), and drafts an answer you can edit and send.
 - All numbers on the page are real (no sample figures).
 
+### Server edition: SEO autopilot
+- New switch `NEXUS_MODE=server` (also on with the Postgres database) for features that run all the time. They are off in the desktop app.
+- **SEO autopilot:** add your website and phrases; Social-Nexus re-checks it every week or day, keeps a plain-language to-do list (most urgent first, things that got worse moved up, fixed things closed by themselves), drafts titles, descriptions and page plans on request, and drafts a Google Business post for approval when the profile has been quiet. Nothing is changed or posted without someone's OK. The Home page shows the top to-dos.
+- New whole-site checks: broken links, duplicate titles and descriptions, soft 404s, canonical and sitemap problems, structured data (JSON-LD), AI assistants blocked in robots.txt, and phone page speed from Google PageSpeed Insights (needs `PAGESPEED_API_KEY`). These follow checks in the MIT-licensed open-source projects Seo-Promt-Master, linkinator and crawlseo, rewritten for Social-Nexus.
+
 ### Website SEO, app store listing and Google Business
 - **Website SEO → Check a page:** opens your page the way Google's crawler does and lists what to fix: does it open, https, `robots.txt`, "noindex", sitemap, canonical address, title and description (with a Google preview), main heading, amount of text, pictures without alt text, phone set-up, share preview and where your search phrase appears. All measured from the page.
 - **Write title & description** now reads your page when you give its address. **Check my text** measures words, sentence length, reading ease and phrase use; AI only adds suggestions. The made-up "SEO score" is gone.
