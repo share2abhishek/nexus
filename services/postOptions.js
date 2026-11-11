@@ -18,9 +18,16 @@ function cleanOptions(input) {
     if (o.ig_format !== 'feed') out.ig_format = o.ig_format;
   }
   if (o.cloud === true) out.cloud = true; // post from the cloud if this PC is off
+  // Minutes to wait before adding the first comment (0 = right away)
+  if (o.first_comment_delay !== undefined && o.first_comment_delay !== null && o.first_comment_delay !== '' && Number(o.first_comment_delay) !== 0) {
+    const d = Number(o.first_comment_delay);
+    if (![1, 2, 5, 10, 15, 30, 60].includes(d)) throw Object.assign(new Error('The first comment can wait 1, 2, 5, 10, 15, 30 or 60 minutes.'), { status: 400 });
+    out.first_comment_delay = d;
+  }
   if (typeof o.first_comment === 'string' && o.first_comment.trim()) {
     out.first_comment = o.first_comment.trim().slice(0, 2200);
   }
+  if (!out.first_comment) delete out.first_comment_delay; // a delay means nothing without a comment
   return Object.keys(out).length ? out : null;
 }
 

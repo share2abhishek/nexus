@@ -322,7 +322,7 @@ function showBcProgress(b) {
       <div class="bc-progress-head">
         <b>${finished ? (b.status === 'stopped' ? 'Stopped' : 'Done') : 'Sending…'}</b>
         <span>${b.sent_count || 0} sent${b.failed_count ? ` · ${b.failed_count} not sent` : ''} · ${b.total_recipients} total</span>
-        ${!finished ? `<button class="btn btn-ghost btn-sm" onclick="stopBroadcast(${Number(b.id)})">Stop</button>` : ''}
+        ${!finished ? `<button class="btn btn-ghost btn-ghost-danger btn-sm" onclick="stopBroadcast(${Number(b.id)})">Stop</button>` : ''}
       </div>
       <div class="bc-bar"><div style="width:${pct}%"></div></div>
       ${!finished ? '<div class="form-hint">You can leave this screen; sending carries on while Social-Nexus is open.</div>' : ''}

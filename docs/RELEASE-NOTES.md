@@ -13,6 +13,9 @@ Newest first. Paste the section for a version into the GitHub Release
 - AI keys are in one place (Settings → AI).
 
 ### Posts
+- **Preview** in Create post: see the post as it will look on each chosen platform, with the first comment underneath.
+- **First comment timer:** add the first comment right after the post or 1–60 minutes later. The Calendar shows whether each first comment was added, is waiting, or why not.
+- **First comment fixes:** a post not ready yet for comments is retried; Meta's real reason is shown instead of always "sign in again"; Create post warns when Instagram or Facebook wasn't given permission to comment, or when the post is a Story; comment problems on scheduled posts are no longer silent.
 - **Design a picture** in Create post: offer, announcement, tip, festival and photo-with-text designs in your Brand Kit colours, sized for each platform.
 - **Signatures**: a sign-off added to new posts (counted in character limits).
 - **Post sets**: save groups of platforms and pick them with one click.

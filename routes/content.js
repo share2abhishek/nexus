@@ -232,7 +232,8 @@ module.exports = (knex, requirePermission) => {
       const comments = await knex('content_item_comments')
         .where({ content_item_id: item.id, workspace_id: req.workspaceId })
         .orderBy('created_at', 'asc');
-      res.json({ ...item, comments });
+      const first_comments = await require('../services/firstComment').forItem(knex, req.workspaceId, item.id);
+      res.json({ ...item, comments, first_comments });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

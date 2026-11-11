@@ -124,7 +124,7 @@ function tplCard(t) {
       <div class="tpl-card-actions">
         ${t.status === 'APPROVED' ? `<button class="btn btn-primary btn-sm" onclick="useTemplateInBroadcast(${jsAttr(t.name)}, ${jsAttr(t.language)})">Use in broadcast</button>` : ''}
         <button class="btn btn-secondary btn-sm" onclick="copyTemplateAsNew(${jsAttr(t.name)}, ${jsAttr(t.language)})">Copy as new</button>
-        <button class="btn btn-ghost btn-sm" onclick="deleteWhatsAppTemplate(${jsAttr(t.name)}, ${jsAttr(t.id || '')}, ${jsAttr(t.language)})">Delete</button>
+        <button class="btn btn-ghost btn-ghost-danger btn-sm" onclick="deleteWhatsAppTemplate(${jsAttr(t.name)}, ${jsAttr(t.id || '')}, ${jsAttr(t.language)})">Delete</button>
       </div>
     </div>`;
 }
@@ -264,7 +264,7 @@ function renderTemplateButtons() {
         ${b.type === 'URL' ? `<input class="form-input tb-extra" value="${escapeHtml(b.url || '')}" placeholder="https://yourwebsite.com" />` : ''}
         ${b.type === 'PHONE_NUMBER' ? `<input class="form-input tb-extra" value="${escapeHtml(b.phone_number || '')}" placeholder="+91 98765 43210" />` : ''}
       </div>
-      <button type="button" class="btn btn-ghost btn-sm" data-rmbtn="${i}">Remove</button>
+      <button type="button" class="btn btn-ghost btn-ghost-danger btn-sm" data-rmbtn="${i}">Remove</button>
     </div>`).join('');
 }
 

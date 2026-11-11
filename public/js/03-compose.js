@@ -48,6 +48,21 @@ function composeWarnings() {
     if (p === 'instagram' && igFormat === 'reel' && !composeMediaRefs().some(r => /\.(mp4|mov)(\?|$)/i.test(r) || State.mediaKinds?.[r] === 'video')) warnings.push('An Instagram Reel needs a video.');
     if (isVideo && PLATFORM_NO_VIDEO.includes(p)) warnings.push(`${label} can’t take videos from Social-Nexus yet — use a photo, or post the video from the ${label} app.`);
   }
+  // First comment: where it can't be added
+  const firstComment = (document.getElementById('compose-first-comment')?.value || '').trim();
+  if (firstComment) {
+    const igFormat = document.getElementById('compose-ig-format')?.value || 'feed';
+    const takes = getSelectedPlatforms('compose-platforms').filter(p => p === 'facebook' || p === 'instagram');
+    if (!takes.length) warnings.push('The first comment is only added on Facebook and Instagram.');
+    if (takes.includes('instagram') && igFormat === 'story') warnings.push('Instagram Stories can’t have comments, so the first comment won’t be added there.');
+    for (const p of takes) {
+      if (State.platformStatus?.[p]?.profile?.can_comment === false) {
+        warnings.push(p === 'instagram'
+          ? 'Instagram wasn’t given permission to add comments: in Settings → Connected accounts, click Connect on the Instagram card and allow everything it asks.'
+          : 'Facebook wasn’t given permission to add comments: in Settings → Connected accounts, click Connect on the Facebook card and allow everything it asks.');
+      }
+    }
+  }
   return warnings;
 }
 
@@ -56,6 +71,7 @@ function updateComposeCharCount() {
   const content = typeof withSignature === 'function' && typedText.trim() ? withSignature(typedText.trim()) : typedText; // with the signature, as posted
   renderComposeMediaPreview();
   composeAiToolsState();
+  renderComposePostPreview();
   updateCharCount('compose-char-count', content.length);
   const el = document.getElementById('compose-char-count');
   const warnings = composeWarnings();
@@ -133,7 +149,11 @@ function composeFields() {
   const opts = {};
   if (media.length > 1) opts.media = media;
   if (igFormat !== 'feed') opts.ig_format = igFormat;
-  if (firstComment) opts.first_comment = firstComment;
+  if (firstComment) {
+    opts.first_comment = firstComment;
+    const delay = Number(document.getElementById('compose-first-comment-delay')?.value || 0);
+    if (delay) opts.first_comment_delay = delay;
+  }
   if (document.getElementById('compose-cloud')?.checked) opts.cloud = true;
   return { content, platforms, image_url, options: Object.keys(opts).length ? opts : null };
 }
@@ -164,6 +184,7 @@ function resetCompose() {
   State.composeMedia = [];
   if (document.getElementById('compose-ig-format')) document.getElementById('compose-ig-format').value = 'feed';
   if (document.getElementById('compose-first-comment')) document.getElementById('compose-first-comment').value = '';
+  if (document.getElementById('compose-first-comment-delay')) document.getElementById('compose-first-comment-delay').value = '0';
   if (document.getElementById('compose-cloud')) document.getElementById('compose-cloud').checked = false;
   document.getElementById('compose-content').value = '';
   document.getElementById('compose-image').value = '';
@@ -243,6 +264,7 @@ function startEditCompose(item) {
   else State.composeMedia = [...itemMedia];
   document.getElementById('compose-ig-format').value = item.options?.ig_format || 'feed';
   document.getElementById('compose-first-comment').value = item.options?.first_comment || '';
+  if (document.getElementById('compose-first-comment-delay')) document.getElementById('compose-first-comment-delay').value = String(item.options?.first_comment_delay || 0);
   document.getElementById('compose-cloud').checked = !!item.options?.cloud;
   const platforms = Array.isArray(item.platforms) ? item.platforms : [];
   document.querySelectorAll('#compose-platforms .platform-toggle').forEach(el => {
@@ -493,7 +515,13 @@ function openPostNext() {
   const where = document.createElement('div');
   where.className = 'next-preview-meta';
   where.textContent = `To: ${platforms.map(p => PLATFORMS[p]?.label || p).join(', ')} · ${State.composeEditing ? 'changes saved (draft)' : 'saved as a draft'}`;
-  preview.append(text, where);
+  const fc = composeFields().options?.first_comment;
+  if (fc) {
+    const note = document.createElement('div');
+    note.className = 'next-preview-meta';
+    note.textContent = `First comment (${firstCommentWhen(composeFields().options?.first_comment_delay)}): ${fc.length > 120 ? fc.slice(0, 120) + '…' : fc}`;
+    preview.append(text, where, note);
+  } else preview.append(text, where);
   // Offer the most likely next step for this person
   const allowed = allowedPostModes();
   setPostMode(allowed.includes(State.postMode) && State.postMode !== 'draft' ? State.postMode : (allowed.includes('schedule') ? 'schedule' : 'review'));
@@ -772,4 +800,61 @@ async function cancelScheduled(id) {
   } catch (err) {
     toast(err.message, 'error');
   }
+}
+
+// ── Preview: how the post looks, with its first comment ─────────────────────
+State.previewPlatform = null;
+
+function firstCommentWhen(delay) {
+  const d = Number(delay || 0);
+  return d ? `${d >= 60 ? '1 hour' : `${d} min`} after the post` : 'right after the post';
+}
+
+function renderComposePostPreview() {
+  const box = document.getElementById('post-preview');
+  const tabs = document.getElementById('post-preview-tabs');
+  if (!box || !tabs) return;
+  const { content, platforms, options } = composeFields();
+  const media = composeMediaRefs();
+  const list = platforms.length ? platforms : ['facebook'];
+  if (!list.includes(State.previewPlatform)) State.previewPlatform = list[0];
+  const p = State.previewPlatform;
+
+  tabs.innerHTML = platforms.length > 1 ? platforms.map(x => `
+    <button type="button" class="seg" role="radio" aria-checked="${x === p}" onclick="State.previewPlatform=${jsAttr(x)};renderComposePostPreview()">${escapeHtml(PLATFORMS[x]?.label || x)}</button>`).join('') : '';
+
+  const status = State.platformStatus?.[p] || {};
+  const name = status.profile?.page_name || status.profile?.name || status.profile?.handle || 'Your business';
+  const limit = PLATFORM_CHAR_LIMITS[p];
+  const shown = limit && content.length > limit ? content.slice(0, limit) : content;
+  const isStory = p === 'instagram' && options?.ig_format === 'story';
+  const first = media[0];
+  const firstIsVideo = first && (/\.(mp4|mov)(\?|$)/i.test(first) || State.mediaKinds?.[first] === 'video');
+  const mediaHtml = first
+    ? `<div class="pp-media">${firstIsVideo ? `<video src="${escapeHtml(mediaSrc(first))}" muted></video>` : `<img src="${escapeHtml(mediaSrc(first))}" alt="">`}${media.length > 1 ? `<span class="pp-count">1 / ${media.length}</span>` : ''}</div>`
+    : (p === 'instagram' ? '<div class="pp-media pp-empty">Instagram needs a photo or video</div>' : '');
+  const textHtml = isStory ? '<div class="pp-note">Stories show no text (put words on the picture).</div>'
+    : shown ? `<div class="pp-text">${escapeHtml(shown)}${shown.length < content.length ? '<span class="pp-cut">… (cut here)</span>' : ''}</div>`
+    : '<div class="pp-note">Your text will appear here.</div>';
+  // Instagram shows the picture first, then the caption; Facebook the text first
+  const body = p === 'instagram' ? mediaHtml + textHtml : textHtml + mediaHtml;
+
+  const comment = options?.first_comment;
+  const canComment = (p === 'facebook' || p === 'instagram') && !isStory;
+  const commentHtml = !comment ? '' : !canComment
+    ? `<div class="pp-note">The first comment isn’t added on ${escapeHtml(PLATFORMS[p]?.label || p)}${isStory ? ' Stories' : ''}.</div>`
+    : `<div class="pp-comment">
+        <div class="pp-avatar sm">${escapeHtml(name.charAt(0).toUpperCase())}</div>
+        <div><div class="pp-comment-body"><b>${escapeHtml(name)}</b> ${escapeHtml(comment)}</div>
+        <div class="pp-when">⏱ Added ${escapeHtml(firstCommentWhen(options.first_comment_delay))}${status.profile?.can_comment === false ? ' · ⚠️ not allowed yet: reconnect' : ''}</div></div>
+      </div>`;
+
+  box.innerHTML = `
+    <div class="pp-card pp-${escapeHtml(p)}">
+      <div class="pp-head"><div class="pp-avatar">${escapeHtml(name.charAt(0).toUpperCase())}</div>
+        <div><div class="pp-name">${escapeHtml(name)}</div><div class="pp-sub">${escapeHtml(PLATFORMS[p]?.label || p)}${isStory ? ' · Story' : options?.ig_format === 'reel' && p === 'instagram' ? ' · Reel' : ''}</div></div></div>
+      ${body}
+      ${commentHtml}
+    </div>
+    ${platforms.length ? '' : '<div class="form-hint" style="margin-top:8px">Pick where to post to see it for that platform.</div>'}`;
 }

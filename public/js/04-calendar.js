@@ -407,6 +407,26 @@ async function openContentDetail(itemId) {
     } else {
       errContainer.style.display = 'none';
     }
+    // First comment: added, waiting, or why not
+    const fcLines = (item.first_comments || []).map(c => {
+      const name = PLATFORMS[c.platform]?.label || c.platform;
+      if (c.status === 'done') return `✅ ${name}: first comment added.`;
+      if (c.status === 'failed') return `⚠️ ${name}: first comment not added. ${c.error || ''}`;
+      return `⏳ ${name}: first comment goes out ${new Date(c.due_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`;
+    });
+    if (!fcLines.length && item.options?.first_comment && ['scheduled', 'draft', 'approved', 'in_review'].includes(item.status)) {
+      const d = Number(item.options.first_comment_delay || 0);
+      fcLines.push(`💬 First comment: added ${d ? `${d >= 60 ? '1 hour' : `${d} min`} after the post` : 'right after the post'} (Facebook and Instagram).`);
+    }
+    let fcBox = document.getElementById('detail-first-comment');
+    if (!fcBox) {
+      fcBox = document.createElement('div');
+      fcBox.id = 'detail-first-comment';
+      fcBox.style.cssText = 'font-size:12.5px;line-height:1.6;margin-bottom:16px;color:var(--text-secondary)';
+      errContainer.after(fcBox);
+    }
+    fcBox.innerHTML = fcLines.map(escapeHtml).join('<br>');
+    fcBox.style.display = fcLines.length ? '' : 'none';
 
     // Channels
     const accountsContainer = document.getElementById('detail-accounts-list');

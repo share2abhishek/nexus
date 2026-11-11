@@ -119,7 +119,7 @@ function openSignatureManager() {
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
               <label class="bot-check"><input type="radio" name="sig-default" ${s.is_default ? 'checked' : ''} onchange="setDefaultSignature(${s.id})"/> Default</label>
-              <button class="btn btn-ghost btn-sm" onclick="deleteSignature(${s.id})">Delete</button>
+              <button class="btn btn-ghost btn-ghost-danger btn-sm" onclick="deleteSignature(${s.id})">Delete</button>
             </div>
           </div>`).join('') || '<div class="form-hint">No signatures yet.</div>'}</div>
         <div class="form-subsection">
@@ -198,7 +198,7 @@ async function loadFeedsPage() {
           <div class="px-feed-actions">
             <label class="bot-check"><input type="checkbox" ${f.enabled ? 'checked' : ''} onchange="updateFeed(${f.id}, { enabled: this.checked })"/> On</label>
             <button class="btn btn-secondary btn-sm" onclick="checkFeedNow(${f.id}, this)">Check now</button>
-            <button class="btn btn-ghost btn-sm" onclick="deleteFeed(${f.id})">Remove</button>
+            <button class="btn btn-ghost btn-ghost-danger btn-sm" onclick="deleteFeed(${f.id})">Remove</button>
           </div>
         </div>`).join('') : '<div class="card-body"><div class="form-hint">No feeds yet.</div></div>'}
     </div>`;

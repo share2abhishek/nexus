@@ -643,7 +643,21 @@
                   </select>
                 </div>
                 <label class="form-label" for="compose-first-comment">First comment (Instagram and Facebook, optional)</label>
-                <textarea class="form-textarea" id="compose-first-comment" maxlength="2200" style="min-height:60px" placeholder="Added right after the post goes out, e.g. hashtags or “Order on WhatsApp: …”" oninput="updateComposeCharCount()"></textarea>
+                <textarea class="form-textarea" id="compose-first-comment" maxlength="2200" style="min-height:60px" placeholder="e.g. hashtags or “Order on WhatsApp: …”" oninput="updateComposeCharCount()"></textarea>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
+                  <label class="form-label" for="compose-first-comment-delay" style="margin:0">Add it</label>
+                  <select class="form-select" id="compose-first-comment-delay" style="width:auto" onchange="updateComposeCharCount()">
+                    <option value="0">right after the post goes out</option>
+                    <option value="1">1 minute after</option>
+                    <option value="2">2 minutes after</option>
+                    <option value="5">5 minutes after</option>
+                    <option value="10">10 minutes after</option>
+                    <option value="15">15 minutes after</option>
+                    <option value="30">30 minutes after</option>
+                    <option value="60">1 hour after</option>
+                  </select>
+                </div>
+                <div class="form-hint" style="margin-top:4px">A short wait looks more natural and gives Instagram time to finish the post. Delayed comments are added while Social-Nexus is running. Not for Instagram Stories.</div>
               </div>
               <div class="form-group">
                 <button type="button" class="btn btn-secondary btn-sm" onclick="shareToWhatsApp()" title="WhatsApp has no way for apps to post to Channels or Status: this copies the text and opens WhatsApp">💬 Copy for WhatsApp (Channel or Status)</button>
@@ -719,6 +733,16 @@
         </div>
 
         <div>
+          <!-- How the post (and its first comment) will look -->
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header">
+              <div class="card-title">👁 Preview</div>
+              <div class="seg-group" id="post-preview-tabs" role="radiogroup" aria-label="Preview for"></div>
+            </div>
+            <div class="card-body">
+              <div id="post-preview" class="post-preview" aria-live="polite"></div>
+            </div>
+          </div>
         <!-- Scheduled Posts Panel -->
           <div class="card">
             <div class="card-header">

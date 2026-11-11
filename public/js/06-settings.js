@@ -160,7 +160,7 @@ function renderPlatformCards(platforms) {
     if (isConnected) {
       action = `<button class="btn btn-secondary btn-sm" onclick="triggerPlatformConnection('${key}', event)" title="Check the sign-in still works">Check</button>
         ${st.group === 'attention' ? `<a class="btn btn-primary btn-sm" href="${escapeHtml(p.oauth_url || '#')}" ${oneClick ? `onclick="event.preventDefault();connectOneClick('${key}', this)"` : ''}>Reconnect</a>` : ''}
-        <button class="btn btn-ghost btn-sm" onclick="disconnect('${key}')">Disconnect</button>`;
+        <button class="btn btn-ghost btn-ghost-danger btn-sm" onclick="disconnect('${key}')">Disconnect</button>`;
     } else if (p.kind === 'app_password') {
       action = `<button class="btn btn-primary btn-sm" onclick="connectBluesky('${key}', this)">${p.needs_reconnect ? 'Reconnect' : 'Connect'}</button>`;
     } else if (st.group === 'unavailable') {

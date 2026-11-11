@@ -107,11 +107,17 @@ async function postToInstagram(pageToken, igAccountId, content, imageRef, { page
 
     // First comment (often used for hashtags). A failure here doesn't undo the post.
     if (options.first_comment && format !== 'story') {
-      try {
-        await axios.post(`${GRAPH}/${published.data.id}/comments`, { message: options.first_comment, access_token: pageToken });
-      } catch {
-        result.warning = 'Posted, but the first comment could not be added (sign in to Instagram again from Settings to allow comments).';
+      const fc = require('../firstComment');
+      if (fc.delayMinutes(options) > 0) {
+        result.comment_pending = { target_id: published.data.id }; // the scheduler adds it later
+      } else {
+        const c = await fc.postNow('instagram', published.data.id, options.first_comment, pageToken);
+        result.comment = c.ok ? 'added' : 'failed';
+        if (!c.ok) result.comment_error = c.error;
+        if (!c.ok) result.warning = `Posted, but the first comment wasn’t added. ${c.error}`;
       }
+    } else if (options.first_comment && format === 'story') {
+      result.warning = 'Stories can’t have comments, so the first comment was left out.';
     }
     if (items.length > 1 && format !== 'feed') result.warning = `Only the first ${format === 'reel' ? 'video' : 'item'} was used: a ${format} has one photo or video.`;
     return result;

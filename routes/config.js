@@ -527,6 +527,7 @@ router.post('/facebook/set-page', canManageSocial, async (req, res) => {
   // When does the Page login end? (never, when it came from a long-lived sign-in)
   const saved = await knexForAdmin('social_accounts').where({ workspace_id: req.workspaceId }).whereIn('platform', ['facebook', 'instagram']);
   await Promise.all(saved.map(acc => require('../services/tokenRefresher').checkFacebook(knexForAdmin, acc)));
+  await require('../services/firstComment').recordCommentPermissions(knexForAdmin, req.workspaceId, token.access_token);
 
   res.json({ success: true, page_id: page.id, instagram_detected: !!igId, instagram_connected: !!(igId && canPostToInstagram) });
 });

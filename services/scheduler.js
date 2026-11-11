@@ -75,6 +75,23 @@ async function publishItem(db, repo, item) {
       };
       const opts = typeof item.options === 'string' ? JSON.parse(item.options || '{}') : (item.options || {});
       const result = await postToPlatform(account.platform, tokenData, item.body, item.image_url, opts);
+      // First comment chosen to go "a few minutes after": queue it
+      if (result.comment_pending && opts.first_comment) {
+        const fc = require('./firstComment');
+        const delayMin = fc.delayMinutes(opts);
+        await fc.enqueue(db, {
+          workspaceId: item.workspace_id, contentItemId: item.id, socialAccountId: account.id,
+          platform: account.platform, targetId: result.comment_pending.target_id, message: opts.first_comment, delayMin,
+        });
+        delete result.comment_pending;
+        result.comment = `in ${delayMin} min`;
+      } else if (result.comment && opts.first_comment) {
+        // Added (or not) right away: noted so the Calendar can show it
+        await require('./firstComment').record(db, {
+          workspaceId: item.workspace_id, contentItemId: item.id, socialAccountId: account.id,
+          platform: account.platform, message: opts.first_comment, ok: result.comment === 'added', error: result.comment_error,
+        }).catch(() => {});
+      }
       results.push({ platform: account.platform, ...result });
     } catch (err) {
       console.error(`[Scheduler] Content #${item.id} failed on ${account.platform}:`, err.message);
@@ -202,6 +219,8 @@ function start() {
       if (!require('./license').status().can_publish) return;
       await processDueScheduled(knex);
       await processDueContent(knex, contentRepo);
+      // First comments chosen to go a few minutes after their post
+      await require('./firstComment').processDue(knex).catch(err => console.error('[Scheduler] First comments:', err.message));
 
       // Sellbird autonomous loop (runs every 15 minutes)
       if (new Date().getMinutes() % 15 === 0) {

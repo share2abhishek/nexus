@@ -33,7 +33,7 @@ function botMenuRow(o = {}) {
         ${botTextarea('bot-menu-reply', o.reply, o.handover ? 'What to say before a person takes over' : 'What the bot replies, e.g. Haircut ₹300, colour ₹1200')}
         <label class="bot-check"><input type="checkbox" class="bot-menu-handover" ${o.handover ? 'checked' : ''}/> Hand over to a person (the bot goes quiet in that chat)</label>
       </div>
-      <button class="btn btn-ghost btn-sm bot-remove" type="button" title="Remove this option" aria-label="Remove this option">Remove</button>
+      <button class="btn btn-ghost btn-ghost-danger btn-sm bot-remove" type="button" title="Remove this option" aria-label="Remove this option">Remove</button>
     </div>`;
 }
 
@@ -47,7 +47,7 @@ function botKeywordRow(r = {}) {
         ${botTextarea('bot-kw-reply', r.reply, r.handover ? 'What to say before a person takes over' : 'Your answer')}
         <label class="bot-check"><input type="checkbox" class="bot-kw-handover" ${r.handover ? 'checked' : ''}/> Hand over to a person</label>
       </div>
-      <button class="btn btn-ghost btn-sm bot-remove" type="button" title="Remove this reply" aria-label="Remove this reply">Remove</button>
+      <button class="btn btn-ghost btn-ghost-danger btn-sm bot-remove" type="button" title="Remove this reply" aria-label="Remove this reply">Remove</button>
     </div>`;
 }
 

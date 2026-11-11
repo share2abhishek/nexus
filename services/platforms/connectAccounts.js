@@ -78,6 +78,7 @@ async function completeFacebook(db, wsId, t, { instagram = false, via = 'own' } 
   const { checkFacebook } = require('../tokenRefresher');
   const saved = await db('social_accounts').where({ workspace_id: wsId }).whereIn('platform', ['facebook', 'instagram']);
   await Promise.all(saved.map(acc => checkFacebook(db, acc)));
+  await require('../firstComment').recordCommentPermissions(db, wsId, access_token);
 
   return {
     connected: instagram ? 'instagram' : 'facebook',

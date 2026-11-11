@@ -78,7 +78,7 @@ describe('Instagram', () => {
     });
     const r = await social.postToInstagram('pt', 'IG', 'x', link('https://x.test/a.jpg'), { options: { first_comment: 'hi' } });
     expect(r.success).toBe(true);
-    expect(r.warning).toMatch(/first comment could not be added/);
+    expect(r.warning).toMatch(/first comment wasn’t added\. Instagram refused the comment \(no permission\)/);
   });
 });
 

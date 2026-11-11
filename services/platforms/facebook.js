@@ -63,10 +63,14 @@ async function postToFacebook(pageToken, pageId, content, imageRef = null, { wor
     const result = { success: true, id: postId, platform: 'facebook', ...(warning ? { warning } : {}) };
 
     if (options.first_comment) {
-      try {
-        await axios.post(`${GRAPH}/${postId}/comments`, { message: options.first_comment, access_token: pageToken });
-      } catch {
-        result.warning = [result.warning, 'Posted, but the first comment could not be added (sign in to Facebook again from Settings to allow comments).'].filter(Boolean).join(' ');
+      const fc = require('../firstComment');
+      if (fc.delayMinutes(options) > 0) {
+        result.comment_pending = { target_id: postId }; // the scheduler adds it later
+      } else {
+        const c = await fc.postNow('facebook', postId, options.first_comment, pageToken);
+        result.comment = c.ok ? 'added' : 'failed';
+        if (!c.ok) result.comment_error = c.error;
+        if (!c.ok) result.warning = [result.warning, `Posted, but the first comment wasn’t added. ${c.error}`].filter(Boolean).join(' ');
       }
     }
     return result;

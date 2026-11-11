@@ -363,7 +363,7 @@ function designerHtml() {
             <div class="designer-files">
               ${Designer.postPhotoRef ? '<button type="button" class="btn btn-secondary btn-sm" id="dz-photo-post">Use the post’s photo</button>' : ''}
               <label class="btn btn-secondary btn-sm">Photo from this PC… <input type="file" id="dz-photo" accept="image/png,image/jpeg,image/webp" hidden /></label>
-              <button type="button" class="btn btn-ghost btn-sm" id="dz-photo-clear" ${Designer.photo ? '' : 'hidden'}>Remove photo</button>
+              <button type="button" class="btn btn-ghost btn-ghost-danger btn-sm" id="dz-photo-clear" ${Designer.photo ? '' : 'hidden'}>Remove photo</button>
               <label class="btn btn-secondary btn-sm">Logo… <input type="file" id="dz-logo" accept="image/png,image/jpeg,image/webp" hidden /></label>
               <label class="bot-check"><input type="checkbox" id="dz-showlogo" ${s.showLogo ? 'checked' : ''} ${Designer.logo ? '' : 'disabled'} /> Show logo</label>
             </div>
