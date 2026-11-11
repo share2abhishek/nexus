@@ -5134,3 +5134,6 @@ body:not(.light-mode) .tpl-bubble, body:not(.light-mode) .tpl-bubble-btn { backg
 .px-feed-main { min-width: 0; flex: 1; }
 .px-feed-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
 @media (max-width: 760px) { .px-feed { flex-direction: column; } }
+
+.sb-rules { margin: 0 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; line-height: 1.5; color: var(--text-secondary); }
+.sb-live-pill.sb-state-off .sb-live-dot { background: #f59e0b; box-shadow: none; }

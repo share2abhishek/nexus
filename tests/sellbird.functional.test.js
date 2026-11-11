@@ -23,6 +23,10 @@ const {
   draftReplyResponse,
 } = require('../services/sellbird/aiEngine');
 const { processDueOutbox } = require('../services/sellbird/dispatcher');
+
+// A configured mail server for these tests (nothing really leaves the machine)
+jest.mock('nodemailer', () => ({ createTransport: () => ({ sendMail: async () => ({ messageId: 'test-message' }) }) }));
+Object.assign(process.env, { SMTP_HOST: 'smtp.test.example', SMTP_USER: 'sales@test.example', SMTP_PASS: 'x', SMTP_FROM: 'sales@test.example' });
 const { runHeartbeat } = require('../services/sellbird/heartbeat');
 
 // Mock axios and dns when testing isolated units
@@ -424,7 +428,19 @@ describe('Sellbird Autonomous Sales Agent — Test Suite', () => {
       });
     });
 
-    test('dispatcher sends approved due email in mock mode and updates status to sent', async () => {
+    test('without email sending set up, nothing is marked sent', async () => {
+      const saved = process.env.SMTP_HOST; delete process.env.SMTP_HOST;
+      const now = Math.floor(Date.now() / 1000);
+      const o = await repo.addOutboxItem(workspaceId, { campaign_id: camp.id, contact_id: contact.id, subject: 'Waits', body: 'B', status: 'approved', scheduled_at: now - 10 });
+      const r = await processDueOutbox(knex, repo, 10);
+      expect(r.sent).toBe(0);
+      expect(r.error).toMatch(/Email sending/);
+      expect((await repo.getOutboxItem(workspaceId, o.id)).status).toBe('approved');
+      process.env.SMTP_HOST = saved;
+      await knex('sellbird_outbox').where({ id: o.id }).del();
+    });
+
+    test('dispatcher sends an approved due email and marks it sent', async () => {
       const now = Math.floor(Date.now() / 1000);
       const outbox = await repo.addOutboxItem(workspaceId, {
         campaign_id: camp.id,

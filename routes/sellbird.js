@@ -18,7 +18,27 @@ module.exports = (knex, requirePermission) => {
   router.get('/stats', requirePermission('content.view'), async (req, res) => {
     try {
       const stats = await repo.getStats(req.workspaceId);
-      res.json(stats);
+      const { getSmtpConfig, isPaused } = require('../services/sellbird/dispatcher');
+      const smtp = getSmtpConfig();
+      const now = Math.floor(Date.now() / 1000);
+      const todayStart = now - (now % 86400);
+      const camps = await knex('sellbird_campaigns').where({ workspace_id: req.workspaceId });
+      const active = camps.filter(c => c.status !== 'paused');
+      const count = async (q) => Number((await q.count('id as c').first())?.c || 0);
+      const sentToday = await count(knex('sellbird_outbox').where({ workspace_id: req.workspaceId, status: 'sent' }).where('sent_at', '>=', todayStart));
+      const failed = await count(knex('sellbird_outbox').where({ workspace_id: req.workspaceId, status: 'failed' }));
+      res.json({
+        ...stats,
+        active_campaigns: active.length,
+        sent_today: sentToday,
+        daily_cap: active.reduce((n, c) => n + (Number(c.max_emails_per_day) || 25), 0),
+        failed,
+        reply_rate: stats.sent_outreach ? Math.round((stats.total_replies / stats.sent_outreach) * 1000) / 10 : 0,
+        paused: await isPaused(knex, req.workspaceId),
+        licensed: (() => { try { return !!require('../services/license').status().can_publish; } catch { return false; } })(),
+        // Emails always go from the address in Settings → Email sending
+        sender: smtp ? { email: smtp.from, name: smtp.fromName || '' } : null,
+      });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -112,6 +132,12 @@ module.exports = (knex, requirePermission) => {
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
+  });
+
+  router.post('/sending/pause', requirePermission('content.edit'), async (req, res) => {
+    const { setPaused } = require('../services/sellbird/dispatcher');
+    await setPaused(knex, req.workspaceId, !!req.body?.paused);
+    res.json({ paused: !!req.body?.paused });
   });
 
   // ── Contacts / Prospect People ─────────────────────────────────────────────
@@ -517,7 +543,11 @@ module.exports = (knex, requirePermission) => {
 
   router.patch('/outbox/:id', requirePermission('content.edit'), async (req, res) => {
     try {
-      const updated = await repo.updateOutboxItem(req.workspaceId, Number(req.params.id), req.body);
+      const item = await repo.getOutboxItem(req.workspaceId, Number(req.params.id));
+      if (!item) return res.status(404).json({ error: 'Not found' });
+      if (['sent', 'sending'].includes(item.status)) return res.status(400).json({ error: 'This email has already gone out.' });
+      const { subject, body, scheduled_at } = req.body || {};
+      const updated = await repo.updateOutboxItem(req.workspaceId, item.id, { subject, body, scheduled_at });
       res.json(updated);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -565,6 +595,15 @@ module.exports = (knex, requirePermission) => {
       const intent = await classifyReplyIntent(message_text, aiOpts);
       const drafted = await draftReplyResponse({ originalMessage: message_text, intent, product: { name: (await knex('brand_kit').where({ workspace_id: req.workspaceId }).first('company_name').catch(() => null))?.company_name || '' } }, aiOpts);
 
+      // Their follow-ups waiting in the outbox won't go out now
+      const contactIds = await knex('sellbird_contacts').where({ workspace_id: req.workspaceId })
+        .whereRaw('LOWER(email) = ?', [String(sender_email).toLowerCase().trim()]).pluck('id');
+      if (contactIds.length) {
+        await knex('sellbird_outbox').where({ workspace_id: req.workspaceId }).whereIn('contact_id', contactIds)
+          .whereIn('status', ['pending_approval', 'approved'])
+          .update({ status: 'rejected', error_message: 'Not sent: they replied.', updated_at: Math.floor(Date.now() / 1000) });
+      }
+
       const reply = await repo.addReply(req.workspaceId, {
         outbox_id: outbox_id ? Number(outbox_id) : null,
         sender_email,
@@ -600,7 +639,7 @@ module.exports = (knex, requirePermission) => {
         return res.status(400).json({ error: 'Reply text cannot be empty' });
       }
 
-      // Deliver via SMTP mailer if configured
+      // Only marked "replied" if the email really went out
       try {
         await sendOutreachEmail({
           to: reply.sender_email,
@@ -608,8 +647,7 @@ module.exports = (knex, requirePermission) => {
           body: replyText,
         });
       } catch (smtpErr) {
-        // Log warning if SMTP is not configured or fails, but still mark replied in offline/dev mode
-        console.warn('[Sellbird] Smtp dispatch notice for reply:', smtpErr.message);
+        return res.status(400).json({ error: `Your answer wasn’t sent: ${smtpErr.message}` });
       }
 
       const updated = await repo.updateReply(req.workspaceId, reply.id, {
@@ -625,6 +663,9 @@ module.exports = (knex, requirePermission) => {
   // ── Autonomous Loop Trigger ────────────────────────────────────────────────
   router.post('/heartbeat/run', requirePermission('content.create'), async (req, res) => {
     try {
+      let licensed = false;
+      try { licensed = !!require('../services/license').status().can_publish; } catch {}
+      if (!licensed) return res.status(402).json({ error: 'Sending needs an active licence. Go to Settings → Licence to activate.', code: 'LICENSE_REQUIRED' });
       // Scoped to req.workspaceId for multi-tenant isolation
       const result = await runHeartbeat(knex, { workspaceId: req.workspaceId, maxBatch: 20 });
       res.json(result);

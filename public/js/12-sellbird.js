@@ -169,27 +169,51 @@ function renderSellbirdMetrics(stats) {
   if (subCompanies) subCompanies.textContent = `${stats.total_companies || 0} researched & crawled`;
 
   const subVerified = document.getElementById('sb-metric-verified-sub');
-  if (subVerified) subVerified.textContent = stats.verified_contacts > 0 ? '100% deliverable' : '0 verified';
+  if (subVerified) subVerified.textContent = 'with a working mail server';
 
   const subInCamps = document.getElementById('sb-metric-incampaigns-sub');
-  if (subInCamps) subInCamps.textContent = `across ${stats.total_campaigns || 1} active campaign(s)`;
+  if (subInCamps) subInCamps.textContent = `across ${stats.active_campaigns || 0} active campaign${stats.active_campaigns === 1 ? '' : 's'}`;
 
   const subReplied = document.getElementById('sb-metric-replied-sub');
   if (subReplied) subReplied.textContent = `${stats.interested_leads || 0} interested leads`;
 
   // Top header quota pill
   const topQuota = document.getElementById('sb-top-quota-text');
-  if (topQuota) topQuota.textContent = `${stats.sent_outreach || 0} / 120`;
+  if (topQuota) topQuota.textContent = `${stats.sent_today || 0} / ${stats.daily_cap || 0}`;
 
   const quotaSentMetric = document.getElementById('sb-quota-sent-metric');
-  if (quotaSentMetric) quotaSentMetric.textContent = stats.sent_outreach || 0;
+  if (quotaSentMetric) quotaSentMetric.textContent = stats.sent_today || 0;
+  const quotaCap = document.getElementById('sb-quota-cap');
+  if (quotaCap) quotaCap.textContent = stats.daily_cap || 0;
+  const activeCamps = document.getElementById('sb-sending-queued');
+  if (activeCamps) activeCamps.textContent = stats.active_campaigns || 0;
+
+  // Campaign numbers (were made-up figures written into the page)
+  const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setText('sb-camp-sent', stats.sent_outreach || 0);
+  setText('sb-camp-sent-sub', `${stats.approved_queued || 0} approved, waiting to go out`);
+  setText('sb-camp-rate', `${stats.reply_rate || 0}%`);
+  setText('sb-camp-rate-sub', `${stats.total_replies || 0} repl${stats.total_replies === 1 ? 'y' : 'ies'}`);
+  setText('sb-camp-interested', stats.interested_leads || 0);
+  setText('sb-camp-failed', stats.failed || 0);
+
+  // Sending status and where emails come from
+  SellbirdState.sendingPaused = !!stats.paused;
+  SellbirdState.stats = stats;
+  const stateText = document.getElementById('sb-sending-state-text');
+  if (stateText) {
+    stateText.textContent = !stats.sender ? 'Email not set up' : !stats.licensed ? 'Needs licence' : stats.paused ? 'Paused' : 'Sending on';
+    document.getElementById('sb-sending-state')?.classList.toggle('sb-state-off', !stats.sender || !stats.licensed || stats.paused);
+  }
+  setText('sb-rules-sender', stats.sender ? `${stats.sender.name ? stats.sender.name + ' ' : ''}<${stats.sender.email}>` : 'the address in Settings → Email sending (not set up yet)');
+  document.querySelectorAll('[data-sb-pause-label]').forEach(el => { el.textContent = stats.paused ? '▶ Resume sending' : '⏸ Pause sending'; });
 
   const sendingInFlight = document.getElementById('sb-sending-in-flight');
   if (sendingInFlight) sendingInFlight.textContent = stats.approved_queued || 0;
 
   // Sub-sidebar badge counters
   const subnavSignals = document.getElementById('sb-subnav-signals-count');
-  if (subnavSignals) subnavSignals.textContent = stats.total_companies > 0 ? (stats.total_companies * 2) : 0;
+  if (subnavSignals) subnavSignals.textContent = stats.total_companies || 0;
 
   const subnavCompanies = document.getElementById('sb-subnav-companies-count');
   if (subnavCompanies) subnavCompanies.textContent = stats.total_companies || 0;
@@ -296,15 +320,10 @@ async function triggerSellbirdHeartbeat() {
     }
 
     const result = await api('POST', '/api/sellbird/heartbeat/run');
-
     const sent = result?.sent_count || 0;
-    const errors = result?.error_count || 0;
-    const processed = result?.processed_count || 0;
-
-    let msg = `Autonomous Loop Cycle Complete: ${sent} sent, ${processed} evaluated.`;
-    if (errors > 0) msg += ` (${errors} delivery warnings)`;
-
-    toast(msg, 'success', 5000);
+    if (result?.dispatch?.error) toast(result.dispatch.error, 'warning', 8000);
+    else if (SellbirdState.sendingPaused) toast('Sending is paused. Resume it to send approved emails.', 'info');
+    else toast(sent ? `${sent} email${sent === 1 ? '' : 's'} sent.` : 'Nothing to send right now: no approved emails are due.', sent ? 'success' : 'info', 5000);
     await loadSellbird();
   } catch (err) {
     console.error('[Sellbird] Heartbeat failed:', err);
@@ -812,9 +831,30 @@ async function batchApproveOutbox() {
   }
 }
 
-function toggleSendingPause() {
-  SellbirdState.sendingPaused = !SellbirdState.sendingPaused;
-  toast(SellbirdState.sendingPaused ? 'Autonomous sending paused.' : 'Autonomous sending resumed.', 'info');
+// Contacts as a spreadsheet (CSV opens in Excel)
+function exportSellbirdContactsCsv() {
+  const rows = SellbirdState.contacts || [];
+  if (!rows.length) return toast('No contacts to export yet.', 'info');
+  const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const csv = ['Name,Role,Email,Email check,Company,Website']
+    .concat(rows.map(c => [c.full_name, c.role, c.email, c.email_status, c.company_name, c.company_domain || c.domain].map(cell).join(',')))
+    .join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })); // BOM so Excel reads ₹ and accents
+  a.download = `sales-contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+window.exportSellbirdContactsCsv = exportSellbirdContactsCsv;
+
+async function toggleSendingPause() {
+  const paused = !SellbirdState.sendingPaused;
+  try {
+    await api('POST', '/api/sellbird/sending/pause', { paused });
+    SellbirdState.sendingPaused = paused;
+    toast(paused ? 'Sending paused. Nothing goes out until you resume.' : 'Sending resumed.', 'info');
+    loadSellbird();
+  } catch (err) { toast(err.message, 'error'); }
 }
 
 function renderOfficialSenderOptions() {
@@ -884,7 +924,7 @@ function renderOutbox() {
   if (waitingLabel) waitingLabel.textContent = `${waitingItems.length} waiting for you`;
 
   const batchBtn = document.getElementById('btn-sellbird-batch-approve');
-  if (batchBtn) batchBtn.textContent = `✓ Approve all ${waitingItems.length || 3}`;
+  if (batchBtn) { batchBtn.textContent = `✓ Approve all ${waitingItems.length}`; batchBtn.disabled = !waitingItems.length; }
 
   // Find active item for preview
   const activeItem = allItems.find((i) => i.id === SellbirdState.selectedOutboxId) || waitingItems[0] || approvedItems[0];
@@ -897,7 +937,7 @@ function renderOutbox() {
     const initials = formatInitials(item.contact_name);
     const timeStr = item.scheduled_at
       ? new Date(item.scheduled_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      : '9:10 AM';
+      : '—';
 
     return `
       <div class="sb-queue-card ${isSelected ? 'selected' : ''}" onclick="selectOutboxItem(${item.id})">
@@ -961,11 +1001,9 @@ function renderOutbox() {
             <span style="font-size:10.5px;font-weight:800;color:#94a3b8;width:55px">FROM</span>
             <div style="display:inline-flex;align-items:center;gap:8px;flex:1;max-width:440px">
               <span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;font-size:9.5px;text-align:center;line-height:18px;font-weight:800;flex-shrink:0">US</span>
-              <select id="sb-select-official-sender" onchange="onSelectOfficialSender(this.value)" class="form-input" style="padding:4px 8px;font-size:12px;font-weight:600;border-radius:6px;background:#f8fafc;color:#0f172a;border:1px solid #cbd5e1;cursor:pointer;flex:1;height:28px">
-                ${renderOfficialSenderOptions()}
-              </select>
+              <span style="font-size:12.5px;font-weight:600;color:#0f172a">${SellbirdState.stats?.sender ? escapeHtml(`${SellbirdState.stats.sender.name ? SellbirdState.stats.sender.name + ' ' : ''}<${SellbirdState.stats.sender.email}>`) : 'Not set up — Settings → Email sending'}</span>
             </div>
-            <span class="sb-industry-pill" style="color:#10b981;background:#ecfdf5;font-weight:700">• Official Verified Sender</span>
+            
           </div>
 
           <div class="sb-meta-row">
@@ -1426,7 +1464,7 @@ function renderReplies() {
         <div style="font-size:13px;color:#64748b;max-width:500px;margin:0 auto 16px auto">
           When target prospects reply to your outreach, Sellbird classifies their intent and auto-drafts the ideal response.
         </div>
-        <button class="sb-secondary-btn" onclick="openSimulateReplyModal()">🧪 Simulate Incoming Prospect Reply</button>
+        <button class="sb-secondary-btn" onclick="openSimulateReplyModal()">+ Add a reply you received</button>
       </div>`;
     return;
   }

@@ -58,7 +58,24 @@ async function sendOutreachEmail({ to, subject, body, fromName, fromEmail }) {
   return { success: true, messageId: info.messageId };
 }
 
-// Process due approved emails in outbox respecting daily warmup limits, suppression, and randomized jitter
+// "Pause sending" for a whole workspace (Sales outreach → Pause sending)
+const pauseKey = (workspaceId) => `sellbird_paused_${workspaceId}`;
+async function isPaused(knex, workspaceId) {
+  return (await require('../../repos/configRepo')(knex).get(pauseKey(workspaceId))) === '1';
+}
+async function setPaused(knex, workspaceId, paused) {
+  await require('../../repos/configRepo')(knex).set(pauseKey(workspaceId), paused ? '1' : '0');
+}
+
+// Someone who replied (or unsubscribed) gets no more follow-ups from any campaign
+async function hasReplied(knex, workspaceId, email) {
+  if (!email) return false;
+  return !!(await knex('sellbird_replies').where({ workspace_id: workspaceId })
+    .whereRaw('LOWER(sender_email) = ?', [String(email).toLowerCase().trim()]).first('id'));
+}
+
+// Process due approved emails: daily cap per campaign, paused campaigns and
+// workspaces skipped, people who replied or opted out never emailed again.
 async function processDueOutbox(knex, repo, options = {}) {
   const now = nowEpoch();
   const todayStart = now - (now % 86400);
@@ -72,6 +89,7 @@ async function processDueOutbox(knex, repo, options = {}) {
     .join('sellbird_contacts as c', 'o.contact_id', 'c.id')
     .join('sellbird_campaigns as camp', 'o.campaign_id', 'camp.id')
     .where('o.status', 'approved')
+    .whereNot('camp.status', 'paused')
     .where('o.scheduled_at', '<=', now);
 
   if (workspaceId) {
@@ -88,8 +106,17 @@ async function processDueOutbox(knex, repo, options = {}) {
 
   let sentCount = 0;
   const config = getSmtpConfig();
+  // Without email sending set up nothing goes out — and nothing is marked
+  // "sent" (it used to pretend, so people thought prospects had been emailed)
+  if (!config) {
+    return { sent: 0, total_due: dueItems.length, error: 'Email sending isn’t set up yet (Settings → Email sending). Approved emails wait until it is.' };
+  }
+  const pausedWs = new Map();
 
   for (const item of dueItems) {
+    if (!pausedWs.has(item.workspace_id)) pausedWs.set(item.workspace_id, await isPaused(knex, item.workspace_id));
+    if (pausedWs.get(item.workspace_id)) continue;
+
     // Check daily cap for this campaign
     const [todayCount] = await knex('sellbird_outbox')
       .where({ campaign_id: item.campaign_id, status: 'sent' })
@@ -134,6 +161,11 @@ async function processDueOutbox(knex, repo, options = {}) {
       });
       continue;
     }
+    // A follow-up to someone who already replied isn't sent
+    if ((item.step_number || 1) > 1 && await hasReplied(knex, item.workspace_id, item.contact_email)) {
+      await repo.updateOutboxItem(item.workspace_id, item.id, { status: 'rejected', error_message: 'Not sent: they already replied.' });
+      continue;
+    }
 
     // Atomically claim (approved -> sending)
     const claimed = await knex('sellbird_outbox')
@@ -142,16 +174,7 @@ async function processDueOutbox(knex, repo, options = {}) {
     if (!claimed) continue;
 
     try {
-      if (config) {
-        await sendOutreachEmail({
-          to: item.contact_email,
-          subject: item.subject,
-          body: item.body,
-        });
-      } else {
-        // Mock send mode if SMTP is not configured during development/eval
-        console.log(`[Sellbird Dispatcher] Simulated send to ${item.contact_email}: "${item.subject}"`);
-      }
+      await sendOutreachEmail({ to: item.contact_email, subject: item.subject, body: item.body });
 
       await repo.updateOutboxItem(item.workspace_id, item.id, {
         status: 'sent',
@@ -185,6 +208,9 @@ async function processDueOutbox(knex, repo, options = {}) {
 }
 
 module.exports = {
+  isPaused,
+  setPaused,
+  hasReplied,
   getSmtpConfig,
   sendOutreachEmail,
   processDueOutbox,

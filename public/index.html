@@ -1576,7 +1576,7 @@
                   <polygon points="14,9 22,6 18,14" fill="#38bdf8" />
                   <polygon points="9,13 14,9 15,19" fill="#1e293b" />
                 </svg>
-                <span>sellbird</span>
+                <span>Sales outreach</span>
               </div>
               <div class="sb-brand-dropdown" id="sb-brand-selector" onclick="openAddCompanyModal()">
                 <span style="display:inline-block;width:14px;height:14px;background:#0f172a;color:#fff;border-radius:3px;font-size:9px;text-align:center;line-height:14px;font-weight:700">U</span>
@@ -1589,26 +1589,17 @@
 
             <div class="sb-header-right">
               <button class="btn btn-sm btn-primary" id="btn-pull-real-prospects" onclick="openPullRealProspectsModal()" style="background:#0284c7;color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:12px;border-radius:6px;border:0" title="Live Crawl Real Housing Societies & Organizations">
-                <span>🌐 Pull Real-World Data</span>
-              </button>
-              <button class="btn btn-sm btn-secondary" id="btn-clean-dummy-sellbird" onclick="cleanSellbirdDummyDataUI()" style="color:#ef4444;border-color:rgba(239,68,68,0.3);font-size:12px;display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:6px" title="Clean All Fake / Seeded Data">
-                <span>🧹 Clean Dummy</span>
+                <span>🔎 Find companies</span>
               </button>
               <div class="sb-quota-pill">
-                <span id="sb-top-quota-text">0 / 120</span>
+                <span id="sb-top-quota-text" title="Sent today / daily limit">0 / 0</span>
                 <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="#0284c7" stroke-width="2.5"><circle cx="10" cy="10" r="7" stroke="#e2e8f0"/><path d="M10 3 A7 7 0 0 1 17 10"/></svg>
               </div>
-              <div class="sb-avatar-stack">
-                <div class="sb-avatar-circle">US</div>
-                <div class="sb-avatar-circle" style="background:#0284c7">AB</div>
-              </div>
-              <div class="sb-live-pill">
-                <span class="sb-live-dot"></span> Live
-              </div>
+              <div class="sb-live-pill" id="sb-sending-state" title="Sending status"><span class="sb-live-dot"></span> <span id="sb-sending-state-text">…</span></div>
               <button class="sb-icon-btn" title="Refresh Sellbird" onclick="loadSellbird()">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
               </button>
-              <button class="sb-icon-btn" title="Run Autonomous Loop" onclick="triggerSellbirdHeartbeat()">
+              <button class="sb-icon-btn" title="Send approved emails now" onclick="triggerSellbirdHeartbeat()">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0284c7" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               </button>
             </div>
@@ -1620,13 +1611,13 @@
             <aside class="sellbird-subnav">
               <!-- Sending Today Widget -->
               <div class="sb-sending-today-card">
-                <div class="sb-today-label"><span id="sb-quota-sent-metric">0</span> of 120 sent today</div>
+                <div class="sb-today-label"><span id="sb-quota-sent-metric">0</span> of <span id="sb-quota-cap">0</span> sent today</div>
                 <svg class="sb-sparkline-svg" viewBox="0 0 100 20" preserveAspectRatio="none">
                   <path d="M0,15 Q20,12 40,14 T80,8 T100,6" fill="none" stroke="#0284c7" stroke-width="2"/>
                 </svg>
                 <div class="sb-today-meta">
                   <span>✉️ <strong id="sb-sending-in-flight">0</strong> queued</span>
-                  <span>⚡ <strong id="sb-sending-queued">100%</strong> active</span>
+                  <span>⚡ <strong id="sb-sending-queued">0</strong> active campaigns</span>
                 </div>
               </div>
 
@@ -1686,16 +1677,8 @@
               <div class="sb-subnav-item" onclick="switchSellbirdTab('deliverability', this)">
                 <span class="sb-subnav-label-wrap">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-                  Inboxes
+                  Sending rules
                 </span>
-                <span class="sb-subnav-badge" id="sb-subnav-inboxes-count">1</span>
-              </div>
-              <div class="sb-subnav-item" onclick="switchSellbirdTab('deliverability', this)">
-                <span class="sb-subnav-label-wrap">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                  Domains
-                </span>
-                <span class="sb-subnav-badge" id="sb-subnav-domains-count">1</span>
               </div>
               <div class="sb-subnav-item" onclick="triggerSellbirdHeartbeat()">
                 <span class="sb-subnav-label-wrap">
@@ -1717,9 +1700,9 @@
                     CONTACTS &nbsp;|&nbsp; <span style="color:#64748b;font-weight:600" id="sb-contacts-count-label">0 people</span>
                   </div>
                   <div style="display:flex;gap:8px">
-                    <button class="sb-secondary-btn" onclick="openAddCompanyModal()">Cohort</button>
-                    <button class="sb-secondary-btn" onclick="openBulkDiscoverModal()">Export CSV</button>
-                    <button class="sb-primary-btn" onclick="openAddCompanyModal()">+ Add to campaign</button>
+                    <button class="sb-secondary-btn" onclick="exportSellbirdContactsCsv()">Export CSV</button>
+                    <button class="sb-secondary-btn" onclick="openBulkDiscoverModal()">Add many companies</button>
+                    <button class="sb-primary-btn" onclick="openAddCompanyModal()">+ Add a company</button>
                   </div>
                 </div>
 
@@ -1781,7 +1764,7 @@
                     OUTBOX &nbsp;|&nbsp; <span style="color:#64748b;font-weight:600" id="sb-outbox-waiting-label">3 waiting for you</span>
                   </div>
                   <div style="display:flex;gap:8px">
-                    <button class="sb-secondary-btn" onclick="toast('Sending paused temporarily', 'info')">⏸ Pause sending</button>
+                    <button class="sb-secondary-btn" onclick="toggleSendingPause()" data-sb-pause-label>⏸ Pause sending</button>
                     <button class="sb-primary-btn" id="btn-sellbird-batch-approve" onclick="batchApproveOutbox()">✓ Approve all 3</button>
                   </div>
                 </div>
@@ -1805,11 +1788,6 @@
                     CAMPAIGNS &nbsp;|&nbsp; <span style="color:#64748b;font-weight:600" id="sb-campaigns-cohorts-label">Active Campaigns</span>
                   </div>
                   <div style="display:flex;gap:8px">
-                    <div style="display:flex;background:#f1f5f9;border-radius:6px;padding:2px">
-                      <button class="btn btn-sm" style="background:#fff;border-radius:4px;padding:3px 9px;font-size:12px;font-weight:700">7d</button>
-                      <button class="btn btn-sm" style="background:transparent;padding:3px 9px;font-size:12px;color:#64748b">30d</button>
-                      <button class="btn btn-sm" style="background:transparent;padding:3px 9px;font-size:12px;color:#64748b">90d</button>
-                    </div>
                     <button class="sb-primary-btn" onclick="openCreateCampaignModal()">+ New campaign</button>
                   </div>
                 </div>
@@ -1818,25 +1796,23 @@
                 <div class="sb-metric-cards-row">
                   <div class="sb-metric-box">
                     <div class="sb-metric-title">SENT</div>
-                    <div class="sb-metric-val">193</div>
-                    <div class="sb-metric-subtext">of 423 scheduled</div>
+                    <div class="sb-metric-val" id="sb-camp-sent">0</div>
+                    <div class="sb-metric-subtext" id="sb-camp-sent-sub">0 approved, waiting to go out</div>
                   </div>
                   <div class="sb-metric-box">
                     <div class="sb-metric-title">REPLY RATE</div>
-                    <div class="sb-metric-val">11.9%</div>
-                    <div class="sb-metric-subtext">23 replies</div>
+                    <div class="sb-metric-val" id="sb-camp-rate">0%</div>
+                    <div class="sb-metric-subtext" id="sb-camp-rate-sub">0 replies</div>
                   </div>
                   <div class="sb-metric-box">
-                    <div class="sb-metric-title">MEETINGS</div>
-                    <div class="sb-metric-val">8</div>
-                    <div class="sb-metric-subtext">from 4 campaigns</div>
+                    <div class="sb-metric-title">INTERESTED</div>
+                    <div class="sb-metric-val" id="sb-camp-interested">0</div>
+                    <div class="sb-metric-subtext">replied that they’re interested</div>
                   </div>
                   <div class="sb-metric-box">
-                    <div class="sb-metric-title">
-                      BOUNCED <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10b981"></span>
-                    </div>
-                    <div class="sb-metric-val">1.3%</div>
-                    <div class="sb-metric-subtext">pauses itself at 5%</div>
+                    <div class="sb-metric-title">NOT SENT</div>
+                    <div class="sb-metric-val" id="sb-camp-failed">0</div>
+                    <div class="sb-metric-subtext">failed (e.g. bad address)</div>
                   </div>
                 </div>
 
@@ -1855,27 +1831,24 @@
                       EMAIL SEQUENCE
                     </div>
                     <div style="font-size:11.5px;color:#64748b">
-                      🕒 Mon–Fri, 9:00–17:00 in each recipient's time zone
+                      Follow-ups only go out if the person hasn’t replied
                     </div>
                   </div>
                   <div class="sb-sequence-row" id="sb-sequence-steps-container">
                     <div class="sb-sequence-step-card">
                       <div class="sb-seq-day-tag">DAY 0</div>
                       <div class="sb-seq-step-title">1 A simpler way to book</div>
-                      <div class="sb-seq-desc">Personal intro from your agent's research</div>
-                      <div class="sb-seq-stats">38 sent · 6 replied</div>
+                      <div class="sb-seq-desc">A personal first email, written from their website</div>
                     </div>
                     <div class="sb-sequence-step-card">
                       <div class="sb-seq-day-tag">DAY 3</div>
                       <div class="sb-seq-step-title">2 Same thread · a short follow-up</div>
                       <div class="sb-seq-desc">Only if there's no reply</div>
-                      <div class="sb-seq-stats">22 sent · 2 replied</div>
                     </div>
                     <div class="sb-sequence-step-card">
                       <div class="sb-seq-day-tag">DAY 8</div>
                       <div class="sb-seq-step-title">3 Last note · leave the door open</div>
                       <div class="sb-seq-desc">Only if there's no reply</div>
-                      <div class="sb-seq-stats">4 sent · 1 replied</div>
                     </div>
                   </div>
                 </div>
@@ -1888,13 +1861,13 @@
                 <!-- Top Header & Filter Pills -->
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
                   <div style="font-size:13px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;color:#0f172a">
-                    CONVERSATIONS &nbsp;|&nbsp; <span style="color:#64748b;font-weight:600" id="sb-replies-need-label">2 need a reply</span>
+                    CONVERSATIONS &nbsp;|&nbsp; <span style="color:#64748b;font-weight:600" id="sb-replies-need-label">0 need a reply</span>
                   </div>
                   <div style="display:flex;gap:8px">
                     <button class="sb-secondary-btn" style="background:#0f172a;color:#fff;border-color:#0f172a" onclick="filterRepliesIntent('all', this)">Needs reply</button>
-                    <button class="sb-secondary-btn" onclick="filterRepliesIntent('all', this)">All 38</button>
+                    <button class="sb-secondary-btn" onclick="filterRepliesIntent('all', this)">All</button>
                     <button class="sb-secondary-btn" onclick="filterRepliesIntent('all', this)">Auto-replies</button>
-                    <button class="sb-secondary-btn" onclick="openSimulateReplyModal()">🧪 Simulate Reply</button>
+                    <button class="sb-secondary-btn" onclick="openSimulateReplyModal()" title="Social-Nexus doesn’t read your mailbox yet: paste replies you get here">+ Add a reply you received</button>
                   </div>
                 </div>
 
@@ -1911,33 +1884,19 @@
               <!-- SCREEN 5: DELIVERABILITY & WARMUP                               -->
               <!-- ═══════════════════════════════════════════════════════════════ -->
               <div class="sellbird-panel" id="sellbird-panel-deliverability" style="display:none">
-                <div class="sellbird-deliverability-grid">
-                  <div class="sellbird-card">
-                    <div class="sellbird-card-header">
-                      <div class="sellbird-card-title">🔥 Mailbox Warmup &amp; Ramp-Up Schedule</div>
-                      <span class="sellbird-status-pill pill-active">Warmup Healthy</span>
-                    </div>
-                    <div class="sellbird-card-body">
-                      <p class="text-sm text-secondary">
-                        Sellbird automatically spaces sending times with randomized human delays (180–420 seconds) and gradually ramps daily volume to maintain 99%+ inbox placement.
-                      </p>
-                      <div class="sellbird-ramp-stages">
-                        <div class="sellbird-ramp-stage completed">
-                          <div class="stage-dot">✓</div>
-                          <div class="stage-info">
-                            <div class="stage-title">Week 1: Seed Warmup</div>
-                            <div class="stage-sub">10 emails / day cap (100% human-approved)</div>
-                          </div>
-                        </div>
-                        <div class="sellbird-ramp-stage active">
-                          <div class="stage-dot">●</div>
-                          <div class="stage-info">
-                            <div class="stage-title">Week 2: Ramp Up (Current)</div>
-                            <div class="stage-sub">25 emails / day cap — High deliverability safety window</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                <div class="sellbird-card">
+                  <div class="sellbird-card-header"><div class="sellbird-card-title">How sending works</div></div>
+                  <div class="sellbird-card-body">
+                    <ul class="sb-rules">
+                      <li><b>Nothing goes out without your OK</b>, unless you turned on auto-approve for a campaign.</li>
+                      <li>Emails are sent from <b id="sb-rules-sender">the address in Settings → Email sending</b>, a few seconds apart.</li>
+                      <li>Each campaign sends at most its <b>daily limit</b> (set when you create it). The rest wait for the next day.</li>
+                      <li><b>Follow-ups stop</b> as soon as someone replies. People who say “unsubscribe” or “not interested” are never emailed again.</li>
+                      <li>Every email ends with a line telling people how to opt out.</li>
+                      <li>Addresses are checked for a working mail server before sending. Addresses guessed from a name (like firstname@company.com) can still bounce: check them in Contacts.</li>
+                      <li><b>Pause sending</b> stops everything at once; paused campaigns are skipped.</li>
+                    </ul>
+                    <div class="form-hint" style="margin-top:12px">Social-Nexus doesn’t read your mailbox yet. When someone replies, add it under Replies → “Add a reply you received” so their follow-ups stop and AI drafts an answer.</div>
                   </div>
                 </div>
               </div>
@@ -2128,30 +2087,30 @@
       <div class="modal-backdrop" onclick="closeSellbirdModals()"></div>
       <div class="modal-content sellbird-modal-content">
         <div class="modal-header">
-          <div class="modal-title">🧪 Simulate Inbound Prospect Reply</div>
+          <div class="modal-title">Add a reply you received</div>
           <button class="modal-close" onclick="closeSellbirdModals()">✕</button>
         </div>
         <div class="modal-body">
           <p class="text-sm text-secondary" style="margin-bottom:14px">
-            Test Sellbird's AI intent classification and auto-drafted reply generator.
+            Paste a reply from your email. Social-Nexus stops that person’s follow-ups, sorts the reply (interested, question, not interested…) and drafts an answer for you to check.
           </p>
           <div class="form-group">
-            <label class="form-label">Prospect Email *</label>
-            <input type="email" class="form-input sellbird-input" id="simulate-reply-email" value="alex.morris@acmewidgets.com" />
+            <label class="form-label">Their email address *</label>
+            <input type="email" class="form-input sellbird-input" id="simulate-reply-email" value="" placeholder="name@company.com" />
           </div>
           <div class="form-group">
             <label class="form-label">Subject Line</label>
-            <input type="text" class="form-input sellbird-input" id="simulate-reply-subject" value="Re: Quick question on your sales workflow" />
+            <input type="text" class="form-input sellbird-input" id="simulate-reply-subject" value="" placeholder="Re: …" />
           </div>
           <div class="form-group">
-            <label class="form-label">Inbound Message Text *</label>
-            <textarea class="form-textarea sellbird-textarea" id="simulate-reply-text" rows="4">Hi, thanks for reaching out! This looks relevant for our Q4 push. Do you have 15 minutes this Thursday afternoon to walk us through a quick demo?</textarea>
+            <label class="form-label">Their message *</label>
+            <textarea class="form-textarea sellbird-textarea" id="simulate-reply-text" rows="5" placeholder="Paste the reply here"></textarea>
           </div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="closeSellbirdModals()">Cancel</button>
           <button class="btn btn-sellbird-primary" onclick="submitSimulateReply()" id="btn-submit-simulate-reply">
-            ⚡ Classify Intent &amp; Draft Reply
+            Save and draft an answer
           </button>
         </div>
       </div>

@@ -8,6 +8,10 @@ const { extractProspectNames, predictEmailPatterns, verifyMxRecord, verifyContac
 const { generateOutreachSequence, classifyReplyIntent, draftReplyResponse } = require('../services/sellbird/aiEngine');
 const { processDueOutbox } = require('../services/sellbird/dispatcher');
 
+// A configured mail server for these tests (nothing really leaves the machine)
+jest.mock('nodemailer', () => ({ createTransport: () => ({ sendMail: async () => ({ messageId: 'test-message' }) }) }));
+Object.assign(process.env, { SMTP_HOST: 'smtp.test.example', SMTP_USER: 'sales@test.example', SMTP_PASS: 'x', SMTP_FROM: 'sales@test.example' });
+
 async function makeWorkspace(knex, name, slug) {
   const orgRows = await knex('organizations').insert({ name: `${name} Org`, owner_user_id: 1 }).returning('id');
   const orgId = orgRows[0]?.id ?? orgRows[0];
