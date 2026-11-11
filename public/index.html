@@ -1116,6 +1116,47 @@
           <span class="status-dot-sm"></span><span>Checking which AI is ready…</span>
         </div>
 
+        <!-- Server edition: keys the business shares with its whole team -->
+        <div class="settings-section" id="biz-ai-section" hidden>
+          <div class="settings-section-header">
+            <div>
+              <div class="settings-section-title">Shared with your team</div>
+              <div class="settings-section-sub" id="biz-ai-sub">Keys saved here are used by everyone in your business who hasn't added their own. Saved encrypted; nobody can read them back.</div>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-title">Google Gemini key <span class="badge badge-green">Recommended · free</span></div>
+              <div class="settings-row-desc">Get one at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a> → “Create API key”.</div>
+            </div>
+            <input type="password" class="form-input settings-control biz-ai-input" id="biz-google-key" placeholder="Paste key (starts with AIza…)" autocomplete="off" />
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-title">Groq key <span class="badge badge-green">Free</span></div>
+              <div class="settings-row-desc"><a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com</a></div>
+            </div>
+            <input type="password" class="form-input settings-control biz-ai-input" id="biz-groq-key" placeholder="gsk_…" autocomplete="off" />
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-title">OpenRouter key</div>
+              <div class="settings-row-desc"><a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai</a></div>
+            </div>
+            <input type="password" class="form-input settings-control biz-ai-input" id="biz-openrouter-key" placeholder="sk-or-v1-…" autocomplete="off" />
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-title">Anthropic Claude key</div>
+              <div class="settings-row-desc"><a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> (paid)</div>
+            </div>
+            <input type="password" class="form-input settings-control biz-ai-input" id="biz-anthropic-key" placeholder="sk-ant-…" autocomplete="off" />
+          </div>
+          <div class="settings-actions" id="biz-ai-actions">
+            <button class="btn btn-primary" onclick="saveBusinessAiKeys(this)">Save for the team</button>
+          </div>
+        </div>
+
         <div class="settings-section user-scoped">
           <div class="settings-section-header">
             <div>
@@ -1271,7 +1312,8 @@
       <div class="settings-panel" id="settings-panel-smtp" style="display:none">
         <div class="panel-intro">
           <h2 class="panel-title">Email sending</h2>
-          <p class="panel-desc">Needed only for the Email and Sales outreach screens. Use the email account you want messages to come from.</p>
+          <p class="panel-desc" id="smtp-panel-desc">Needed only for the Email and Sales outreach screens. Use the email account you want messages to come from.</p>
+          <div class="callout callout-info" id="smtp-manager-note" hidden>Only the owner or a manager of your business can change the email settings. Ask them to set it up here.</div>
         </div>
         <div class="settings-section">
           <div class="card-body">
@@ -2713,6 +2755,7 @@
       <!-- Admin Tabs -->
       <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm admin-tab-btn active" onclick="switchAdminTab('overview',this)">📊 Overview</button>
+        <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-businesses" hidden onclick="switchAdminTab('businesses',this)">🏢 Businesses</button>
         <button class="btn btn-secondary btn-sm admin-tab-btn" onclick="switchAdminTab('users',this)">👥 Users</button>
         <button class="btn btn-secondary btn-sm admin-tab-btn" onclick="switchAdminTab('invites',this)">🎟️ Invite Codes</button>
         <button class="btn btn-secondary btn-sm admin-tab-btn" onclick="switchAdminTab('activity',this)">📋 Activity Log</button>
@@ -2731,6 +2774,11 @@
       </div>
 
       <!-- Users -->
+      <!-- Server edition: businesses and their plans (until online billing sets them) -->
+      <div class="admin-panel" id="admin-panel-businesses" style="display:none">
+        <div class="card"><div class="card-header"><div class="card-title">🏢 Businesses</div></div>
+          <div class="card-body" id="admin-businesses"><span class="spinner"></span></div></div>
+      </div>
       <div class="admin-panel" id="admin-panel-users" style="display:none">
         <div class="card" style="margin-bottom:16px">
           <div class="card-header"><div class="card-title">➕ Create New User</div></div>
@@ -2755,7 +2803,6 @@
                 <th>AI Gen</th><th>Platforms</th><th>Joined</th><th>Last Active</th><th>Actions</th>
               </tr></thead>
               <tbody id="admin-users-tbody"><tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-muted)">Loading…</td></tr></tbody>
-        <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-businesses" hidden onclick="switchAdminTab('businesses',this)">🏢 Businesses</button>
             </table>
           </div>
         </div>
@@ -2774,11 +2821,6 @@
                   <option value="720">30 days</option>
                   <option value="0">Never</option>
                 </select>
-      <!-- Server edition: businesses and their plans (until online billing sets them) -->
-      <div class="admin-panel" id="admin-panel-businesses" style="display:none">
-        <div class="card"><div class="card-header"><div class="card-title">🏢 Businesses</div></div>
-          <div class="card-body" id="admin-businesses"><span class="spinner"></span></div></div>
-      </div>
               </div>
               <div class="form-group"><label class="form-label">Max Uses</label>
                 <select class="form-select" id="inv-max-uses">

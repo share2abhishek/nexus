@@ -97,8 +97,9 @@ router.post('/campaigns/:id/send', canPublish, requirePublishLicense, async (req
   const campaign = await emailRepo.getCampaign(req.workspaceId, parseInt(req.params.id));
   if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
 
-  const { SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM, SMTP_FROM_NAME, SMTP_PORT, SMTP_SECURE } = process.env;
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+  // The business's own mail server on the server edition; .env on the desktop app
+  const smtp = await require('../services/sellbird/dispatcher').smtpConfigFor(req.workspaceId);
+  if (!smtp) {
     return res.status(400).json({
       error: 'Email sending is not set up yet. Go to Settings → Email sending and enter your mail server details (Gmail users: use an App Password).'
     });
@@ -109,10 +110,10 @@ router.post('/campaigns/:id/send', canPublish, requirePublishLicense, async (req
   catch { return res.status(500).json({ error: 'nodemailer not installed. Run: npm install nodemailer' }); }
 
   const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: parseInt(SMTP_PORT || '587'),
-    secure: SMTP_SECURE === 'true',
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
+    auth: smtp.auth,
   });
 
   const allSubs = await emailRepo.listSubscribers(req.workspaceId);
@@ -127,9 +128,10 @@ router.post('/campaigns/:id/send', canPublish, requirePublishLicense, async (req
   // A desktop app can't host a public web page, so it's a mailto: link — mail
   // apps show it as an "Unsubscribe" button. Mark replies as unsubscribed in
   // Email Marketing → Subscribers.
-  const fromAddr = SMTP_FROM || SMTP_USER;
+  const fromAddr = smtp.from;
+  const fromName = smtp.fromName;
   const unsubMailto = `mailto:${fromAddr}?subject=${encodeURIComponent('Unsubscribe')}`;
-  const footerHtml = `<p style="font-size:12px;color:#888;margin-top:24px">You received this because you subscribed to updates from ${escapeForHtml(SMTP_FROM_NAME || fromAddr)}. <a href="${unsubMailto}">Unsubscribe</a> — or reply with "unsubscribe".</p>`;
+  const footerHtml = `<p style="font-size:12px;color:#888;margin-top:24px">You received this because you subscribed to updates from ${escapeForHtml(fromName || fromAddr)}. <a href="${unsubMailto}">Unsubscribe</a> — or reply with "unsubscribe".</p>`;
   const footerText = `\n\n—\nTo unsubscribe, reply to this email with "unsubscribe".`;
 
   let sent = 0;
@@ -138,7 +140,7 @@ router.post('/campaigns/:id/send', canPublish, requirePublishLicense, async (req
     for (const sub of subscribers) {
       try {
         await transporter.sendMail({
-          from: `${SMTP_FROM_NAME || 'Social-Nexus'} <${fromAddr}>`,
+          from: `${fromName || 'Social-Nexus'} <${fromAddr}>`,
           to: sub.email,
           subject: campaign.subject,
           html: (campaign.html_content || `<pre>${escapeForHtml(campaign.text_content || '')}</pre>`) + footerHtml,

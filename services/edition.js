@@ -8,4 +8,8 @@ const features = () => ({ server: isServer(), seo_autopilot: isServer() });
 
 const SERVER_ONLY_MESSAGE = 'This is part of the Social-Nexus server edition, which runs all the time. It isn’t available in the desktop app.';
 
-module.exports = { isServer, features, SERVER_ONLY_MESSAGE };
+// Local AI (Ollama) runs on the same computer. On the desktop app it is on unless
+// switched off; on the server it is off unless Radixile runs one (OLLAMA_ENABLED=true).
+const ollamaDefault = () => (isServer() ? process.env.OLLAMA_ENABLED === 'true' : process.env.OLLAMA_ENABLED !== 'false');
+
+module.exports = { isServer, features, ollamaDefault, SERVER_ONLY_MESSAGE };

@@ -7,7 +7,9 @@ const { aiGenerate } = require('../aiHelper');
  * Evaluates an incoming lead and generates a score (0-100), intent summary,
  * and a personalized instant reply for sales reps or automated follow-up.
  */
-async function qualifyLead(leadData, aiOptions = {}) {
+async function qualifyLead(leadData, given = {}) {
+  // The business's keys on the server (aiOptions.workspaceId), .env on the desktop app
+  const aiOptions = await require('../businessSettings').aiOptionsFor(given.workspaceId, given);
   const { full_name, email, phone_number, custom_answers = {} } = leadData;
 
   const answersFormatted = Object.entries(custom_answers)
@@ -38,7 +40,7 @@ Format your response as valid JSON:
   try {
     const res = await aiGenerate(
       prompt,
-      aiOptions.googleKey || process.env.GOOGLE_AI_KEY,
+      aiOptions.googleKey,
       350,
       null,
       aiOptions

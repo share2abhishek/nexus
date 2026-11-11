@@ -3,14 +3,17 @@
 
 const { aiGenerate, aiJSON } = require('../aiHelper');
 
+// Keys come from the request (the person's own, then their business's). Only the
+// desktop app falls back to the install's .env keys; the server never does.
 function defaultAiKeys(opts = {}) {
+  const env = require('../edition').isServer() ? {} : process.env;
   return {
-    googleKey: opts.googleKey || process.env.GOOGLE_AI_KEY,
-    anthropicKey: opts.anthropicKey || process.env.ANTHROPIC_API_KEY,
-    groqKey: opts.groqKey || process.env.GROQ_API_KEY,
-    openrouterKey: opts.openrouterKey || process.env.OPENROUTER_API_KEY,
-    mistralKey: opts.mistralKey || process.env.MISTRAL_API_KEY,
-    ollamaEnabled: opts.ollamaEnabled !== undefined ? opts.ollamaEnabled : process.env.OLLAMA_ENABLED !== 'false',
+    googleKey: opts.googleKey || env.GOOGLE_AI_KEY,
+    anthropicKey: opts.anthropicKey || env.ANTHROPIC_API_KEY,
+    groqKey: opts.groqKey || env.GROQ_API_KEY,
+    openrouterKey: opts.openrouterKey || env.OPENROUTER_API_KEY,
+    mistralKey: opts.mistralKey || env.MISTRAL_API_KEY,
+    ollamaEnabled: opts.ollamaEnabled !== undefined ? opts.ollamaEnabled : require('../edition').ollamaDefault(),
     ollamaModel: opts.ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2',
     ollamaBaseUrl: opts.ollamaBaseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
   };

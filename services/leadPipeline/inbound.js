@@ -97,7 +97,7 @@ async function processInbound(knex, { config, phone, name, text, source }) {
   if (config.auto_qualify_ai) {
     try {
       const { qualifyLead } = require('./leadQualifier');
-      const q = await qualifyLead({ full_name: senderName, phone_number: cleanPhone, custom_answers: { 'WhatsApp message': text } }, {});
+      const q = await qualifyLead({ full_name: senderName, phone_number: cleanPhone, custom_answers: { 'WhatsApp message': text } }, { workspaceId });
       if (q && (q.suggested_reply || q.suggestedReply)) {
         await repo.updateLeadEvent(workspaceId, lead.id, {
           lead_score: q.score || q.leadScore || lead.lead_score,

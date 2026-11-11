@@ -87,8 +87,8 @@ module.exports = (knex, requirePermission) => {
   router.get('/stats', requirePermission('content.view'), async (req, res) => {
     try {
       const stats = await repo.getStats(req.workspaceId);
-      const { getSmtpConfig, isPaused } = require('../services/sellbird/dispatcher');
-      const smtp = getSmtpConfig();
+      const { smtpConfigFor, isPaused } = require('../services/sellbird/dispatcher');
+      const smtp = await smtpConfigFor(req.workspaceId);
       const now = Math.floor(Date.now() / 1000);
       const todayStart = now - (now % 86400);
       const camps = await knex('sellbird_campaigns').where({ workspace_id: req.workspaceId });
@@ -539,6 +539,7 @@ module.exports = (knex, requirePermission) => {
       // Only marked "replied" if the email really went out
       try {
         await sendOutreachEmail({
+          workspaceId: req.workspaceId,
           to: reply.sender_email,
           subject: await (async () => {
             // their subject, or else the subject of our email they answered

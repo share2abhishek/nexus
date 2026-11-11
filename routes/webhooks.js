@@ -139,7 +139,7 @@ module.exports = (knex) => {
             const leadDetails = await fetchMetaLeadDetails(leadgenId, pageToken);
 
             // 2. Run AI Qualification
-            const qualification = await qualifyLead(leadDetails);
+            const qualification = await qualifyLead(leadDetails, { workspaceId });
 
             // 3. Save to database
             const leadRecord = await repo.addLeadEvent(workspaceId, {

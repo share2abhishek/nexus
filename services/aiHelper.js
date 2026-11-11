@@ -213,7 +213,7 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
   const groqKey      = options.groqKey;
   const openrouterKey = options.openrouterKey;
   const mistralKey   = options.mistralKey;
-  const ollamaEnabled = (options.ollamaEnabled !== undefined) ? options.ollamaEnabled : (process.env.OLLAMA_ENABLED !== 'false');
+  const ollamaEnabled = (options.ollamaEnabled !== undefined) ? options.ollamaEnabled : require('./edition').ollamaDefault();
   const ollamaModel  = options.ollamaModel             || process.env.OLLAMA_MODEL    || 'llama3.2';
   const ollamaBaseUrl = options.ollamaBaseUrl          || process.env.OLLAMA_BASE_URL  || 'http://localhost:11434';
 
@@ -350,6 +350,10 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
     );
   }
 
+  // Server edition: no local AI; keys come from the person or their business
+  if (require('./edition').isServer()) {
+    throw new Error('AI isn’t set up for your business yet. Go to Settings → AI and paste a free Google Gemini or Groq key (an owner or manager can share one with the whole team).');
+  }
   throw new Error(
     'No AI provider available. Options:\n' +
     '1. Start Ollama (free, local): https://ollama.com\n' +

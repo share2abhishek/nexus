@@ -100,6 +100,29 @@ Server edition only; the desktop app keeps today's behaviour.
 
 **Status:** built and tested (tests/saasSignup.test.js) and tried in a fresh server-edition copy: sign-up → business on a 14-day trial → confirm-email banner → link confirms → forgot password → emailed link → new password (link single-use). Settings: APP_URL, PLATFORM_ADMIN_EMAILS, PLATFORM_SMTP_* (see .env.example). Until phase 3, the desktop licence check still blocks publishing on the server edition.
 
+## Phase 2 (settings per business) — built 2026-11-13
+
+- New table `business_settings` (one row per business and setting); secrets
+  (AI keys, mail password) are stored encrypted like saved logins
+  (`services/secrets`). `services/businessSettings.js` reads and saves them.
+- **AI keys:** a person's own key first, then the keys their business shares with
+  the team (Settings → AI → "Shared with your team"; owner or manager saves, the
+  rest of the team sees which are set). Radixile's own `.env` keys are used only
+  by Radixile platform admins, never by customers. Background work (Sales
+  outreach drafts, SEO autopilot drafts, lead qualifying from WhatsApp and Meta
+  webhooks) uses the business's keys too. Local AI (Ollama) is off on the server
+  unless `OLLAMA_ENABLED=true`, and its section is hidden there.
+- **Email sending:** Settings → Email sending saves the business's own mail
+  server (owner or manager only; the password is never sent back). Email
+  campaigns, Sales outreach and replies send through it; a business without one
+  is told to set it up and never sends through Radixile's server. Sign-up and
+  password emails still use `PLATFORM_SMTP_*`.
+- Install-wide settings that write `.env` (platform app keys, Local AI, content
+  folder) stay admin-only, which on the server means Radixile staff only.
+- Not moved yet: WhatsApp and lead-pipeline settings are already stored per
+  workspace; Radixile-owned OAuth apps for one-click connect come with phase 5.
+- Tests: tests/businessSettings.test.js (8).
+
 ## Phase 3 (plans and limits per business) — built 2026-11-13
 
 - `services/entitlements.js` answers "may this business publish?" for every check:

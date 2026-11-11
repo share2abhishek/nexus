@@ -140,7 +140,7 @@ async function executeWorkflowPipeline(lead, customConfig = {}, aiOpts = {}) {
           email: currentPayload.email,
           phone_number: currentPayload.phone_number,
           custom_answers: currentPayload.raw_answers,
-        }, aiOpts);
+        }, { workspaceId: lead.workspace_id, ...aiOpts });
       } catch (err) {
         console.warn('[Workflow Engine] AI qualification warning:', err.message);
       }

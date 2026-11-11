@@ -199,21 +199,18 @@ async function saveTasks(db, site, issues) {
 }
 
 // ── Keeping the Google Business profile active ──────────────────────────────
-function aiDefaults() {
-  return {
-    googleKey: process.env.GOOGLE_AI_KEY, anthropicKey: process.env.ANTHROPIC_API_KEY, groqKey: process.env.GROQ_API_KEY,
-    openrouterKey: process.env.OPENROUTER_API_KEY, mistralKey: process.env.MISTRAL_API_KEY,
-    ollamaEnabled: process.env.OLLAMA_ENABLED !== 'false', ollamaModel: process.env.OLLAMA_MODEL, ollamaBaseUrl: process.env.OLLAMA_BASE_URL,
-  };
+// The business's own AI keys on the server; the install's .env keys on the desktop app
+function aiDefaults(workspaceId, given) {
+  return require('./businessSettings').aiOptionsFor(workspaceId, given);
 }
 
-async function writeGooglePost({ business, about, phrases }) {
+async function writeGooglePost({ business, about, phrases, workspaceId }) {
   const { aiGenerate } = require('./aiHelper');
   const prompt = `Write a short Google Business Profile update for ${business || 'a local business'}.
 What they do: ${about || '(see the phrases)'}
 Search phrases they want to be found for: ${phrases.join(', ') || '(none)'}
 Rules: 2–4 short sentences, friendly and specific, use one of the phrases naturally, no prices, dates, offers or claims that aren't given above, no hashtags, no placeholders like [Name]. Reply with the post text only.`;
-  const opts = aiDefaults();
+  const opts = await aiDefaults(workspaceId);
   const r = await aiGenerate(prompt, opts.googleKey, 300, null, opts);
   const text = String(r.text || '').trim().replace(/^"([\s\S]*)"$/, '$1').trim();
   if (!text || /\[[^\]]+\]|\{\{/.test(text)) throw new Error('The AI draft wasn’t usable.');
@@ -245,7 +242,7 @@ async function googleQuiet(db, site, phrases, homeResult) {
   let contentId = null;
   let detail;
   try {
-    const body = await writeGooglePost({ business: brand?.company_name, about: homeResult?.description || homeResult?.title, phrases });
+    const body = await writeGooglePost({ business: brand?.company_name, about: homeResult?.description || homeResult?.title, phrases, workspaceId: site.workspace_id });
     const [row] = await db('content_items').insert({
       workspace_id: site.workspace_id, title: 'Google update (suggested by SEO autopilot)', body,
       platforms: JSON.stringify(['google_business']), social_account_ids: JSON.stringify([account.id]),
@@ -347,7 +344,7 @@ async function processDue(db) {
 // ── AI suggestions for a to-do (only when someone asks) ─────────────────────
 async function draftFor(db, task, aiArgs = {}) {
   const { aiJSON } = require('./aiHelper');
-  const opts = { ...aiDefaults(), ...(aiArgs.options || {}) };
+  const opts = await aiDefaults(task.workspace_id, aiArgs.options);
   const key = aiArgs.apiKey || opts.googleKey;
   const brand = await db('brand_kit').where({ workspace_id: task.workspace_id }).first().catch(() => null);
   const business = brand?.company_name || '';

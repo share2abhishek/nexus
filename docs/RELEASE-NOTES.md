@@ -42,6 +42,11 @@ Newest first. Paste the section for a version into the GitHub Release
 - **SEO autopilot:** add your website and phrases; Social-Nexus re-checks it every week or day, keeps a plain-language to-do list (most urgent first, things that got worse moved up, fixed things closed by themselves), drafts titles, descriptions and page plans on request, and drafts a Google Business post for approval when the profile has been quiet. Nothing is changed or posted without someone's OK. The Home page shows the top to-dos.
 - New whole-site checks: broken links, duplicate titles and descriptions, soft 404s, canonical and sitemap problems, structured data (JSON-LD), AI assistants blocked in robots.txt, and phone page speed from Google PageSpeed Insights (needs `PAGESPEED_API_KEY`). These follow checks in the MIT-licensed open-source projects Seo-Promt-Master, linkinator and crawlseo, rewritten for Social-Nexus.
 
+### Server edition: settings for each business
+- AI keys can be shared with the whole team (Settings → AI → Shared with your team). The owner or a manager saves them; everyone else uses them unless they add their own. Keys are stored encrypted and never shown again.
+- Email sending (Settings → Email sending) belongs to the business: campaigns and Sales outreach go from the business's own address. Only the owner or a manager can change it.
+- Customers never use the server's own AI keys or mail server. Local AI is off on the server.
+
 ### Website SEO, app store listing and Google Business
 - **Website SEO → Check a page:** opens your page the way Google's crawler does and lists what to fix: does it open, https, `robots.txt`, "noindex", sitemap, canonical address, title and description (with a Google preview), main heading, amount of text, pictures without alt text, phone set-up, share preview and where your search phrase appears. All measured from the page.
 - **Write title & description** now reads your page when you give its address. **Check my text** measures words, sentence length, reading ease and phrase use; AI only adds suggestions. The made-up "SEO score" is gone.

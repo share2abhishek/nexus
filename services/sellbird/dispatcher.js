@@ -22,8 +22,15 @@ function getSmtpConfig() {
   };
 }
 
-async function sendOutreachEmail({ to, subject, body, fromName, fromEmail }) {
-  const config = getSmtpConfig();
+// The mail server a workspace sends from: its business's own (Settings → Email
+// sending) on the server; the install's .env settings on the desktop app.
+async function smtpConfigFor(workspaceId) {
+  if (!require('../edition').isServer()) return getSmtpConfig();
+  return require('../businessSettings').smtpForWorkspace(workspaceId);
+}
+
+async function sendOutreachEmail({ to, subject, body, fromName, fromEmail, workspaceId }) {
+  const config = await smtpConfigFor(workspaceId);
   if (!config) {
     throw new Error('SMTP mailer not configured. Please enter your mail server details in Settings → Email.');
   }
@@ -115,19 +122,26 @@ async function processDueOutbox(knex, repo, options = {}) {
   }
 
   let sentCount = 0;
-  const config = getSmtpConfig();
+  const server = require('../edition').isServer();
+  const config = server ? true : getSmtpConfig(); // server: checked per business below
   // Without email sending set up nothing goes out — and nothing is marked
   // "sent" (it used to pretend, so people thought prospects had been emailed)
   if (!config) {
     return { sent: 0, total_due: dueItems.length, error: 'Email sending isn’t set up yet (Settings → Email sending). Approved emails wait until it is.' };
   }
   const pausedWs = new Map();
+  const smtpWs = new Map(); // server: does this workspace's business have email sending?
+  let notSetUp = 0;
 
   for (const item of dueItems) {
     if (!pausedWs.has(item.workspace_id)) pausedWs.set(item.workspace_id, await isPaused(knex, item.workspace_id));
     if (pausedWs.get(item.workspace_id)) continue;
     // Server edition: only businesses with an active trial or plan send
-    if (require('../edition').isServer() && !(await require('../entitlements').canPublish(item.workspace_id))) continue;
+    if (server && !(await require('../entitlements').canPublish(item.workspace_id))) continue;
+    if (server) {
+      if (!smtpWs.has(item.workspace_id)) smtpWs.set(item.workspace_id, !!(await smtpConfigFor(item.workspace_id)));
+      if (!smtpWs.get(item.workspace_id)) { notSetUp++; continue; }
+    }
 
     // Check daily cap for this campaign
     const [todayCount] = await knex('sellbird_outbox')
@@ -212,7 +226,7 @@ async function processDueOutbox(knex, repo, options = {}) {
     if (!claimed) continue;
 
     try {
-      await sendOutreachEmail({ to: item.contact_email, subject: item.subject, body: item.body });
+      await sendOutreachEmail({ to: item.contact_email, subject: item.subject, body: item.body, workspaceId: item.workspace_id });
 
       await repo.updateOutboxItem(item.workspace_id, item.id, {
         status: 'sent',
@@ -252,7 +266,7 @@ async function processDueOutbox(knex, repo, options = {}) {
     }
   }
 
-  return { sent: sentCount, total_due: dueItems.length };
+  return { sent: sentCount, total_due: dueItems.length, ...(notSetUp ? { not_set_up: notSetUp } : {}) };
 }
 
 module.exports = {
@@ -261,6 +275,7 @@ module.exports = {
   setPaused,
   hasReplied,
   getSmtpConfig,
+  smtpConfigFor,
   sendOutreachEmail,
   processDueOutbox,
 };

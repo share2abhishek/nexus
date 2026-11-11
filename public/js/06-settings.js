@@ -52,7 +52,7 @@ function switchSettingsTab(tab, btn) {
   State.settingsTab = tab;
   if (tab === 'members') loadMembers();
   if (tab === 'backups') loadBackups();
-  if (tab === 'ai') { loadUserSettings(); checkOllamaStatus(); refreshAiStatus(); }
+  if (tab === 'ai') { loadUserSettings(); loadBusinessAi(); checkOllamaStatus(); refreshAiStatus(); }
   if (tab === 'smtp') loadSMTPSettings();
   if (tab === 'account') loadAccountPanel();
   applyAdminOnly(tab);
@@ -397,6 +397,11 @@ async function refreshAiStatus() {
     ]);
     const names = { google_ai_key: 'Google Gemini', groq_key: 'Groq', openrouter_key: 'OpenRouter', mistral_key: 'Mistral', anthropic_key: 'Claude' };
     const online = Object.entries(names).filter(([k]) => keys[k]).map(([, n]) => n);
+    // Server edition: keys the business shares with the team count too
+    if (State.server) {
+      const biz = await api('GET', '/api/config/business-ai').catch(() => ({}));
+      for (const [k, n] of Object.entries(names)) if (biz[k] && !online.includes(n)) online.push(n);
+    }
     // Admins also use the shared keys of this installation
     if (State.user?.role === 'admin') {
       const env = await api('GET', '/api/config/env-status').catch(() => ({}));
@@ -414,6 +419,50 @@ async function refreshAiStatus() {
     }
     updateSettingsNavStatus();
   } catch { /* status only */ }
+}
+
+// Server edition: AI keys shared by everyone in the business
+const BIZ_AI_FIELDS = { 'biz-google-key': 'google_ai_key', 'biz-groq-key': 'groq_key', 'biz-openrouter-key': 'openrouter_key', 'biz-anthropic-key': 'anthropic_key' };
+async function loadBusinessAi() {
+  const sec = document.getElementById('biz-ai-section');
+  const local = document.getElementById('ai-sec-local');
+  if (!sec) return;
+  sec.hidden = !State.server;
+  // Local AI runs on the user's own PC: not part of the hosted edition
+  if (local) local.hidden = !!State.server;
+  if (!State.server) return;
+  try {
+    const s = await api('GET', '/api/config/business-ai');
+    for (const [id, key] of Object.entries(BIZ_AI_FIELDS)) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.value = '';
+      el.disabled = !s.can_manage;
+      if (!el.dataset.ph) el.dataset.ph = el.placeholder;
+      el.placeholder = s[key] ? 'Saved — leave empty to keep it' : (s.can_manage ? el.dataset.ph : 'Not set');
+    }
+    const actions = document.getElementById('biz-ai-actions');
+    if (actions) actions.hidden = !s.can_manage;
+    if (!s.can_manage) setEl('biz-ai-sub', 'Keys your business shares with the team. Only the owner or a manager can change them; you can still add your own below.');
+  } catch { sec.hidden = true; }
+}
+
+async function saveBusinessAiKeys(btn) {
+  const body = {};
+  for (const [id, key] of Object.entries(BIZ_AI_FIELDS)) {
+    const v = document.getElementById(id)?.value.trim();
+    if (v) body[key] = v;
+  }
+  if (!Object.keys(body).length) return toast('Paste at least one key to save', 'warning');
+  if (btn) btn.disabled = true;
+  try {
+    await api('POST', '/api/config/business-ai', body);
+    toast('Saved for everyone in your business', 'success');
+    loadBusinessAi();
+    refreshAiStatus();
+    if (typeof loadModels === 'function') loadModels();
+  } catch (err) { toast(err.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
 }
 
 async function saveDefaultModelSetting() {
@@ -446,6 +495,7 @@ async function loadContentFolderSetting() {
 // ── Email sending (SMTP) ─────────────────────────────────────────────────────
 
 async function loadSMTPSettings() {
+  if (State.server) setEl('smtp-panel-desc', 'Needed only for the Email and Sales outreach screens. These settings are for your whole business: emails go from this address for everyone on your team.');
   try {
     const s = await api('GET', '/api/config/smtp');
     const set = (id, v) => { const el = document.getElementById(id); if (el && v != null && v !== '') el.value = v; };
@@ -455,7 +505,14 @@ async function loadSMTPSettings() {
     if (pass) { pass.value = ''; pass.placeholder = s.pass_set ? 'Saved — leave empty to keep it' : 'App password'; }
     State.smtpReady = !!s.configured;
     updateSettingsNavStatus();
-  } catch { /* non-admins can't read it; the panel says so */ }
+  } catch (err) {
+    // Server edition: only the owner or a manager may see and change these
+    if (State.server) {
+      const note = document.getElementById('smtp-manager-note');
+      if (note) note.hidden = false;
+      document.querySelectorAll('#settings-panel-smtp input, #settings-panel-smtp .settings-actions button').forEach(el => { el.disabled = true; });
+    }
+  }
 }
 
 async function saveSMTPSettings(btn) {
@@ -615,6 +672,7 @@ function switchAdminTab(tab, btn) {
   document.getElementById(`admin-panel-${tab}`).style.display = '';
   document.querySelectorAll('.admin-tab-btn').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-secondary'); });
   btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary');
+  if (tab === 'businesses') loadAdminBusinesses();
   if (tab === 'users')    loadAdminUsers();
   if (tab === 'invites')  loadInviteCodes();
   if (tab === 'activity') loadAdminActivity();
@@ -622,6 +680,9 @@ function switchAdminTab(tab, btn) {
 }
 
 async function loadAdminDashboard() {
+  // Server edition: the Businesses tab (plans per business)
+  const bizTab = document.getElementById('admin-tab-businesses');
+  if (bizTab) bizTab.hidden = !State.server;
   try {
     const stats = await fetch('/admin/stats').then(r => r.json());
     setEl('adm-total-users', stats.total_users);
@@ -672,7 +733,6 @@ async function loadAdminUsers() {
 async function adminCreateUser() {
   const email    = document.getElementById('new-user-email')?.value.trim();
   const password = document.getElementById('new-user-password')?.value;
-  if (tab === 'businesses') loadAdminBusinesses();
   const name     = document.getElementById('new-user-name')?.value.trim();
   const role     = document.getElementById('new-user-role')?.value;
   if (!email || !password) return toast('Email and password are required', 'warning');
@@ -680,9 +740,6 @@ async function adminCreateUser() {
     await api('POST', '/admin/users/create', { email, password, name, role });
     toast(`✅ User created: ${email}`, 'success');
     document.getElementById('new-user-email').value    = '';
-  // Server edition: the Businesses tab (plans per business)
-  const bizTab = document.getElementById('admin-tab-businesses');
-  if (bizTab) bizTab.hidden = !State.server;
     document.getElementById('new-user-password').value = '';
     document.getElementById('new-user-name').value     = '';
     loadAdminUsers(); loadAdminDashboard();

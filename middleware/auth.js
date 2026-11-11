@@ -35,8 +35,17 @@ async function injectUserKeys(req, res, next) {
       if (s?.runway_key)        req.runwayKey     = s.runway_key;
       if (s?.default_text_model) req.defaultTextModel = s.default_text_model;
 
+      // Server edition: then the keys the business shares with its team
+      // (Settings → AI), so nobody needs their own.
+      const edition = require('../services/edition');
+      if (edition.isServer() && req.workspaceId) {
+        const shared = await require('../services/businessSettings').aiKeysForWorkspace(req.workspaceId);
+        for (const [k, v] of Object.entries(shared)) if (!req[k]) req[k] = v;
+      }
+
       // Shared keys in .env belong to whoever set up this install (the admin).
-      // Only admins fall back to them; other users bring their own keys.
+      // Only admins fall back to them; other users bring their own keys. On the
+      // server that's only Radixile's platform admins, never a customer.
       const user = await knexForKeys('users').where({ id: req.session.userId }).first();
       if (user?.role === 'admin') {
         const env = process.env;

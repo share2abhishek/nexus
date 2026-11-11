@@ -83,6 +83,7 @@ const SEALED_COLUMNS = {
   approval_links: { key: 'id', cols: ['owner_token', 'link_key', 'url'] },
   companion_pairs: { key: 'id', cols: ['owner_token', 'link_key', 'url'] },
   cloud_jobs: { key: 'id', cols: ['owner_token'] },
+  business_settings: { key: 'id', cols: ['secret_value'] },
   user_settings: { key: 'user_id', cols: ['google_ai_key', 'anthropic_key', 'stability_key', 'openai_key', 'luma_key', 'runway_key', 'groq_key', 'openrouter_key', 'mistral_key'] },
 };
 

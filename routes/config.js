@@ -25,6 +25,29 @@ async function requireAdmin(req, res, next) {
   }
   next();
 }
+
+// Server edition: AI keys and email sending belong to each business (shared by its
+// team), not to the server's .env. The owner or a manager may change them.
+const edition = require('../services/edition');
+const businessSettings = require('../services/businessSettings');
+async function businessFor(req, res) {
+  const orgId = await businessSettings.orgForWorkspace(req.workspaceId);
+  if (!orgId) { res.status(400).json({ error: 'Open a workspace of your business first.' }); return null; }
+  return orgId;
+}
+async function requireBusinessManager(req, res, next) {
+  const orgId = await businessFor(req, res);
+  if (!orgId) return;
+  if (!(await businessSettings.canManage(req.session?.userId, orgId))) {
+    return res.status(403).json({ error: 'Only the owner or a manager of your business can change this. Ask them, or add your own AI key in Settings → AI.', code: 'BUSINESS_MANAGER_ONLY' });
+  }
+  req.orgId = orgId;
+  next();
+}
+// On the server: business settings for owners and managers. Install-wide settings
+// (.env) stay behind requireAdmin, which on the server means Radixile staff only.
+const serverOr = (serverHandler) => (req, res, next) => (edition.isServer() ? requireBusinessManager(req, res, () => serverHandler(req, res, next)) : next());
+
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
@@ -346,7 +369,34 @@ router.post('/platforms/:platform', requireAdmin, (req, res) => {
 
 // ── POST /api/config/ai-keys ──────────────────────────────────────────────────
 
-router.post('/ai-keys', requireAdmin, (req, res) => {
+// Server edition: the keys a business shares with its team
+const ENV_TO_KEY = { GOOGLE_AI_KEY: 'google_ai_key', ANTHROPIC_API_KEY: 'anthropic_key', DEFAULT_TEXT_MODEL: 'default_text_model' };
+// Everyone in the business may see which shared keys are set (never the keys)
+router.get('/business-ai', async (req, res) => {
+  if (!edition.isServer()) return res.status(404).json({ error: 'Only on the server edition.' });
+  const orgId = await businessFor(req, res);
+  if (!orgId) return;
+  const s = businessSettings.publicView(await businessSettings.getAll(orgId));
+  res.json({ ...s.ai, can_manage: await businessSettings.canManage(req.session?.userId, orgId) });
+});
+
+router.post('/business-ai', serverOr(async (req, res) => {
+  const body = req.body || {};
+  const values = {};
+  for (const key of [...Object.keys(businessSettings.AI_KEYS), 'default_text_model']) if (body[key] != null) values[key] = body[key];
+  try {
+    await businessSettings.save(req.orgId, values, { userId: req.session.userId, clear: Array.isArray(body.clear) ? body.clear : [] });
+  } catch (err) { return res.status(err.status || 500).json({ error: err.message }); }
+  res.json({ success: true, ...businessSettings.publicView(await businessSettings.getAll(req.orgId)).ai });
+}), (req, res) => res.status(404).json({ error: 'Only on the server edition.' }));
+
+router.post('/ai-keys', serverOr(async (req, res) => {
+  const values = {};
+  for (const [envName, key] of Object.entries(ENV_TO_KEY)) if (req.body?.[envName]) values[key] = req.body[envName];
+  try { await businessSettings.save(req.orgId, values, { userId: req.session.userId }); }
+  catch (err) { return res.status(err.status || 500).json({ error: err.message }); }
+  res.json({ success: true });
+}), requireAdmin, (req, res) => {
   const { GOOGLE_AI_KEY, ANTHROPIC_API_KEY, DEFAULT_TEXT_MODEL } = req.body;
   if (GOOGLE_AI_KEY && !GOOGLE_AI_KEY.includes('••••'))  writeEnvValue('GOOGLE_AI_KEY', GOOGLE_AI_KEY);
   if (ANTHROPIC_API_KEY && !ANTHROPIC_API_KEY.includes('••••')) writeEnvValue('ANTHROPIC_API_KEY', ANTHROPIC_API_KEY);
@@ -370,7 +420,9 @@ router.get('/content-folder', (req, res) => {
 });
 
 // Saved email settings for the form (never the password itself)
-router.get('/smtp', requireAdmin, (req, res) => {
+router.get('/smtp', serverOr(async (req, res) => {
+  res.json(businessSettings.publicView(await businessSettings.getAll(req.orgId)).smtp);
+}), requireAdmin, (req, res) => {
   const env = readEnv();
   res.json({
     SMTP_HOST: env.SMTP_HOST || '', SMTP_PORT: env.SMTP_PORT || '587', SMTP_USER: env.SMTP_USER || '',
@@ -380,7 +432,17 @@ router.get('/smtp', requireAdmin, (req, res) => {
   });
 });
 
-router.post('/smtp', requireAdmin, (req, res) => {
+router.post('/smtp', serverOr(async (req, res) => {
+  const b = req.body || {};
+  const map = { SMTP_HOST: 'smtp_host', SMTP_PORT: 'smtp_port', SMTP_SECURE: 'smtp_secure', SMTP_USER: 'smtp_user', SMTP_PASS: 'smtp_pass', SMTP_FROM: 'smtp_from', SMTP_FROM_NAME: 'smtp_from_name' };
+  const values = {};
+  for (const [f, key] of Object.entries(map)) if (b[f] != null && b[f] !== '') values[key] = f === 'SMTP_PASS' ? String(b[f]) : String(b[f]).trim();
+  // Port 465 needs a secure connection from the start; 587/25 upgrade later
+  if (b.SMTP_PORT && b.SMTP_SECURE == null) values.smtp_secure = String(b.SMTP_PORT).trim() === '465' ? 'true' : 'false';
+  try { await businessSettings.save(req.orgId, values, { userId: req.session.userId }); }
+  catch (err) { return res.status(err.status || 500).json({ error: err.message }); }
+  res.json({ success: true });
+}), requireAdmin, (req, res) => {
   const fields = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM', 'SMTP_FROM_NAME'];
   try {
     for (const f of fields) {
