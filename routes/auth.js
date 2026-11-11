@@ -402,9 +402,12 @@ router.get('/google/callback', async (req, res) => {
       grant_type: 'authorization_code',
     });
 
-    await connectAccounts.completeGoogle(knexInstance, wsId, tokenRes.data);
-
-    res.redirect('/?connected=google');
+    const done = await connectAccounts.completeGoogle(knexInstance, wsId, tokenRes.data);
+    // Tell the screen what happened with the Business Profile part
+    const q = new URLSearchParams({ connected: 'google_business' });
+    if (done.selectLocation) q.set('select_location', '1');
+    if (done.googleBusinessMissing) q.set('gbp_missing', done.googleBusinessError ? String(done.googleBusinessError).slice(0, 300) : '1');
+    res.redirect(`/?${q}`);
   } catch (err) {
     console.error('[Auth] Google error:', err.response?.data || err.message);
     res.redirect('/?error=google_failed');

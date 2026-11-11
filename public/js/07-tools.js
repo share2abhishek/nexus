@@ -3,15 +3,58 @@
 // global scope, like the single app.js they came from).
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SEO Tools
+// Website SEO
 // ─────────────────────────────────────────────────────────────────────────────
 
 function switchSeoTab(tab, btn) {
   document.querySelectorAll('.seo-panel').forEach(p => p.style.display = 'none');
   document.getElementById(`seo-panel-${tab}`).style.display = '';
   document.querySelectorAll('.seo-tab-btn').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-secondary'); });
-  btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary');
+  (btn || document.querySelector(`.seo-tab-btn[data-tab="${tab}"]`))?.classList.replace('btn-secondary', 'btn-primary');
   if (tab === 'tracked') loadTrackedKeywords();
+}
+
+const SEO_ICON = { good: '✅', warn: '⚠️', bad: '❌' };
+const seoLenBadge = (n, min, max) => `<span class="badge badge-${n >= min && n <= max ? 'green' : 'orange'}">${n} characters</span>`;
+
+async function checkPageSeo() {
+  const btn = document.getElementById('btn-seo-check');
+  const out = document.getElementById('seo-check-output');
+  const url = document.getElementById('seo-check-url').value.trim();
+  if (!url) return toast('Type the page address', 'warning');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Reading the page…';
+  out.innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner lg"></span></div>';
+  try {
+    const r = await api('POST', '/api/seo/check', { url, keyword: document.getElementById('seo-check-kw').value });
+    const order = { bad: 0, warn: 1, good: 2 };
+    const rows = [...r.checks].sort((a, b) => order[a.status] - order[b.status]).map(c => `
+      <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div>${SEO_ICON[c.status]}</div>
+        <div><div style="font-size:13px;font-weight:600;color:var(--text-primary)">${escapeHtml(c.label)}</div>
+        <div style="font-size:12px;color:var(--text-secondary)">${escapeHtml(c.detail)}</div></div>
+      </div>`).join('');
+    out.innerHTML = `
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;word-break:break-all">${escapeHtml(r.url)}</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <span class="badge badge-red">${r.counts.bad} to fix</span>
+        <span class="badge badge-orange">${r.counts.warn} to improve</span>
+        <span class="badge badge-green">${r.counts.good} fine</span>
+      </div>
+      ${r.page.title || r.page.description ? `<div class="seo-result-group"><div class="seo-result-label">How it may look on Google</div>
+        <div style="font-size:12px;color:var(--text-muted)">${escapeHtml(r.url)}</div>
+        <div style="font-size:16px;color:#1a0dab">${escapeHtml(r.page.title || '(no title)')}</div>
+        <div style="font-size:13px;color:var(--text-secondary)">${escapeHtml(r.page.description || '(no description: Google picks text from the page)')}</div></div>` : ''}
+      ${rows}
+      <button class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%" onclick="seoWriteFromCheck()">🏷️ Write a better title &amp; description for this page</button>`;
+  } catch (err) { out.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`; }
+  finally { btn.disabled = false; btn.innerHTML = '🔎 Check page'; }
+}
+
+function seoWriteFromCheck() {
+  document.getElementById('seo-url').value = document.getElementById('seo-check-url').value;
+  document.getElementById('seo-target-kw').value = document.getElementById('seo-check-kw').value;
+  switchSeoTab('meta');
+  generateMetaTags();
 }
 
 async function generateMetaTags() {
@@ -26,47 +69,42 @@ async function generateMetaTags() {
       url: document.getElementById('seo-url').value,
       page_content: document.getElementById('seo-content-summary').value,
     });
+    const copy = (t) => `<button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(${jsAttr(t || '')});toast('Copied','success')" style="margin-top:6px">📋 Copy</button>`;
     out.innerHTML = `
-      <div class="seo-result-group"><div class="seo-result-label">Meta Title <span class="badge badge-${data.meta_title?.length > 60 ? 'red' : 'green'}">${data.meta_title?.length || 0} chars</span></div>
-        <div class="seo-result-value">${escapeHtml(data.meta_title || '')}</div>
-        <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(${jsAttr(data.meta_title || '')});toast('Copied!','success')" style="margin-top:6px">📋 Copy</button>
-      </div>
-      <div class="seo-result-group"><div class="seo-result-label">Meta Description <span class="badge badge-${data.meta_description?.length > 160 ? 'red' : 'green'}">${data.meta_description?.length || 0} chars</span></div>
-        <div class="seo-result-value">${escapeHtml(data.meta_description || '')}</div>
-        <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(${jsAttr(data.meta_description || '')});toast('Copied!','success')" style="margin-top:6px">📋 Copy</button>
-      </div>
-      <div class="seo-result-group"><div class="seo-result-label">Focus Keywords</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">${(data.focus_keywords || []).map(k => `<span class="badge badge-blue">${escapeHtml(k)}</span>`).join('')}</div>
-      </div>
-      <div class="seo-result-group"><div class="seo-result-label">Open Graph Title</div><div class="seo-result-value">${escapeHtml(data.og_title || '')}</div></div>
-      <div class="seo-result-group"><div class="seo-result-label">OG Description</div><div class="seo-result-value">${escapeHtml(data.og_description || '')}</div></div>
-      <div class="seo-result-group"><div class="seo-result-label">SEO Score</div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="font-size:28px;font-weight:700;color:${data.seo_score >= 80 ? 'var(--accent-green)' : data.seo_score >= 60 ? 'var(--accent-orange)' : '#ef4444'}">${data.seo_score || 0}</div>
-          <div style="font-size:12px;color:var(--text-muted)">/100</div>
-        </div>
-      </div>
-      ${data.suggestions?.length ? `<div class="seo-result-group"><div class="seo-result-label">Suggestions</div>
+      ${data.current ? `<div class="seo-result-group"><div class="seo-result-label">On the page now</div>
+        <div style="font-size:12px"><b>Title:</b> ${escapeHtml(data.current.title || '(none)')}</div>
+        <div style="font-size:12px"><b>Description:</b> ${escapeHtml(data.current.description || '(none)')}</div></div>` : ''}
+      <div class="seo-result-group"><div class="seo-result-label">Title ${seoLenBadge(data.meta_title.length, 30, 60)}</div>
+        <div class="seo-result-value">${escapeHtml(data.meta_title)}</div>${copy(data.meta_title)}</div>
+      <div class="seo-result-group"><div class="seo-result-label">Description ${seoLenBadge(data.meta_description.length, 70, 160)}</div>
+        <div class="seo-result-value">${escapeHtml(data.meta_description)}</div>${copy(data.meta_description)}</div>
+      ${data.focus_keywords.length ? `<div class="seo-result-group"><div class="seo-result-label">Phrases it targets</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${data.focus_keywords.map(k => `<span class="badge badge-blue">${escapeHtml(k)}</span>`).join('')}</div></div>` : ''}
+      <div class="seo-result-group"><div class="seo-result-label">When shared (Facebook, WhatsApp, LinkedIn)</div>
+        <div class="seo-result-value"><b>${escapeHtml(data.og_title)}</b><br>${escapeHtml(data.og_description)}</div></div>
+      ${data.suggestions.length ? `<div class="seo-result-group"><div class="seo-result-label">Other ideas</div>
         ${data.suggestions.map(s => `<div style="font-size:12px;color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border)">💡 ${escapeHtml(s)}</div>`).join('')}</div>` : ''}
-      <div style="margin-top:16px"><button class="btn btn-secondary btn-sm" onclick="copyMetaTags()" style="width:100%">📋 Copy All as HTML</button></div>`;
+      <div style="margin-top:16px"><button class="btn btn-secondary btn-sm" onclick="copyMetaTags()" style="width:100%">📋 Copy as HTML for your website</button></div>`;
     State.lastMetaTags = data;
-    toast('Meta tags generated!', 'success');
-  } catch (err) { out.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`; toast(err.message, 'error'); }
-  finally { btn.disabled = false; btn.innerHTML = '🏷️ Generate Meta Tags'; }
+  } catch (err) { out.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`; }
+  finally { btn.disabled = false; btn.innerHTML = '🏷️ Write title &amp; description'; }
 }
 
 function copyMetaTags() {
   const d = State.lastMetaTags;
   if (!d) return;
-  const html = `<title>${d.meta_title}</title>\n<meta name="description" content="${d.meta_description}">\n<meta property="og:title" content="${d.og_title}">\n<meta property="og:description" content="${d.og_description}">`;
+  // Quotes and < > in the text must not break the HTML
+  const a = (s) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const html = `<title>${a(d.meta_title)}</title>\n<meta name="description" content="${a(d.meta_description)}">\n<meta property="og:title" content="${a(d.og_title)}">\n<meta property="og:description" content="${a(d.og_description)}">`;
   navigator.clipboard.writeText(html);
-  toast('HTML meta tags copied!', 'success');
+  toast('Copied. Paste it into your page’s <head> (or your website builder’s SEO settings).', 'success', 6000);
 }
 
 async function researchKeywords() {
   const btn = document.getElementById('btn-kw-research');
   const out = document.getElementById('kw-results');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Researching…';
+  if (!document.getElementById('kw-topic').value.trim()) return toast('Type what you offer', 'warning');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Thinking…';
   out.innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner lg"></span></div>';
   try {
     const data = await api('POST', '/api/seo/keywords', {
@@ -74,60 +112,64 @@ async function researchKeywords() {
       niche: document.getElementById('kw-niche').value,
       competitors: document.getElementById('kw-competitors').value,
     });
+    const row = (k) => `<div class="kw-row"><span class="kw-term">${escapeHtml(k.keyword)}</span>
+      ${k.competition ? `<span class="badge badge-${k.competition === 'low' ? 'green' : k.competition === 'medium' ? 'orange' : 'red'}" title="AI’s rough guess">${k.competition} competition</span>` : ''}
+      ${k.intent ? `<span class="badge badge-blue">${escapeHtml(k.intent)}</span>` : ''}
+      <button class="btn btn-secondary btn-sm" onclick="addTrackedFromResearch(${jsAttr(k.keyword)})">+ Save</button></div>`;
     let html = '';
-    if (data.primary_keywords?.length) {
-      html += `<div class="seo-result-group"><div class="seo-result-label">🎯 Primary Keywords</div>${data.primary_keywords.map(k =>
-        `<div class="kw-row"><span class="kw-term">${escapeHtml(k.keyword)}</span><span class="badge badge-${k.difficulty==='low'?'green':k.difficulty==='medium'?'orange':'red'}">${k.difficulty}</span><span class="badge badge-blue">${k.intent}</span><button class="btn btn-secondary btn-sm" onclick="addTrackedFromResearch(${jsAttr(k.keyword)})">+ Track</button></div>`).join('')}</div>`;
-    }
-    if (data.long_tail_keywords?.length) {
-      html += `<div class="seo-result-group"><div class="seo-result-label">📏 Long-tail Keywords</div>${data.long_tail_keywords.map(k =>
-        `<div class="kw-row"><span class="kw-term">${escapeHtml(k.keyword)}</span><span class="badge badge-${k.difficulty==='low'?'green':k.difficulty==='medium'?'orange':'red'}">${k.difficulty}</span><button class="btn btn-secondary btn-sm" onclick="addTrackedFromResearch(${jsAttr(k.keyword)})">+ Track</button></div>`).join('')}</div>`;
-    }
-    if (data.questions?.length) {
-      html += `<div class="seo-result-group"><div class="seo-result-label">❓ Questions to Answer</div>${data.questions.map(q => `<div style="padding:5px 0;font-size:13px;border-bottom:1px solid var(--border)">• ${escapeHtml(q)}</div>`).join('')}</div>`;
-    }
-    if (data.content_ideas?.length) {
-      html += `<div class="seo-result-group"><div class="seo-result-label">💡 Content Ideas</div>${data.content_ideas.map(i => `<div style="padding:5px 0;font-size:13px;border-bottom:1px solid var(--border)">📝 ${escapeHtml(i)}</div>`).join('')}</div>`;
-    }
-    out.innerHTML = html || '<div style="padding:20px;color:var(--text-muted)">No results</div>';
-    toast('Keyword research complete!', 'success');
-  } catch (err) { out.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`; toast(err.message, 'error'); }
-  finally { btn.disabled = false; btn.innerHTML = '🔑 Research Keywords'; }
+    if (data.primary_keywords.length) html += `<div class="seo-result-group"><div class="seo-result-label">🎯 Main phrases</div>${data.primary_keywords.map(row).join('')}</div>`;
+    if (data.long_tail_keywords.length) html += `<div class="seo-result-group"><div class="seo-result-label">📏 Longer, more specific phrases</div>${data.long_tail_keywords.map(row).join('')}</div>`;
+    if (data.questions.length) html += `<div class="seo-result-group"><div class="seo-result-label">❓ Questions people ask</div>${data.questions.map(q => `<div style="padding:5px 0;font-size:13px;border-bottom:1px solid var(--border)">• ${escapeHtml(q)}</div>`).join('')}</div>`;
+    if (data.content_ideas.length) html += `<div class="seo-result-group"><div class="seo-result-label">💡 Page and blog ideas</div>${data.content_ideas.map(i => `<div style="padding:5px 0;font-size:13px;border-bottom:1px solid var(--border)">📝 ${escapeHtml(i)}</div>`).join('')}</div>`;
+    out.innerHTML = html || '<div style="padding:20px;color:var(--text-muted)">No ideas came back. Try again.</div>';
+  } catch (err) { out.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`; }
+  finally { btn.disabled = false; btn.innerHTML = '🔑 Suggest phrases'; }
 }
-
-function encapeHtml(str) { return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
 
 function addTrackedFromResearch(keyword) {
   document.getElementById('add-kw-input').value = keyword;
-  switchSeoTab('tracked', document.querySelector('[data-tab="tracked"]'));
+  switchSeoTab('tracked');
   addTrackedKeyword();
 }
 
 async function optimizeContent() {
   const btn = document.getElementById('btn-optimize');
   const out = document.getElementById('seo-opt-output');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Analyzing…';
+  if (!document.getElementById('opt-content').value.trim()) return toast('Paste your text', 'warning');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Checking…';
   out.innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner lg"></span></div>';
   try {
-    const data = await api('POST', '/api/seo/optimize', {
+    const keyword = document.getElementById('opt-keyword').value.trim();
+    const d = await api('POST', '/api/seo/optimize', {
       content: document.getElementById('opt-content').value,
-      target_keyword: document.getElementById('opt-keyword').value,
+      target_keyword: keyword,
       content_type: document.getElementById('opt-type').value,
     });
-    const scoreColor = data.seo_score >= 80 ? 'var(--accent-green)' : data.seo_score >= 60 ? 'var(--accent-orange)' : '#ef4444';
+    const tile = (val, label, hint) => `<div style="text-align:center;background:var(--glass);border-radius:12px;padding:14px;flex:1;min-width:110px" title="${escapeHtml(hint || '')}"><div style="font-size:22px;font-weight:700;color:var(--text-primary)">${val}</div><div style="font-size:11px;color:var(--text-muted)">${label}</div></div>`;
+    const ease = d.reading_ease == null ? '—' : `${d.reading_ease}`;
+    const checks = [];
+    if (keyword) {
+      checks.push(d.keyword_count ? `${d.keyword_density > 3 ? '⚠️' : '✅'} “${escapeHtml(keyword)}” appears ${d.keyword_count} time${d.keyword_count === 1 ? '' : 's'} (${d.keyword_density}% of the words)${d.keyword_density > 3 ? ' — that may look like stuffing' : ''}` : `❌ “${escapeHtml(keyword)}” doesn’t appear in the text`);
+      checks.push(d.keyword_in_first_100_words ? '✅ It’s in the first 100 words' : '⚠️ It isn’t in the first 100 words');
+    }
+    if (d.avg_sentence_words > 20) checks.push(`⚠️ Sentences are long (${d.avg_sentence_words} words on average). Aim for under 20.`);
+    if (d.word_count < 300 && document.getElementById('opt-type').value !== 'social_post') checks.push(`⚠️ ${d.word_count} words is short for a web page. 300+ is usually better.`);
     out.innerHTML = `
-      <div style="display:flex;gap:16px;margin-bottom:20px">
-        <div style="text-align:center;background:var(--glass);border-radius:12px;padding:16px;flex:1"><div style="font-size:32px;font-weight:700;color:${scoreColor}">${data.seo_score}</div><div style="font-size:11px;color:var(--text-muted)">SEO Score</div></div>
-        <div style="text-align:center;background:var(--glass);border-radius:12px;padding:16px;flex:1"><div style="font-size:32px;font-weight:700;color:var(--accent-blue)">${data.readability_score}</div><div style="font-size:11px;color:var(--text-muted)">Readability</div></div>
-        <div style="text-align:center;background:var(--glass);border-radius:12px;padding:16px;flex:1"><div style="font-size:20px;font-weight:700;color:var(--text-primary)">${data.keyword_density}</div><div style="font-size:11px;color:var(--text-muted)">Keyword Density</div></div>
-        <div style="text-align:center;background:var(--glass);border-radius:12px;padding:16px;flex:1"><div style="font-size:20px;font-weight:700;color:var(--text-primary)">${data.word_count}</div><div style="font-size:11px;color:var(--text-muted)">Words</div></div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        ${tile(d.word_count, 'Words')}
+        ${tile(d.avg_sentence_words, 'Words per sentence')}
+        ${tile(ease, 'Reading ease (0–100)', 'Flesch reading ease for English: 60 or more is easy for most people')}
+        ${keyword ? tile(`${d.keyword_density}%`, 'Search phrase share') : ''}
       </div>
-      ${data.issues?.length ? `<div class="seo-result-group"><div class="seo-result-label">⚠️ Issues</div>${data.issues.map(i => `<div style="padding:5px 0;font-size:13px;color:${i.type==='error'?'#ef4444':'var(--accent-orange)'}">● ${escapeHtml(i.message)}</div>`).join('')}</div>` : ''}
-      ${data.suggestions?.length ? `<div class="seo-result-group"><div class="seo-result-label">💡 Suggestions</div>${data.suggestions.map(s => `<div style="padding:5px 0;font-size:13px;color:var(--text-secondary);border-bottom:1px solid var(--border)">→ ${escapeHtml(s)}</div>`).join('')}</div>` : ''}
-      ${data.suggested_headings?.length ? `<div class="seo-result-group"><div class="seo-result-label">📑 Suggested Structure</div>${data.suggested_headings.map(h => `<div style="padding:4px 0;font-size:13px;font-weight:600;color:var(--text-primary)">${escapeHtml(h)}</div>`).join('')}</div>` : ''}`;
-    toast('Content analyzed!', 'success');
-  } catch (err) { out.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`; toast(err.message, 'error'); }
-  finally { btn.disabled = false; btn.innerHTML = '⚡ Analyze & Score'; }
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">These numbers are measured from your text.</div>
+      ${checks.length ? `<div class="seo-result-group"><div class="seo-result-label">Checks</div>${checks.map(c => `<div style="padding:4px 0;font-size:13px">${c}</div>`).join('')}</div>` : ''}
+      ${d.ai_error ? `<div class="form-hint" style="color:#b45309">AI suggestions aren’t available: ${escapeHtml(d.ai_error)}</div>` : ''}
+      ${d.suggestions.length ? `<div class="seo-result-group"><div class="seo-result-label">💡 Suggestions (AI)</div>${d.suggestions.map(s => `<div style="padding:5px 0;font-size:13px;color:var(--text-secondary);border-bottom:1px solid var(--border)">→ ${escapeHtml(s)}</div>`).join('')}</div>` : ''}
+      ${d.better_intro ? `<div class="seo-result-group"><div class="seo-result-label">✍️ A stronger first paragraph (AI)</div><div style="font-size:13px;white-space:pre-wrap">${escapeHtml(d.better_intro)}</div>
+        <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="navigator.clipboard.writeText(${jsAttr(d.better_intro)});toast('Copied','success')">📋 Copy</button></div>` : ''}
+      ${d.headings.length ? `<div class="seo-result-group"><div class="seo-result-label">📑 Headings to consider (AI)</div>${d.headings.map(h => `<div style="padding:4px 0;font-size:13px;font-weight:600">${escapeHtml(h)}</div>`).join('')}</div>` : ''}`;
+  } catch (err) { out.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`; }
+  finally { btn.disabled = false; btn.innerHTML = '⚡ Check text'; }
 }
 
 async function loadTrackedKeywords() {
@@ -136,46 +178,47 @@ async function loadTrackedKeywords() {
   try {
     const keywords = await api('GET', '/api/seo/keywords/tracked');
     if (!keywords.length) {
-      list.innerHTML = '<div class="empty-state" style="padding:30px 0"><div class="empty-icon">📍</div><div class="empty-title">No tracked keywords</div><div class="empty-desc">Add keywords to monitor your SEO rankings.</div></div>';
+      list.innerHTML = '<div class="empty-state" style="padding:30px 0"><div class="empty-icon">📍</div><div class="empty-title">No search phrases saved</div><div class="empty-desc">Add the phrases you want people to find you with.</div></div>';
       return;
     }
-    list.innerHTML = `<table class="analytics-table"><thead><tr><th>Keyword</th><th>Target URL</th><th>Position</th><th>Notes</th><th></th></tr></thead><tbody>
+    list.innerHTML = `<table class="analytics-table"><thead><tr><th>Search phrase</th><th>Your page</th><th>Notes</th><th></th><th></th></tr></thead><tbody>
       ${keywords.map(k => `<tr>
         <td><strong>${escapeHtml(k.keyword)}</strong></td>
         <td style="font-size:12px;color:var(--text-muted)">${escapeHtml(k.url || '—')}</td>
-        <td>${k.position ? `<span class="badge badge-${k.position <= 10 ? 'green' : k.position <= 30 ? 'orange' : 'red'}">#${k.position}</span>` : '—'}</td>
         <td style="font-size:12px">${escapeHtml(k.notes || '—')}</td>
+        <td><a class="btn btn-secondary btn-sm" href="https://www.google.com/search?q=${encodeURIComponent(k.keyword)}" target="_blank" rel="noopener noreferrer">Search on Google ↗</a></td>
         <td><button class="btn btn-danger btn-sm btn-icon" onclick="deleteTrackedKeyword(${k.id})" title="Remove">🗑</button></td>
       </tr>`).join('')}
     </tbody></table>`;
-  } catch {}
+  } catch (err) { list.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`; }
 }
 
 async function addTrackedKeyword() {
   const kw = document.getElementById('add-kw-input').value.trim();
   const url = document.getElementById('add-kw-url')?.value.trim() || '';
-  if (!kw) return toast('Please enter a keyword', 'warning');
+  if (!kw) return toast('Type a search phrase', 'warning');
   try {
     await api('POST', '/api/seo/keywords/tracked', { keyword: kw, url });
     document.getElementById('add-kw-input').value = '';
     if (document.getElementById('add-kw-url')) document.getElementById('add-kw-url').value = '';
-    toast(`"${kw}" added to tracked keywords`, 'success');
+    toast(`Saved “${kw}”`, 'success');
     loadTrackedKeywords();
   } catch (err) { toast(err.message, 'error'); }
 }
 
 async function deleteTrackedKeyword(id) {
-  await api('DELETE', `/api/seo/keywords/tracked/${id}`);
+  try { await api('DELETE', `/api/seo/keywords/tracked/${id}`); } catch (err) { toast(err.message, 'error'); }
   loadTrackedKeywords();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ASO (App Store Optimization)
+// App store listing
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function generateASO() {
   const btn = document.getElementById('btn-aso');
   const out = document.getElementById('aso-output');
+  if (!document.getElementById('aso-app-name').value.trim()) return toast('Type the app name', 'warning');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Writing… (can take up to a minute)';
   out.innerHTML = '<div style="text-align:center;padding:60px"><span class="spinner lg"></span></div>';
   try {
@@ -186,35 +229,32 @@ async function generateASO() {
       platform: document.getElementById('aso-platform').value,
       competitors: document.getElementById('aso-competitors').value,
     });
-    const copyBtn = (text) => `<button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="navigator.clipboard.writeText(${jsAttr(text)});toast('Copied!','success')">📋 Copy</button>`;
+    const fieldHtml = (label, f, { long = false, code = false } = {}) => !f ? '' : `
+      <div style="margin-top:10px"><b>${label}</b> <span class="badge badge-${f.too_long ? 'red' : 'green'}">${f.length} / ${f.max}${f.too_long ? ' — too long, shorten it' : ''}</span>
+        ${long ? `<details style="margin-top:4px"><summary style="cursor:pointer;font-size:13px;color:var(--accent-blue)">Show</summary><div style="font-size:12px;margin-top:6px;white-space:pre-wrap">${escapeHtml(f.text)}</div></details>`
+          : `<div style="font-size:13px;margin-top:4px">${code ? `<code style="font-size:11px">${escapeHtml(f.text)}</code>` : escapeHtml(f.text)}</div>`}
+        <button class="btn btn-secondary btn-sm" style="margin-top:4px" onclick="navigator.clipboard.writeText(${jsAttr(f.text)});toast('Copied','success')">📋 Copy</button></div>`;
     let html = '';
     if (data.app_store) {
-      html += `<div class="seo-result-group"><div class="seo-result-label" style="color:#0a66c2">🍎 App Store (iOS)</div>
-        <div><b>Title:</b> <span class="badge badge-${data.app_store.title?.length > 30 ? 'red' : 'green'}">${data.app_store.title?.length} chars</span> ${escapeHtml(data.app_store.title || '')} ${copyBtn(data.app_store.title)}</div>
-        <div style="margin-top:8px"><b>Subtitle:</b> ${escapeHtml(data.app_store.subtitle || '')} ${copyBtn(data.app_store.subtitle)}</div>
-        <div style="margin-top:8px"><b>Keywords:</b> <span class="badge badge-${data.app_store.keywords?.length > 100 ? 'red' : 'green'}">${data.app_store.keywords?.length} chars</span><br><code style="font-size:11px">${escapeHtml(data.app_store.keywords || '')}</code> ${copyBtn(data.app_store.keywords)}</div>
-        <div style="margin-top:8px"><b>Short Description:</b><br>${escapeHtml(data.app_store.short_description || '')} ${copyBtn(data.app_store.short_description)}</div>
-        <details style="margin-top:8px"><summary style="cursor:pointer;font-size:13px;color:var(--accent-blue)">Full Description (click to expand)</summary><div style="font-size:12px;margin-top:8px;white-space:pre-wrap">${escapeHtml(data.app_store.description || '')}</div>${copyBtn(data.app_store.description)}</details>
-      </div>`;
+      const a = data.app_store;
+      html += `<div class="seo-result-group"><div class="seo-result-label" style="color:#0a66c2">🍎 App Store</div>
+        ${fieldHtml('App name', a.name)}${fieldHtml('Subtitle', a.subtitle)}${fieldHtml('Promotional text', a.promotional_text)}
+        ${fieldHtml('Keywords', a.keywords, { code: true })}
+        <div class="form-hint">Words already in the name or subtitle were left out (Apple counts them anyway).</div>
+        ${fieldHtml('Description', a.description, { long: true })}</div>`;
     }
     if (data.play_store) {
-      html += `<div class="seo-result-group"><div class="seo-result-label" style="color:#34a853">🤖 Google Play Store</div>
-        <div><b>Title:</b> <span class="badge badge-${data.play_store.title?.length > 50 ? 'red' : 'green'}">${data.play_store.title?.length} chars</span> ${escapeHtml(data.play_store.title || '')} ${copyBtn(data.play_store.title)}</div>
-        <div style="margin-top:8px"><b>Short Description:</b> <span class="badge badge-${data.play_store.short_description?.length > 80 ? 'red' : 'green'}">${data.play_store.short_description?.length} chars</span><br>${escapeHtml(data.play_store.short_description || '')} ${copyBtn(data.play_store.short_description)}</div>
-        <details style="margin-top:8px"><summary style="cursor:pointer;font-size:13px;color:var(--accent-blue)">Full Description</summary><div style="font-size:12px;margin-top:8px;white-space:pre-wrap">${escapeHtml(data.play_store.full_description || '')}</div>${copyBtn(data.play_store.full_description)}</details>
-        ${data.play_store.keywords?.length ? `<div style="margin-top:8px"><b>Keywords:</b> ${data.play_store.keywords.map(k => `<span class="badge badge-blue">${escapeHtml(k)}</span>`).join(' ')}</div>` : ''}
-      </div>`;
+      const p = data.play_store;
+      html += `<div class="seo-result-group"><div class="seo-result-label" style="color:#34a853">🤖 Google Play</div>
+        ${fieldHtml('App name', p.title)}${fieldHtml('Short description', p.short_description)}${fieldHtml('Full description', p.full_description, { long: true })}
+        <div class="form-hint">Google Play has no keyword box: it reads your name and descriptions.</div></div>`;
     }
-    if (data.screenshots_suggestions?.length) {
-      html += `<div class="seo-result-group"><div class="seo-result-label">📸 Screenshot Ideas</div>${data.screenshots_suggestions.map((s, i) => `<div style="padding:4px 0;font-size:13px">${i+1}. ${escapeHtml(s)}</div>`).join('')}</div>`;
-    }
-    if (data.aso_tips?.length) {
-      html += `<div class="seo-result-group"><div class="seo-result-label">💡 ASO Tips</div>${data.aso_tips.map(t => `<div style="padding:4px 0;font-size:12px;color:var(--text-secondary)">✓ ${escapeHtml(t)}</div>`).join('')}</div>`;
-    }
+    if (data.missing?.length) html += `<div class="form-hint" style="color:#b45309">The AI didn’t write the ${data.missing.join(' and ')} part. Click Write store listing again, or pick a stronger AI model in Settings → AI.</div>`;
+    if (data.screenshot_ideas.length) html += `<div class="seo-result-group"><div class="seo-result-label">📸 Screenshot ideas</div>${data.screenshot_ideas.map((s, i) => `<div style="padding:4px 0;font-size:13px">${i + 1}. ${escapeHtml(s)}</div>`).join('')}</div>`;
+    if (data.tips.length) html += `<div class="seo-result-group"><div class="seo-result-label">💡 Tips</div>${data.tips.map(t => `<div style="padding:4px 0;font-size:12px;color:var(--text-secondary)">✓ ${escapeHtml(t)}</div>`).join('')}</div>`;
     out.innerHTML = html;
-    toast('ASO listing generated!', 'success');
-  } catch (err) { out.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`; toast(err.message, 'error'); }
-  finally { btn.disabled = false; btn.innerHTML = '📱 Generate ASO Listing'; }
+  } catch (err) { out.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`; }
+  finally { btn.disabled = false; btn.innerHTML = '📱 Write store listing'; }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

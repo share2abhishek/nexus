@@ -142,7 +142,9 @@ function renderPlatformCards(platforms) {
 
     // What the status means, in one line
     const detail = isConnected
-      ? `${profileName ? `Posting as <b>${escapeHtml(profileName)}</b>` : 'Ready to post'}${since ? ` · since ${escapeHtml(since)}` : ''}`
+      ? (key === 'google_business'
+        ? (p.location_set ? `Posting to <b>${escapeHtml(p.location_title || 'your location')}</b>` : '<b>Choose which location to post to</b> (below)')
+        : `${profileName ? `Posting as <b>${escapeHtml(profileName)}</b>` : 'Ready to post'}`) + (since ? ` · since ${escapeHtml(since)}` : '')
       : st.group === 'attention'
         ? escapeHtml(p.reconnect_reason || 'The saved sign-in stopped working. Click Reconnect and sign in again; your posts are kept.')
       : st.group === 'setup' && isAdminUser
@@ -191,6 +193,11 @@ function renderPlatformCards(platforms) {
       <div class="pcard-extra">
         <button class="btn btn-secondary btn-sm" onclick="loadPinterestBoards()">Choose board</button>
         <div id="pinterest-board-selector" style="display:none;margin-top:8px"></div>
+      </div>`
+      : isConnected && key === 'google_business' ? `
+      <div class="pcard-extra">
+        <button class="btn btn-${p.location_set ? 'secondary' : 'primary'} btn-sm" onclick="loadGoogleLocations()">${p.location_set ? 'Change location' : 'Choose location'}</button>
+        <div id="gbp-location-selector" style="display:none;margin-top:8px"></div>
       </div>` : '';
 
     // If sign-in fails: paste a token (Facebook only)
@@ -343,6 +350,30 @@ async function loadPinterestBoards() {
           <button class="btn btn-secondary btn-sm" onclick="setPinterestBoard(${jsAttr(b.id)},${jsAttr(b.name)})">${escapeHtml(b.name)}</button>`).join('')}
       </div>`;
   } catch (err) { container.innerHTML = `<div class="state-error">${escapeHtml(err.message)}</div>`; }
+}
+
+async function loadGoogleLocations() {
+  const container = document.getElementById('gbp-location-selector');
+  container.style.display = 'block';
+  container.innerHTML = '<div class="form-hint"><span class="spinner"></span> Loading your locations…</div>';
+  try {
+    const list = await api('GET', '/api/config/google-business/locations');
+    if (!list.length) { container.innerHTML = '<div class="form-hint">This Google account doesn’t manage any Business Profile location.</div>'; return; }
+    container.innerHTML = `<div class="form-hint">Which location should posts go to?</div>
+      <div class="choice-list">
+        ${list.map(l => `
+          <button class="btn btn-${l.chosen ? 'primary' : 'secondary'} btn-sm" style="text-align:left" onclick="setGoogleLocation(${jsAttr(l.account)},${jsAttr(l.location)})">
+            ${escapeHtml(l.title)}${l.address ? `<br><span style="font-weight:400;font-size:11px">${escapeHtml(l.address)}</span>` : ''}</button>`).join('')}
+      </div>`;
+  } catch (err) { container.innerHTML = `<div class="state-error">${escapeHtml(err.message)}</div>`; }
+}
+
+async function setGoogleLocation(account, location) {
+  try {
+    const r = await api('POST', '/api/config/google-business/set-location', { account, location });
+    toast(`Google Business posts will go to “${r.title}”.`, 'success');
+    loadSettings();
+  } catch (err) { toast(err.message, 'error'); }
 }
 
 async function setPinterestBoard(id, name) {
@@ -825,6 +856,19 @@ function handleURLParams() {
   const connected = params.get('connected');
   const error = params.get('error');
 
+  if (connected === 'google_business' && params.get('gbp_missing')) {
+    const why = params.get('gbp_missing');
+    toast(why === '1' ? 'Google is connected, but this Google account doesn’t manage any Business Profile location.' : `Google is connected, but its Business Profiles couldn’t be read: ${why}`, 'warning', 15000);
+    openSettings('platforms');
+    window.history.replaceState({}, '', '/');
+    return;
+  }
+  if (connected === 'google_business' && params.get('select_location')) {
+    toast('Google Business is connected. You manage several locations: choose one on the Google Business card.', 'info', 10000);
+    openSettings('platforms');
+    window.history.replaceState({}, '', '/');
+    return;
+  }
   if (connected) {
     toast(`${PLATFORMS[connected]?.label || connected} is connected.`, 'success');
     openSettings('platforms'); // show the result where the user started
@@ -846,6 +890,8 @@ function handleURLParams() {
       pinterest_failed: 'Pinterest connection failed',
       twitter_denied: 'Twitter authorization was denied',
       twitter_failed: 'Twitter connection failed',
+      google_denied: 'Google sign-in was cancelled',
+      google_failed: 'Google connection failed — check the Client ID and secret on the Google Business card',
       oauth_state_invalid: 'Sign-in link expired or was not started from Social-Nexus — please try connecting again',
       not_available: 'Posting to this platform is not available yet in Social-Nexus.',
       instagram_not_found: 'Facebook is connected, but no Instagram account is linked to your Facebook Page. In Instagram, switch to a Business or Creator account and link it to the Page, then click Connect on the Instagram card again.',

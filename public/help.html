@@ -170,7 +170,7 @@
     <div class="toc-group">Tools</div>
     <a href="#templates">Templates &amp; Brand Kit</a>
     <a href="#hashtags">Hashtags &amp; UTM links</a>
-    <a href="#seo">SEO &amp; other tools</a>
+    <a href="#seo">Website SEO, app listing &amp; other tools</a>
     <a href="#email">Email campaigns</a>
     <a href="#sellbird">Sales outreach</a>
     <a href="#lead-pipeline">Ad Leads &amp; Messenger Pipeline</a>
@@ -206,6 +206,8 @@
       <li><strong>Design a picture</strong> in Create post, in your Brand Kit colours. <strong>Signatures</strong>, <strong>post sets</strong> (groups of platforms in one click) and <strong>Blog &amp; news feeds</strong> (More tools) that turn new articles into drafts.</li>
       <li><strong>WhatsApp:</strong> Setup in numbered steps, <strong>Auto-replies</strong> (welcome, menu, keyword answers, away hours, STOP), <strong>Templates</strong> with a live preview, and <strong>Broadcasts</strong> in 3 steps with a test to yourself and live progress.</li>
       <li><strong>Sales outreach</strong> in four steps: campaign, companies, approve, replies. Emails are written from what you offer, follow-ups go out in order and stop when someone replies, and every number on the page is real. See <a href="#sellbird">Sales outreach</a>.</li>
+      <li><strong>Website SEO → Check a page</strong> opens your page like Google’s crawler and shows what keeps it out of Google or ranks it lower. Numbers are measured, not AI guesses. The <strong>App store listing</strong> writes only the fields each store has, within their limits.</li>
+      <li><strong>Google Business</strong> finds your locations in any of your Google accounts and lets you choose which one to post to.</li>
       <li><strong>Privacy:</strong> the internet tunnel for WhatsApp only starts when you turn it on in WhatsApp Setup.</li>
     </ul>
     <h3>Posting</h3>
@@ -594,10 +596,11 @@
       <ul>
         <li><strong>Until Google approves API access, posting returns a permission error.</strong></li>
         <li>In Testing mode Google ends the login after <strong>7 days</strong>, so reconnect weekly.</li>
-        <li>Posts go to your first location, max 1,500 characters.</li>
+        <li><strong>Which location:</strong> with one location, posts go there. With several, click <strong>Choose location</strong> on the card and pick one; the card then shows <em>Posting to …</em>. Max 1,500 characters.</li>
       </ul>
       <h4>Common errors</h4>
-      <ul><li><strong>redirect_uri_mismatch</strong>: paste the address with 📋 Copy into the <em>Web application</em> client. <strong>access_denied</strong>: add yourself as a test user. <strong>Fails after a week</strong>: reconnect.</li></ul>
+      <ul><li><strong>redirect_uri_mismatch</strong>: paste the address with 📋 Copy into the <em>Web application</em> client. <strong>access_denied</strong>: add yourself as a test user. <strong>Fails after a week</strong>: reconnect.</li>
+        <li><strong>“Google hasn’t given your Google Cloud project access…”</strong>: Google hasn’t approved Business Profile API access yet. Request it, wait, then connect again. <strong>“Turn on the My Business … API”</strong>: turn on the My Business Account Management and Business Information APIs in Google Cloud Console.</li></ul>
       <h3>YouTube <span class="badge">🔴 Not available yet</span></h3>
       <p>YouTube's public API can upload videos, but it can't create Community posts (text or image). Social-Nexus doesn't upload videos yet, so YouTube isn't offered for posting yet (the AI tools can still write your video descriptions). <strong>Publish to YouTube from YouTube Studio for now.</strong></p>
     </div>
@@ -727,10 +730,12 @@
   </section>
 
   <section class="doc" id="seo">
-    <h2>SEO &amp; other tools</h2>
+    <h2>Website SEO, app store listing and other tools</h2>
     <ul>
-      <li><strong>🔍 SEO Tools:</strong> Meta Generator, Keyword Research, Content Optimizer (score and tips), Tracked Keywords (you enter positions yourself; automatic tracking isn't available yet). These are AI estimates; Google Search Console gives real data.</li>
-      <li><strong>📱 App Store (ASO)</strong>, <strong>📣 Ad Copy &amp; PR</strong> (ads, press releases, ⏰ Best Times), <strong>🎨 AI Media Creator</strong> (images, video, animation, captions).</li>
+      <li><strong>🔍 Website SEO → 🔎 Check a page:</strong> type a page address. Social-Nexus opens it the way Google’s crawler does and lists what’s fine, what to improve and what to fix: does it open, https, <code>robots.txt</code>, “noindex”, sitemap, main address (canonical), title and description (with a Google preview), main heading, amount of text, pictures without alt text, phone set-up, share preview, and where your search phrase appears. All measured from the page. Pages on your PC or local network can’t be checked.</li>
+      <li><strong>🏷️ Write title &amp; description</strong> reads your page (or uses the title and text you type) and writes a title and description with length badges. <strong>🔑 Search phrase ideas</strong> come from AI (“competition” is its rough guess). <strong>⚡ Check my text</strong> measures words, sentence length, reading ease and how often your phrase appears; AI adds suggestions. <strong>📍 My search phrases</strong> is your list, with <strong>Search on Google</strong> to look yourself: Social-Nexus doesn’t look up Google positions (use Google Search Console for those).</li>
+      <li><strong>📱 App store listing:</strong> the fields each store really has, with their limits checked. App Store: name 30, subtitle 30, promotional text 170, keywords 100 (words already in the name or subtitle are left out), description 4,000. Google Play: name 30, short description 80, full description 4,000 (Play has no keyword box). A red badge means too long.</li>
+      <li><strong>📣 Ad Copy &amp; PR</strong> (ads, press releases, ⏰ Best Times), <strong>🎨 AI Media Creator</strong> (images, video, animation, captions).</li>
       <li><strong>📁 Local Files:</strong> use files from your content folder. <strong>📥 Import CSV Schedule</strong> reads <code>schedule.csv</code> with the columns <code>content, platforms, scheduled_at, image_url</code> (platforms separated by <code>;</code>, dates like <code>2026-11-08 09:00</code>). Check the rows yourself: limit warnings don't apply. Importing needs an active licence.</li>
     </ul>
   </section>

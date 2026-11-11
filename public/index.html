@@ -1307,76 +1307,98 @@
     <!-- ── SEO Tools ─────────────────────────────────────────────────────── -->
     <section class="page" id="page-seo">
       <div class="section-header">
-        <div><div class="section-title">🔍 SEO Tools</div><div class="section-desc">AI-powered meta tags, keyword research, and content optimization.</div></div>
+        <div><div class="section-title">🔍 Website SEO</div><div class="section-desc">See how Google reads your page, then fix the title, description and text.</div></div>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm seo-tab-btn active" data-tab="meta" onclick="switchSeoTab('meta',this)">🏷️ Meta Generator</button>
-        <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="keywords" onclick="switchSeoTab('keywords',this)">🔑 Keyword Research</button>
-        <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="optimize" onclick="switchSeoTab('optimize',this)">⚡ Content Optimizer</button>
-        <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="tracked" onclick="switchSeoTab('tracked',this)">📍 Tracked Keywords</button>
+        <button class="btn btn-primary btn-sm seo-tab-btn active" data-tab="check" onclick="switchSeoTab('check',this)">🔎 Check a page</button>
+        <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="meta" onclick="switchSeoTab('meta',this)">🏷️ Write title &amp; description</button>
+        <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="keywords" onclick="switchSeoTab('keywords',this)">🔑 Search phrase ideas</button>
+        <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="optimize" onclick="switchSeoTab('optimize',this)">⚡ Check my text</button>
+        <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="tracked" onclick="switchSeoTab('tracked',this)">📍 My search phrases</button>
       </div>
 
-      <!-- Meta Generator -->
-      <div class="seo-panel" id="seo-panel-meta">
+      <!-- Check a page -->
+      <div class="seo-panel" id="seo-panel-check">
         <div class="grid-2">
-          <div class="card"><div class="card-header"><div class="card-title">🏷️ Meta Tag Generator</div></div>
+          <div class="card"><div class="card-header"><div class="card-title">🔎 Check a page</div></div>
             <div class="card-body">
-              <div class="form-group"><label class="form-label">Page Title</label><input type="text" class="form-input" id="seo-page-title" placeholder="e.g. Best Project Management App for Teams" /></div>
-              <div class="form-group"><label class="form-label">Target Keyword</label><input type="text" class="form-input" id="seo-target-kw" placeholder="e.g. project management software" /></div>
-              <div class="form-group"><label class="form-label">Page URL (optional)</label><input type="url" class="form-input" id="seo-url" placeholder="https://yoursite.com/page" /></div>
-              <div class="form-group"><label class="form-label">Page Content Summary (optional)</label><textarea class="form-textarea" id="seo-content-summary" placeholder="Briefly describe what this page is about…" style="min-height:80px"></textarea></div>
-              <button class="btn btn-primary" onclick="generateMetaTags()" id="btn-seo-meta" style="width:100%">🏷️ Generate Meta Tags</button>
+              <div class="form-hint" style="margin-bottom:12px">Social-Nexus opens the page like Google’s crawler does: can Google read it, may it list it, and are the title, description, headings and pictures set up well.</div>
+              <div class="form-group"><label class="form-label">Page address</label><input type="url" class="form-input" id="seo-check-url" placeholder="yourbusiness.com/services" onkeydown="if(event.key==='Enter')checkPageSeo()" /></div>
+              <div class="form-group"><label class="form-label">Main search phrase (optional)</label><input type="text" class="form-input" id="seo-check-kw" placeholder="e.g. interior designer in Pune" /></div>
+              <button class="btn btn-primary" onclick="checkPageSeo()" id="btn-seo-check" style="width:100%">🔎 Check page</button>
+              <div class="form-hint" style="margin-top:10px">Whether a page is already in Google: search <code>site:</code> followed by its address on Google, or use Google Search Console.</div>
             </div>
           </div>
-          <div class="card"><div class="card-header"><div class="card-title">📋 Generated Tags</div></div>
-            <div class="card-body" id="seo-meta-output"><div class="empty-state" style="padding:40px 0"><div class="empty-icon">🔍</div><div class="empty-title">Meta tags will appear here</div></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">📋 What we found</div></div>
+            <div class="card-body" id="seo-check-output"><div class="empty-state" style="padding:40px 0"><div class="empty-icon">🔎</div><div class="empty-title">Results will appear here</div></div></div>
           </div>
         </div>
       </div>
 
-      <!-- Keyword Research -->
+      <!-- Title & description -->
+      <div class="seo-panel" id="seo-panel-meta" style="display:none">
+        <div class="grid-2">
+          <div class="card"><div class="card-header"><div class="card-title">🏷️ Title &amp; description for Google</div></div>
+            <div class="card-body">
+              <div class="form-group"><label class="form-label">Page address</label><input type="url" class="form-input" id="seo-url" placeholder="yourbusiness.com/page (Social-Nexus reads it)" /></div>
+              <div class="form-group"><label class="form-label">Main search phrase</label><input type="text" class="form-input" id="seo-target-kw" placeholder="e.g. office interiors Pune" /></div>
+              <div class="form-hint" style="margin:-4px 0 12px">No website yet? Leave the address empty and fill these in:</div>
+              <div class="form-group"><label class="form-label">Page title</label><input type="text" class="form-input" id="seo-page-title" placeholder="e.g. Office Interiors in Pune" /></div>
+              <div class="form-group"><label class="form-label">What the page is about</label><textarea class="form-textarea" id="seo-content-summary" placeholder="A few sentences about what you offer on this page" style="min-height:80px"></textarea></div>
+              <button class="btn btn-primary" onclick="generateMetaTags()" id="btn-seo-meta" style="width:100%">🏷️ Write title &amp; description</button>
+            </div>
+          </div>
+          <div class="card"><div class="card-header"><div class="card-title">📋 Suggestions</div></div>
+            <div class="card-body" id="seo-meta-output"><div class="empty-state" style="padding:40px 0"><div class="empty-icon">🏷️</div><div class="empty-title">Suggestions will appear here</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search phrase ideas -->
       <div class="seo-panel" id="seo-panel-keywords" style="display:none">
         <div class="grid-2">
-          <div class="card"><div class="card-header"><div class="card-title">🔑 Keyword Research</div></div>
+          <div class="card"><div class="card-header"><div class="card-title">🔑 Search phrase ideas</div></div>
             <div class="card-body">
-              <div class="form-group"><label class="form-label">Topic / Product</label><input type="text" class="form-input" id="kw-topic" placeholder="e.g. mobile app development, fitness tracker" /></div>
-              <div class="form-group"><label class="form-label">Niche (optional)</label><input type="text" class="form-input" id="kw-niche" placeholder="e.g. SaaS, e-commerce, health & wellness" /></div>
-              <div class="form-group"><label class="form-label">Competitors (optional)</label><input type="text" class="form-input" id="kw-competitors" placeholder="e.g. Trello, Asana, Monday.com" /></div>
-              <button class="btn btn-primary" onclick="researchKeywords()" id="btn-kw-research" style="width:100%">🔑 Research Keywords</button>
+              <div class="form-group"><label class="form-label">What you offer</label><input type="text" class="form-input" id="kw-topic" placeholder="e.g. office interiors, home bakery" /></div>
+              <div class="form-group"><label class="form-label">Kind of business (optional)</label><input type="text" class="form-input" id="kw-niche" placeholder="e.g. local service, online shop" /></div>
+              <div class="form-group"><label class="form-label">Competitors (optional)</label><input type="text" class="form-input" id="kw-competitors" placeholder="e.g. names of similar businesses" /></div>
+              <button class="btn btn-primary" onclick="researchKeywords()" id="btn-kw-research" style="width:100%">🔑 Suggest phrases</button>
+              <div class="form-hint" style="margin-top:10px">Ideas from AI, without search numbers. “Competition” is the AI’s rough guess. For real search volumes use Google Keyword Planner or Search Console.</div>
             </div>
           </div>
-          <div class="card"><div class="card-header"><div class="card-title">📊 Keyword Results</div></div>
-            <div class="card-body" style="max-height:500px;overflow-y:auto" id="kw-results"><div class="empty-state" style="padding:40px 0"><div class="empty-icon">🔑</div><div class="empty-title">Keywords will appear here</div></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">📊 Ideas</div></div>
+            <div class="card-body" style="max-height:500px;overflow-y:auto" id="kw-results"><div class="empty-state" style="padding:40px 0"><div class="empty-icon">🔑</div><div class="empty-title">Ideas will appear here</div></div></div>
           </div>
         </div>
       </div>
 
-      <!-- Content Optimizer -->
+      <!-- Check my text -->
       <div class="seo-panel" id="seo-panel-optimize" style="display:none">
         <div class="grid-2">
-          <div class="card"><div class="card-header"><div class="card-title">⚡ Content SEO Score</div></div>
+          <div class="card"><div class="card-header"><div class="card-title">⚡ Check my text</div></div>
             <div class="card-body">
-              <div class="form-group"><label class="form-label">Target Keyword</label><input type="text" class="form-input" id="opt-keyword" placeholder="e.g. best task manager" /></div>
-              <div class="form-group"><label class="form-label">Content Type</label><select class="form-select" id="opt-type"><option value="blog_post">Blog Post</option><option value="landing_page">Landing Page</option><option value="product_page">Product Page</option><option value="social_post">Social Post</option></select></div>
-              <div class="form-group"><label class="form-label">Content to Analyze</label><textarea class="form-textarea" id="opt-content" placeholder="Paste your content here…" style="min-height:200px"></textarea></div>
-              <button class="btn btn-primary" onclick="optimizeContent()" id="btn-optimize" style="width:100%">⚡ Analyze & Score</button>
+              <div class="form-group"><label class="form-label">Main search phrase</label><input type="text" class="form-input" id="opt-keyword" placeholder="e.g. office interiors Pune" /></div>
+              <div class="form-group"><label class="form-label">Kind of text</label><select class="form-select" id="opt-type"><option value="blog_post">Blog post</option><option value="landing_page">Landing page</option><option value="product_page">Product page</option><option value="social_post">Social post</option></select></div>
+              <div class="form-group"><label class="form-label">Your text</label><textarea class="form-textarea" id="opt-content" placeholder="Paste your text here…" style="min-height:200px"></textarea></div>
+              <button class="btn btn-primary" onclick="optimizeContent()" id="btn-optimize" style="width:100%">⚡ Check text</button>
             </div>
           </div>
-          <div class="card"><div class="card-header"><div class="card-title">📈 SEO Report</div></div>
-            <div class="card-body" id="seo-opt-output"><div class="empty-state" style="padding:40px 0"><div class="empty-icon">⚡</div><div class="empty-title">SEO report will appear here</div></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">📈 Results</div></div>
+            <div class="card-body" id="seo-opt-output"><div class="empty-state" style="padding:40px 0"><div class="empty-icon">⚡</div><div class="empty-title">Results will appear here</div></div></div>
           </div>
         </div>
       </div>
 
-      <!-- Tracked Keywords -->
+      <!-- My search phrases -->
       <div class="seo-panel" id="seo-panel-tracked" style="display:none">
-        <div class="card"><div class="card-header"><div class="card-title">📍 Tracked Keywords</div>
-          <div style="display:flex;gap:8px">
-            <input type="text" class="form-input" id="add-kw-input" placeholder="Add keyword…" style="width:200px" />
-            <input type="text" class="form-input" id="add-kw-url" placeholder="Target URL (optional)" style="width:200px" />
+        <div class="card"><div class="card-header"><div class="card-title">📍 My search phrases</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" class="form-input" id="add-kw-input" placeholder="Search phrase…" style="width:200px" />
+            <input type="text" class="form-input" id="add-kw-url" placeholder="Your page for it (optional)" style="width:200px" />
             <button class="btn btn-primary btn-sm" onclick="addTrackedKeyword()">+ Add</button>
           </div>
         </div>
+          <div class="form-hint" style="padding:10px 16px 0">A list of the phrases you want to be found for. Social-Nexus doesn’t look up your Google position (Google doesn’t allow automatic searches): use “Search on Google” to look yourself, or Google Search Console for exact positions.</div>
           <div class="card-body" style="padding:0"><div id="tracked-kw-list"></div></div>
         </div>
       </div>
@@ -1385,7 +1407,7 @@
     <!-- ── App Store Optimization ─────────────────────────────────────────── -->
     <section class="page" id="page-aso">
       <div class="section-header">
-        <div><div class="section-title">📱 App Store Optimization (ASO)</div><div class="section-desc">Generate optimized listings for App Store and Google Play.</div></div>
+        <div><div class="section-title">📱 App store listing</div><div class="section-desc">Write the name, descriptions and keywords for the App Store and Google Play, within their limits.</div></div>
       </div>
       <div class="grid-2">
         <div class="card"><div class="card-header"><div class="card-title">📱 App Details</div></div>
@@ -1401,12 +1423,12 @@
               </select>
             </div>
             <div class="form-group"><label class="form-label">Main Competitors (optional)</label><input type="text" class="form-input" id="aso-competitors" placeholder="e.g. Todoist, Notion, Things 3" /></div>
-            <button class="btn btn-primary btn-lg" onclick="generateASO()" id="btn-aso" style="width:100%">📱 Generate ASO Listing</button>
+            <button class="btn btn-primary btn-lg" onclick="generateASO()" id="btn-aso" style="width:100%">📱 Write store listing</button>
           </div>
         </div>
-        <div class="card"><div class="card-header"><div class="card-title">📋 Generated Listings</div></div>
+        <div class="card"><div class="card-header"><div class="card-title">📋 Your listing</div></div>
           <div class="card-body" style="max-height:600px;overflow-y:auto" id="aso-output">
-            <div class="empty-state" style="padding:60px 0"><div class="empty-icon">📱</div><div class="empty-title">ASO listing will appear here</div><div class="empty-desc">Fill in the details and click Generate.</div></div>
+            <div class="empty-state" style="padding:60px 0"><div class="empty-icon">📱</div><div class="empty-title">Your listing will appear here</div><div class="empty-desc">Fill in the details and click Write store listing.</div></div>
           </div>
         </div>
       </div>

@@ -284,6 +284,9 @@ router.get('/platforms', async (req, res) => {
       connected: !!tokenMap.google_business,
       profile: tokenMap.google_business?.profile || null,
       account_name: tokenMap.google_business?.page_id || null,
+      // Which business location posts go to (chosen when there are several)
+      location_set: !!tokenMap.google_business?.board_id,
+      location_title: tokenMap.google_business?.profile?.location_title || null,
       since: tokenMap.google_business?.created_at || null,
       oauth_url: '/auth/google',
       scopes: 'business.manage',
@@ -568,6 +571,43 @@ router.post('/pinterest/set-board', canManageSocial, async (req, res) => {
   });
 
   res.json({ success: true });
+});
+
+// ── Google Business: which location to post to ─────────────────────────────
+
+router.get('/google-business/locations', canManageSocial, async (req, res) => {
+  const knexInstance = require('../services/knex');
+  const token = req.workspaceId ? await require('../repos/socialAccountsRepo')(knexInstance).getByPlatform(req.workspaceId, 'google_business') : null;
+  if (!token) return res.status(401).json({ error: 'Google Business isn’t connected.' });
+  try {
+    const list = await require('../services/platforms/googleBusiness').listLocations(token.access_token);
+    res.json(list.map(l => ({ ...l, chosen: l.location === token.board_id && l.account === token.page_id })));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/google-business/set-location', canManageSocial, async (req, res) => {
+  const { account, location } = req.body || {};
+  const knexInstance = require('../services/knex');
+  const token = req.workspaceId ? await require('../repos/socialAccountsRepo')(knexInstance).getByPlatform(req.workspaceId, 'google_business') : null;
+  if (!token) return res.status(401).json({ error: 'Google Business isn’t connected.' });
+  try {
+    // Only a location this Google login really manages
+    const list = await require('../services/platforms/googleBusiness').listLocations(token.access_token);
+    const pick = list.find(l => l.account === account && l.location === location);
+    if (!pick) return res.status(400).json({ error: 'That location isn’t one this Google account manages.' });
+    let profile = {};
+    try { profile = JSON.parse(token.profile_json || '{}') || {}; } catch {}
+    await knexInstance('social_accounts').where({ id: token.id }).update({
+      page_id: pick.account,
+      board_id: pick.location,
+      profile_json: JSON.stringify({ ...profile, location_title: pick.title, location_count: list.length }),
+    });
+    res.json({ success: true, title: pick.title });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 module.exports = router;

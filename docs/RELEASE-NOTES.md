@@ -34,6 +34,13 @@ Newest first. Paste the section for a version into the GitHub Release
 - The Replies screen shows the email they answered, sorts replies (interested, question, not now, not interested, asked to stop), and drafts an answer you can edit and send.
 - All numbers on the page are real (no sample figures).
 
+### Website SEO, app store listing and Google Business
+- **Website SEO → Check a page:** opens your page the way Google's crawler does and lists what to fix: does it open, https, `robots.txt`, "noindex", sitemap, canonical address, title and description (with a Google preview), main heading, amount of text, pictures without alt text, phone set-up, share preview and where your search phrase appears. All measured from the page.
+- **Write title & description** now reads your page when you give its address. **Check my text** measures words, sentence length, reading ease and phrase use; AI only adds suggestions. The made-up "SEO score" is gone.
+- **My search phrases** no longer shows a "Position" column that was never filled in; **Search on Google** opens the search in your browser.
+- **App store listing** writes the fields each store really has (App Store promotional text and keywords; Google Play has no keyword box), checks every length limit, and leaves out keywords Apple already counts from the name and subtitle.
+- **Google Business** finds your locations in every account your Google login manages (before, it only looked at the first account, often a personal one with none), lets you **choose the location** to post to, and explains Google's errors (API access not approved yet, APIs turned off).
+
 ### Fixed
 - **Privacy:** the public internet tunnel no longer starts by itself on every launch. It starts only when you turn it on in WhatsApp Setup.
 - Built-in data from another business (WhatsApp/Meta IDs, phone numbers, sample contacts, sending address) removed. Tests and pings could have reached a stranger's number.

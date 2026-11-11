@@ -533,7 +533,8 @@ async function connectOneClick(platform, btn) {
       if (r.status !== 'done') throw new Error(r.error || 'The sign-in did not finish. Click Connect to try again.');
       if (r.instagramMissing) toast('Facebook is connected, but no Instagram account is linked to your Facebook Page. Link them in Instagram (Business or Creator account), then connect Instagram again.', 'warning', 12000);
       else if (r.selectPage) toast('Connected. You manage several Facebook Pages: choose one on the Facebook card.', 'success', 9000);
-      else if (r.googleBusinessMissing) toast('Google is connected, but no Business Profile was found for this Google account.', 'warning', 10000);
+      else if (r.googleBusinessMissing) toast(r.googleBusinessError ? `Google is connected, but its Business Profiles couldn’t be read: ${r.googleBusinessError}` : 'Google is connected, but this Google account doesn’t manage any Business Profile location.', 'warning', 15000);
+      else if (r.selectLocation) toast('Google Business is connected. You manage several locations: choose one on the Google Business card.', 'info', 10000);
       else toast(`${PLATFORMS[r.connected]?.label || platform} connected ✓`, 'success');
       await refreshStatus();
       return loadSettings();

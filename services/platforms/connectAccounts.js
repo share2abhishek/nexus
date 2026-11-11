@@ -108,20 +108,33 @@ async function completeGoogle(db, wsId, t, { via = 'own' } = {}) {
   const auth = { headers: { Authorization: `Bearer ${t.access_token}` } };
   const p = (await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', auth)).data;
   const profile = { id: p.id, name: p.name, email: p.email, picture: p.picture };
-  let gmbAccountName = null;
+  // Every location this login manages (the first account is often a personal one with none)
+  let locations = [];
+  let googleBusinessError = null;
   try {
-    gmbAccountName = (await axios.get('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', auth)).data.accounts?.[0]?.name || null;
-  } catch {}
+    locations = await require('./googleBusiness').listLocations(t.access_token);
+  } catch (err) { googleBusinessError = err.message; }
   const expires_at = now() + (t.expires_in || 3600);
   const repo = repoFor(db);
   await repo.add(wsId, { platform: 'google', external_id: p.id, access_token: t.access_token, refresh_token: t.refresh_token, expires_at, profile, via });
-  if (gmbAccountName) {
+  if (locations.length) {
+    // One location: post there. Several: the person chooses on the Google Business card.
+    const only = locations.length === 1 ? locations[0] : null;
+    // One Google Business row per workspace (older versions keyed it by account name)
+    await db('social_accounts').where({ workspace_id: wsId, platform: 'google_business' }).whereNot({ external_id: p.id }).del();
     await repo.add(wsId, {
-      platform: 'google_business', external_id: gmbAccountName, access_token: t.access_token, refresh_token: t.refresh_token,
-      expires_at, profile: { id: gmbAccountName, name: profile.name }, page_id: gmbAccountName, via,
+      platform: 'google_business', external_id: p.id, access_token: t.access_token, refresh_token: t.refresh_token,
+      expires_at, page_id: (only || locations[0]).account, board_id: only ? only.location : null,
+      profile: { id: p.id, name: profile.name, email: profile.email, location_title: only ? only.title : null, location_count: locations.length },
+      via,
     });
   }
-  return { connected: 'google', googleBusinessMissing: !gmbAccountName };
+  return {
+    connected: 'google',
+    googleBusinessMissing: !locations.length,
+    googleBusinessError,
+    selectLocation: locations.length > 1,
+  };
 }
 
 async function completeThreads(db, wsId, t, { via = 'radixile' } = {}) {

@@ -242,7 +242,8 @@ When you connect, Google may warn **"Google hasn't verified this app"**. That's 
 ### Good to know
 - **Until Google approves API access, posting returns a permission error.** Enabling the APIs isn't enough. Approval can take days to weeks.
 - In **Testing** mode Google ends the login after **7 days**, so you'll need to click **Disconnect → Connect** about once a week. Publishing the app "In production" avoids this but needs Google's app verification.
-- Business Profile posts go to your **first location**. Keep posts under **1,500 characters**.
+- **Which location:** Social-Nexus looks through every account this Google login manages. With one location, posts go there. With several, the card says **Choose which location to post to**: click **Choose location** and pick one (you can change it any time with **Change location**). The card then shows **Posting to …**.
+- Keep posts under **1,500 characters** (longer text is cut off, and you're told).
 
 ### Common Google errors
 | You see | What to do |
@@ -250,7 +251,9 @@ When you connect, Google may warn **"Google hasn't verified this app"**. That's 
 | "Error 400: redirect_uri_mismatch" | Paste the address from **📋 Copy** under **Authorised redirect URIs** of the **Web application** client. |
 | "Error 403: access_denied" / "has not completed the Google verification process" | Add your Google account under **Test users**. |
 | "OAuth error: google_failed" | Paste the Client ID and Secret again. Make sure the client type is **Web application**. |
-| Permission or quota error when posting (often 429) | Google hasn't approved your Business Profile API access yet. |
+| "Google hasn’t given your Google Cloud project access to the Business Profile APIs yet" (shown when you connect or post) | Google hasn't approved your Business Profile API access yet (its limit is 0). Request access, wait for Google's answer, then connect again. |
+| "Turn on the My Business … API" | In Google Cloud Console → APIs & Services → Library, turn on the **My Business Account Management API** and **My Business Business Information API**. |
+| "You manage several Google Business locations: choose one" | Click **Choose location** on the Google Business card. |
 | Posts fail after about a week | Testing-mode login expired. **Disconnect → Connect**. |
 | "No Google Business locations found" | The connected Google account doesn't manage a business location. |
 

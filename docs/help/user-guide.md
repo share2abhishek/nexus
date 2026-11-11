@@ -534,16 +534,25 @@ UTM links show you in Google Analytics which post or campaign brought visitors t
 
 ## 13. SEO tools and other marketing tools
 
-**🔍 SEO Tools** (all use your AI):
-- **🏷️ Meta Generator:** enter a page title and target keyword to get a search-friendly title and description for your web page.
-- **🔑 Keyword Research:** enter a topic (plus an optional niche and competitors) to get keyword ideas. Click one to track it.
-- **⚡ Content Optimizer:** paste your text and keyword to get an SEO score and suggestions.
-- **📍 Tracked Keywords:** a list of keywords you want to watch. Today you enter positions yourself. Automatic rank tracking isn't available yet.
+**🔍 Website SEO** (More tools → Website SEO):
+- **🔎 Check a page:** type your page's address (and, if you like, the phrase you want to be found for). Social-Nexus opens the page the way Google's crawler does and lists what's fine, what to improve and what to fix:
+  - whether the page opens, uses https, is allowed by your `robots.txt` and isn't marked "noindex" (these decide whether Google can list it at all);
+  - whether there's a sitemap and where the page's main address (canonical) points;
+  - the title and description (with how they may look on Google), the main heading, the amount of text, pictures without a description (alt text), phone set-up and the preview when shared;
+  - where your search phrase appears.
 
-The AI estimates keyword ideas and scores. For real search numbers, use Google Search Console (free).
+  Everything here is measured from the page, not guessed. Addresses on your PC or local network can't be checked. To see whether a page is already in Google, search `site:yourbusiness.com/page` on Google, or use Google Search Console.
+- **🏷️ Write title & description:** give the page's address (Social-Nexus reads it and shows what's there now) or, without a website, a title and a few sentences. AI writes a title (50–60 characters) and description (140–160), with length badges, and **Copy as HTML for your website**.
+- **🔑 Search phrase ideas:** phrases, questions and page ideas from AI. "Competition" is the AI's rough guess, not search data. For real volumes use Google Keyword Planner or Search Console.
+- **⚡ Check my text:** paste text and your search phrase. Words, sentence length, reading ease and how often the phrase appears are **measured**; AI adds suggestions, a stronger first paragraph and headings. The numbers still show if your AI isn't available.
+- **📍 My search phrases:** the phrases you want to be found for. Social-Nexus doesn't look up your Google position (Google doesn't allow automatic searches): **Search on Google** opens the search in your browser, and Google Search Console shows exact positions.
+
+**📱 App store listing** (More tools → App store listing): AI writes the fields each store really has, and checks Apple's and Google's limits:
+- **App Store:** name (30), subtitle (30), promotional text (170), keywords (100, comma-separated; words already in the name or subtitle are left out because Apple counts them anyway) and description (4,000).
+- **Google Play:** name (30), short description (80) and full description (4,000). Google Play has no keyword box.
+- A red badge means a field is too long: shorten it before pasting it into the store. If the AI leaves one store out, you're told so: click Write store listing again.
 
 **Other tools:**
-- **📱 App Store (ASO):** listings for the App Store or Google Play.
 - **📣 Ad Copy & PR:** Google and Meta ad copy, press releases, and **⏰ Best Times** (AI suggestions for when to post in your industry).
 - **🎨 AI Media Creator:** images, video, animation, and a **💬 Caption Writer**.
 - **📁 Local Files:** files in your content folder (text, Markdown, images, CSV). **→ Use as Post Content** sends a file to Compose. **📥 Import CSV Schedule** reads `schedule.csv` from the folder and schedules every row.

@@ -40,7 +40,7 @@ async function dispatchPost(platform, tokenData, content, imageRef, options = {}
     case 'twitter':
       return postToTwitter(tokenData.access_token, tokenData.refresh_token, content, imageRef, ctx);
     case 'google_business':
-      return postToGoogleBusiness(tokenData.access_token, tokenData.page_id, content, imageRef, ctx);
+      return postToGoogleBusiness(tokenData.access_token, tokenData.page_id, content, imageRef, { ...ctx, location: tokenData.board_id || null });
     case 'threads':
       return postToThreads(tokenData, content, imageRef, ctx);
     case 'bluesky':
