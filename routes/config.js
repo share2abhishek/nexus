@@ -448,7 +448,7 @@ router.get('/facebook/pages', canManageSocial, async (req, res) => {
   const knexInstance = require('../services/knex');
   const socialAccountsRepo = require('../repos/socialAccountsRepo')(knexInstance);
   const token = req.workspaceId ? await socialAccountsRepo.getByPlatform(req.workspaceId, 'facebook') : null;
-  if (!token) return res.status(401).json({ error: 'Facebook not connected' });
+  if (!token) return res.status(409).json({ error: 'Facebook isn’t connected. Click Connect on the Facebook card first.' });
   try {
     const r = await axios.get(`${GRAPH}/me/accounts`, {
       params: { access_token: token.access_token, fields: 'id,name,category' },
@@ -465,7 +465,7 @@ router.post('/facebook/set-page', canManageSocial, async (req, res) => {
   const knexInstance = require('../services/knex');
   const socialAccountsRepo = require('../repos/socialAccountsRepo')(knexInstance);
   const token = req.workspaceId ? await socialAccountsRepo.getByPlatform(req.workspaceId, 'facebook') : null;
-  if (!token) return res.status(401).json({ error: 'Facebook not connected' });
+  if (!token) return res.status(409).json({ error: 'Facebook isn’t connected. Click Connect on the Facebook card first.' });
 
   // Look the page (and its token) up on Facebook ourselves — the browser only says which page
   let page;
@@ -538,7 +538,7 @@ router.get('/pinterest/boards', canManageSocial, async (req, res) => {
   const knexInstance = require('../services/knex');
   const socialAccountsRepo = require('../repos/socialAccountsRepo')(knexInstance);
   const token = req.workspaceId ? await socialAccountsRepo.getByPlatform(req.workspaceId, 'pinterest') : null;
-  if (!token) return res.status(401).json({ error: 'Pinterest not connected' });
+  if (!token) return res.status(409).json({ error: 'Pinterest isn’t connected. Click Connect on the Pinterest card first.' });
   try {
     const r = await axios.get('https://api.pinterest.com/v5/boards', {
       headers: { Authorization: `Bearer ${token.access_token}` },
@@ -554,7 +554,7 @@ router.post('/pinterest/set-board', canManageSocial, async (req, res) => {
   const knexInstance = require('../services/knex');
   const socialAccountsRepo = require('../repos/socialAccountsRepo')(knexInstance);
   const token = req.workspaceId ? await socialAccountsRepo.getByPlatform(req.workspaceId, 'pinterest') : null;
-  if (!token) return res.status(401).json({ error: 'Pinterest not connected' });
+  if (!token) return res.status(409).json({ error: 'Pinterest isn’t connected. Click Connect on the Pinterest card first.' });
 
   let profile = token.profile;
   if (!profile && token.profile_json) {
@@ -579,7 +579,7 @@ router.post('/pinterest/set-board', canManageSocial, async (req, res) => {
 router.get('/google-business/locations', canManageSocial, async (req, res) => {
   const knexInstance = require('../services/knex');
   const token = req.workspaceId ? await require('../repos/socialAccountsRepo')(knexInstance).getByPlatform(req.workspaceId, 'google_business') : null;
-  if (!token) return res.status(401).json({ error: 'Google Business isn’t connected.' });
+  if (!token) return res.status(409).json({ error: 'Google Business isn’t connected. Click Connect on its card first.' });
   try {
     const list = await require('../services/platforms/googleBusiness').listLocations(token.access_token);
     res.json(list.map(l => ({ ...l, chosen: l.location === token.board_id && l.account === token.page_id })));
@@ -592,7 +592,7 @@ router.post('/google-business/set-location', canManageSocial, async (req, res) =
   const { account, location } = req.body || {};
   const knexInstance = require('../services/knex');
   const token = req.workspaceId ? await require('../repos/socialAccountsRepo')(knexInstance).getByPlatform(req.workspaceId, 'google_business') : null;
-  if (!token) return res.status(401).json({ error: 'Google Business isn’t connected.' });
+  if (!token) return res.status(409).json({ error: 'Google Business isn’t connected. Click Connect on its card first.' });
   try {
     // Only a location this Google login really manages
     const list = await require('../services/platforms/googleBusiness').listLocations(token.access_token);

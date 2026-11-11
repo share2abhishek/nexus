@@ -414,6 +414,8 @@ async function runBulkImport() {
 
 function openRecoveryCode() {
   document.getElementById('recovery-password').value = '';
+  document.getElementById('recovery-password').removeAttribute('aria-invalid');
+  document.getElementById('recovery-error').hidden = true;
   document.getElementById('recovery-modal').style.display = 'flex';
   setTimeout(() => document.getElementById('recovery-password').focus(), 50);
 }
@@ -427,7 +429,19 @@ async function makeRecoveryCode(btn) {
       <div style="font-family:monospace;font-size:20px;text-align:center;padding:14px;border:1px dashed var(--border);border-radius:10px;user-select:all">${escapeHtml(r.recovery_code)}</div>`;
     document.getElementById('recovery-footer').innerHTML = '<button class="btn btn-primary" onclick="location.reload()">I have saved it</button>';
     document.getElementById('recovery-nudge')?.remove();
-  } catch (err) { toast(err.message, 'error'); btn.disabled = false; }
+  } catch (err) {
+    // Shown in the dialog, under the password box, where the person is looking
+    const box = document.getElementById('recovery-error');
+    const input = document.getElementById('recovery-password');
+    box.textContent = /not right/i.test(err.message)
+      ? 'That isn’t your sign-in password. Try again. Forgotten it? An admin can set a new one in Settings → Users & access.'
+      : err.message;
+    box.hidden = false;
+    input.setAttribute('aria-invalid', 'true');
+    input.focus();
+    input.select();
+    btn.disabled = false;
+  }
 }
 
 // A small reminder on the dashboard for accounts without a code

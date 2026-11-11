@@ -152,7 +152,7 @@ router.post('/recovery-code', requireAuth, async (req, res) => {
   try {
     const user = await knexInstance('users').where({ id: req.session.userId }).first('id', 'password_hash');
     if (!user || !(await bcrypt.compare(String(req.body?.password || ''), user.password_hash))) {
-      return res.status(401).json({ error: 'Your current password is not right.' });
+      return res.status(400).json({ error: 'Your current password is not right.' });
     }
     res.json({ recovery_code: await setRecoveryCode(user.id) });
   } catch (err) {

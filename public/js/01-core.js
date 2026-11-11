@@ -282,7 +282,12 @@ async function api(method, path, body = null) {
   }
   const data = await res.json().catch(() => ({}));
 
-  if (res.status === 401) { window.location.href = '/login.html'; return; }
+  // Signed out (the session ended): go to sign-in. Other 401s (e.g. "your current
+  // password is not right") are shown as messages, not a sudden sign-out.
+  if (res.status === 401 && (data.redirect === '/login' || data.error === 'Not authenticated' || !data.error)) {
+    window.location.href = '/login.html';
+    return;
+  }
   if (!res.ok) {
     if (data.error) throw new Error(data.error);
     // No message from the server: say what it means instead of "HTTP 404"

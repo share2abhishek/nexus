@@ -57,7 +57,10 @@ test('after 5 wrong passwords, sign-in waits (even with the right password)', as
 test('a signed-in user can make a new code with their password', async () => {
   const agent = request.agent(app);
   await agent.post('/users/register').send({ email: 'meera@shop.test', password: 'pass-123' });
-  expect((await agent.post('/users/recovery-code').send({ password: 'wrong' })).status).toBe(401);
+  // A wrong password is a message, not a sign-out (401 sent people to the sign-in page)
+  const wrong = await agent.post('/users/recovery-code').send({ password: 'wrong' });
+  expect(wrong.status).toBe(400);
+  expect(wrong.body.error).toBe('Your current password is not right.');
   const r = await agent.post('/users/recovery-code').send({ password: 'pass-123' });
   expect(r.body.recovery_code).toBeTruthy();
   expect((await agent.get('/users/me')).body.user.has_recovery_code).toBe(true);
