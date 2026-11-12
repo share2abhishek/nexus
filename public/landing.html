@@ -216,6 +216,10 @@
     .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; counter-reset: step; }
     .step { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
     .step::before { counter-increment: step; content: counter(step); width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: #fff; font-weight: 700; display: grid; place-items: center; margin-bottom: 12px; font-size: 14px; }
+    /* Pricing reuses .step cards but is not a numbered sequence */
+    #pricing .step::before { display: none; }
+    #pricing .step { display: flex; flex-direction: column; }
+    #pricing .step .hero-cta { margin-top: auto; }
     .step h3 { font-size: 16px; color: var(--ink); margin-bottom: 6px; }
     .step p { font-size: 14px; color: var(--muted); }
 
@@ -288,6 +292,7 @@
       <a href="#outreach">Sales outreach</a>
       <a href="#seo">Google &amp; SEO</a>
       <a href="#agencies">Agencies</a>
+      <a href="#pricing">Pricing</a>
       <a href="#faq">FAQ</a>
     </nav>
     <div class="nav-cta">
@@ -517,6 +522,56 @@
         </table>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ── Pricing ───────────────────────────────────────────────────────────── -->
+<section id="pricing">
+  <div class="wrap">
+    <div class="section-head center">
+      <span class="eyebrow">Pricing</span>
+      <h2 style="margin-top:14px">Fair prices. <span class="soft">About 15% below the usual tools.</span></h2>
+      <p class="lead" style="margin:12px auto 0;max-width:640px">Start free for 14 days — no card needed. Then pick a plan. Prices in ₹ per month, plus GST; yearly billing gets two months free.</p>
+    </div>
+    <div class="steps" style="align-items:stretch">
+      <div class="step">
+        <h3>Individual</h3>
+        <div style="font-size:34px;font-weight:800;color:var(--ink);margin:4px 0 2px">₹1,275<span style="font-size:15px;font-weight:500;color:var(--muted)">/mo</span></div>
+        <p style="margin-top:0">For one business finding its feet.</p>
+        <ul class="ticks">
+          <li><span>3 brand/client workspaces</span></li>
+          <li><span>3 team members</span></li>
+          <li><span>3 SEO autopilot websites</span></li>
+          <li><span>All posting, WhatsApp &amp; outreach features</span></li>
+        </ul>
+        <div class="hero-cta"><a class="btn btn-primary" href="/login.html#register">Start free trial</a></div>
+      </div>
+      <div class="step" style="border-color:var(--accent);box-shadow:var(--shadow)">
+        <span class="pill blue" style="margin-bottom:8px;display:inline-block">Most popular</span>
+        <h3>Agency Pro</h3>
+        <div style="font-size:34px;font-weight:800;color:var(--ink);margin:4px 0 2px">₹10,200<span style="font-size:15px;font-weight:500;color:var(--muted)">/mo</span></div>
+        <p style="margin-top:0">For agencies running many clients.</p>
+        <ul class="ticks">
+          <li><span>25 client workspaces</span></li>
+          <li><span>10 team members, with roles</span></li>
+          <li><span>10 SEO autopilot websites</span></li>
+          <li><span>Client approval links &amp; branded reports</span></li>
+        </ul>
+        <div class="hero-cta"><a class="btn btn-primary" href="/login.html#register">Start free trial</a></div>
+      </div>
+      <div class="step">
+        <h3>Enterprise</h3>
+        <div style="font-size:34px;font-weight:800;color:var(--ink);margin:4px 0 2px">Custom</div>
+        <p style="margin-top:0">Unlimited scale, priced for you.</p>
+        <ul class="ticks">
+          <li><span>Unlimited workspaces &amp; members</span></li>
+          <li><span>Unlimited SEO autopilot websites</span></li>
+          <li><span>Priority support &amp; onboarding</span></li>
+        </ul>
+        <div class="hero-cta"><a class="btn btn-primary" href="mailto:sales@radixile.com?subject=Social-Nexus%20Enterprise">Talk to us</a></div>
+      </div>
+    </div>
+    <p class="lead" style="text-align:center;margin:18px auto 0;font-size:14px;color:var(--muted)">Prices shown are for monthly billing and exclude GST. Need just one brand? A free plan is available after the trial.</p>
   </div>
 </section>
 

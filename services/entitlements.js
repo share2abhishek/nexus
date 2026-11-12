@@ -14,14 +14,18 @@ const DAY = 86400;
 const GRACE_DAYS = 3; // a late renewal doesn't stop publishing straight away
 const now = () => Math.floor(Date.now() / 1000);
 
-// Plans and their limits (-1 = unlimited). A Radixile admin can override them with
-// the "saas_plans" config value; billing (phase 4) will keep them in step with prices.
+// Plans, their limits (-1 = unlimited) and prices. A Radixile admin can override
+// them with the "saas_plans" config value; the license-server Razorpay panel is the
+// source of truth for what customers are actually charged. Prices are in INR and set
+// ~15% below the comparable Zoho Social India tier; yearly = 10x monthly (2 months
+// free). price_monthly null = quoted by sales (Enterprise).
+const CURRENCY = 'INR';
 const DEFAULT_PLANS = {
-  trial:      { name: 'Free Trial', limits: { workspaces: 3, users: 5, seo_sites: 1 } },
-  free:       { name: 'Free Starter', limits: { workspaces: 1, users: 2, seo_sites: 1 } },
-  individual: { name: 'Individual / Starter', limits: { workspaces: 3, users: 3, seo_sites: 3 } },
-  agency:     { name: 'Agency Pro', limits: { workspaces: 25, users: 10, seo_sites: 10 } },
-  full:       { name: 'Enterprise / Unlimited', limits: { workspaces: -1, users: -1, seo_sites: -1 } },
+  trial:      { name: 'Free Trial', limits: { workspaces: 3, users: 5, seo_sites: 1 }, price_monthly: 0, price_yearly: 0 },
+  free:       { name: 'Free Starter', limits: { workspaces: 1, users: 2, seo_sites: 1 }, price_monthly: 0, price_yearly: 0 },
+  individual: { name: 'Individual / Starter', limits: { workspaces: 3, users: 3, seo_sites: 3 }, price_monthly: 1275, price_yearly: 12750 },
+  agency:     { name: 'Agency Pro', limits: { workspaces: 25, users: 10, seo_sites: 10 }, price_monthly: 10200, price_yearly: 102000 },
+  full:       { name: 'Enterprise / Unlimited', limits: { workspaces: -1, users: -1, seo_sites: -1 }, price_monthly: null, price_yearly: null },
 };
 
 let plansCache = { at: 0, plans: DEFAULT_PLANS };
@@ -146,4 +150,4 @@ async function blockPublishing(req, res, what = 'Publishing and scheduling', not
   return true;
 }
 
-module.exports = { forOrg, forWorkspace, canPublish, limitProblem, limitProblemForOrg, usage, blockPublishing, forget, plans, decide, DEFAULT_PLANS, GRACE_DAYS };
+module.exports = { forOrg, forWorkspace, canPublish, limitProblem, limitProblemForOrg, usage, blockPublishing, forget, plans, decide, DEFAULT_PLANS, CURRENCY, GRACE_DAYS };
