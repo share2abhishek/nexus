@@ -48,7 +48,7 @@ async function monthlyData(db, workspaceId, month) {
   const top = posts.map(p => ({ ...p, ...(perPost.get(p.id) || { engagement: 0, impressions: 0 }) }))
     .sort((a, b) => b.engagement - a.engagement || b.impressions - a.impressions).slice(0, 5);
 
-  const brand = (await db('brand_kit').where({ workspace_id: workspaceId }).orderBy('id', 'desc').first()) || {};
+  const brand = await require('./brand').profile(workspaceId, db);
   const ws = await db('workspaces').where({ id: workspaceId }).first();
   const asOf = stats.reduce((m, s) => Math.max(m, Number(s.recorded_at) || 0), 0) || null;
   return { label, month, posts, byPlatform, totals, top, brand, workspaceName: ws?.name || '', asOf };

@@ -283,8 +283,8 @@ async function optedOutLeadIds(db, workspaceId) {
 }
 
 async function businessName(db, workspaceId) {
-  const brand = await db('brand_kit').where({ workspace_id: workspaceId }).orderBy('id', 'desc').first('company_name').catch(() => null);
-  if (brand?.company_name) return brand.company_name;
+  const brand = await require('../brand').profile(workspaceId, db);
+  if (brand.company_name) return brand.company_name;
   const ws = await db('workspaces').where({ id: workspaceId }).first('name').catch(() => null);
   return ws?.name || '';
 }

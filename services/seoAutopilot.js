@@ -238,7 +238,7 @@ async function googleQuiet(db, site, phrases, homeResult) {
     .first('id').catch(() => null);
   if (recent) return;
 
-  const brand = await db('brand_kit').where({ workspace_id: site.workspace_id }).first().catch(() => null);
+  const brand = await require('./brand').profile(site.workspace_id, db);
   let contentId = null;
   let detail;
   try {
@@ -346,8 +346,8 @@ async function draftFor(db, task, aiArgs = {}) {
   const { aiJSON } = require('./aiHelper');
   const opts = await aiDefaults(task.workspace_id, aiArgs.options);
   const key = aiArgs.apiKey || opts.googleKey;
-  const brand = await db('brand_kit').where({ workspace_id: task.workspace_id }).first().catch(() => null);
-  const business = brand?.company_name || '';
+  const brand = await require('./brand').profile(task.workspace_id, db);
+  const business = brand.company_name || '';
   const site = await db('seo_sites').where({ workspace_id: task.workspace_id }).first();
   const phrases = json(site?.phrases_json, []);
 

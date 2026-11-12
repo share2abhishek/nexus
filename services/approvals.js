@@ -79,7 +79,7 @@ async function share(db, { workspaceId, userId, itemId, itemIds, days = 14 }) {
   const gone = items.find(i => ['published', 'publishing'].includes(i.status));
   if (gone) throw Object.assign(new Error(items.length === 1 ? 'This post has already gone out.' : 'Some of these posts have already gone out.'), { status: 400 });
 
-  const brand = await db('brand_kit').where({ workspace_id: workspaceId }).orderBy('id', 'desc').first().catch(() => null);
+  const brand = await require('./brand').profile(workspaceId, db);
   const ws = await db('workspaces').where({ id: workspaceId }).first();
   const user = userId ? await db('users').where({ id: userId }).first('name', 'email') : null;
   const budget = { left: MAX_PICTURE_BYTES };

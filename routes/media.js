@@ -12,8 +12,19 @@ function ai(req) { return aiArgsFromReq(req); }
 // Supports: Stability AI (STABILITY_API_KEY) or Google Imagen (GOOGLE_AI_KEY)
 
 router.post('/generate-image', async (req, res) => {
-  const { prompt, style = 'photorealistic', width = 1024, height = 1024, negative_prompt, preferred_provider } = req.body;
+  const { prompt, style = 'photorealistic', width = 1024, height = 1024, negative_prompt, preferred_provider, brand: useBrand = true } = req.body;
   if (!prompt) return res.status(400).json({ error: 'prompt is required' });
+
+  // On-brand by default: append the workspace's brand colours and look to the prompt
+  // (no logo/text — text-to-image can't reproduce a real logo). Pass brand:false to skip.
+  let basePrompt = prompt;
+  if (useBrand) {
+    try {
+      const brandSvc = require('../services/brand');
+      const brandStyle = brandSvc.imagePromptStyle(await brandSvc.profile(req.workspaceId));
+      if (brandStyle) basePrompt = `${prompt}. ${brandStyle}`;
+    } catch { /* no brand kit: use the plain prompt */ }
+  }
 
   // The user's own keys first (Settings → AI), then the shared .env ones
   const stabilityKey = req.stabilityKey;
@@ -38,7 +49,7 @@ router.post('/generate-image', async (req, res) => {
         'https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image',
         {
           text_prompts: [
-            { text: prompt, weight: 1 },
+            { text: basePrompt, weight: 1 },
             ...(negative_prompt ? [{ text: negative_prompt, weight: -1 }] : []),
           ],
           cfg_scale: 7,
@@ -69,7 +80,7 @@ router.post('/generate-image', async (req, res) => {
       const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
       const r = await axios.post(
         'https://api.openai.com/v1/images/generations',
-        { model, prompt: `${prompt}. Art style: ${style}.`, n: 1, size: '1024x1024' },
+        { model, prompt: `${basePrompt}. Art style: ${style}.`, n: 1, size: '1024x1024' },
         { headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' }, timeout: 120000 }
       );
       const img = r.data.data[0];
@@ -85,7 +96,7 @@ router.post('/generate-image', async (req, res) => {
       try {
         const r = await axios.post(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-          { contents: [{ parts: [{ text: `${prompt}. Art style: ${style}.` }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } },
+          { contents: [{ parts: [{ text: `${basePrompt}. Art style: ${style}.` }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } },
           { params: { key: googleKey }, timeout: 120000 }
         );
         const part = (r.data.candidates?.[0]?.content?.parts || []).find(p => p.inlineData);

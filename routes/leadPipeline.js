@@ -1684,7 +1684,7 @@ module.exports = (knex, requirePermission) => {
     try {
       const { text, config, first_time = false, at } = req.body || {};
       const cfg = chatbot.normalizeConfig(config || (await chatbot.getSettings(knex, req.workspaceId)).config);
-      const business = (await knex('brand_kit').where({ workspace_id: req.workspaceId }).first('company_name').catch(() => null))?.company_name
+      const business = (await require('../services/brand').profile(req.workspaceId, knex)).company_name
         || (await knex('workspaces').where({ id: req.workspaceId }).first('name'))?.name || '';
       const when = Number(at) || Math.floor(Date.now() / 1000);
       const state = first_time ? {} : { welcomed_at: when - 60 };

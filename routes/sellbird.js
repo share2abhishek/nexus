@@ -17,8 +17,8 @@ module.exports = (knex, requirePermission) => {
   // What the emails say about the sender: the business name from Brand kit and
   // what the campaign offers (the campaign's name was used as the product name before)
   async function productFor(workspaceId, campaign) {
-    const brand = await knex('brand_kit').where({ workspace_id: workspaceId }).first('company_name').catch(() => null);
-    return { name: brand?.company_name || '', description: campaign.product_description || '', url: campaign.product_url || '' };
+    const brand = await require('../services/brand').profile(workspaceId, knex);
+    return { name: brand.company_name || '', description: campaign.product_description || '', url: campaign.product_url || '' };
   }
 
   // Who to email at a company. An address found on their website is used as is;
