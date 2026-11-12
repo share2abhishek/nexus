@@ -17,8 +17,8 @@ async function businessOf(req) {
   const org = await knex('organizations').where({ id: ws.org_id }).first();
   const user = await knex('users').where({ id: req.session.userId }).first('id', 'email', 'name', 'role');
   const member = await knex('org_members').where({ org_id: org.id, user_id: user.id }).first('role');
-  // The owner, or Radixile staff (platform admins are known by their email)
-  const staff = user.role === 'admin' && require('../services/accounts').isPlatformAdminEmail(user.email);
+  // The owner, or Radixile staff (platform admins are known by their email or superadmin role)
+  const staff = ['admin', 'superadmin'].includes(user.role) && (user.role === 'superadmin' || require('../services/accounts').isPlatformAdminEmail(user.email));
   return { org, user, canManage: member?.role === 'owner' || staff };
 }
 

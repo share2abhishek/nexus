@@ -17,10 +17,11 @@ const now = () => Math.floor(Date.now() / 1000);
 // Plans and their limits (-1 = unlimited). A Radixile admin can override them with
 // the "saas_plans" config value; billing (phase 4) will keep them in step with prices.
 const DEFAULT_PLANS = {
-  trial:      { name: 'Free trial', limits: { workspaces: 3, users: 5, seo_sites: 1 } },
-  individual: { name: 'Individual', limits: { workspaces: 1, users: 2, seo_sites: 1 } },
-  agency:     { name: 'Agency', limits: { workspaces: 25, users: 10, seo_sites: 10 } },
-  full:       { name: 'Full', limits: { workspaces: -1, users: -1, seo_sites: -1 } },
+  trial:      { name: 'Free Trial', limits: { workspaces: 3, users: 5, seo_sites: 1 } },
+  free:       { name: 'Free Starter', limits: { workspaces: 1, users: 2, seo_sites: 1 } },
+  individual: { name: 'Individual / Starter', limits: { workspaces: 3, users: 3, seo_sites: 3 } },
+  agency:     { name: 'Agency Pro', limits: { workspaces: 25, users: 10, seo_sites: 10 } },
+  full:       { name: 'Enterprise / Unlimited', limits: { workspaces: -1, users: -1, seo_sites: -1 } },
 };
 
 let plansCache = { at: 0, plans: DEFAULT_PLANS };
@@ -72,8 +73,8 @@ function decide(org, plan) {
 const cache = new Map(); // org id -> { at, value }
 const TTL = 30000;
 
-async function forOrg(orgId) {
-  if (!edition.isServer()) return require('./license').status();
+async function forOrg(orgId, forceOrgEvaluation = false) {
+  if (!edition.isServer() && !forceOrgEvaluation) return require('./license').status();
   const hit = cache.get(orgId);
   if (hit && Date.now() - hit.at < TTL) return hit.value;
   const org = await knex('organizations').where({ id: orgId }).first();

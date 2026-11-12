@@ -291,12 +291,15 @@ router.get('/me', async (req, res) => {
     if (user.status === 'suspended') { req.session.destroy(); return res.json({ authenticated: false, error: 'suspended' }); }
     const extra = await knexInstance('users').where({ id: user.id }).first('recovery_hash', 'email_verified_at');
     const server = require('../services/edition').isServer();
+    const isSuperAdmin = user.role === 'superadmin' ||
+      require('../services/accounts').isPlatformAdminEmail(user.email);
     const business = server ? await accounts.businessFor(knexInstance, user.id) : null;
     res.json({
       authenticated: true,
       server,
       user: {
         id: user.id, email: user.email, name: user.name || user.email.split('@')[0], role: user.role,
+        is_super_admin: isSuperAdmin,
         has_recovery_code: !!extra?.recovery_hash,
         ...(server && { email_verified: !!extra?.email_verified_at }),
       },
@@ -364,7 +367,7 @@ router.post('/settings', requireAuth, async (req, res) => {
 router.get('/list', requireAuth, async (req, res) => {
   try {
     const user = await usersRepo.findById(req.userId);
-    if (user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+    if (!['admin', 'superadmin'].includes(user?.role)) return res.status(403).json({ error: 'Admin only' });
     res.json(await usersRepo.list());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

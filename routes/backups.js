@@ -11,7 +11,7 @@ module.exports = (knex) => {
 
   router.use(async (req, res, next) => {
     const user = await knex('users').where({ id: req.session?.userId }).first();
-    if (user?.role !== 'admin') return res.status(403).json({ error: 'Only the admin of this installation can manage backups.', code: 'ADMIN_ONLY' });
+    if (!['admin', 'superadmin'].includes(user?.role)) return res.status(403).json({ error: 'Only the admin of this installation can manage backups.', code: 'ADMIN_ONLY' });
     next();
   });
 

@@ -6,7 +6,7 @@ const knex = require('../services/knex');
 
 async function requireAdmin(req, res, next) {
   const user = await knex('users').where({ id: req.session?.userId }).first();
-  if (user?.role !== 'admin') return res.status(403).json({ error: 'Only the admin of this installation can change the licence.' });
+  if (!['admin', 'superadmin'].includes(user?.role)) return res.status(403).json({ error: 'Only the admin of this installation can change the licence.' });
   next();
 }
 

@@ -19,7 +19,7 @@ const ADMIN_ONLY_HINT = {
 };
 async function requireAdmin(req, res, next) {
   const user = await knexForAdmin('users').where({ id: req.session?.userId }).first();
-  if (user?.role !== 'admin') {
+  if (!['admin', 'superadmin'].includes(user?.role)) {
     const area = req.path.split('/')[1];
     return res.status(403).json({ error: ADMIN_ONLY_HINT[area] || 'Only the admin of this installation can change this setting. Ask your admin.', code: 'ADMIN_ONLY' });
   }
