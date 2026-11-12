@@ -110,6 +110,9 @@ async function aiOptionsFor(workspaceId, given = {}) {
   if (edition.isServer()) {
     const b = await aiKeysForWorkspace(workspaceId);
     for (const [k, v] of Object.entries(b)) fill(k, v);
+    // Radixile's platform-default keys (Admin → Platform AI) fill any remaining gap
+    const platform = await require('./platformAi').keys();
+    for (const [k, v] of Object.entries(platform)) fill(k, v);
   } else {
     for (const [k, env] of Object.entries(ENV_AI)) fill(k, process.env[env]);
   }

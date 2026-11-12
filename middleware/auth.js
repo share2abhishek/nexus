@@ -43,6 +43,13 @@ async function injectUserKeys(req, res, next) {
         for (const [k, v] of Object.entries(shared)) if (!req[k]) req[k] = v;
       }
 
+      // Server edition: finally Radixile's platform-default keys (a Super Admin sets
+      // these in Admin → Platform AI). They fill any gap so a business can use AI on a
+      // trial before adding its own key — on Radixile's key and rate limit.
+      if (edition.isServer()) {
+        await require('../services/platformAi').fill(req);
+      }
+
       // Shared keys in .env belong to whoever set up this install (the admin).
       // Only admins fall back to them; other users bring their own keys. On the
       // server that's only Radixile's platform admins, never a customer.
