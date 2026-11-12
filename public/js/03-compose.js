@@ -98,6 +98,52 @@ function updateComposeCharCount() {
   }
 }
 
+// ── Caption formatting (Unicode bold / italic / strikethrough) ────────────────
+// Social captions are plain text: platforms don't support real formatting. These
+// map letters to Unicode look-alikes that most apps show as bold/italic. Trade-off:
+// screen readers, search and hashtags don't understand them — use sparingly.
+const _cp = (n) => String.fromCodePoint(n);
+function _styleMap(up, lo, dig) {
+  const m = {};
+  for (let i = 0; i < 26; i++) { m[String.fromCharCode(65 + i)] = _cp(up + i); m[String.fromCharCode(97 + i)] = _cp(lo + i); }
+  if (dig != null) for (let i = 0; i < 10; i++) m[String.fromCharCode(48 + i)] = _cp(dig + i);
+  return m;
+}
+const CAPTION_MAPS = {
+  bold: _styleMap(0x1D400, 0x1D41A, 0x1D7CE),
+  italic: Object.assign(_styleMap(0x1D434, 0x1D44E), { h: 'ℎ' }), // italic h is reserved elsewhere
+  bolditalic: _styleMap(0x1D468, 0x1D482),
+};
+// Reverse: any styled look-alike back to plain ASCII
+const CAPTION_REVERSE = (() => {
+  const r = {};
+  for (const map of Object.values(CAPTION_MAPS)) for (const [plain, styled] of Object.entries(map)) r[styled] = plain;
+  return r;
+})();
+function toCaptionStyle(text, style) {
+  if (style === 'strike') return Array.from(text).map(ch => /\s/.test(ch) ? ch : ch + '̶').join('');
+  const map = CAPTION_MAPS[style];
+  if (!map) return text;
+  return Array.from(text).map(ch => map[ch] || ch).join('');
+}
+function clearCaptionStyle(text) {
+  return Array.from(text).map(ch => CAPTION_REVERSE[ch] || ch).join('').replace(/̶/g, '');
+}
+// Apply a style to the selected caption text (styles are mutually exclusive; Clear resets)
+function applyCaptionFormat(style) {
+  const ta = document.getElementById('compose-content');
+  if (!ta) return;
+  const a = ta.selectionStart, b = ta.selectionEnd;
+  if (a === b) { if (typeof toast === 'function') toast('Select some text first, then tap a format.', 'info'); return; }
+  const before = ta.value.slice(0, a), sel = ta.value.slice(a, b), after = ta.value.slice(b);
+  const plain = clearCaptionStyle(sel); // reset first so styles don't stack unreadably
+  const out = style === 'clear' ? plain : toCaptionStyle(plain, style);
+  ta.value = before + out + after;
+  ta.focus();
+  ta.setSelectionRange(a, a + out.length);
+  if (typeof updateComposeCharCount === 'function') updateComposeCharCount();
+}
+
 // 'YYYY-MM-DDTHH:mm' in local time, for <input type=datetime-local>
 function toLocalInputValue(d) {
   const pad = (n) => String(n).padStart(2, '0');

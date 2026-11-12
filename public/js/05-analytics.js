@@ -31,6 +31,33 @@ async function loadLocalFiles(targetListId = 'local-files-list') {
   }
 }
 
+// Small, safe Markdown → HTML for the file preview (headings, bold, italic, lists,
+// links, code, rules). Escapes HTML first, so a local .md file can't inject markup.
+function renderMarkdownPreview(md) {
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const inline = (s) => esc(s)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, t, u) => /^https?:\/\//i.test(u)
+      ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>` : esc(t));
+  let html = '', list = null;
+  const closeList = () => { if (list) { html += `</${list}>`; list = null; } };
+  for (const raw of String(md || '').split(/\r?\n/)) {
+    const line = raw.replace(/\s+$/, '');
+    let m;
+    if (/^\s*([-*_])\1{2,}\s*$/.test(line)) { closeList(); html += '<hr>'; continue; }
+    if ((m = line.match(/^(#{1,6})\s+(.*)$/))) { closeList(); const n = m[1].length; html += `<h${n}>${inline(m[2])}</h${n}>`; continue; }
+    if ((m = line.match(/^\s*[-*]\s+(.*)$/))) { if (list !== 'ul') { closeList(); html += '<ul>'; list = 'ul'; } html += `<li>${inline(m[1])}</li>`; continue; }
+    if ((m = line.match(/^\s*\d+\.\s+(.*)$/))) { if (list !== 'ol') { closeList(); html += '<ol>'; list = 'ol'; } html += `<li>${inline(m[1])}</li>`; continue; }
+    if (line.trim() === '') { closeList(); continue; }
+    closeList(); html += `<p>${inline(line)}</p>`;
+  }
+  closeList();
+  return html;
+}
+
 async function previewFile(name, sourceList) {
   if (sourceList === 'modal-file-list') {
     // In modal — import directly
@@ -48,6 +75,11 @@ async function previewFile(name, sourceList) {
     const data = await api('GET', `/api/local/read?file=${encodeURIComponent(name)}`);
     if (data.type === 'image') {
       contentEl.innerHTML = `<img src="/api/local/read?file=${encodeURIComponent(name)}" style="max-width:100%;border-radius:8px" />`;
+    } else if (/\.md$/i.test(name)) {
+      // Markdown: show it rendered, not as raw # and ** symbols
+      State.selectedFileContent = data.content;
+      contentEl.innerHTML = `<div class="md-preview">${renderMarkdownPreview(data.content)}</div>`;
+      actionsEl.style.display = 'block';
     } else {
       State.selectedFileContent = data.content;
       contentEl.textContent = data.content;
