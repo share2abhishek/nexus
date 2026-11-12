@@ -20,6 +20,7 @@ const LIMITS = {
   keywordsPerRule: 20,
   menuOptions: 9,      // one digit per option
   repliesPerHour: 6,   // the bot never sends more than this to one chat in an hour
+  knowledge: 4000,     // characters of free-text business knowledge for AI answers
 };
 const AWAY_EVERY = 12 * 3600;
 const FALLBACK_EVERY = 3600;
@@ -55,6 +56,9 @@ const DEFAULT_CONFIG = {
     text: 'Thanks for your message! We are closed right now. We will reply when we open ({{opens}}).',
   },
   fallback: { mode: 'message', text: 'Thanks for your message! Someone from our team will reply here soon.' },
+  // Free-text business knowledge the AI answer may use (products, hours, policies,
+  // delivery, FAQs). Empty by default; the AI only states what's written here.
+  knowledge: '',
   handover: { pause_hours: 12 },
   timezone: 'Asia/Kolkata',
 };
@@ -95,6 +99,7 @@ function normalizeConfig(input = {}) {
       mode: ['none', 'message', 'ai', 'n8n'].includes(c.fallback?.mode) ? c.fallback.mode : d.fallback.mode,
       text: str(c.fallback?.text ?? d.fallback.text),
     },
+    knowledge: str(c.knowledge ?? d.knowledge, LIMITS.knowledge),
     handover: { pause_hours: Math.min(72, Math.max(1, Number(c.handover?.pause_hours) || d.handover.pause_hours)) },
     timezone: typeof c.timezone === 'string' && c.timezone.length < 64 ? c.timezone : d.timezone,
   };
@@ -302,14 +307,16 @@ async function aiAnswer(db, workspaceId, userId, cfg, msg) {
     ...cfg.menu.options.filter(o => o.reply).map(o => `${o.label}: ${o.reply}`),
     ...cfg.keywords.filter(r => r.reply && !r.handover).map(r => `${r.keywords.join('/')}: ${r.reply}`),
   ].join('\n');
+  // The owner's knowledge base: free-text business info the AI may answer from
+  const kb = (cfg.knowledge || '').trim();
   const prompt = `${await brandContext(workspaceId, db)}
 You reply to a customer on WhatsApp for ${msg.business || 'this business'}.
 Answer in 1–3 short sentences, in the customer's language, friendly and plain.
-Use ONLY the facts below. If the answer isn't in them, say a person from the team will reply soon. Never invent prices, dates, offers or promises.
+Use ONLY the facts and business knowledge below. If the answer isn't there, say a person from the team will reply soon. Never invent prices, dates, offers or promises.
 
 FACTS:
 ${facts || '(none)'}
-
+${kb ? `\nBUSINESS KNOWLEDGE:\n${kb}\n` : ''}
 Customer${msg.name ? ` (${msg.name})` : ''}: """${String(msg.text).slice(0, 1000)}"""
 Reply:`;
   const r = await aiGenerate(prompt, apiKey, 200, null, options);

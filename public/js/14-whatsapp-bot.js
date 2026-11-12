@@ -145,7 +145,12 @@ function renderWhatsAppBot() {
               <span><b>Send a short holding message</b> (at most once an hour per chat)</span></label>
             ${botTextarea('', c.fallback.text, 'Thanks! Someone from our team will reply soon.', 2, 'bot-fb-text')}
             <label class="bot-radio"><input type="radio" name="bot-fb" value="ai" ${fbMode === 'ai' ? 'checked' : ''}/>
-              <span><b>Let AI answer</b>, using only the answers you wrote above. Uses your AI setup (Settings → AI); the customer’s message is sent to that AI service unless you use Local AI.</span></label>
+              <span><b>Let AI answer</b>, using the answers above <b>and your knowledge base below</b>. Uses your AI setup (Settings → AI); the customer’s message is sent to that AI service unless you use Local AI.</span></label>
+            <div class="bot-knowledge" style="margin:2px 0 6px 30px">
+              <label class="form-label" for="bot-knowledge" style="font-size:13px;margin-bottom:4px;display:block">Knowledge base <span class="form-hint" style="display:inline;font-weight:400">— business facts the AI can answer from (optional)</span></label>
+              <textarea id="bot-knowledge" class="form-textarea bot-text" rows="6" maxlength="4000" placeholder="Tell the bot about your business so it answers more questions on its own, for example:&#10;• Delivery: free across Pune for orders above ₹999, 2–3 days otherwise.&#10;• Hours: 9am–9pm, closed Sundays.&#10;• Returns: within 7 days with the bill.&#10;• We make eggless cakes on request; ₹100 extra.">${escapeHtml(c.knowledge || '')}</textarea>
+              <div class="form-hint">The AI answers only from this and the replies above — it never invents prices or promises. Keep it short and factual: hours, delivery, returns, products, common questions. Up to 4000 characters.</div>
+            </div>
             <label class="bot-radio"><input type="radio" name="bot-fb" value="n8n" ${fbMode === 'n8n' ? 'checked' : ''}/>
               <span><b>Let your n8n workflow answer</b> — it gets the message and replies with <code>{"reply": "…"}</code>. ${d.n8n_configured
                 ? 'Your n8n address is saved.'
@@ -262,6 +267,7 @@ function collectBotConfig() {
       start: val('bot-away-start'), end: val('bot-away-end'), text: val('bot-away-text'),
     },
     fallback: { mode: document.querySelector('input[name="bot-fb"]:checked')?.value || 'message', text: val('bot-fb-text') },
+    knowledge: val('bot-knowledge'),
     handover: { pause_hours: Number(val('bot-pause')) || 12 },
     timezone: BotState.data?.config?.timezone,
   };
