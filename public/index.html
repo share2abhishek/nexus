@@ -223,7 +223,7 @@
             <div id="user-info-header" style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-muted)"></div>
             <button class="menu-item" onclick="toggleUserMenu();openSettings('account')">👤 My account</button>
             <button class="menu-item" onclick="toggleUserMenu();openSettings('ai')">🤖 AI setup</button>
-            <button class="menu-item" onclick="openCompanion();toggleUserMenu()">📱 Phone companion</button>
+            <button class="menu-item" data-desktop-only onclick="openCompanion();toggleUserMenu()">📱 Phone companion</button>
             <div style="height:1px;background:var(--border)"></div>
             <button class="menu-item menu-item-danger" onclick="doLogout()">🚪 Sign out</button>
           </div>
@@ -612,6 +612,13 @@
                 </div>
               </div>
               <div class="form-group">
+                <div class="caption-toolbar" role="toolbar" aria-label="Caption formatting">
+                  <button type="button" class="caption-fmt" style="font-weight:800" title="Bold the selected text" onclick="applyCaptionFormat('bold')">B</button>
+                  <button type="button" class="caption-fmt" style="font-style:italic" title="Italic the selected text" onclick="applyCaptionFormat('italic')">I</button>
+                  <button type="button" class="caption-fmt" style="text-decoration:line-through" title="Strikethrough the selected text" onclick="applyCaptionFormat('strike')">S</button>
+                  <button type="button" class="caption-fmt" title="Remove formatting from the selected text" onclick="applyCaptionFormat('clear')">⨯</button>
+                  <span class="caption-toolbar-hint" title="Captions are plain text everywhere. These use special Unicode letters that look bold/italic but can hurt accessibility and search.">Select text, then format ⓘ</span>
+                </div>
                 <textarea class="form-textarea" id="compose-content" placeholder="Write your post here, or let the AI write it above…" style="min-height:160px" oninput="updateComposeCharCount()"></textarea>
                 <div class="compose-ai-tools" id="compose-ai-tools">
                   <button class="btn btn-secondary btn-sm" data-ai-action="rewrite" disabled onclick="composeAiAssist('rewrite')" title="Make it clearer and more engaging">✨ Improve</button>
@@ -1128,14 +1135,14 @@
           <div class="settings-row">
             <div class="settings-row-info">
               <div class="settings-row-title">Google Gemini key <span class="badge badge-green">Recommended · free</span></div>
-              <div class="settings-row-desc">Get one at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a> → “Create API key”.</div>
+              <div class="settings-row-desc">Free, about a minute. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Get a free key ↗</a> then paste it here.</div>
             </div>
             <input type="password" class="form-input settings-control biz-ai-input" id="biz-google-key" placeholder="Paste key (starts with AIza…)" autocomplete="off" />
           </div>
           <div class="settings-row">
             <div class="settings-row-info">
               <div class="settings-row-title">Groq key <span class="badge badge-green">Free</span></div>
-              <div class="settings-row-desc"><a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com</a></div>
+              <div class="settings-row-desc">Free and fastest. <a href="https://console.groq.com/keys" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Get a free key ↗</a> then paste it here.</div>
             </div>
             <input type="password" class="form-input settings-control biz-ai-input" id="biz-groq-key" placeholder="gsk_…" autocomplete="off" />
           </div>
@@ -1182,14 +1189,14 @@
           <div class="settings-row">
             <div class="settings-row-info">
               <div class="settings-row-title">Google Gemini key <span class="badge badge-green">Recommended · free</span></div>
-              <div class="settings-row-desc">Get one in a minute at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a> → “Create API key”.</div>
+              <div class="settings-row-desc">Free, about a minute. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Get a free key ↗</a> then paste it here.</div>
             </div>
             <input type="password" class="form-input settings-control" id="u-google-key" placeholder="Paste key (starts with AIza…)" autocomplete="off" />
           </div>
           <div class="settings-row">
             <div class="settings-row-info">
               <div class="settings-row-title">Groq key <span class="badge badge-green">Free</span></div>
-              <div class="settings-row-desc"><a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com</a></div>
+              <div class="settings-row-desc">Free and fastest. <a href="https://console.groq.com/keys" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Get a free key ↗</a> then paste it here.</div>
             </div>
             <input type="password" class="form-input settings-control" id="u-groq-key" placeholder="gsk_…" autocomplete="off" />
           </div>
@@ -1404,7 +1411,7 @@
             <div class="settings-row-info"><div class="settings-row-title">Recovery code</div><div class="settings-row-desc">Lets you get back in if you forget your password. Keep it somewhere safe.</div></div>
             <button class="btn btn-secondary btn-sm" onclick="openRecoveryCode()">Show new code</button>
           </div>
-          <div class="settings-row">
+          <div class="settings-row" data-desktop-only>
             <div class="settings-row-info"><div class="settings-row-title">Phone companion</div><div class="settings-row-desc">Get a short summary and approve posts from your phone.</div></div>
             <button class="btn btn-secondary btn-sm" onclick="openCompanion()">Set up</button>
           </div>
@@ -2756,11 +2763,12 @@
       <!-- Admin Tabs -->
       <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm admin-tab-btn active" onclick="switchAdminTab('overview',this)">📊 Overview</button>
-        <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-businesses" hidden onclick="switchAdminTab('businesses',this)">🏢 Businesses</button>
+        <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-businesses" onclick="switchAdminTab('businesses',this)">💳 Subscriptions</button>
         <button class="btn btn-secondary btn-sm admin-tab-btn" onclick="switchAdminTab('users',this)">👥 Users</button>
         <button class="btn btn-secondary btn-sm admin-tab-btn" onclick="switchAdminTab('invites',this)">🎟️ Invite Codes</button>
         <button class="btn btn-secondary btn-sm admin-tab-btn" onclick="switchAdminTab('activity',this)">📋 Activity Log</button>
         <button class="btn btn-secondary btn-sm admin-tab-btn" onclick="switchAdminTab('config',this)">⚙️ Platform Config</button>
+        <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-platform-ai" onclick="switchAdminTab('platform-ai',this)" hidden>🤖 Platform AI</button>
       </div>
 
       <!-- Overview -->
@@ -2775,9 +2783,9 @@
       </div>
 
       <!-- Users -->
-      <!-- Server edition: businesses and their plans (until online billing sets them) -->
+      <!-- Subscriptions & Business Plans management -->
       <div class="admin-panel" id="admin-panel-businesses" style="display:none">
-        <div class="card"><div class="card-header"><div class="card-title">🏢 Businesses</div></div>
+        <div class="card"><div class="card-header"><div class="card-title">💳 Manage Subscriptions &amp; Business Plans</div></div>
           <div class="card-body" id="admin-businesses"><span class="spinner"></span></div></div>
       </div>
       <div class="admin-panel" id="admin-panel-users" style="display:none">
@@ -2789,7 +2797,7 @@
               <div class="form-group" style="flex:2;min-width:200px;margin:0"><label class="form-label">Email *</label><input type="email" class="form-input" id="new-user-email" placeholder="user@example.com" /></div>
               <div class="form-group" style="flex:1;min-width:160px;margin:0"><label class="form-label">Password *</label><input type="password" class="form-input" id="new-user-password" placeholder="min 6 chars" /></div>
               <div class="form-group" style="flex:0;margin:0"><label class="form-label">Role</label>
-                <select class="form-select" id="new-user-role"><option value="user">👤 User</option><option value="admin">👑 Admin</option></select>
+                <select class="form-select" id="new-user-role"><option value="user">👤 User</option><option value="admin">👑 Admin</option><option value="superadmin">⚡ Super Admin</option></select>
               </div>
               <button class="btn btn-primary" onclick="adminCreateUser()" style="margin-bottom:0;flex-shrink:0">➕ Create User</button>
             </div>
@@ -2876,6 +2884,52 @@
           </div>
         </div>
         <button class="btn btn-primary" onclick="saveAdminConfig()" style="margin-top:8px">💾 Save Configuration</button>
+      </div>
+
+      <!-- Platform-default AI keys (Super Admin only) -->
+      <div class="admin-panel" id="admin-panel-platform-ai" style="display:none">
+        <div class="settings-section">
+          <div class="settings-section-header"><div>
+            <div class="settings-section-title">🤖 Platform-default AI keys</div>
+            <div class="settings-section-sub">Radixile's own keys. A business that hasn't added its own AI key (and whose owner hasn't shared a team key) falls back to these, so AI works on a trial straight away — on your key and your rate limit. Saved encrypted; nobody can read them back. Leave a box blank to keep the saved key.</div>
+          </div></div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-title">Google Gemini key <span class="badge badge-green">Recommended · free tier</span></div>
+              <div class="settings-row-desc">Get one at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a>. Note: one shared key is rate-limited, so best for trials.</div>
+            </div>
+            <input type="password" class="form-input settings-control" id="pa-google-key" placeholder="Paste key (AIza…)" autocomplete="off" />
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-title">Groq key <span class="badge badge-green">Free tier</span></div>
+              <div class="settings-row-desc"><a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com</a></div>
+            </div>
+            <input type="password" class="form-input settings-control" id="pa-groq-key" placeholder="gsk_…" autocomplete="off" />
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-title">OpenRouter key</div>
+              <div class="settings-row-desc"><a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai</a></div>
+            </div>
+            <input type="password" class="form-input settings-control" id="pa-openrouter-key" placeholder="sk-or-v1-…" autocomplete="off" />
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-title">Mistral key</div>
+              <div class="settings-row-desc"><a href="https://console.mistral.ai" target="_blank" rel="noopener">console.mistral.ai</a></div>
+            </div>
+            <input type="password" class="form-input settings-control" id="pa-mistral-key" placeholder="Paste key" autocomplete="off" />
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-title">Anthropic Claude key <span class="badge">Paid</span></div>
+              <div class="settings-row-desc"><a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a></div>
+            </div>
+            <input type="password" class="form-input settings-control" id="pa-anthropic-key" placeholder="sk-ant-…" autocomplete="off" />
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="savePlatformAiKeys(this)" style="margin-top:8px">💾 Save platform keys</button>
       </div>
     </section>
 

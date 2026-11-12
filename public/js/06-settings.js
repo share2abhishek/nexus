@@ -23,7 +23,7 @@ const ADMIN_ONLY_TABS = {
 function applyAdminOnly(tab) {
   const panel = document.getElementById(`settings-panel-${tab}`);
   if (!panel || !ADMIN_ONLY_TABS[tab]) return;
-  const isAdmin = State.user?.role === 'admin';
+  const isAdmin = State.user?.role === 'admin' || State.user?.role === 'superadmin' || State.user?.is_super_admin;
   let note = panel.querySelector(':scope > .admin-note');
   if (!isAdmin && !note) {
     note = document.createElement('div');
@@ -91,7 +91,7 @@ const PLATFORM_ORDER = ['facebook', 'instagram', 'linkedin', 'threads', 'bluesky
 
 // One plain status per platform: what it means and what to do
 function platformState(key, p) {
-  const isAdmin = State.user?.role === 'admin';
+  const isAdmin = State.user?.role === 'admin' || State.user?.role === 'superadmin' || State.user?.is_super_admin;
   const oneClick = (State.oneClick || []).includes(key);
   const days = p.reconnect_in_days;
   if (p.connected && days != null && days <= 14) {
@@ -122,7 +122,7 @@ function renderAccountsSummary(platforms) {
 function renderPlatformCards(platforms) {
   State.platformConfig = platforms;
   const container = document.getElementById('platform-cards-container');
-  const isAdminUser = State.user?.role === 'admin';
+  const isAdminUser = State.user?.role === 'admin' || State.user?.role === 'superadmin' || State.user?.is_super_admin;
   renderAccountsSummary(platforms);
 
   // Accounts needing attention first, then connected, then the rest
@@ -403,7 +403,7 @@ async function refreshAiStatus() {
       for (const [k, n] of Object.entries(names)) if (biz[k] && !online.includes(n)) online.push(n);
     }
     // Admins also use the shared keys of this installation
-    if (State.user?.role === 'admin') {
+    if (State.user?.role === 'admin' || State.user?.role === 'superadmin' || State.user?.is_super_admin) {
       const env = await api('GET', '/api/config/env-status').catch(() => ({}));
       if (env.google_ai && !online.includes('Google Gemini')) online.push('Google Gemini');
       if (env.anthropic && !online.includes('Claude')) online.push('Claude');
@@ -536,7 +536,8 @@ async function saveSMTPSettings(btn) {
 
 async function loadAccountPanel() {
   const u = State.user || {};
-  setEl('account-signed-in', u.email ? `${u.name ? `${u.name} · ` : ''}${u.email}${u.role === 'admin' ? ' · admin of this installation' : ''}` : '—');
+  const roleLabel = (u.is_super_admin || u.role === 'superadmin') ? ' · Super Admin' : (u.role === 'admin' ? ' · admin of this installation' : '');
+  setEl('account-signed-in', u.email ? `${u.name ? `${u.name} · ` : ''}${u.email}${roleLabel}` : '—');
   try {
     const h = await fetch('/__health').then(r => r.json());
     setEl('app-version-badge', h.version ? `v${h.version}` : '—');
@@ -677,12 +678,22 @@ function switchAdminTab(tab, btn) {
   if (tab === 'invites')  loadInviteCodes();
   if (tab === 'activity') loadAdminActivity();
   if (tab === 'config')   loadAdminConfig();
+  if (tab === 'platform-ai') loadPlatformAiKeys();
 }
 
 async function loadAdminDashboard() {
-  // Server edition: the Businesses tab (plans per business)
+  // Show Subscriptions tab for superadmin/admin or server edition
   const bizTab = document.getElementById('admin-tab-businesses');
-  if (bizTab) bizTab.hidden = !State.server;
+  if (bizTab) {
+    const canSeeSubs = State.server || State.user?.is_super_admin || State.user?.role === 'superadmin' || State.user?.role === 'admin';
+    bizTab.hidden = !canSeeSubs;
+  }
+  // Platform-default AI keys: Super Admin only, and only meaningful on the server edition
+  const paTab = document.getElementById('admin-tab-platform-ai');
+  if (paTab) {
+    const isSuper = State.user?.is_super_admin || State.user?.role === 'superadmin';
+    paTab.hidden = !(isSuper && State.server);
+  }
   try {
     const stats = await fetch('/admin/stats').then(r => r.json());
     setEl('adm-total-users', stats.total_users);
@@ -701,32 +712,71 @@ async function loadAdminUsers() {
   tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px"><span class="spinner"></span></td></tr>';
   try {
     const users = await fetch('/admin/users').then(r => r.json());
-    tbody.innerHTML = users.map(u => `
-      <tr>
-        <td>
-          <div style="font-weight:600;font-size:13px">${escapeHtml(u.name || u.email.split('@')[0])}</div>
-          <div style="font-size:11px;color:var(--text-muted)">${escapeHtml(u.email)}</div>
-        </td>
-        <td><span class="badge badge-${u.role==='admin'?'purple':'blue'}">${u.role==='admin'?'👑 Admin':'👤 User'}</span></td>
-        <td><span class="badge badge-${u.status==='suspended'?'red':'green'}">${u.status||'active'}</span></td>
-        <td>${u.posts || 0}</td>
-        <td>${u.ai_generations || 0}</td>
-        <td>${u.platforms_connected || 0}</td>
-        <td style="font-size:11px">${new Date(u.created_at * 1000).toLocaleDateString()}</td>
-        <td style="font-size:11px">${u.last_active ? timeAgo(new Date(u.last_active * 1000)) : 'Never'}</td>
-        <td>
-          <div style="display:flex;gap:4px">
-            ${u.role !== 'admin'
-              ? `<button class="btn btn-secondary btn-sm" onclick="makeAdmin(${u.id})" title="Make Admin">👑</button>`
-              : `<button class="btn btn-secondary btn-sm" onclick="removeAdmin(${u.id})" title="Remove Admin">👤</button>`}
-            ${u.status !== 'suspended'
+    const viewerIsSuper = !!(State.user?.is_super_admin || State.user?.role === 'superadmin');
+    const myId = State.user?.id;
+
+    tbody.innerHTML = users.map(u => {
+      const isSuper = !!(u.is_super_admin || u.role === 'superadmin');
+      const isAdmin = u.role === 'admin';
+      const isMe = u.id === myId;
+
+      let roleBadge = '';
+      if (isSuper) {
+        roleBadge = '<span class="badge" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:600">⚡ Super Admin</span>';
+      } else if (isAdmin) {
+        roleBadge = '<span class="badge badge-purple">👑 Admin</span>';
+      } else {
+        roleBadge = '<span class="badge badge-blue">👤 User</span>';
+      }
+
+      let actionsHtml = '';
+      if (isMe) {
+        actionsHtml = `<span class="badge badge-gray" style="font-size:11px;padding:4px 8px">You</span>
+          <button class="btn btn-secondary btn-sm btn-icon" onclick="adminResetPassword(${u.id},${jsAttr(u.email)})" title="Change Password">🔑</button>`;
+      } else {
+        const roleBtns = [];
+        if (viewerIsSuper) {
+          if (isSuper) {
+            roleBtns.push(`<button class="btn btn-secondary btn-sm" onclick="demoteSuperAdmin(${u.id},${jsAttr(u.email)})" title="Demote to Admin" style="font-size:11px">👑 Make Admin</button>`);
+          } else if (isAdmin) {
+            roleBtns.push(`<button class="btn btn-secondary btn-sm" onclick="makeSuperAdmin(${u.id},${jsAttr(u.email)})" title="Promote to Super Admin" style="font-size:11px;color:#d97706;border-color:#f59e0b">⚡ Super Admin</button>`);
+            roleBtns.push(`<button class="btn btn-secondary btn-sm" onclick="removeAdmin(${u.id},${jsAttr(u.email)})" title="Demote to User" style="font-size:11px">👤 Make User</button>`);
+          } else {
+            roleBtns.push(`<button class="btn btn-secondary btn-sm" onclick="makeAdmin(${u.id},${jsAttr(u.email)})" title="Promote to Admin" style="font-size:11px">👑 Make Admin</button>`);
+            roleBtns.push(`<button class="btn btn-secondary btn-sm" onclick="makeSuperAdmin(${u.id},${jsAttr(u.email)})" title="Promote to Super Admin" style="font-size:11px;color:#d97706;border-color:#f59e0b">⚡ Super Admin</button>`);
+          }
+        }
+
+        const canSuspendOrDelete = viewerIsSuper ? !isSuper : (!isSuper && !isAdmin);
+
+        actionsHtml = `
+          <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+            ${roleBtns.join('')}
+            ${canSuspendOrDelete ? (u.status !== 'suspended'
               ? `<button class="btn btn-secondary btn-sm" onclick="suspendUser(${u.id})" title="Suspend">🚫</button>`
-              : `<button class="btn btn-success btn-sm" onclick="activateUser(${u.id})" title="Activate">✅</button>`}
+              : `<button class="btn btn-success btn-sm" onclick="activateUser(${u.id})" title="Activate">✅</button>`) : ''}
             <button class="btn btn-secondary btn-sm btn-icon" onclick="adminResetPassword(${u.id},${jsAttr(u.email)})" title="Reset Password">🔑</button>
-            <button class="btn btn-danger btn-sm btn-icon" onclick="deleteUser(${u.id},${jsAttr(u.email)})" title="Delete">🗑</button>
+            ${canSuspendOrDelete ? `<button class="btn btn-danger btn-sm btn-icon" onclick="deleteUser(${u.id},${jsAttr(u.email)})" title="Delete">🗑</button>` : ''}
           </div>
-        </td>
-      </tr>`).join('');
+        `;
+      }
+
+      return `
+        <tr>
+          <td>
+            <div style="font-weight:600;font-size:13px">${escapeHtml(u.name || u.email.split('@')[0])}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${escapeHtml(u.email)}</div>
+          </td>
+          <td>${roleBadge}</td>
+          <td><span class="badge badge-${u.status==='suspended'?'red':'green'}">${u.status||'active'}</span></td>
+          <td>${u.posts || 0}</td>
+          <td>${u.ai_generations || 0}</td>
+          <td>${u.platforms_connected || 0}</td>
+          <td style="font-size:11px">${new Date(u.created_at * 1000).toLocaleDateString()}</td>
+          <td style="font-size:11px">${u.last_active ? timeAgo(new Date(u.last_active * 1000)) : 'Never'}</td>
+          <td>${actionsHtml}</td>
+        </tr>`;
+    }).join('');
   } catch (err) { tbody.innerHTML = `<tr><td colspan="9" style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</td></tr>`; }
 }
 
@@ -738,7 +788,7 @@ async function adminCreateUser() {
   if (!email || !password) return toast('Email and password are required', 'warning');
   try {
     await api('POST', '/admin/users/create', { email, password, name, role });
-    toast(`✅ User created: ${email}`, 'success');
+    toast(`✅ User created: ${email} (${role})`, 'success');
     document.getElementById('new-user-email').value    = '';
     document.getElementById('new-user-password').value = '';
     document.getElementById('new-user-name').value     = '';
@@ -766,8 +816,14 @@ async function adminUserAction(method, path, body, okMsg, okType = 'success') {
   loadAdminUsers();
   loadAdminDashboard();
 }
-function makeAdmin(id)    { return adminUserAction('PATCH', `/admin/users/${id}/role`, { role: 'admin' }, 'Now an admin'); }
-function removeAdmin(id)  { return adminUserAction('PATCH', `/admin/users/${id}/role`, { role: 'user' }, 'Admin rights removed', 'info'); }
+function makeSuperAdmin(id, email) {
+  return adminUserAction('PATCH', `/admin/users/${id}/role`, { role: 'superadmin' }, `⚡ ${email || 'User'} promoted to Super Admin!`);
+}
+function demoteSuperAdmin(id, email) {
+  return adminUserAction('PATCH', `/admin/users/${id}/role`, { role: 'admin' }, `👑 ${email || 'User'} role changed to Admin`);
+}
+function makeAdmin(id, email)    { return adminUserAction('PATCH', `/admin/users/${id}/role`, { role: 'admin' }, `👑 ${email || 'User'} is now an Admin`); }
+function removeAdmin(id, email)  { return adminUserAction('PATCH', `/admin/users/${id}/role`, { role: 'user' }, `👤 ${email || 'User'} demoted to User`, 'info'); }
 async function suspendUser(id) {
   if (!(await askConfirm('Suspend this user? They can’t sign in until you activate them again.', 'Suspend'))) return;
   return adminUserAction('PATCH', `/admin/users/${id}/status`, { status: 'suspended' }, 'User suspended', 'warning');
@@ -884,6 +940,48 @@ async function saveAdminConfig() {
     });
     toast('Saved', 'success');
   } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── Platform-default AI keys (Super Admin) ───────────────────────────────────
+
+const PLATFORM_AI_FIELDS = {
+  'pa-google-key':     'platform_google_ai_key',
+  'pa-groq-key':       'platform_groq_key',
+  'pa-openrouter-key': 'platform_openrouter_key',
+  'pa-mistral-key':    'platform_mistral_key',
+  'pa-anthropic-key':  'platform_anthropic_key',
+};
+
+async function loadPlatformAiKeys() {
+  try {
+    const { keys } = await api('GET', '/admin/platform-ai');
+    for (const [id, key] of Object.entries(PLATFORM_AI_FIELDS)) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      // Show a masked placeholder when a key is already saved, so the admin knows
+      el.value = '';
+      el.placeholder = keys?.[key] ? '•••••••• (saved — leave blank to keep)' : el.placeholder;
+    }
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function savePlatformAiKeys(btn) {
+  const body = {};
+  for (const [id, key] of Object.entries(PLATFORM_AI_FIELDS)) {
+    const v = document.getElementById(id)?.value.trim();
+    if (v) body[key] = v;
+  }
+  if (!Object.keys(body).length) { toast('Nothing to save — paste a key first.', 'info'); return; }
+  if (btn) { btn.disabled = true; btn.dataset._t = btn.textContent; btn.textContent = 'Saving…'; }
+  try {
+    await api('POST', '/admin/platform-ai', body);
+    toast('Platform AI keys saved', 'success');
+    loadPlatformAiKeys();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset._t || '💾 Save platform keys'; }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1084,30 +1182,118 @@ function selectModel(model, type) {
 const _origSwitchMediaTab = window.switchMediaTab;
 
 // ── Server edition: businesses and their plans (Radixile admins) ────────────
+
+function formatExpiryInfo(o) {
+  const now = Math.floor(Date.now() / 1000);
+  const DAY = 86400;
+  if (o.plan === 'trial') {
+    if (!o.trial_ends_at) return '<span style="color:var(--text-muted);font-size:11px">No trial date</span>';
+    const left = Math.ceil((o.trial_ends_at - now) / DAY);
+    const dateStr = new Date(o.trial_ends_at * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (left > 0) return `<div style="font-size:11px;color:#10b981;font-weight:600">⏳ ${left} days left</div><div style="font-size:10px;color:var(--text-muted)">Ends ${dateStr}</div>`;
+    return `<div style="font-size:11px;color:#ef4444;font-weight:600">⚠️ Trial expired</div><div style="font-size:10px;color:var(--text-muted)">Ended ${dateStr}</div>`;
+  }
+  if (!o.paid_until) return '<span style="color:var(--text-muted);font-size:11px">Lifetime / No expiry</span>';
+  const left = Math.ceil((o.paid_until - now) / DAY);
+  const dateStr = new Date(o.paid_until * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (left > 0) return `<div style="font-size:11px;color:#10b981;font-weight:600">✅ Active (${left}d left)</div><div style="font-size:10px;color:var(--text-muted)">Until ${dateStr}</div>`;
+  return `<div style="font-size:11px;color:#ef4444;font-weight:600">⚠️ Expired ${Math.abs(left)}d ago</div><div style="font-size:10px;color:var(--text-muted)">Ended ${dateStr}</div>`;
+}
+
 async function loadAdminBusinesses() {
   const box = document.getElementById('admin-businesses');
   if (!box) return;
   box.innerHTML = '<span class="spinner"></span>';
   try {
     const { organizations, plans } = await api('GET', '/admin/organizations');
-    if (!organizations.length) { box.innerHTML = '<div class="form-hint">No businesses yet.</div>'; return; }
+    if (!organizations.length) { box.innerHTML = '<div class="form-hint">No businesses found.</div>'; return; }
     const day = (ts) => ts ? new Date(ts * 1000).toISOString().slice(0, 10) : '';
     const n = (v) => (v === -1 || v === undefined ? '∞' : v);
+
     box.innerHTML = `
-      <div class="form-hint" style="margin-bottom:10px">Set a business’s plan until online payment does it. Changes apply straight away.</div>
-      <div style="overflow-x:auto"><table class="analytics-table"><thead><tr><th>Business</th><th>Now</th><th>Plan</th><th>Status</th><th>Paid until</th><th>Trial ends</th><th>Use</th><th></th></tr></thead><tbody>
-      ${organizations.map(o => `<tr>
-        <td><b>${escapeHtml(o.name)}</b><div class="form-hint">${escapeHtml(o.owner_email || '')}</div></td>
-        <td><span class="badge badge-${o.can_publish ? 'green' : 'red'}">${o.can_publish ? (o.plan === 'trial' ? `trial · ${o.trial_days_left}d` : 'active') : o.state}</span></td>
-        <td><select class="form-select" id="biz-plan-${o.id}">${plans.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === o.plan ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}</select></td>
-        <td><select class="form-select" id="biz-status-${o.id}">${['', 'active', 'past_due', 'cancelled', 'suspended'].map(st => `<option value="${st}" ${st === (o.plan_status || '') ? 'selected' : ''}>${st || '—'}</option>`).join('')}</select></td>
-        <td><input type="date" class="form-input" id="biz-paid-${o.id}" value="${day(o.paid_until)}" /></td>
-        <td><input type="date" class="form-input" id="biz-trial-${o.id}" value="${day(o.trial_ends_at)}" /></td>
-        <td class="form-hint">${n(o.usage.workspaces)}/${n(o.limits.workspaces)} ws · ${n(o.usage.users)}/${n(o.limits.users)} people</td>
-        <td><button class="btn btn-primary btn-sm" onclick="saveBusinessPlan(${o.id}, this)">Save</button></td>
-      </tr>`).join('')}
-      </tbody></table></div>`;
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        <div class="form-hint">Manage client subscription tiers, extend subscription duration, and configure workspace quotas. Changes apply immediately.</div>
+        <button class="btn btn-secondary btn-sm" onclick="loadAdminBusinesses()">🔄 Refresh Subscriptions</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="analytics-table">
+          <thead>
+            <tr>
+              <th>Business &amp; Owner</th>
+              <th>Subscription Status</th>
+              <th>Plan Tier</th>
+              <th>Status</th>
+              <th>Paid Until</th>
+              <th>Trial Ends</th>
+              <th>Increase Duration</th>
+              <th>Quotas</th>
+              <th>Save</th>
+            </tr>
+          </thead>
+          <tbody>
+          ${organizations.map(o => `
+            <tr>
+              <td>
+                <div style="font-weight:600;font-size:13px">${escapeHtml(o.name)}</div>
+                <div class="form-hint">${escapeHtml(o.owner_email || 'No owner')} · ID #${o.id}</div>
+              </td>
+              <td>${formatExpiryInfo(o)}</td>
+              <td>
+                <select class="form-select" id="biz-plan-${o.id}" style="min-width:130px">
+                  ${plans.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === o.plan ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
+                </select>
+              </td>
+              <td>
+                <select class="form-select" id="biz-status-${o.id}" style="min-width:110px">
+                  ${['', 'active', 'past_due', 'cancelled', 'suspended'].map(st => `<option value="${st}" ${st === (o.plan_status || '') ? 'selected' : ''}>${st || '—'}</option>`).join('')}
+                </select>
+              </td>
+              <td><input type="date" class="form-input" id="biz-paid-${o.id}" value="${day(o.paid_until)}" style="min-width:130px" /></td>
+              <td><input type="date" class="form-input" id="biz-trial-${o.id}" value="${day(o.trial_ends_at)}" style="min-width:130px" /></td>
+              <td>
+                <div style="display:flex;gap:4px;flex-wrap:wrap;min-width:180px">
+                  <button class="btn btn-secondary btn-sm" onclick="quickExtendSubscription(${o.id}, 30, 'paid', ${jsAttr(o.name)})" title="Add 30 Days (1 Month) to Paid Subscription" style="font-size:11px;padding:3px 7px">+30d</button>
+                  <button class="btn btn-secondary btn-sm" onclick="quickExtendSubscription(${o.id}, 90, 'paid', ${jsAttr(o.name)})" title="Add 90 Days (3 Months) to Paid Subscription" style="font-size:11px;padding:3px 7px">+90d</button>
+                  <button class="btn btn-secondary btn-sm" onclick="quickExtendSubscription(${o.id}, 365, 'paid', ${jsAttr(o.name)})" title="Add 1 Year (365 Days) to Paid Subscription" style="font-size:11px;padding:3px 7px">+1 yr</button>
+                  <button class="btn btn-secondary btn-sm" onclick="quickExtendSubscription(${o.id}, 14, 'trial', ${jsAttr(o.name)})" title="Add 14 Days Free Trial" style="font-size:11px;padding:3px 7px;color:#3b82f6">+14d Trial</button>
+                  <button class="btn btn-secondary btn-sm" onclick="promptCustomExtend(${o.id}, ${jsAttr(o.name)})" title="Custom Days / Plan Duration Extension" style="font-size:11px;padding:3px 7px;color:#f59e0b">⏳ Custom...</button>
+                </div>
+              </td>
+              <td class="form-hint" style="font-size:11px">
+                ${n(o.usage.workspaces)}/${n(o.limits.workspaces)} ws<br>${n(o.usage.users)}/${n(o.limits.users)} users
+              </td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="saveBusinessPlan(${o.id}, this)">💾 Save</button>
+              </td>
+            </tr>
+          `).join('')}
+          </tbody>
+        </table>
+      </div>`;
   } catch (err) { box.innerHTML = `<div class="state-error">${escapeHtml(err.message)}</div>`; }
+}
+
+async function quickExtendSubscription(id, days, target = 'paid', orgName = 'Business') {
+  try {
+    const res = await api('POST', `/admin/organizations/${id}/extend`, { days, target });
+    toast(`✅ ${res.message || `Extended ${orgName} by +${days} days!`}`, 'success', 5000);
+    loadAdminBusinesses();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function promptCustomExtend(id, orgName = 'Business') {
+  const daysStr = await askText({
+    title: `Increase Subscription Duration`,
+    message: `Enter number of days to extend subscription for "${orgName}":`,
+    value: '30',
+    ok: 'Extend Subscription',
+  });
+  if (!daysStr) return;
+  const days = parseInt(daysStr.trim(), 10);
+  if (isNaN(days) || days <= 0) return toast('Please enter a valid positive number of days', 'warning');
+  await quickExtendSubscription(id, days, 'paid', orgName);
 }
 
 async function saveBusinessPlan(id, btn) {

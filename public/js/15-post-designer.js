@@ -43,6 +43,8 @@ function designDefaults() {
     c2: b.secondary_color || '#3b82f6',
     c3: b.accent_color || '#f59e0b',
     showLogo: true,
+    // Headline text styling (editor controls)
+    headColor: '', headBold: true, headItalic: false, headScale: 'medium',
   };
 }
 
@@ -71,12 +73,45 @@ function luminance(hex) {
 function inkFor(hex) { return luminance(hex) > 0.45 ? '#111827' : '#ffffff'; }
 function rgba(hex, a) { const [r, g, b] = hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
 
+// ── Brand font ────────────────────────────────────────────────────────────────
+// Designs use the Brand kit font. Only Inter ships with the app; the others load
+// from Google Fonts when online and fall back to Inter offline.
+const DESIGN_FONTS = ['Inter', 'Roboto', 'Poppins', 'Montserrat', 'Open Sans', 'Lato', 'Nunito', 'Space Grotesk'];
+function designFontName() {
+  const f = Designer.brand?.font_name;
+  return DESIGN_FONTS.includes(f) ? f : 'Inter';
+}
+// A canvas font string in the brand font, always with safe fallbacks
+function designFont(weight, size, italic = false) {
+  return `${italic ? 'italic ' : ''}${weight} ${Math.round(size)}px '${designFontName()}', Inter, Arial, sans-serif`;
+}
+// Headline size presets (Small / Medium / Large)
+const HEAD_SCALES = { small: 0.82, medium: 1, large: 1.25 };
+// Make sure the brand font is ready before drawing, so the canvas doesn't fall back
+async function ensureBrandFont() {
+  const f = designFontName();
+  if (f === 'Inter' || !document.fonts) return; // Inter is bundled
+  const id = 'brandfont-' + f.replace(/\s+/g, '-');
+  if (!document.getElementById(id)) {
+    const link = document.createElement('link');
+    link.id = id; link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(f)}:wght@400;600;700;800&display=swap`;
+    document.head.appendChild(link);
+  }
+  try {
+    await Promise.race([
+      Promise.all([600, 700, 800].map(w => document.fonts.load(`${w} 48px '${f}'`))),
+      new Promise(r => setTimeout(r, 2500)), // don't hang the designer if the CDN is slow/offline
+    ]);
+  } catch { /* offline or blocked: the canvas falls back to Inter */ }
+}
+
 // Wrap text into lines that fit maxWidth; shrink the font until it fits maxLines
-function fitText(ctx, text, { maxWidth, maxLines, size, minSize = 28, weight = 800, lineHeight = 1.15 }) {
+function fitText(ctx, text, { maxWidth, maxLines, size, minSize = 28, weight = 800, lineHeight = 1.15, italic = false }) {
   const words = String(text || '').trim().split(/\s+/).filter(Boolean);
   if (!words.length) return { lines: [], size, height: 0 };
   for (let s = size; s >= minSize; s -= 2) {
-    ctx.font = `${weight} ${s}px Inter, Arial, sans-serif`;
+    ctx.font = designFont(weight, s, italic);
     const lines = [];
     let line = '';
     for (const w of words) {
@@ -94,9 +129,9 @@ function fitText(ctx, text, { maxWidth, maxLines, size, minSize = 28, weight = 8
   return { lines: [], size: minSize, height: 0 };
 }
 
-function drawLines(ctx, fit, x, y, { align = 'left', color, weight = 800 }) {
+function drawLines(ctx, fit, x, y, { align = 'left', color, weight = 800, italic = false }) {
   ctx.save();
-  ctx.font = `${weight} ${fit.size}px Inter, Arial, sans-serif`;
+  ctx.font = designFont(weight, fit.size, italic);
   ctx.fillStyle = color;
   ctx.textAlign = align;
   ctx.textBaseline = 'top';
@@ -127,7 +162,7 @@ function drawCover(ctx, img, W, H) {
 function drawCta(ctx, text, x, y, { bg, align = 'left', scale = 1 }) {
   if (!text) return y;
   const size = Math.round(34 * scale);
-  ctx.font = `700 ${size}px Inter, Arial, sans-serif`;
+  ctx.font = designFont(700, size);
   const w = Math.min(ctx.measureText(text).width + size * 1.6, 900 * scale);
   const h = size * 2;
   const left = align === 'center' ? x - w / 2 : x;
@@ -204,10 +239,14 @@ function renderDesign(canvas, s) {
   const maxW = W - left - pad;
   const footerH = s.footer ? Math.round(40 * k) + pad * 0.6 : 0;
 
-  // Text block
-  const headSize = Math.round((tpl === 'festival' ? 130 : tpl === 'tip' ? 76 : 96) * k * (wide ? 0.8 : 1));
+  // Text block — headline style from the editor (size / bold / italic / colour)
+  const headScale = HEAD_SCALES[s.headScale] || 1;
+  const baseHeadWeight = tpl === 'tip' ? 700 : 800;
+  const headWeight = s.headBold === false ? 400 : baseHeadWeight;
+  const headItalic = !!s.headItalic;
+  const headSize = Math.round((tpl === 'festival' ? 130 : tpl === 'tip' ? 76 : 96) * k * (wide ? 0.8 : 1) * headScale);
   const head = fitText(ctx, tpl === 'tip' && s.headline ? `“${s.headline.replace(/^["“]|["”]$/g, '')}”` : s.headline,
-    { maxWidth: maxW, maxLines: wide ? 3 : 5, size: headSize, minSize: Math.round(40 * k), weight: tpl === 'tip' ? 700 : 800 });
+    { maxWidth: maxW, maxLines: wide ? 3 : 5, size: headSize, minSize: Math.round(40 * k * headScale), weight: headWeight, italic: headItalic });
   const det = fitText(ctx, s.details, { maxWidth: maxW, maxLines: wide ? 2 : 4, size: Math.round(42 * k), minSize: Math.round(26 * k), weight: 500, lineHeight: 1.35 });
   const ctaH = s.cta ? Math.round(68 * k) : 0;
   const gap = Math.round(28 * k);
@@ -218,13 +257,14 @@ function renderDesign(canvas, s) {
   if (tpl === 'photo') y = H - pad - footerH - blockH;
   else y = Math.max(top, top + ((H - footerH - pad) - top - blockH) / 2);
 
-  y = drawLines(ctx, head, x, y, { align, color: tpl === 'announce' ? '#111827' : ink, weight: tpl === 'tip' ? 700 : 800 });
+  const headColor = s.headColor || (tpl === 'announce' ? '#111827' : ink);
+  y = drawLines(ctx, head, x, y, { align, color: headColor, weight: headWeight, italic: headItalic });
   if (det.lines.length) y = drawLines(ctx, det, x, y + gap, { align, color: tpl === 'announce' ? '#374151' : soft, weight: 500 });
   if (ctaH) drawCta(ctx, s.cta, x, y + gap * 1.4, { bg: tpl === 'announce' ? s.c1 : s.c3, align, scale: k });
 
   // Footer: business name
   if (s.footer) {
-    ctx.font = `600 ${Math.round(34 * k)}px Inter, Arial, sans-serif`;
+    ctx.font = designFont(600, 34 * k);
     ctx.fillStyle = tpl === 'announce' ? s.c1 : soft;
     ctx.textAlign = centered ? 'center' : 'left';
     ctx.textBaseline = 'alphabetic';
@@ -275,6 +315,7 @@ async function openPostDesigner() {
   Designer.s = designDefaults();
   Designer.photo = null;
   await loadBrandLogo(Designer.brand?.logo_url);
+  await ensureBrandFont();
 
   // The post's own photo can be used as the background (the user chooses: it may
   // already be a finished design)
@@ -350,9 +391,26 @@ function designerHtml() {
           </div>
 
           <div class="form-group">
-            <div class="form-label">Colours</div>
+            <div class="form-label">Headline style</div>
+            <div class="designer-textstyle">
+              <div class="designer-chips" data-field="headScale">
+                <button type="button" class="designer-chip ${s.headScale === 'small' ? 'on' : ''}" data-value="small" title="Smaller headline">A-</button>
+                <button type="button" class="designer-chip ${s.headScale === 'medium' || !s.headScale ? 'on' : ''}" data-value="medium" title="Normal headline">A</button>
+                <button type="button" class="designer-chip ${s.headScale === 'large' ? 'on' : ''}" data-value="large" title="Larger headline">A+</button>
+              </div>
+              <button type="button" class="designer-chip ${s.headBold ? 'on' : ''}" data-toggle="headBold" title="Bold" style="font-weight:800">B</button>
+              <button type="button" class="designer-chip ${s.headItalic ? 'on' : ''}" data-toggle="headItalic" title="Italic" style="font-style:italic">I</button>
+              <label class="bot-check" title="Pick the headline text colour" style="margin-left:4px">
+                <input type="checkbox" id="dz-textauto" ${s.headColor ? '' : 'checked'} /> Auto colour
+              </label>
+              <input type="color" id="dz-textcolor" value="${escapeHtml(s.headColor || '#ffffff')}" aria-label="Headline colour" ${s.headColor ? '' : 'disabled'} />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="form-label">Colours <span class="form-hint" style="display:inline">(Main is the background)</span></div>
             <div class="designer-colors">
-              <label title="Main colour"><input type="color" id="dz-c1" value="${escapeHtml(s.c1)}" /> Main</label>
+              <label title="Main / background colour"><input type="color" id="dz-c1" value="${escapeHtml(s.c1)}" /> Background</label>
               <label title="Second colour (gradients)"><input type="color" id="dz-c2" value="${escapeHtml(s.c2)}" /> Second</label>
               <label title="Button and highlights"><input type="color" id="dz-c3" value="${escapeHtml(s.c3)}" /> Button</label>
             </div>
@@ -382,10 +440,12 @@ function designerHtml() {
 
 function readDesignerForm() {
   const v = (id) => document.getElementById(id)?.value ?? '';
+  const autoColor = document.getElementById('dz-textauto')?.checked !== false;
   Object.assign(Designer.s, {
     headline: v('dz-headline'), details: v('dz-details'), cta: v('dz-cta'), footer: v('dz-footer'),
     c1: v('dz-c1'), c2: v('dz-c2'), c3: v('dz-c3'),
     showLogo: !!document.getElementById('dz-showlogo')?.checked,
+    headColor: autoColor ? '' : v('dz-textcolor'),
   });
 }
 
@@ -421,6 +481,23 @@ function wireDesigner() {
     });
   });
   modal.querySelector('.designer-controls').addEventListener('input', redrawDesign);
+
+  // Headline Bold / Italic toggles (independent on/off, not single-select chips)
+  modal.querySelectorAll('[data-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const f = btn.dataset.toggle;
+      Designer.s[f] = !Designer.s[f];
+      btn.classList.toggle('on', Designer.s[f]);
+      redrawDesign();
+    });
+  });
+  // Auto colour: enable the colour picker only when Auto is off
+  const autoBox = document.getElementById('dz-textauto');
+  if (autoBox) autoBox.addEventListener('change', () => {
+    const picker = document.getElementById('dz-textcolor');
+    if (picker) picker.disabled = autoBox.checked;
+    redrawDesign();
+  });
 
   document.getElementById('dz-fill').onclick = () => {
     const text = (document.getElementById('compose-content')?.value || '').replace(/#[\p{L}\p{N}_]+/gu, '').trim();

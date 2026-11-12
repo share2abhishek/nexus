@@ -13,6 +13,9 @@ async function checkAuth() {
     State.user = data.user;
     State.server = !!data.server;
     State.business = data.business || null;
+    // Desktop-only features (e.g. the Phone companion, which needs a device licence
+    // and a running PC) are hidden on the server/cloud edition
+    if (State.server) document.querySelectorAll('[data-desktop-only]').forEach(el => { el.hidden = true; });
     // Server edition: passwords are reset by email, so no recovery-code reminder
     if (State.server) renderAccountBanner(); else setTimeout(showRecoveryNudge, 1500);
     // Back from the link in the confirmation email
@@ -39,17 +42,17 @@ async function checkAuth() {
       <div style="font-weight:600;color:var(--text-primary)">${escapeHtml(data.user.name || '')}</div>
       <div>${escapeHtml(data.user.email)}</div>
       ${State.business ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px">🏢 ${escapeHtml(State.business.name)}</div>` : ''}
-      ${data.user.role==='admin' ? `<div><span class="badge badge-purple" style="font-size:10px;margin-top:4px">👑 ${State.server ? 'Radixile admin' : 'Super Admin'}</span></div>` : ''}`;
+      ${(data.user.role === 'admin' || data.user.role === 'superadmin' || data.user.is_super_admin) ? `<div><span class="badge ${data.user.is_super_admin || data.user.role === 'superadmin' ? 'badge-gold' : 'badge-purple'}" style="font-size:10px;margin-top:4px;${data.user.is_super_admin || data.user.role === 'superadmin' ? 'background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;' : ''}">${data.user.is_super_admin || data.user.role === 'superadmin' ? '⚡ Super Admin' : (State.server ? 'Radixile Admin' : 'Admin')}</span></div>` : ''}`;
 
-    // Show admin nav item only for admins
-    if (data.user.role === 'admin') {
+    // Show admin nav item only for admins / superadmins
+    if (data.user.role === 'admin' || data.user.role === 'superadmin' || data.user.is_super_admin) {
       const adminNav = document.getElementById('nav-admin');
       if (adminNav) adminNav.style.display = '';
       // Add admin link to user dropdown
       const adminDropBtn = document.createElement('button');
       adminDropBtn.className = 'btn';
       adminDropBtn.style = 'width:100%;justify-content:flex-start;border-radius:0;padding:10px 16px;font-size:13px;color:var(--text-primary)';
-      adminDropBtn.innerHTML = '👑 Admin Dashboard';
+      adminDropBtn.innerHTML = (data.user.is_super_admin || data.user.role === 'superadmin') ? '⚡ Super Admin Dashboard' : '👑 Admin Dashboard';
       adminDropBtn.onclick = () => { navigateTo('admin'); toggleUserMenu(); };
       const logoutBtn = document.querySelector('#user-dropdown .btn-danger');
       if (logoutBtn) logoutBtn.parentNode.insertBefore(adminDropBtn, logoutBtn);
