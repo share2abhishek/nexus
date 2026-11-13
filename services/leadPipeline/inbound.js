@@ -3,6 +3,7 @@
 // find or add the contact, save the message, score it (if turned on), then let
 // the auto-replies answer.
 
+const crypto = require('crypto');
 const leadPipelineRepoFactory = require('../../repos/leadPipelineRepo');
 const whatsappCloud = require('./whatsappCloud');
 const evolutionApi = require('./evolutionApi');
@@ -113,4 +114,64 @@ async function processInbound(knex, { config, phone, name, text, source }) {
   return { lead, bot };
 }
 
-module.exports = { handleInboundWhatsApp, sendText };
+// ── Website live-chat ─────────────────────────────────────────────────────────
+// A message from a visitor on the customer's website (the embeddable widget, or any
+// site that POSTs to /webhooks/webchat/:token). Same bot, menu, keywords and
+// knowledge base as WhatsApp, but the reply is returned in the HTTP response so the
+// widget can show it straight away. A visitor is tracked by a visitor_id the widget
+// keeps, so the bot's state (welcome once, hand-over pauses, hourly limit) works.
+async function handleInboundWebChat(knex, { config, visitorId, name, text }) {
+  const repo = leadPipelineRepoFactory(knex);
+  const workspaceId = config.workspace_id;
+  const msg = String(text || '').trim().slice(0, 2000);
+  if (!msg) return { reply: null };
+  const senderName = String(name || 'Website visitor').slice(0, 80);
+  const ref = `web:${String(visitorId || crypto.randomBytes(8).toString('hex')).replace(/[^a-zA-Z0-9_:-]/g, '').slice(0, 90)}`;
+
+  let lead = await knex('meta_lead_events').where({ workspace_id: workspaceId, leadgen_id: ref }).first();
+  if (!lead) {
+    lead = await repo.addLeadEvent(workspaceId, {
+      full_name: senderName, leadgen_id: ref, form_id: 'webchat_inbound',
+      intent_summary: `Website chat: "${msg.slice(0, 80)}"`, status: 'new', lead_score: 50,
+    });
+  }
+  await repo.addLeadMessage(workspaceId, lead.id, {
+    sender_type: 'lead', sender_name: senderName, message_text: msg, channel: 'web',
+  });
+
+  const captured = [];
+  const n8nUrl = config.n8n_webhook_url;
+  const event = (extra) => buildEvent('webchat.message_received', workspaceId, {
+    contact: { lead_id: lead.id, name: senderName, visitor_id: visitorId || null },
+    message: { text: msg, source: 'webchat' },
+    ...extra,
+  });
+
+  let bot = null;
+  try {
+    bot = await chatbot.handleInbound(knex, {
+      workspaceId, lead, text: msg, name: senderName,
+      // Web-chat captures replies instead of sending them over WhatsApp
+      send: (reply) => { if (reply) captured.push(reply); return { success: true }; },
+      askN8n: n8nUrl ? async () => {
+        const r = await forwardToN8n(n8nUrl, event({ reply_wanted: true, how_to_reply: 'Respond with JSON {"reply": "your text"} to answer on the website chat.' }));
+        if (!r.success) throw new Error(r.error || 'n8n did not answer');
+        return replyFrom(r);
+      } : null,
+    });
+  } catch (err) {
+    console.warn('[WebChat] Auto-reply failed:', err.message);
+  }
+
+  // Tell an n8n workflow about the message too (unless it was the one that answered)
+  if (n8nUrl && !bot?.n8nAsked) {
+    forwardToN8n(n8nUrl, event({
+      reply_wanted: false,
+      bot: { replied: bot?.sent || [], reason: bot?.reason || null, action: bot?.action || null },
+    })).catch(() => {});
+  }
+
+  return { reply: captured.join('\n\n') || null, lead_id: lead.id, action: bot?.action || null, reason: bot?.reason || null };
+}
+
+module.exports = { handleInboundWhatsApp, handleInboundWebChat, sendText };

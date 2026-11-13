@@ -175,6 +175,27 @@ function renderWhatsAppBot() {
           </div>
         </div>
 
+        ${(() => {
+          const base = d.webchat_base || '';
+          const tok = d.webchat_token || '';
+          const snippet = `<script src="${base}/webchat-widget.js"\n        data-token="${tok}"\n        data-name="Your business"\n        data-color="#15233b"></scr` + `ipt>`;
+          return `
+        <div class="settings-section" id="bot-webchat">
+          <div class="settings-section-header">
+            <div><div class="settings-section-title">7. Put the bot on your website</div>
+            <div class="settings-section-sub">Optional. Paste this one line into your website just before &lt;/body&gt;. A chat bubble appears and answers with the same menu, keywords and knowledge base as WhatsApp.</div></div>
+          </div>
+          <div class="card-body">
+            <textarea class="form-textarea" id="bot-webchat-snippet" readonly rows="4" style="font-family:monospace;font-size:12px" onclick="this.select()">${escapeHtml(snippet)}</textarea>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <button class="btn btn-secondary btn-sm" type="button" onclick="copyWebchatSnippet()">Copy code</button>
+              <button class="btn btn-ghost btn-sm" type="button" onclick="regenerateWebchatToken()">Reset the code</button>
+            </div>
+            <div class="form-hint" style="margin-top:8px">Change <code>data-name</code> to your business and <code>data-color</code> to your brand colour. Anyone with this code can chat with your bot — reset it if it leaks. Replies need an active licence and your AI setup (for AI answers), same as WhatsApp.</div>
+          </div>
+        </div>`;
+        })()}
+
         <div class="bot-savebar">
           <span id="bot-dirty" class="form-hint">${BotState.dirty ? 'Unsaved changes' : 'All changes saved'}</span>
           <button class="btn btn-primary" id="bot-save" type="button">Save auto-replies</button>
@@ -243,6 +264,24 @@ function wireWhatsAppBot() {
 }
 
 // Read the form into the same shape the server saves
+function copyWebchatSnippet() {
+  const ta = document.getElementById('bot-webchat-snippet');
+  if (!ta) return;
+  ta.select();
+  navigator.clipboard?.writeText(ta.value).then(() => toast('Website chat code copied', 'success')).catch(() => toast('Press Ctrl+C to copy', 'info'));
+}
+
+async function regenerateWebchatToken() {
+  if (!confirm('Reset the website chat code? Any website still using the old code will stop working until you paste the new one.')) return;
+  try {
+    const r = await api('POST', '/api/lead-pipeline/webchat/regenerate');
+    const ta = document.getElementById('bot-webchat-snippet');
+    if (ta && r.webchat_token) ta.value = ta.value.replace(/data-token="[^"]*"/, `data-token="${r.webchat_token}"`);
+    if (BotState.data) BotState.data.webchat_token = r.webchat_token;
+    toast('New code ready — update it on your website', 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
 function collectBotConfig() {
   const val = (id) => document.getElementById(id)?.value ?? '';
   const on = (id) => !!document.getElementById(id)?.checked;

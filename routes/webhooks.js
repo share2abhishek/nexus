@@ -5,7 +5,7 @@ const express = require('express');
 const router = express.Router();
 const leadPipelineRepoFactory = require('../repos/leadPipelineRepo');
 const { fetchMetaLeadDetails, verifyMetaSignature } = require('../services/leadPipeline/metaWebhook');
-const { handleInboundWhatsApp } = require('../services/leadPipeline/inbound');
+const { handleInboundWhatsApp, handleInboundWebChat } = require('../services/leadPipeline/inbound');
 const { qualifyLead } = require('../services/leadPipeline/leadQualifier');
 const { forwardToN8n } = require('../services/leadPipeline/n8nForwarder');
 const { syncContactToChatwoot } = require('../services/leadPipeline/chatwootClient');
@@ -238,6 +238,34 @@ module.exports = (knex) => {
       await handleInboundWhatsApp(knex, { config, phone: key.remoteJid.split('@')[0], name: body.data.pushName, text, source: 'evolution' });
     } catch (err) {
       console.warn('[Evolution Webhook] Could not save a message:', err.message);
+    }
+  });
+
+  // ── Website live-chat widget ──────────────────────────────────────────────
+  // Public: a customer's website posts a visitor's message and gets the bot's reply
+  // back, so an on-site chat board can use the same bot + knowledge base as WhatsApp.
+  // Authorised by the per-workspace webchat_token in the URL (safe to embed in a
+  // public page; it can answer the bot, nothing more).
+  const webchatCors = (res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Max-Age', '86400');
+    res.set('Vary', 'Origin');
+  };
+  router.options('/webchat/:token', (req, res) => { webchatCors(res); res.status(204).end(); });
+  router.post('/webchat/:token', express.json({ limit: '32kb' }), async (req, res) => {
+    webchatCors(res);
+    const config = await repo.getConfigByWebchatToken(String(req.params.token || '')).catch(() => null);
+    if (!config) return res.status(404).json({ error: 'Unknown chat address' });
+    const { text, visitor_id, name } = req.body || {};
+    if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Missing message text' });
+    try {
+      const r = await handleInboundWebChat(knex, { config, visitorId: visitor_id, name, text });
+      res.json({ reply: r.reply, action: r.action });
+    } catch (err) {
+      console.warn('[WebChat Webhook] Could not answer:', err.message);
+      res.status(500).json({ error: 'Could not answer right now' });
     }
   });
 

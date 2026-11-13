@@ -1667,8 +1667,15 @@ module.exports = (knex, requirePermission) => {
         ? !!(config.evolution_api_url && config.evolution_status === 'open')
         : !!((config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN) && config.whatsapp_phone_number_id);
       const optedOut = (await chatbot.optedOutLeadIds(knex, req.workspaceId)).size;
-      res.json({ ...settings, licensed: await broadcast.licensed(req.workspaceId), whatsapp_connected: connected, engine, opted_out_count: optedOut, limits: chatbot.LIMITS, n8n_configured: !!config.n8n_webhook_url });
+      const base = (process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+      res.json({ ...settings, licensed: await broadcast.licensed(req.workspaceId), whatsapp_connected: connected, engine, opted_out_count: optedOut, limits: chatbot.LIMITS, n8n_configured: !!config.n8n_webhook_url, webchat_token: config.webchat_token, webchat_base: base });
     } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // New website-chat token (the old embed code stops working)
+  router.post('/webchat/regenerate', requirePermission('content.edit'), async (req, res) => {
+    try { res.json({ webchat_token: await repo.regenerateWebchatToken(req.workspaceId) }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
   });
 
   router.post('/bot', requirePermission('content.edit'), async (req, res) => {

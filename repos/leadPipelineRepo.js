@@ -27,12 +27,19 @@ module.exports = (knex) => ({
       const [newId] = await knex('meta_lead_configs').insert({
         workspace_id: workspaceId,
         verify_token: randomToken,
+        webchat_token: 'webchat_' + crypto.randomBytes(16).toString('hex'),
         auto_qualify_ai: 1,
         created_at: now,
         updated_at: now,
       }).returning('id');
       const id = newId?.id ?? newId;
       cfg = await knex('meta_lead_configs').where({ id }).first();
+    }
+    // Back-fill a web-chat token for configs created before the column existed
+    if (cfg && !cfg.webchat_token) {
+      const tok = 'webchat_' + crypto.randomBytes(16).toString('hex');
+      await knex('meta_lead_configs').where({ id: cfg.id }).update({ webchat_token: tok }).catch(() => {});
+      cfg.webchat_token = tok;
     }
     return {
       ...cfg,
@@ -88,6 +95,19 @@ module.exports = (knex) => ({
   async getConfigByVerifyToken(token) {
     if (!token) return null;
     return knex('meta_lead_configs').where({ verify_token: token }).first();
+  },
+
+  async getConfigByWebchatToken(token) {
+    if (!token) return null;
+    return knex('meta_lead_configs').where({ webchat_token: token }).first();
+  },
+
+  // New random web-chat token (invalidates any website still using the old one)
+  async regenerateWebchatToken(workspaceId) {
+    await this.getOrCreateConfig(workspaceId);
+    const tok = 'webchat_' + crypto.randomBytes(16).toString('hex');
+    await knex('meta_lead_configs').where({ workspace_id: workspaceId }).update({ webchat_token: tok, updated_at: nowEpoch() });
+    return tok;
   },
 
   async getConfigByPageId(pageId) {
