@@ -2618,6 +2618,13 @@ async function selectWhatsAppConversation(leadId) {
   LeadPipelineState.chat.activeLeadId = leadId;
   renderWhatsAppConversationsList(LeadPipelineState.chat.searchQuery);
 
+  if (window.innerWidth <= 820) {
+    const activePane = document.getElementById('chat-active-pane');
+    if (activePane) {
+      setTimeout(() => activePane.scrollIntoView({ behavior: 'smooth' }), 50);
+    }
+  }
+
   const active = (LeadPipelineState.chat.conversations || []).find((c) => c.lead_id === leadId) ||
     (LeadPipelineState.leads || []).find((l) => l.id === leadId);
 

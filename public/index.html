@@ -23,6 +23,7 @@
         <div class="logo-text">Social-Nexus</div>
         <div class="logo-sub">by Radixile Technology Solutions</div>
       </div>
+      <button class="btn btn-ghost btn-sm mobile-sidebar-close" onclick="closeSidebar()" aria-label="Close navigation" style="display:none;margin-left:auto;padding:3px 7px;font-size:16px;color:var(--text-muted);border:none;background:transparent;cursor:pointer">✕</button>
     </div>
 
     <nav class="sidebar-nav" aria-label="Main menu">
@@ -189,12 +190,18 @@
     </div>
   </aside>
 
+  <!-- Mobile Sidebar Backdrop Overlay -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()" aria-hidden="true"></div>
+
   <!-- ── Main ─────────────────────────────────────────────────────────────── -->
   <main class="main">
     <header class="header">
-      <div>
-        <div class="header-title" id="header-title">Dashboard</div>
-        <div class="header-subtitle" id="header-subtitle">Overview of your Social-Nexus platform</div>
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <button class="btn btn-secondary btn-sm mobile-nav-toggle" id="btn-mobile-menu" onclick="toggleSidebar()" aria-label="Open navigation menu">☰</button>
+        <div style="min-width:0;overflow:hidden">
+          <div class="header-title" id="header-title">Dashboard</div>
+          <div class="header-subtitle" id="header-subtitle">Overview of your Social-Nexus platform</div>
+        </div>
       </div>
       <div class="header-actions">
         <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" id="btn-theme" title="Toggle light/dark mode" aria-label="Toggle light/dark mode"><svg class="ico" id="theme-icon" aria-hidden="true"><use href="icons/sprite.svg#i-moon"/></svg></button>
@@ -3229,7 +3236,7 @@
         </div>
 
         <!-- Live Chat Container (3-Pane Layout: Left Chats, Center Stream, Right Chat Profile) -->
-        <div class="card" id="whatsapp-live-chat-card" style="padding:0;overflow:hidden;border:1px solid var(--border);border-top:none;border-bottom-left-radius:14px;border-bottom-right-radius:14px;height:calc(100vh - 170px);min-height:560px;max-height:840px;display:grid;grid-template-columns:290px 1fr 310px">
+        <div class="card" id="whatsapp-live-chat-card" style="padding:0;overflow:hidden;border:1px solid var(--border);border-top:none;border-bottom-left-radius:14px;border-bottom-right-radius:14px;height:calc(100vh - 170px);min-height:560px;max-height:840px">
           
           <!-- Column 1: Chats Directory -->
           <div style="border-right:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden">
@@ -3250,38 +3257,38 @@
           <div id="chat-active-pane" style="display:flex;flex-direction:column;background:#0b141a;height:100%;min-height:0;overflow:hidden">
             
             <!-- Active Header Bar -->
-            <div id="chat-active-header" style="flex-shrink:0;padding:10px 16px;background:#202c33;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center">
-              <div style="display:flex;align-items:center;gap:10px">
+            <div id="chat-active-header">
+              <div class="chat-header-info">
                 <div id="chat-header-avatar" style="width:36px;height:36px;border-radius:50%;background:#0284c7;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0">
                   AB
                 </div>
-                <div>
-                  <div style="display:flex;align-items:center;gap:8px">
-                    <span id="chat-header-name" style="font-size:14px;font-weight:700;color:#e9edef">No chat open</span>
-                    <span class="badge" id="chat-header-verified-badge" style="background:#22c55e;color:#000;font-size:9.5px;font-weight:800;padding:1px 5px">✓ VERIFIED</span>
+                <div style="min-width:0;flex:1">
+                  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                    <span id="chat-header-name" style="font-size:14px;font-weight:700;color:#e9edef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">No chat open</span>
+                    <span class="badge" id="chat-header-verified-badge" style="background:#22c55e;color:#000;font-size:9.5px;font-weight:800;padding:1px 5px;white-space:nowrap;flex-shrink:0">✓ VERIFIED</span>
                   </div>
-                  <div style="font-size:11px;color:#8696a0;display:flex;align-items:center;gap:8px;margin-top:2px">
+                  <div style="font-size:11px;color:#8696a0;display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">
                     <span id="chat-header-phone"></span>
                     <span id="chat-header-society" style="color:#53bdeb"></span>
-                    <span id="chat-header-window" class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e;font-size:9.5px">Active (24h left)</span>
-                    <span id="chat-header-agent" class="badge" onclick="openTeamSeatsModal()" style="background:rgba(99,102,241,0.15);color:#a5b4fc;cursor:pointer;font-size:9.5px" title="Click to assign team seat">👤 <span id="chat-header-agent-name">Not assigned</span></span>
+                    <span id="chat-header-window" class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e;font-size:9.5px;white-space:nowrap">Active (24h left)</span>
+                    <span id="chat-header-agent" class="badge" onclick="openTeamSeatsModal()" style="background:rgba(99,102,241,0.15);color:#a5b4fc;cursor:pointer;font-size:9.5px;white-space:nowrap" title="Click to assign team seat">👤 <span id="chat-header-agent-name">Not assigned</span></span>
                   </div>
                 </div>
               </div>
 
               <!-- Top Action Buttons -->
-              <div style="display:flex;gap:6px;align-items:center">
-                <button class="btn btn-secondary btn-sm" onclick="openWhatsAppPaymentModal()" style="color:#eab308;border-color:rgba(234,179,8,0.3);font-size:11px;display:flex;align-items:center;gap:4px">
+              <div class="chat-header-actions">
+                <button class="btn btn-secondary btn-sm" onclick="openWhatsAppPaymentModal()" style="color:#eab308;border-color:rgba(234,179,8,0.3);font-size:11px;display:flex;align-items:center;gap:4px;flex-shrink:0">
                   <span>💳</span><span>Send UPI</span>
                 </button>
-                <button class="btn btn-secondary btn-sm" onclick="openTeamSeatsModal()" style="color:#a5b4fc;border-color:rgba(99,102,241,0.3);font-size:11px;display:flex;align-items:center;gap:4px">
+                <button class="btn btn-secondary btn-sm" onclick="openTeamSeatsModal()" style="color:#a5b4fc;border-color:rgba(99,102,241,0.3);font-size:11px;display:flex;align-items:center;gap:4px;flex-shrink:0">
                   <span>👥</span><span>6 Seats</span>
                 </button>
-                <button class="btn btn-secondary btn-sm" id="btn-chat-wa-cfg" onclick="openWhatsAppConfigModal()" style="display:flex;align-items:center;gap:5px;font-size:11px;border-color:rgba(56,189,248,0.4)"><span>⚙️ API</span><span id="wa-chat-status-badge" class="badge" style="background:#ef4444;color:#fff;font-size:9px;padding:1px 4px">Offline</span></button>
-                <button class="btn btn-secondary btn-sm" id="btn-chat-wa-web" onclick="openActiveChatWhatsAppWeb()" style="color:#22c55e;border-color:rgba(34,197,94,0.3);font-size:11px">
+                <button class="btn btn-secondary btn-sm" id="btn-chat-wa-cfg" onclick="openWhatsAppConfigModal()" style="display:flex;align-items:center;gap:5px;font-size:11px;border-color:rgba(56,189,248,0.4);flex-shrink:0"><span>⚙️ API</span><span id="wa-chat-status-badge" class="badge" style="background:#ef4444;color:#fff;font-size:9px;padding:1px 4px">Offline</span></button>
+                <button class="btn btn-secondary btn-sm" id="btn-chat-wa-web" onclick="openActiveChatWhatsAppWeb()" style="color:#22c55e;border-color:rgba(34,197,94,0.3);font-size:11px;flex-shrink:0">
                   💬 WhatsApp Web ↗
                 </button>
-                <button class="btn btn-secondary btn-sm" onclick="simulateCustomerWhatsAppReply()" title="Simulate prospect reply" style="font-size:11px">
+                <button class="btn btn-secondary btn-sm" onclick="simulateCustomerWhatsAppReply()" title="Simulate prospect reply" style="font-size:11px;flex-shrink:0">
                   🧪 Reply
                 </button>
               </div>

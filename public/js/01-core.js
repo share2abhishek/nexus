@@ -90,6 +90,9 @@ const PLATFORMS = {
 const PAGE_REDIRECTS = { 'user-settings': ['settings', 'ai'] };
 
 function navigateTo(page) {
+  // Close mobile sidebar if open
+  if (typeof closeSidebar === 'function') closeSidebar();
+
   if (PAGE_REDIRECTS[page]) {
     const [to, tab] = PAGE_REDIRECTS[page];
     State.pendingSettingsTab = tab;
@@ -246,6 +249,31 @@ function navigateToLeadTab(tab, subItemEl) {
 window.navigateTo = navigateTo;
 window.toggleLeadSubmenu = toggleLeadSubmenu;
 window.navigateToLeadTab = navigateToLeadTab;
+
+function toggleSidebar(force) {
+  const sidebar = document.querySelector('.sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (!sidebar) return;
+  const isOpen = force !== undefined ? force : !sidebar.classList.contains('open');
+  sidebar.classList.toggle('open', isOpen);
+  if (backdrop) backdrop.classList.toggle('active', isOpen);
+  document.body.classList.toggle('sidebar-mobile-open', isOpen);
+}
+
+function closeSidebar() {
+  toggleSidebar(false);
+}
+
+window.toggleSidebar = toggleSidebar;
+window.closeSidebar = closeSidebar;
+
+// Close mobile sidebar on Escape key or desktop resize
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeSidebar();
+});
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 900) closeSidebar();
+});
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
