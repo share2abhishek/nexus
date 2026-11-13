@@ -821,7 +821,7 @@ async function saveManualContact() {
       full_name: name,
       phone_number: phone,
       society: (societyInput?.value || '').trim(),
-      role: (roleInput?.value || '').trim() || 'Secretary',
+      role: (roleInput?.value || '').trim(),
       tag: tagSelect?.value || 'CTWA Lead',
       source: sourceSelect?.value || 'MANUAL',
     });
@@ -2054,10 +2054,10 @@ function parseCsvText(text) {
     const row = lines[i].split(delimiter).map((col) => col.trim().replace(/^["']|["']$/g, ''));
     if (!row.length || !row.join('')) continue;
 
-    const name = nameIdx !== -1 && row[nameIdx] ? row[nameIdx] : row[0] || 'Resident';
+    const name = nameIdx !== -1 && row[nameIdx] ? row[nameIdx] : row[0] || '';
     const rawPhone = phoneIdx !== -1 && row[phoneIdx] ? row[phoneIdx] : row[1] || '';
-    const society = societyIdx !== -1 && row[societyIdx] ? row[societyIdx] : (row[2] || 'Residential Community');
-    const role = roleIdx !== -1 && row[roleIdx] ? row[roleIdx] : (row[3] || 'Committee Member');
+    const society = societyIdx !== -1 && row[societyIdx] ? row[societyIdx] : (row[2] || '');
+    const role = roleIdx !== -1 && row[roleIdx] ? row[roleIdx] : (row[3] || '');
     const units = unitsIdx !== -1 && row[unitsIdx] ? row[unitsIdx] : (row[4] || '');
 
     const phone = normalizePhoneNumber(rawPhone);
@@ -2211,8 +2211,8 @@ function openAddManualContactModal() {
 function submitAddManualContact() {
   const name = document.getElementById('manual-contact-name')?.value.trim();
   const rawPhone = document.getElementById('manual-contact-phone')?.value.trim();
-  const society = document.getElementById('manual-contact-society')?.value.trim() || 'Residential Society';
-  const role = document.getElementById('manual-contact-role')?.value.trim() || 'Committee Member';
+  const society = document.getElementById('manual-contact-society')?.value.trim() || '';
+  const role = document.getElementById('manual-contact-role')?.value.trim() || '';
   const units = document.getElementById('manual-contact-units')?.value.trim() || '';
 
   if (!name || !rawPhone) {
@@ -2328,9 +2328,9 @@ function updateBroadcastPhoneMockup() {
   const sample = LeadPipelineState.broadcast.contacts[0] || { name: 'Priya', society: '', role: '', units: '' };
 
   let personalized = rawText
-    .replace(/\{\{name\}\}/gi, sample.name || 'Resident')
-    .replace(/\{\{society\}\}/gi, sample.society || 'Residential Community')
-    .replace(/\{\{role\}\}/gi, sample.role || 'Committee Member')
+    .replace(/\{\{name\}\}/gi, sample.name || 'Friend')
+    .replace(/\{\{society\}\}/gi, sample.society || '')
+    .replace(/\{\{role\}\}/gi, sample.role || '')
     .replace(/\{\{units\}\}/gi, sample.units || '');
 
   // Format *bold* and _italic_
@@ -2380,9 +2380,9 @@ async function startWhatsAppBroadcast() {
       let cleanPhone = String(c.phone).replace(/[^0-9]/g, "");
       if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
       let text = messageText
-        .replace(/\{\{name\}\}/gi, c.name || "Resident")
-        .replace(/\{\{society\}\}/gi, c.society || "Residential Society")
-        .replace(/\{\{role\}\}/gi, c.role || "Committee Member")
+        .replace(/\{\{name\}\}/gi, c.name || "")
+        .replace(/\{\{society\}\}/gi, c.society || "")
+        .replace(/\{\{role\}\}/gi, c.role || "")
         .replace(/\{\{units\}\}/gi, c.units || "");
       const url = "https://wa.me/" + cleanPhone + "?text=" + encodeURIComponent(text);
       window.open(url, "_blank");
@@ -2507,8 +2507,13 @@ async function loadWhatsAppConversations(targetLeadId) {
           phone_number: match.phone_number,
           email: match.email,
           society: match.society || (match.raw_answers?.society || ''),
+          role: match.role || (match.raw_answers?.role || ''),
+          tag: match.tag || '',
           status: match.status || 'new',
-          lead_score: match.lead_score || 85,
+          lead_score: match.lead_score || 0,
+          category: 'Standard',
+          payment: match.payment_status === 'paid' && match.order_value ? `₹${match.order_value} Received` : 'None yet',
+          filter_type: 'active',
           message_count: 0,
           last_message: match.suggested_reply || 'Started in-app chat',
           last_message_at: match.created_at || Math.floor(Date.now() / 1000),
@@ -2576,9 +2581,9 @@ function updateWhatsAppFilterCounts() {
   const elReq = document.getElementById('count-wa-requesting');
   const elInt = document.getElementById('count-wa-intervened');
 
-  if (elActive) elActive.textContent = activeCount || 21;
-  if (elReq) elReq.textContent = requestingCount || 24;
-  if (elInt) elInt.textContent = intervenedCount || 1;
+  if (elActive) elActive.textContent = activeCount;
+  if (elReq) elReq.textContent = requestingCount;
+  if (elInt) elInt.textContent = intervenedCount;
 }
 
 function filterWhatsAppChats(filterTab, buttonEl) {
@@ -2688,14 +2693,15 @@ async function selectWhatsAppConversation(leadId) {
     }
   }
 
-  const active = (LeadPipelineState.chat.conversations || []).find((c) => c.lead_id === leadId) ||
-    (LeadPipelineState.leads || []).find((l) => l.id === leadId);
+  const matchedConvo = (LeadPipelineState.chat.conversations || []).find((c) => c.lead_id === leadId);
+  const matchedLead = (LeadPipelineState.leads || []).find((l) => l.id === leadId);
+  const active = Object.assign({}, matchedLead || {}, matchedConvo || {});
 
-  if (!active) return;
+  if (!active || (!active.lead_id && !active.id)) return;
 
   // 1. Update Top Bar Label
   const topLabel = document.getElementById('wa-top-contact-label');
-  if (topLabel) topLabel.textContent = `${active.full_name} (${active.phone_number || ''})`;
+  if (topLabel) topLabel.textContent = `${active.full_name || 'Contact'} (${active.phone_number || 'No phone'})`;
 
   // 2. Update Active Chat Header
   const headerAvatar = document.getElementById('chat-header-avatar');
@@ -2709,17 +2715,22 @@ async function selectWhatsAppConversation(leadId) {
   if (headerAvatar) headerAvatar.textContent = initials;
   if (headerName) headerName.textContent = active.full_name || 'Prospect Lead';
   if (headerPhone) headerPhone.textContent = active.phone_number || '';
-  if (headerSociety) headerSociety.textContent = active.society ? '• ' + active.society : '';
+  if (headerSociety) {
+    headerSociety.textContent = active.society ? '• ' + active.society : '';
+    headerSociety.style.display = active.society ? 'inline' : 'none';
+  }
   if (headerWindow) {
     headerWindow.textContent = active.window_status || 'Active (24h left)';
     headerWindow.style.background = 'rgba(34,197,94,0.15)';
     headerWindow.style.color = '#22c55e';
   }
   if (headerAgentName) {
-    headerAgentName.textContent = active.assigned_agent_name || 'Not assigned';
+    headerAgentName.textContent = active.assigned_agent_name && active.assigned_agent_name !== 'Unassigned'
+      ? active.assigned_agent_name
+      : 'Not assigned';
   }
 
-  // 3. Update Chat Profile Side Panel (Matching Image 1)
+  // 3. Update Chat Profile Side Panel
   const profileAvatar = document.getElementById('profile-avatar');
   const profileName = document.getElementById('profile-name');
   const profilePhone = document.getElementById('profile-phone');
@@ -2731,12 +2742,48 @@ async function selectWhatsAppConversation(leadId) {
 
   if (profileAvatar) profileAvatar.textContent = initials;
   if (profileName) profileName.textContent = active.full_name || 'Unknown';
-  if (profilePhone) profilePhone.textContent = active.phone_number || '+91 987654321';
-  if (profileSociety) profileSociety.textContent = active.society || '';
-  if (profileRole) profileRole.textContent = (active.role || 'President') + ' • Decision Maker';
-  if (profileCategory) profileCategory.textContent = active.category || 'Utility / Marketing (Free Tier)';
-  if (profilePayment) profilePayment.textContent = active.payment || '₹1,500.00 Received from UPI';
-  if (profileAgent) profileAgent.textContent = '👤 ' + (active.assigned_agent_name || 'Not assigned');
+  if (profilePhone) profilePhone.textContent = active.phone_number || '';
+  if (profileSociety) {
+    profileSociety.textContent = active.society || '';
+    profileSociety.style.display = active.society ? 'block' : 'none';
+  }
+  if (profileRole) {
+    profileRole.textContent = active.role || '';
+    profileRole.style.display = active.role ? 'block' : 'none';
+  }
+  if (profileCategory) {
+    profileCategory.textContent = active.category || (active.is_within_24h ? 'Service (24h Window)' : 'Standard');
+  }
+  if (profilePayment) {
+    const hasPaid = active.payment && active.payment !== 'None yet';
+    profilePayment.textContent = active.payment || 'None yet';
+    profilePayment.style.background = hasPaid ? '#dcfce7' : 'var(--bg3)';
+    profilePayment.style.color = hasPaid ? '#15803d' : 'var(--text-muted)';
+  }
+  if (profileAgent) {
+    profileAgent.textContent = active.assigned_agent_name && active.assigned_agent_name !== 'Unassigned'
+      ? '👤 ' + active.assigned_agent_name
+      : '👤 Unassigned';
+  }
+
+  const tagCtwa = document.getElementById('profile-tag-ctwa');
+  const tagHot = document.getElementById('profile-tag-hot');
+  if (tagCtwa) {
+    if (active.tag) {
+      tagCtwa.textContent = active.tag;
+      tagCtwa.style.display = 'inline-block';
+    } else {
+      tagCtwa.style.display = 'none';
+    }
+  }
+  if (tagHot) {
+    if (active.lead_score && active.lead_score >= 75) {
+      tagHot.textContent = '🔥 High Intent (' + active.lead_score + ')';
+      tagHot.style.display = 'inline-block';
+    } else {
+      tagHot.style.display = 'none';
+    }
+  }
 
   // 4. Render Messages Stream
   const stream = document.getElementById('chat-message-stream');
@@ -3354,6 +3401,16 @@ function renderWhatsAppConfigBadges() {
       alertText.innerHTML = "<strong>Permanent Access Token Missing:</strong> Paste your Meta Permanent Access Token below to enable real Cloud API delivery.";
     }
   }
+
+  // 7. Header billing & credits indicator
+  const creditsEl = document.getElementById("header-credits-display");
+  if (creditsEl) {
+    if (hasToken) {
+      creditsEl.textContent = "Direct Meta Cloud API (1,000 free conv/mo)";
+    } else {
+      creditsEl.textContent = "Direct via Meta Business Manager";
+    }
+  }
 }
 
 if (typeof window !== 'undefined') {
@@ -3680,8 +3737,8 @@ async function submitImportedContacts() {
       contacts.push({
         name: parts[0],
         phone: parts[1],
-        society: parts[2] || 'Residential Society',
-        role: parts[3] || 'Committee Member',
+        society: parts[2] || '',
+        role: parts[3] || '',
         units: parts[4] || '',
       });
     }

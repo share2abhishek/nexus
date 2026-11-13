@@ -1252,14 +1252,35 @@ module.exports = (knex, requirePermission) => {
         const isWithin24h = hoursElapsed < 24;
         const hoursRemaining = Math.max(0, 24 - hoursElapsed);
 
+        let filter_type = 'active';
+        if (lead.assigned_agent_id) {
+          filter_type = 'intervened';
+        } else if (!lastMsg || lastMsg.sender_type === 'lead') {
+          filter_type = 'requesting';
+        } else {
+          filter_type = 'active';
+        }
+
+        const role = lead.role || lead.raw_answers?.role || lead.raw_answers?.designation || '';
+        const tag = lead.tag || (lead.raw_answers?.tag) || '';
+        const category = isWithin24h ? 'Service (24h Window)' : 'Standard';
+        const payment = lead.payment_status === 'paid' && lead.order_value
+          ? `₹${Number(lead.order_value).toLocaleString('en-IN')} Received`
+          : (lead.payment_status === 'pending' ? 'Pending Payment' : 'None yet');
+
         conversations.push({
           lead_id: lead.id,
           full_name: lead.full_name || 'Prospect Lead',
           phone_number: lead.phone_number,
           email: lead.email,
           society,
+          role,
+          tag,
+          category,
+          payment,
           status: lead.status,
-          lead_score: lead.lead_score,
+          lead_score: lead.lead_score || 0,
+          filter_type,
           message_count: msgs.length,
           last_message: lastMsg ? lastMsg.message_text : (lead.suggested_reply || lead.intent_summary || 'Inquired via Meta Lead Ad'),
           last_sender: lastMsg ? lastMsg.sender_type : 'lead',
