@@ -286,12 +286,37 @@ module.exports = (knex) => {
   // public page; it can answer the bot, nothing more).
   const webchatCors = (res) => {
     res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type');
     res.set('Access-Control-Max-Age', '86400');
     res.set('Vary', 'Origin');
   };
   router.options('/webchat/:token', (req, res) => { webchatCors(res); res.status(204).end(); });
+  router.options('/webchat/:token/history', (req, res) => { webchatCors(res); res.status(204).end(); });
+  router.get('/webchat/:token/history', async (req, res) => {
+    webchatCors(res);
+    const config = await repo.getConfigByWebchatToken(String(req.params.token || '')).catch(() => null);
+    if (!config) return res.status(404).json({ error: 'Unknown chat address' });
+    const visitorId = String(req.query.visitor_id || '').trim();
+    if (!visitorId) return res.json({ messages: [] });
+    try {
+      const ref = `web:${visitorId.replace(/[^a-zA-Z0-9_:-]/g, '').slice(0, 90)}`;
+      const lead = await knex('meta_lead_events').where({ workspace_id: config.workspace_id, leadgen_id: ref }).first();
+      if (!lead) return res.json({ messages: [] });
+      const msgs = await repo.listLeadMessages(config.workspace_id, lead.id);
+      const list = msgs.map(m => ({
+        id: m.id,
+        text: m.message_text,
+        who: m.sender_type === 'lead' ? 'me' : 'bot',
+        sender_name: m.sender_name || (m.sender_type === 'lead' ? 'You' : 'Urban Society'),
+        created_at: m.created_at,
+      }));
+      res.json({ messages: list });
+    } catch (err) {
+      console.warn('[WebChat History] Failed:', err.message);
+      res.status(500).json({ error: 'Could not load messages' });
+    }
+  });
   router.post('/webchat/:token', express.json({ limit: '32kb' }), async (req, res) => {
     webchatCors(res);
     const config = await repo.getConfigByWebchatToken(String(req.params.token || '')).catch(() => null);

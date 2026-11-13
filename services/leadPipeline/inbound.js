@@ -135,6 +135,22 @@ async function handleInboundWebChat(knex, { config, visitorId, name, text }) {
       intent_summary: `Website chat: "${msg.slice(0, 80)}"`, status: 'new', lead_score: 50,
     });
   }
+  // Auto-detect phone number in message to enrich lead
+  const phoneMatch = msg.match(/(?:\+91|91|0)?[6-9]\d{9}\b/);
+  if (phoneMatch && !lead.phone_number) {
+    let clean = phoneMatch[0].replace(/[^0-9]/g, '');
+    if (clean.length === 10) clean = '91' + clean;
+    await repo.updateLeadEvent(workspaceId, lead.id, { phone_number: clean }).catch(() => {});
+    lead.phone_number = clean;
+  }
+  // Auto-detect visitor name
+  const nameMatch = msg.match(/(?:my name is|i am|this is)\s+([A-Za-z]{2,25}(?:\s+[A-Za-z]{2,25})?)/i);
+  if (nameMatch && (lead.full_name === 'Website visitor' || !lead.full_name)) {
+    const newName = nameMatch[1].trim();
+    await repo.updateLeadEvent(workspaceId, lead.id, { full_name: newName }).catch(() => {});
+    lead.full_name = newName;
+  }
+
   await repo.addLeadMessage(workspaceId, lead.id, {
     sender_type: 'lead', sender_name: senderName, message_text: msg, channel: 'web',
   });
@@ -152,7 +168,18 @@ async function handleInboundWebChat(knex, { config, visitorId, name, text }) {
     bot = await chatbot.handleInbound(knex, {
       workspaceId, lead, text: msg, name: senderName,
       // Web-chat captures replies instead of sending them over WhatsApp
-      send: (reply) => { if (reply) captured.push(reply); return { success: true }; },
+      send: async (reply) => {
+        if (reply) {
+          captured.push(reply);
+          await repo.addLeadMessage(workspaceId, lead.id, {
+            sender_type: 'bot',
+            sender_name: 'Nexus Bot',
+            message_text: reply,
+            channel: 'web',
+          }).catch(() => {});
+        }
+        return { success: true };
+      },
       askN8n: n8nUrl ? async () => {
         const r = await forwardToN8n(n8nUrl, event({ reply_wanted: true, how_to_reply: 'Respond with JSON {"reply": "your text"} to answer on the website chat.' }));
         if (!r.success) throw new Error(r.error || 'n8n did not answer');

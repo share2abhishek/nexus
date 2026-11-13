@@ -1260,14 +1260,16 @@ module.exports = (knex, requirePermission) => {
   router.get('/whatsapp/conversations', requirePermission('content.view'), async (req, res) => {
     try {
       const leads = await repo.listLeadEvents(req.workspaceId, { limit: 100 });
-      const leadsWithPhone = leads.filter((l) => l.phone_number);
+      const chatLeads = leads.filter((l) => l.phone_number || (l.leadgen_id && l.leadgen_id.startsWith('web:')));
       const conversations = [];
 
-      for (const lead of leadsWithPhone) {
+      for (const lead of chatLeads) {
         const msgs = await repo.listLeadMessages(req.workspaceId, lead.id);
         const lastMsg = msgs.length ? msgs[msgs.length - 1] : null;
 
-        const society = lead.raw_answers?.society_name || lead.raw_answers?.housing_society || '';
+        const isWeb = lead.leadgen_id && lead.leadgen_id.startsWith('web:');
+        const phone = lead.phone_number || (isWeb ? 'Website Chat' : '');
+        const society = lead.raw_answers?.society_name || lead.raw_answers?.housing_society || (isWeb ? 'urbansociety.in' : '');
 
         const now = Math.floor(Date.now() / 1000);
         const hoursElapsed = Math.floor((now - lead.created_at) / 3600);
@@ -1283,8 +1285,8 @@ module.exports = (knex, requirePermission) => {
           filter_type = 'active';
         }
 
-        const role = lead.role || lead.raw_answers?.role || lead.raw_answers?.designation || '';
-        const tag = lead.tag || (lead.raw_answers?.tag) || '';
+        const role = lead.role || lead.raw_answers?.role || lead.raw_answers?.designation || (isWeb ? 'Website Prospect' : '');
+        const tag = lead.tag || (lead.raw_answers?.tag) || (isWeb ? 'Web Visitor' : '');
         const category = isWithin24h ? 'Service (24h Window)' : 'Standard';
         const payment = lead.payment_status === 'paid' && lead.order_value
           ? `₹${Number(lead.order_value).toLocaleString('en-IN')} Received`
@@ -1292,8 +1294,8 @@ module.exports = (knex, requirePermission) => {
 
         conversations.push({
           lead_id: lead.id,
-          full_name: lead.full_name || 'Prospect Lead',
-          phone_number: lead.phone_number,
+          full_name: lead.full_name || (isWeb ? 'Website Visitor' : 'Prospect Lead'),
+          phone_number: phone,
           email: lead.email,
           society,
           role,
@@ -1358,11 +1360,15 @@ module.exports = (knex, requirePermission) => {
 
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const deliveryEngine = engine || config.delivery_engine || 'cloud_api';
-      const cleanPhone = String(lead.phone_number).replace(/[^0-9]/g, '');
+      const isWebLead = lead.leadgen_id && lead.leadgen_id.startsWith('web:');
+      const cleanPhone = lead.phone_number ? String(lead.phone_number).replace(/[^0-9]/g, '') : '';
 
       let dispatchResult = null;
       if (!is_internal_note) {
-        if (deliveryEngine === 'evolution') {
+        if (!cleanPhone && isWebLead) {
+          // Web visitor chat without a phone number: stored in conversation messages for live widget polling
+          dispatchResult = { success: true, mode: 'webchat' };
+        } else if (deliveryEngine === 'evolution') {
           dispatchResult = await evolutionApi.sendTextMessage({
             apiUrl: config.evolution_api_url,
             apiKey: config.evolution_api_key,
