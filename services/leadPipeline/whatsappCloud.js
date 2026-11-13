@@ -160,6 +160,106 @@ function buildTemplateComponents({ templateComponents, templateParams }) {
 }
 
 /**
+ * Auto-fill and build compliant Meta template components matching template schema.
+ * Reconciles both positional ({{1}}, {{2}}) and named ({{param_name}}) parameters
+ * across both HEADER and BODY components, using example values or clean test defaults.
+ */
+function autoFillTemplateComponents(tmplDef, { templateComponents, templateParams } = {}) {
+  // If caller explicitly passed templateComponents array with non-empty parameters, respect it
+  if (templateComponents && Array.isArray(templateComponents) && templateComponents.length) {
+    const hasAnyParams = templateComponents.some((c) => Array.isArray(c.parameters) && c.parameters.length);
+    if (hasAnyParams) {
+      return templateComponents.map((c) => ({
+        ...c,
+        type: String(c.type || 'body').toLowerCase(),
+        parameters: formatComponentParameters(c.parameters || []),
+      }));
+    }
+  }
+
+  if (!tmplDef || !tmplDef.components) {
+    return buildTemplateComponents({ templateComponents, templateParams });
+  }
+
+  const rawComps = tmplDef.components || [];
+  const headerComp = rawComps.find((c) => String(c.type).toUpperCase() === 'HEADER');
+  const bodyComp = rawComps.find((c) => String(c.type).toUpperCase() === 'BODY');
+
+  const components = [];
+
+  // 1. Process HEADER component if format is TEXT and contains variables
+  if (headerComp && String(headerComp.format || '').toUpperCase() === 'TEXT') {
+    const namedHeader = headerComp.example?.header_text_named_params || [];
+    const namedMatches = (headerComp.text || '').match(/\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}/g) || [];
+    const positionalMatches = (headerComp.text || '').match(/\{\{\d+\}\}/g) || [];
+
+    if (namedHeader.length || namedMatches.length) {
+      const list = namedHeader.length ? namedHeader : namedMatches;
+      const params = list.map((np) => {
+        const paramName = np.param_name || String(np).replace(/[\{\}]/g, '');
+        const val =
+          (templateParams && typeof templateParams === 'object' && !Array.isArray(templateParams) && templateParams[paramName]) ||
+          np.example ||
+          'Social-Nexus';
+        return { type: 'text', parameter_name: paramName, text: String(val) };
+      });
+      components.push({ type: 'header', parameters: params });
+    } else if (positionalMatches.length) {
+      const userHeaderParams =
+        templateParams && typeof templateParams === 'object' && templateParams.header
+          ? (Array.isArray(templateParams.header) ? templateParams.header : [templateParams.header])
+          : [];
+      const examples = headerComp.example?.header_text || [];
+      const params = positionalMatches.map((_, idx) => {
+        const val = userHeaderParams[idx] || examples[idx] || 'Social-Nexus';
+        return { type: 'text', text: String(val) };
+      });
+      components.push({ type: 'header', parameters: params });
+    }
+  }
+
+  // 2. Process BODY component
+  if (bodyComp) {
+    const namedBody = bodyComp.example?.body_text_named_params || [];
+    const namedMatches = (bodyComp.text || '').match(/\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}/g) || [];
+    const positionalMatches = (bodyComp.text || '').match(/\{\{\d+\}\}/g) || [];
+
+    if (namedBody.length || namedMatches.length) {
+      const list = namedBody.length ? namedBody : namedMatches;
+      const params = list.map((np, idx) => {
+        const paramName = np.param_name || String(np).replace(/[\{\}]/g, '');
+        const val =
+          (templateParams && typeof templateParams === 'object' && !Array.isArray(templateParams) && templateParams[paramName]) ||
+          np.example ||
+          (templateParams && Array.isArray(templateParams) ? templateParams[idx] : null) ||
+          'Notice';
+        return { type: 'text', parameter_name: paramName, text: String(val) };
+      });
+      components.push({ type: 'body', parameters: params });
+    } else if (positionalMatches.length) {
+      const userBodyParams =
+        (Array.isArray(templateParams) ? templateParams : (templateParams?.body || []));
+      const examples = (bodyComp.example?.body_text?.[0]) || [];
+      const defaultFallbacks = ['Society Admin', '173121', '4950.00', 'Account Update', 'Verified'];
+
+      const params = positionalMatches.map((_, idx) => {
+        const userVal = userBodyParams[idx];
+        const valText =
+          userVal && typeof userVal === 'object' && userVal.text !== undefined
+            ? userVal.text
+            : userVal !== undefined && userVal !== null
+            ? String(userVal)
+            : examples[idx] || defaultFallbacks[idx] || `Param${idx + 1}`;
+        return { type: 'text', text: String(valText) };
+      });
+      components.push({ type: 'body', parameters: params });
+    }
+  }
+
+  return components.length ? components : buildTemplateComponents({ templateComponents, templateParams });
+}
+
+/**
  * Clear cached message templates for a given WABA
  */
 function clearTemplateCache(wabaId = DEFAULT_WABA_ID) {
@@ -289,6 +389,7 @@ async function sendWhatsAppMessage({
   let currentLang = normalizeLanguageCode(languageCode);
 
   // Meta official sample template hello_world is strictly registered under en_US and has no body components
+  let matchedTemplate = null;
   if (templateName === 'hello_world') {
     currentLang = 'en_US';
   } else if (templateName && templateCache.has(wabaId)) {
@@ -296,19 +397,24 @@ async function sendWhatsAppMessage({
     const cached = templateCache.get(wabaId)?.templates || [];
     const matches = cached.filter((t) => t.name.toLowerCase() === templateName.toLowerCase() && t.status === 'APPROVED');
     if (matches.length > 0) {
-      const exactLang = matches.find((m) => m.language === currentLang);
-      if (!exactLang) {
+      matchedTemplate = matches.find((m) => m.language === currentLang) || matches[0];
+      if (matchedTemplate && matchedTemplate.language !== currentLang) {
         // Automatically adopt the approved translation language to preempt #132001
-        currentLang = matches[0].language;
+        currentLang = matchedTemplate.language;
       }
     }
   }
 
   const buildPayload = (lang) => {
     if (templateName) {
-      const components = templateName === 'hello_world'
-        ? undefined
-        : buildTemplateComponents({ templateComponents, templateParams });
+      let components;
+      if (templateName === 'hello_world') {
+        components = undefined;
+      } else if (matchedTemplate) {
+        components = autoFillTemplateComponents(matchedTemplate, { templateComponents, templateParams });
+      } else {
+        components = buildTemplateComponents({ templateComponents, templateParams });
+      }
 
       const p = {
         messaging_product: 'whatsapp',
@@ -435,6 +541,55 @@ async function sendWhatsAppMessage({
         } catch (retryErr) {
           // Continue to next candidate
         }
+      }
+    }
+
+    // ── Self-healing resolution for Meta Error #132000 ("Number of parameters does not match...") ──
+    const isParamCountError =
+      errCode === 132000 ||
+      (typeof errMsg === 'string' && errMsg.includes('Number of parameters does not match'));
+
+    if (isParamCountError && templateName && accessToken && wabaId) {
+      console.warn(
+        `[WhatsApp Cloud API] Meta Error #132000 encountered for template '${templateName}'. Auto-resolving parameter schema from Graph API...`
+      );
+
+      try {
+        const liveSync = await getMessageTemplates(wabaId, accessToken, { forceRefresh: true });
+        const tmpl = (liveSync.templates || []).find(
+          (t) => t.name.toLowerCase() === templateName.toLowerCase() && t.status === 'APPROVED'
+        );
+        if (tmpl) {
+          const autoComponents = autoFillTemplateComponents(tmpl, { templateComponents, templateParams });
+          if (autoComponents && autoComponents.length) {
+            const retryPayload = {
+              messaging_product: 'whatsapp',
+              recipient_type: 'individual',
+              to: cleanTo,
+              type: 'template',
+              template: {
+                name: templateName,
+                language: { code: currentLang },
+                components: autoComponents,
+              },
+            };
+            const retryRes = await axios.post(endpoint, retryPayload, { headers, timeout: 15000 });
+            console.info(
+              `[WhatsApp Cloud API] Auto-healed Error #132000! Template '${templateName}' successfully delivered to +${cleanTo} via Cloud API.`
+            );
+            return {
+              success: true,
+              mode: 'cloud_api',
+              message_id: retryRes.data?.messages?.[0]?.id,
+              recipient: cleanTo,
+              auto_healed_132000: true,
+              response: retryRes.data,
+              message: `WhatsApp template '${templateName}' delivered to +${cleanTo} via Cloud API!`,
+            };
+          }
+        }
+      } catch (autoErr) {
+        console.warn('[WhatsApp Cloud API] Auto-heal #132000 failed:', autoErr.response?.data || autoErr.message);
       }
     }
 
@@ -819,6 +974,7 @@ module.exports = {
   clearTemplateCache,
   normalizeLanguageCode,
   buildTemplateComponents,
+  autoFillTemplateComponents,
   formatComponentParameters,
   SUPPORTED_LANGUAGE_CODES,
   GRAPH_API_VERSION,

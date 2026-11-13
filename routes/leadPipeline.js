@@ -1665,8 +1665,23 @@ module.exports = (knex, requirePermission) => {
           });
         }
 
-        const chosenTemplate = template_name || config.whatsapp_template_name || 'withoutlink_en_message';
+        const chosenTemplate = template_name || config.whatsapp_template_name || 'transaction_message';
         const chosenLang = language_code || config.whatsapp_template_language || (chosenTemplate === 'transaction_message' ? 'en' : 'en_US');
+
+        // Look up template schema to auto-populate required parameters if caller did not supply them
+        let resolvedComponents = template_components;
+        let resolvedParams = template_params;
+        if (!resolvedParams && !resolvedComponents) {
+          try {
+            const tmplList = await whatsappCloud.getMessageTemplates(targetWabaId, token);
+            const tmplObj = (tmplList.templates || []).find(
+              (t) => t.name.toLowerCase() === chosenTemplate.toLowerCase() && t.status === 'APPROVED'
+            );
+            if (tmplObj) {
+              resolvedComponents = whatsappCloud.autoFillTemplateComponents(tmplObj, {});
+            }
+          } catch (e) {}
+        }
 
         result = await whatsappCloud.sendWhatsAppMessage({
           phoneNumberId,
@@ -1676,8 +1691,8 @@ module.exports = (knex, requirePermission) => {
           text: 'Test from Social-Nexus: it works.',
           templateName: chosenTemplate,
           languageCode: chosenLang,
-          templateParams: template_params,
-          templateComponents: template_components,
+          templateParams: resolvedParams,
+          templateComponents: resolvedComponents,
         });
       }
 

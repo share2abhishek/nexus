@@ -377,6 +377,90 @@ describe('Meta WhatsApp Cloud API & Template Architecture', () => {
     });
   });
 
+  // ── 3b. Resolution of Meta Error #132000 (Parameter Count Mismatch) ───────────
+  describe('3b. Resolution of Meta WhatsApp Error #132000 ("Number of parameters does not match")', () => {
+    test('autoFillTemplateComponents populates positional parameters from template example schema', () => {
+      const tmpl = {
+        name: 'transaction_message',
+        language: 'en',
+        components: [
+          { type: 'HEADER', format: 'TEXT', text: 'Account Update:' },
+          {
+            type: 'BODY',
+            text: 'Society: {{1}}\nTxn: {{2}}\nAmount: Rs. {{3}}',
+            example: { body_text: [['Namrata Gloria', '173121', '4950.00']] },
+          },
+        ],
+      };
+      const comps = whatsappCloud.autoFillTemplateComponents(tmpl, {});
+      expect(comps).toHaveLength(1);
+      expect(comps[0].type).toBe('body');
+      expect(comps[0].parameters).toHaveLength(3);
+      expect(comps[0].parameters[0].text).toBe('Namrata Gloria');
+      expect(comps[0].parameters[1].text).toBe('173121');
+      expect(comps[0].parameters[2].text).toBe('4950.00');
+    });
+
+    test('auto-heals #132000 by auto-resolving parameters from live template schema', async () => {
+      // First call fails with #132000
+      axios.post.mockRejectedValueOnce({
+        response: {
+          status: 400,
+          data: {
+            error: {
+              message: '(#132000) Number of parameters does not match the expected number of params',
+              code: 132000,
+            },
+          },
+        },
+      });
+
+      // Live template fetch returns the template definition with examples
+      axios.get.mockResolvedValueOnce({
+        status: 200,
+        data: {
+          data: [
+            {
+              id: '1414451677531294',
+              name: 'transaction_message',
+              status: 'APPROVED',
+              language: 'en',
+              components: [
+                {
+                  type: 'BODY',
+                  text: 'Society: {{1}}\nTxn: {{2}}',
+                  example: { body_text: [['Namrata Gloria', '173121']] },
+                },
+              ],
+            },
+          ],
+        },
+      });
+
+      // Second post succeeds with auto-filled parameters!
+      axios.post.mockResolvedValueOnce({
+        status: 200,
+        data: {
+          messaging_product: 'whatsapp',
+          messages: [{ id: 'wamid.AUTO_HEALED_132000' }],
+        },
+      });
+
+      const res = await whatsappCloud.sendWhatsAppMessage({
+        phoneNumberId: MOCK_PHONE_ID,
+        wabaId: MOCK_WABA_ID,
+        accessToken: MOCK_TOKEN,
+        to: '918149498945',
+        templateName: 'transaction_message',
+        languageCode: 'en',
+      });
+
+      expect(res.success).toBe(true);
+      expect(res.auto_healed_132000).toBe(true);
+      expect(res.message_id).toBe('wamid.AUTO_HEALED_132000');
+    });
+  });
+
   // ── 4. Live Template Synchronization (getMessageTemplates) ─────────────────
   describe('4. Live Template Synchronization (getMessageTemplates)', () => {
     test('fetches and enriches approved templates from Graph API v21.0', async () => {

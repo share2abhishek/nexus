@@ -2951,8 +2951,15 @@ function onCardTemplateChange(val) {
   const select = document.getElementById("card-wa-template-select");
   const opt = select?.selectedOptions?.[0];
   const lang = opt?.getAttribute("data-lang") || (val === "transaction_message" ? "en" : "en_US");
+  const varCount = Number(opt?.getAttribute("data-var-count") || (val === "transaction_message" ? 5 : 0));
   const badge = document.getElementById("card-wa-template-lang-badge");
   if (badge) badge.textContent = lang;
+
+  const statusPill = document.getElementById("card-wa-template-status-pill");
+  if (statusPill) {
+    statusPill.textContent = "Ready" + (varCount > 0 ? ` · ${varCount} variables (auto-filled)` : "");
+    statusPill.style.color = "#10b981";
+  }
 
   // Sync to modal & broadcast inputs if present
   const modalSel = document.getElementById("wa-cfg-template-select");
@@ -3045,6 +3052,8 @@ function populateTemplateSelects(templates) {
       const opt = document.createElement("option");
       opt.value = t.name;
       opt.setAttribute("data-lang", t.language || "en_US");
+      opt.setAttribute("data-var-count", t.variable_count || 0);
+      opt.setAttribute("data-status", t.status || "APPROVED");
       opt.textContent = `${t.name} (${t.language || "en_US"}) · ${t.category || "UTILITY"} [${t.status}]`;
       sel.appendChild(opt);
     });
@@ -3076,12 +3085,21 @@ async function sendWhatsAppTestPing() {
   const chosenTemplate =
     templateSelect?.value ||
     document.getElementById("broadcast-template-name")?.value?.trim() ||
-    "withoutlink_en_message";
+    "transaction_message";
 
   const chosenLang =
     templateSelect?.selectedOptions?.[0]?.getAttribute("data-lang") ||
     document.getElementById("broadcast-template-lang")?.value ||
     (chosenTemplate === "transaction_message" ? "en" : "en_US");
+
+  const currentPhoneId =
+    document.getElementById("card-wa-phone-id")?.value?.trim() ||
+    document.getElementById("wa-cfg-phone-id")?.value?.trim() ||
+    undefined;
+  const currentWabaId =
+    document.getElementById("card-wa-waba-id")?.value?.trim() ||
+    document.getElementById("wa-cfg-waba-id")?.value?.trim() ||
+    undefined;
 
   try {
     if (btn) {
@@ -3095,9 +3113,10 @@ async function sendWhatsAppTestPing() {
 
     const res = await api("POST", "/api/lead-pipeline/whatsapp/test-send", {
       to: recipient,
+      phone_number_id: currentPhoneId,
+      waba_id: currentWabaId,
       template_name: chosenTemplate,
       language_code: chosenLang,
-      template_params: undefined,
     });
 
     if (res.success) {
