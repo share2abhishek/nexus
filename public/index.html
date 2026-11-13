@@ -45,7 +45,7 @@
       </a>
       <div class="nav-group-parent" id="group-lead-ads">
         <a class="nav-item has-subnav" data-page="leads-inbox" id="nav-lead-ads" title="Chat with customers, send broadcasts, manage contacts">
-          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-message-circle"/></svg>
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg>
           <span class="nav-label">WhatsApp</span>
           <span class="nav-badge" id="wa-unread-badge" style="display:none"></span>
           <span class="nav-chevron-wrap" onclick="toggleLeadSubmenu(event)" title="Show or hide">
@@ -322,7 +322,7 @@
           <div>
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
               <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:22px">💬</span>
+                <svg style="width:24px;height:24px;flex-shrink:0" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg>
                 <div>
                   <div style="font-size:14px;font-weight:700;color:var(--text-primary)">WhatsApp</div>
                   <div style="font-size:11.5px;color:var(--text-muted)">Chats, broadcasts and leads</div>
@@ -477,7 +477,7 @@
                   <label class="platform-toggle youtube" data-platform="youtube">▶️ YouTube</label>
                   <label class="platform-toggle google_business" data-platform="google_business">🏢 Google Biz</label>
                   <label class="platform-toggle tiktok" data-platform="tiktok">🎵 TikTok</label>
-                  <label class="platform-toggle whatsapp" data-platform="whatsapp" style="background:rgba(37,211,102,0.12);border-color:rgba(37,211,102,0.3);color:#25d366">💬 WhatsApp</label>
+                  <label class="platform-toggle whatsapp" data-platform="whatsapp" style="background:rgba(37,211,102,0.12);border-color:rgba(37,211,102,0.3);color:#25d366;display:inline-flex;align-items:center;gap:6px"><svg style="width:14px;height:14px" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg> WhatsApp</label>
                 </div>
               </div>
 
@@ -3285,8 +3285,8 @@
                   <span>👥</span><span>6 Seats</span>
                 </button>
                 <button class="btn btn-secondary btn-sm" id="btn-chat-wa-cfg" onclick="openWhatsAppConfigModal()" style="display:flex;align-items:center;gap:5px;font-size:11px;border-color:rgba(56,189,248,0.4);flex-shrink:0"><span>⚙️ API</span><span id="wa-chat-status-badge" class="badge" style="background:#ef4444;color:#fff;font-size:9px;padding:1px 4px">Offline</span></button>
-                <button class="btn btn-secondary btn-sm" id="btn-chat-wa-web" onclick="openActiveChatWhatsAppWeb()" style="color:#22c55e;border-color:rgba(34,197,94,0.3);font-size:11px;flex-shrink:0">
-                  💬 WhatsApp Web ↗
+                <button class="btn btn-secondary btn-sm" id="btn-chat-wa-web" onclick="openActiveChatWhatsAppWeb()" style="color:#22c55e;border-color:rgba(34,197,94,0.3);font-size:11px;flex-shrink:0;display:inline-flex;align-items:center;gap:4px">
+                  <svg style="width:13px;height:13px" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg><span>WhatsApp Web ↗</span>
                 </button>
                 <button class="btn btn-secondary btn-sm" onclick="simulateCustomerWhatsAppReply()" title="Simulate prospect reply" style="font-size:11px;flex-shrink:0">
                   🧪 Reply
@@ -3398,7 +3398,7 @@
                 <span>👥 Assign Team Member</span>
               </button>
               <button class="btn btn-secondary btn-sm" onclick="openActiveChatWhatsAppWeb()" style="justify-content:flex-start;padding:8px 12px;font-size:12px;color:#22c55e;border-color:rgba(34,197,94,0.3)">
-                <span>💬 Open in WhatsApp Web ↗</span>
+                <span style="display:inline-flex;align-items:center;gap:5px"><svg style="width:13px;height:13px" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg> Open in WhatsApp Web ↗</span>
               </button>
             </div>
 
@@ -3980,7 +3980,7 @@
       </div>
     </div>
     <div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-secondary" onclick="shareViaWhatsApp(document.getElementById('repost-content').value)">💬 Share on WhatsApp</button>
+      <button class="btn btn-secondary" onclick="shareViaWhatsApp(document.getElementById('repost-content').value)" style="display:inline-flex;align-items:center;gap:6px"><svg style="width:14px;height:14px" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg> Share on WhatsApp</button>
       <button class="btn btn-secondary" onclick="sendRepostToCompose()">✏️ Edit in Compose</button>
       <button class="btn btn-primary" onclick="publishRepost()">📤 Post Now</button>
     </div>

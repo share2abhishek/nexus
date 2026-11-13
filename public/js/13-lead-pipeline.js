@@ -519,8 +519,8 @@ function renderLeadsTable(searchFilter = '') {
         <td style="padding:12px 16px;text-align:right">
           <div style="display:inline-flex;gap:6px;align-items:center">
             ${waLink ? `
-              <a href="${waLink}" target="_blank" rel="noopener" class="btn btn-sm btn-secondary" title="Chat on WhatsApp" style="color:#10b981;font-weight:700;font-size:11.5px;border-color:rgba(16,185,129,0.3)">
-                💬 WhatsApp
+              <a href="${waLink}" target="_blank" rel="noopener" class="btn btn-sm btn-secondary" title="Chat on WhatsApp" style="color:#10b981;font-weight:700;font-size:11.5px;border-color:rgba(16,185,129,0.3);display:inline-flex;align-items:center;gap:4px">
+                <svg style="width:13px;height:13px" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg> WhatsApp
               </a>
             ` : ''}
             <button class="btn btn-sm btn-secondary" onclick="viewLeadDetails(${l.id})" title="View Details" style="font-size:11.5px">
