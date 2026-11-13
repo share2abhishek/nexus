@@ -565,19 +565,85 @@ function crmMoney(n) { return n ? '₹' + Number(n).toLocaleString('en-IN') : ''
 function switchLeadsView(view) {
   LeadPipelineState.leadsView = view;
   const board = document.getElementById('pipeline-leads-board');
+  const reports = document.getElementById('pipeline-leads-reports');
   const tableCard = document.getElementById('pipeline-leads-table-card');
-  const tb = document.getElementById('lead-view-table-btn');
-  const bb = document.getElementById('lead-view-board-btn');
-  if (view === 'board') {
-    if (board) board.style.display = 'flex';
-    if (tableCard) tableCard.style.display = 'none';
-    bb && bb.classList.add('active'); tb && tb.classList.remove('active');
-    renderLeadsBoard();
-  } else {
-    if (board) board.style.display = 'none';
-    if (tableCard) tableCard.style.display = '';
-    tb && tb.classList.add('active'); bb && bb.classList.remove('active');
+  const btns = { table: 'lead-view-table-btn', board: 'lead-view-board-btn', reports: 'lead-view-reports-btn' };
+  Object.entries(btns).forEach(([v, id]) => document.getElementById(id)?.classList.toggle('active', v === view));
+  if (board) board.style.display = view === 'board' ? 'flex' : 'none';
+  if (reports) reports.style.display = view === 'reports' ? 'block' : 'none';
+  if (tableCard) tableCard.style.display = view === 'table' ? '' : 'none';
+  if (view === 'board') renderLeadsBoard();
+  else if (view === 'reports') loadPipelineReport();
+}
+
+/* ─── CRM reports / dashboard ──────────────────────────────────────────────── */
+
+async function loadPipelineReport() {
+  const box = document.getElementById('pipeline-leads-reports');
+  if (!box) return;
+  box.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)"><span class="spinner"></span> Building your pipeline report…</div>';
+  try {
+    renderPipelineReport(await api('GET', '/api/lead-pipeline/reports'));
+  } catch (err) {
+    box.innerHTML = `<div class="state-error">Couldn’t load the report: ${escapeHtml(err.message)}</div>`;
   }
+}
+
+function renderPipelineReport(r) {
+  const box = document.getElementById('pipeline-leads-reports');
+  if (!box) return;
+  const money = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+  const STAGE_META = { new: ['New', '#64748b'], contacted: ['Contacted', '#3b82f6'], qualified: ['Qualified', '#8b5cf6'], proposal: ['Proposal', '#f59e0b'], won: ['Won', '#10b981'], lost: ['Lost', '#ef4444'] };
+  const order = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
+  const stageMap = Object.fromEntries((r.stages || []).map((s) => [s.stage, s]));
+  const maxVal = Math.max(1, ...order.map((k) => (stageMap[k]?.value || 0)));
+
+  const tile = (label, value, sub, tone) => `<div class="crm-tile">
+    <div class="crm-tile-label">${label}</div>
+    <div class="crm-tile-value ${tone || ''}">${value}</div>
+    <div class="crm-tile-sub">${sub || ''}</div></div>`;
+
+  const bars = order.map((k) => {
+    const s = stageMap[k] || { count: 0, value: 0 };
+    const [label, color] = STAGE_META[k];
+    const pct = Math.round((s.value / maxVal) * 100);
+    return `<div class="crm-bar-row">
+      <div class="crm-bar-label"><span class="crm-col-dot" style="background:${color}"></span>${label}<span class="crm-bar-count">${s.count}</span></div>
+      <div class="crm-bar-track"><div class="crm-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="crm-bar-val">${money(s.value)}</div>
+    </div>`;
+  }).join('');
+
+  const owners = (r.owners || []).map((o) => `<tr>
+    <td style="padding:8px 12px;font-weight:600">${escapeHtml(o.owner)}</td>
+    <td style="padding:8px 12px;text-align:right">${o.count}</td>
+    <td style="padding:8px 12px;text-align:right">${money(o.open_value)}</td>
+    <td style="padding:8px 12px;text-align:right;color:#10b981;font-weight:700">${money(o.won_value)}</td>
+  </tr>`).join('') || '<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--text-muted)">No owners assigned yet</td></tr>';
+
+  box.innerHTML = `
+    <div class="crm-tiles">
+      ${tile('Open pipeline', money(r.open_value), `${r.total - r.won - r.lost} active leads`)}
+      ${tile('Won value', money(r.won_value), `${r.won} won`, 'good')}
+      ${tile('Win rate', (r.win_rate || 0) + '%', `${r.won} won · ${r.lost} lost`)}
+      ${tile('Open tasks', r.tasks?.open || 0, (r.tasks?.overdue ? r.tasks.overdue + ' overdue' : 'none overdue'), r.tasks?.overdue ? 'bad' : '')}
+    </div>
+    <div class="card" style="padding:16px 18px;margin-top:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:12px">Pipeline value by stage</div>
+      ${bars}
+    </div>
+    <div class="card" style="padding:0;margin-top:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <div style="font-weight:700;font-size:14px;padding:14px 16px;border-bottom:1px solid var(--border)">Team leaderboard</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:var(--bg2);color:var(--text-secondary)">
+          <th style="padding:8px 12px;text-align:left">Owner</th>
+          <th style="padding:8px 12px;text-align:right">Leads</th>
+          <th style="padding:8px 12px;text-align:right">Open value</th>
+          <th style="padding:8px 12px;text-align:right">Won value</th>
+        </tr></thead>
+        <tbody>${owners}</tbody>
+      </table>
+    </div>`;
 }
 
 function renderLeadsBoard() {

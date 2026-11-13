@@ -170,6 +170,12 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
+  // ── CRM pipeline report ─────────────────────────────────────────────────────
+  router.get('/reports', requirePermission('content.view'), async (req, res) => {
+    try { res.json(await repo.pipelineReport(req.workspaceId)); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
   // ── CRM activities (notes & tasks) ──────────────────────────────────────────
   router.get('/leads/:id/activities', requirePermission('content.view'), async (req, res) => {
     try { res.json(await repo.listActivities(req.workspaceId, Number(req.params.id))); }

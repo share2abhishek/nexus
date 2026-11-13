@@ -243,6 +243,40 @@ module.exports = (knex) => ({
   async deleteActivity(workspaceId, id) {
     return knex('lead_activities').where({ workspace_id: workspaceId, id: Number(id) }).del();
   },
+  // Pipeline report: value by stage, win rate, owner leaderboard, task summary
+  async pipelineReport(workspaceId) {
+    const leads = await knex('meta_lead_events').where({ workspace_id: workspaceId })
+      .select('pipeline_stage', 'deal_value', 'assigned_agent_name');
+    const stages = {};
+    const owners = {};
+    let openValue = 0, wonValue = 0, won = 0, lost = 0;
+    for (const l of leads) {
+      const st = l.pipeline_stage || 'new';
+      const v = Number(l.deal_value) || 0;
+      const s = stages[st] || (stages[st] = { count: 0, value: 0 });
+      s.count++; s.value += v;
+      if (st === 'won') { won++; wonValue += v; }
+      else if (st === 'lost') { lost++; }
+      else { openValue += v; }
+      const name = (l.assigned_agent_name || '').trim() || 'Unassigned';
+      const ow = owners[name] || (owners[name] = { count: 0, open_value: 0, won_value: 0 });
+      ow.count++;
+      if (st === 'won') ow.won_value += v; else if (st !== 'lost') ow.open_value += v;
+    }
+    const closed = won + lost;
+    const taskRows = await knex('lead_activities').where({ workspace_id: workspaceId, kind: 'task' }).whereNull('done_at').select('due_at').catch(() => []);
+    const now = nowEpoch();
+    return {
+      total: leads.length,
+      open_value: openValue, won_value: wonValue, won, lost,
+      win_rate: closed ? Math.round((won / closed) * 100) : 0,
+      stages: Object.entries(stages).map(([stage, s]) => ({ stage, ...s })),
+      owners: Object.entries(owners).map(([owner, o]) => ({ owner, ...o }))
+        .sort((a, b) => (b.open_value + b.won_value) - (a.open_value + a.won_value)),
+      tasks: { open: taskRows.length, overdue: taskRows.filter((r) => r.due_at && Number(r.due_at) < now).length },
+    };
+  },
+
   // Open-task counts per lead, for list/board badges: { leadId: { open, overdue } }
   async openTaskCounts(workspaceId) {
     const rows = await knex('lead_activities')

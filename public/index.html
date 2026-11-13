@@ -3033,10 +3033,13 @@
         <div style="display:flex;gap:6px;margin-bottom:14px">
           <button class="btn btn-sm lead-view-btn active" id="lead-view-table-btn" onclick="switchLeadsView('table')">☰ List</button>
           <button class="btn btn-sm lead-view-btn" id="lead-view-board-btn" onclick="switchLeadsView('board')">▦ Pipeline</button>
+          <button class="btn btn-sm lead-view-btn" id="lead-view-reports-btn" onclick="switchLeadsView('reports')">📊 Reports</button>
         </div>
 
         <!-- Kanban pipeline board -->
         <div id="pipeline-leads-board" class="crm-board" style="display:none"></div>
+        <!-- CRM reports / dashboard -->
+        <div id="pipeline-leads-reports" style="display:none;margin-bottom:24px"></div>
 
         <!-- Contacts Table (Matching Image 2: Checkbox, Name, Mobile Number, Tags, Source) -->
         <div class="card" id="pipeline-leads-table-card" style="padding:0;overflow:hidden;border:1px solid var(--border);border-radius:12px;margin-bottom:24px;background:var(--bg-card)">
