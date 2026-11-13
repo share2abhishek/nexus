@@ -116,8 +116,36 @@ module.exports = (knex) => ({
   },
 
   // ── Lead Events ────────────────────────────────────────────────────────────
+  formatLead(r) {
+    if (!r) return null;
+    const answers = parseJson(r.raw_answers_json, {});
+    const tags = parseJson(r.tags_json, []);
+    return {
+      ...r,
+      raw_answers: answers,
+      society: answers.society || answers.society_name || answers.housing_society || r.society || '',
+      role: answers.role || answers.designation || r.role || '',
+      tag: (tags && tags[0]) || answers.tag || r.tag || 'CTWA Lead',
+      source: r.channel_source || answers.source || (r.leadgen_id ? 'AD' : 'MANUAL'),
+    };
+  },
+
   async addLeadEvent(workspaceId, data) {
     const now = nowEpoch();
+    const rawAnswers = data.raw_answers_json
+      ? (typeof data.raw_answers_json === 'string' ? data.raw_answers_json : JSON.stringify(data.raw_answers_json))
+      : JSON.stringify({
+          ...(data.raw_answers || {}),
+          ...(data.society ? { society: data.society } : {}),
+          ...(data.role ? { role: data.role } : {}),
+          ...(data.tag ? { tag: data.tag } : {}),
+          ...(data.source ? { source: data.source } : {}),
+        });
+
+    const tagsJson = data.tags_json !== undefined
+      ? (typeof data.tags_json === 'string' ? data.tags_json : JSON.stringify(data.tags_json))
+      : (data.tag ? JSON.stringify([data.tag]) : null);
+
     const rows = await knex('meta_lead_events').insert({
       workspace_id: workspaceId,
       leadgen_id: data.leadgen_id || null,
@@ -129,15 +157,19 @@ module.exports = (knex) => ({
       full_name: data.full_name || null,
       email: data.email || null,
       phone_number: data.phone_number || null,
-      raw_answers_json: data.raw_answers_json ? (typeof data.raw_answers_json === 'string' ? data.raw_answers_json : JSON.stringify(data.raw_answers_json)) : null,
+      raw_answers_json: rawAnswers,
       lead_score: data.lead_score !== undefined ? Number(data.lead_score) : 50,
       intent_summary: data.intent_summary || null,
       suggested_reply: data.suggested_reply || null,
+      channel_source: data.channel_source || data.source || (data.leadgen_id ? 'AD' : 'MANUAL'),
       forwarded_to_n8n: !!data.forwarded_to_n8n ? 1 : 0,
       forwarded_to_chatwoot: !!data.forwarded_to_chatwoot ? 1 : 0,
       status: data.status || 'new',
-      ...(data.tags_json !== undefined ? { tags_json: typeof data.tags_json === 'string' ? data.tags_json : JSON.stringify(data.tags_json) } : {}),
-      created_at: now,
+      pipeline_stage: data.pipeline_stage || 'new',
+      deal_value: data.deal_value !== undefined ? (data.deal_value === null ? null : Math.round(Number(data.deal_value)) || null) : null,
+      assigned_agent_name: data.assigned_agent_name || null,
+      ...(tagsJson !== null ? { tags_json: tagsJson } : {}),
+      created_at: data.created_at || now,
       updated_at: now,
     }).returning('id');
 
@@ -151,19 +183,13 @@ module.exports = (knex) => ({
       q = q.where({ status });
     }
     const rows = await q.orderBy('created_at', 'desc').limit(limit).offset(offset);
-    return rows.map((r) => ({
-      ...r,
-      raw_answers: parseJson(r.raw_answers_json, {}),
-    }));
+    return rows.map((r) => this.formatLead(r));
   },
 
   async getLeadEvent(workspaceId, id) {
     const r = await knex('meta_lead_events').where({ workspace_id: workspaceId, id }).first();
     if (!r) return null;
-    return {
-      ...r,
-      raw_answers: parseJson(r.raw_answers_json, {}),
-    };
+    return this.formatLead(r);
   },
 
   async findLeadByPhone(workspaceId, phone) {

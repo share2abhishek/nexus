@@ -161,6 +161,39 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
+  router.post('/leads', requirePermission('content.create'), async (req, res) => {
+    try {
+      const { full_name, phone_number, email, society, role, tag, source, lead_score, suggested_reply, deal_value, pipeline_stage } = req.body || {};
+      if (!full_name || !String(full_name).trim()) {
+        return res.status(400).json({ error: 'Full name is required.' });
+      }
+      if (!phone_number || !String(phone_number).trim()) {
+        return res.status(400).json({ error: 'Mobile number is required.' });
+      }
+
+      const cleanPhone = String(phone_number).trim();
+      const name = String(full_name).trim();
+
+      const created = await repo.addLeadEvent(req.workspaceId, {
+        full_name: name,
+        phone_number: cleanPhone,
+        email: email ? String(email).trim() : null,
+        society: society ? String(society).trim() : '',
+        role: role ? String(role).trim() : 'Secretary',
+        tag: tag || 'CTWA Lead',
+        source: source || 'MANUAL',
+        lead_score: lead_score !== undefined ? Number(lead_score) : 85,
+        suggested_reply: suggested_reply || `Hi ${name}, thanks for getting in touch!`,
+        deal_value: deal_value !== undefined ? deal_value : null,
+        pipeline_stage: pipeline_stage || 'new',
+      });
+
+      res.status(201).json(created);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   router.patch('/leads/:id', requirePermission('content.edit'), async (req, res) => {
     try {
       const updated = await repo.updateLeadEvent(req.workspaceId, Number(req.params.id), req.body || {});

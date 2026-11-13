@@ -60,4 +60,53 @@ describe('CRM pipeline on leads', () => {
     const unchanged = await require('../repos/leadPipelineRepo')(knex).getLeadEvent(ws2?.id ?? ws2, other.id);
     expect(unchanged.pipeline_stage).toBe('new');
   });
+
+  test('POST /leads creates and persists a manual contact in the database', async () => {
+    // Missing required field
+    const failRes = await request(app).post('/api/lead-pipeline/leads').send({ full_name: 'Abhishek' });
+    expect(failRes.status).toBe(400);
+
+    // Valid contact creation
+    const res = await request(app).post('/api/lead-pipeline/leads').send({
+      full_name: 'Abhishek Gautam',
+      phone_number: '8149498945',
+      society: 'Palm Meadows',
+      role: 'President',
+      tag: 'Hot Lead',
+      source: 'MANUAL',
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBeDefined();
+    expect(res.body.full_name).toBe('Abhishek Gautam');
+    expect(res.body.phone_number).toBe('8149498945');
+    expect(res.body.society).toBe('Palm Meadows');
+    expect(res.body.role).toBe('President');
+    expect(res.body.tag).toBe('Hot Lead');
+    expect(res.body.source).toBe('MANUAL');
+
+    // Verify it is persisted in the database and readable
+    const persisted = await repo.getLeadEvent(workspaceId, res.body.id);
+    expect(persisted).toBeDefined();
+    expect(persisted.full_name).toBe('Abhishek Gautam');
+    expect(persisted.society).toBe('Palm Meadows');
+
+    // Verify it shows up in WhatsApp conversations list for in-app chat
+    const convRes = await request(app).get('/api/lead-pipeline/whatsapp/conversations');
+    expect(convRes.status).toBe(200);
+    const inAppConvo = convRes.body.conversations.find((c) => c.lead_id === res.body.id);
+    expect(inAppConvo).toBeDefined();
+    expect(inAppConvo.full_name).toBe('Abhishek Gautam');
+    expect(inAppConvo.phone_number).toBe('8149498945');
+
+    // Verify CRM activities can be fetched for this newly saved contact
+    const actRes = await request(app).get(`/api/lead-pipeline/leads/${res.body.id}/activities`);
+    expect(actRes.status).toBe(200);
+    expect(Array.isArray(actRes.body)).toBe(true);
+
+    // Verify pipeline report includes this contact
+    const repRes = await request(app).get('/api/lead-pipeline/reports');
+    expect(repRes.status).toBe(200);
+    expect(repRes.body.total).toBeGreaterThanOrEqual(2);
+  });
 });

@@ -518,10 +518,10 @@ function renderLeadsTable(searchFilter = '') {
         </td>
         <td style="padding:12px 16px;text-align:right">
           <div style="display:inline-flex;gap:6px;align-items:center">
-            ${waLink ? `
-              <a href="${waLink}" target="_blank" rel="noopener" class="btn btn-sm btn-secondary" title="Chat on WhatsApp" style="color:#10b981;font-weight:700;font-size:11.5px;border-color:rgba(16,185,129,0.3);display:inline-flex;align-items:center;gap:4px">
+            ${l.phone_number ? `
+              <button type="button" class="btn btn-sm btn-secondary" onclick="openInAppWhatsAppChat(${l.id})" title="Open WhatsApp Chat in Nexus" style="color:#10b981;font-weight:700;font-size:11.5px;border-color:rgba(16,185,129,0.3);display:inline-flex;align-items:center;gap:4px;cursor:pointer">
                 <svg style="width:13px;height:13px" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg> WhatsApp
-              </a>
+              </button>
             ` : ''}
             <button class="btn btn-sm btn-secondary" onclick="viewLeadDetails(${l.id})" title="View Details" style="font-size:11.5px">
               🔍 Details
@@ -793,7 +793,7 @@ function closeAddContactModal() {
   if (modal) modal.style.display = 'none';
 }
 
-function saveManualContact() {
+async function saveManualContact() {
   const nameInput = document.getElementById('add-contact-name');
   const phoneInput = document.getElementById('add-contact-phone');
   const societyInput = document.getElementById('add-contact-society');
@@ -809,29 +809,44 @@ function saveManualContact() {
     return;
   }
 
-  const newContact = {
-    id: Date.now(),
-    full_name: name,
-    phone_number: phone,
-    society: (societyInput?.value || '').trim(),
-    role: (roleInput?.value || '').trim() || 'Secretary',
-    tag: tagSelect?.value || 'CTWA Lead',
-    source: sourceSelect?.value || 'MANUAL',
-    lead_score: 85,
-    created_at: Math.floor(Date.now() / 1000),
-    suggested_reply: `Hi ${name}, thanks for getting in touch!`,
-  };
+  const saveBtn = document.querySelector('#modal-add-contact .modal-footer .btn-primary');
+  const origHtml = saveBtn ? saveBtn.innerHTML : 'Save Contact';
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner" style="width:13px;height:13px;margin-right:6px"></span> Saving...';
+  }
 
-  LeadPipelineState.leads.unshift(newContact);
-  renderLeadsTable();
-  closeAddContactModal();
+  try {
+    const saved = await api('POST', '/api/lead-pipeline/leads', {
+      full_name: name,
+      phone_number: phone,
+      society: (societyInput?.value || '').trim(),
+      role: (roleInput?.value || '').trim() || 'Secretary',
+      tag: tagSelect?.value || 'CTWA Lead',
+      source: sourceSelect?.value || 'MANUAL',
+    });
 
-  if (nameInput) nameInput.value = '';
-  if (phoneInput) phoneInput.value = '';
-  if (societyInput) societyInput.value = '';
-  if (roleInput) roleInput.value = '';
+    LeadPipelineState.leads = LeadPipelineState.leads || [];
+    LeadPipelineState.leads.unshift(saved);
+    renderLeadsTable();
+    if (LeadPipelineState.leadsView === 'board') renderLeadsBoard();
+    closeAddContactModal();
 
-  toast(`Contact "${name}" added successfully!`, 'success');
+    if (nameInput) nameInput.value = '';
+    if (phoneInput) phoneInput.value = '';
+    if (societyInput) societyInput.value = '';
+    if (roleInput) roleInput.value = '';
+
+    toast(`Contact "${name}" added and saved successfully!`, 'success');
+  } catch (err) {
+    console.error('Failed to save manual contact:', err);
+    toast(err.message || 'Failed to save contact to database', 'error');
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = origHtml;
+    }
+  }
 }
 
 /* ─── Ingested Ad Leads: Edit & Delete Handlers ──────────────────────────── */
@@ -1076,6 +1091,11 @@ function viewLeadDetails(id) {
             🗑️ Delete Lead
           </button>
           <div style="display:flex;gap:8px">
+            ${lead.phone_number ? `
+              <button class="btn btn-sm btn-secondary" onclick="openInAppWhatsAppChat(${lead.id});document.querySelector('#modal-lead-detail')?.remove();" style="color:#10b981;font-weight:700;border-color:rgba(16,185,129,0.4);display:inline-flex;align-items:center;gap:6px">
+                <svg style="width:13px;height:13px" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg> Chat in App
+              </button>
+            ` : ''}
             <button class="btn btn-secondary btn-sm" onclick="openEditLeadModal(${lead.id});document.querySelector('#modal-lead-detail')?.remove();">
               ✏️ Edit Details
             </button>
@@ -2469,7 +2489,7 @@ function stopChatAutoPoll() {
   }
 }
 
-async function loadWhatsAppConversations() {
+async function loadWhatsAppConversations(targetLeadId) {
   const listEl = document.getElementById('chat-conversations-list');
   if (listEl) listEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px"><span class="spinner" style="width:14px;height:14px"></span> Loading chats...</div>';
 
@@ -2477,7 +2497,25 @@ async function loadWhatsAppConversations() {
     const res = await api('GET', '/api/lead-pipeline/whatsapp/conversations').catch(() => ({ conversations: [] }));
     let convos = res.conversations || [];
 
-
+    const wantedId = targetLeadId || LeadPipelineState.chat.activeLeadId;
+    if (wantedId && !convos.some((c) => c.lead_id === wantedId)) {
+      const match = (LeadPipelineState.leads || []).find((l) => l.id === wantedId);
+      if (match) {
+        convos.unshift({
+          lead_id: match.id,
+          full_name: match.full_name || 'Prospect Lead',
+          phone_number: match.phone_number,
+          email: match.email,
+          society: match.society || (match.raw_answers?.society || ''),
+          status: match.status || 'new',
+          lead_score: match.lead_score || 85,
+          message_count: 0,
+          last_message: match.suggested_reply || 'Started in-app chat',
+          last_message_at: match.created_at || Math.floor(Date.now() / 1000),
+          window_status: 'Active (24h left)',
+        });
+      }
+    }
 
     LeadPipelineState.chat.conversations = convos;
     updateWhatsAppFilterCounts();
@@ -2495,11 +2533,36 @@ async function loadWhatsAppConversations() {
         </div>`;
       return;
     }
-    // Open the most recent chat
-    selectWhatsAppConversation(convos[0].lead_id);
+    // Open the requested or active or most recent chat
+    const leadToOpen = (wantedId && convos.some((c) => c.lead_id === wantedId)) ? wantedId : convos[0].lead_id;
+    selectWhatsAppConversation(leadToOpen);
   } catch (err) {
     console.error('Error loading conversations:', err);
     if (listEl) listEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted)">No chats found</div>';
+  }
+}
+
+async function openInAppWhatsAppChat(leadId) {
+  if (!leadId) return;
+  const numId = Number(leadId);
+  LeadPipelineState.chat.activeLeadId = numId;
+  const lead = (LeadPipelineState.leads || []).find((l) => l.id === numId);
+
+  // Switch to in-app WhatsApp live chat view
+  if (typeof navigateTo === 'function') {
+    navigateTo('leads-inbox');
+  }
+
+  // Load and focus on this conversation
+  await loadWhatsAppConversations(numId);
+
+  // Pre-fill suggested reply if available and reply box is empty
+  const replyInput = document.getElementById('chat-reply-input');
+  if (replyInput && !replyInput.value.trim() && lead?.suggested_reply) {
+    replyInput.value = lead.suggested_reply;
+  }
+  if (replyInput) {
+    setTimeout(() => replyInput.focus(), 150);
   }
 }
 
@@ -3908,6 +3971,7 @@ window.saveLeadDetails = saveLeadDetails;
 window.deleteLeadContact = deleteLeadContact;
 window.deleteLeadContactFromModal = deleteLeadContactFromModal;
 window.deleteSelectedContacts = deleteSelectedContacts;
+window.openInAppWhatsAppChat = openInAppWhatsAppChat;
 
 // Above the chat: say when auto-replies are paused here (a person replied) or the
 // contact opted out of broadcasts, with a way to let the bot answer again
