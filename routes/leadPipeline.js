@@ -152,6 +152,9 @@ module.exports = (knex, requirePermission) => {
         limit: limit ? Number(limit) : 50,
         offset: offset ? Number(offset) : 0,
       });
+      // attach open/overdue task counts for the list and board badges
+      const counts = await repo.openTaskCounts(req.workspaceId).catch(() => ({}));
+      for (const l of leads) { const c = counts[l.id] || {}; l.open_tasks = c.open || 0; l.overdue_tasks = c.overdue || 0; }
       res.json(leads);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -165,6 +168,27 @@ module.exports = (knex, requirePermission) => {
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
+  });
+
+  // ── CRM activities (notes & tasks) ──────────────────────────────────────────
+  router.get('/leads/:id/activities', requirePermission('content.view'), async (req, res) => {
+    try { res.json(await repo.listActivities(req.workspaceId, Number(req.params.id))); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+  });
+  router.post('/leads/:id/activities', requirePermission('content.edit'), async (req, res) => {
+    try {
+      const { kind, body, due_at } = req.body || {};
+      if (!body || !String(body).trim()) return res.status(400).json({ error: 'Write something first.' });
+      res.json(await repo.addActivity(req.workspaceId, Number(req.params.id), { user_id: req.session?.userId || null, kind, body, due_at }));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+  router.patch('/activities/:id', requirePermission('content.edit'), async (req, res) => {
+    try { res.json(await repo.setActivityDone(req.workspaceId, Number(req.params.id), !!req.body?.done)); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+  });
+  router.delete('/activities/:id', requirePermission('content.edit'), async (req, res) => {
+    try { res.json({ deleted: await repo.deleteActivity(req.workspaceId, Number(req.params.id)) }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
   });
 
   router.put('/leads/:id', requirePermission('content.edit'), async (req, res) => {

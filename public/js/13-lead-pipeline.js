@@ -602,10 +602,11 @@ function crmCardHtml(l) {
   const scoreCls = score >= 75 ? 'hot' : 'warm';
   const owner = l.assigned_agent_name ? `<span class="crm-owner" title="Owner">${escapeHtml(l.assigned_agent_name)}</span>` : '';
   const val = l.deal_value ? `<span class="crm-val">${crmMoney(l.deal_value)}</span>` : '';
-  return `<div class="crm-card" draggable="true" data-lead-id="${l.id}" ondragstart="crmDragStart(event,${l.id})" ondragend="crmDragEnd(event)" onclick="openEditLeadModal(${l.id})">
+  const tasks = l.open_tasks ? `<span class="crm-task-badge ${l.overdue_tasks ? 'overdue' : ''}" title="${l.overdue_tasks ? l.overdue_tasks + ' overdue' : l.open_tasks + ' open task(s)'}">✔ ${l.open_tasks}</span>` : '';
+  return `<div class="crm-card" draggable="true" data-lead-id="${l.id}" ondragstart="crmDragStart(event,${l.id})" ondragend="crmDragEnd(event)" onclick="viewLeadDetails(${l.id})">
     <div class="crm-card-name">${escapeHtml(l.full_name || 'Anonymous Lead')}</div>
     <div class="crm-card-sub">${escapeHtml(l.phone_number || '')}</div>
-    <div class="crm-card-foot">${val}<span class="crm-score ${scoreCls}">${score}</span>${owner}</div>
+    <div class="crm-card-foot">${val}<span class="crm-score ${scoreCls}">${score}</span>${tasks}${owner}</div>
   </div>`;
 }
 
@@ -992,6 +993,17 @@ function viewLeadDetails(id) {
           <div style="background:var(--bg-card);padding:10px;border-radius:8px;font-style:italic">
             "${escapeHtml(lead.suggested_reply || 'Follow up promptly.')}"
           </div>
+          <hr style="border:0;border-top:1px solid var(--border);margin:14px 0"/>
+          <h4 style="margin-bottom:8px">🗒️ Activity &amp; Tasks</h4>
+          <div class="crm-activity-add">
+            <input type="text" id="act-body-${lead.id}" class="form-input" placeholder="Add a note, or a follow-up task…" onkeydown="if(event.key==='Enter')addLeadActivity(${lead.id},'note')" style="width:100%;margin-bottom:6px" />
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <button class="btn btn-secondary btn-sm" onclick="addLeadActivity(${lead.id},'note')">+ Note</button>
+              <input type="date" id="act-due-${lead.id}" class="form-input" style="width:auto;padding:4px 8px;font-size:12px" title="Task due date" />
+              <button class="btn btn-secondary btn-sm" onclick="addLeadActivity(${lead.id},'task')">+ Task</button>
+            </div>
+          </div>
+          <div id="lead-activity-list-${lead.id}" class="crm-activity-list" style="margin-top:12px"><div style="color:var(--text-muted);font-size:13px">Loading…</div></div>
         </div>
         <div class="modal-footer" style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--bg2)">
           <button class="btn btn-secondary btn-sm" onclick="deleteLeadContact(${lead.id});document.querySelector('#modal-lead-detail')?.remove();" style="color:#ef4444;border-color:rgba(239,68,68,0.4)">
@@ -1009,6 +1021,78 @@ function viewLeadDetails(id) {
   `;
 
   document.body.insertAdjacentHTML('beforeend', modalHtml);
+  loadLeadActivities(id);
+}
+
+/* ─── CRM activities (notes & tasks) ──────────────────────────────────────── */
+
+async function loadLeadActivities(leadId) {
+  const box = document.getElementById(`lead-activity-list-${leadId}`);
+  if (!box) return;
+  try {
+    const items = await api('GET', `/api/lead-pipeline/leads/${leadId}/activities`);
+    renderLeadActivities(leadId, Array.isArray(items) ? items : []);
+  } catch (err) {
+    box.innerHTML = `<div style="color:#ef4444;font-size:13px">${escapeHtml(err.message || 'Could not load activity')}</div>`;
+  }
+}
+
+function renderLeadActivities(leadId, items) {
+  const box = document.getElementById(`lead-activity-list-${leadId}`);
+  if (!box) return;
+  if (!items.length) { box.innerHTML = '<div style="color:var(--text-muted);font-size:13px">No notes or tasks yet.</div>'; return; }
+  const now = Math.floor(Date.now() / 1000);
+  const fmt = (s) => s ? new Date(s * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
+  box.innerHTML = items.map((a) => {
+    const isTask = a.kind === 'task';
+    const done = !!a.done_at;
+    const overdue = isTask && !done && a.due_at && Number(a.due_at) < now;
+    const due = a.due_at ? `<span class="crm-act-due ${overdue ? 'overdue' : ''}">${overdue ? 'overdue · ' : 'due '}${fmt(a.due_at)}</span>` : '';
+    const check = isTask
+      ? `<input type="checkbox" ${done ? 'checked' : ''} onchange="toggleLeadTask(${leadId},${a.id},this.checked)" title="Mark done" style="margin-top:2px;cursor:pointer" />`
+      : '<span style="width:14px;display:inline-block">•</span>';
+    return `<div class="crm-act ${done ? 'done' : ''}">
+      ${check}
+      <div class="crm-act-main">
+        <div class="crm-act-body">${escapeHtml(a.body || '')}</div>
+        <div class="crm-act-meta">${isTask ? '✔ Task' : 'Note'} · ${fmt(a.created_at)} ${due}</div>
+      </div>
+      <button class="crm-act-del" title="Delete" onclick="deleteLeadActivity(${leadId},${a.id})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+async function addLeadActivity(leadId, kind) {
+  const body = (document.getElementById(`act-body-${leadId}`)?.value || '').trim();
+  if (!body) { toast('Write something first.', 'info'); return; }
+  let due_at = null;
+  if (kind === 'task') {
+    const d = document.getElementById(`act-due-${leadId}`)?.value;
+    due_at = d ? Math.floor(new Date(d + 'T18:00:00').getTime() / 1000) : null;
+  }
+  try {
+    await api('POST', `/api/lead-pipeline/leads/${leadId}/activities`, { kind, body, due_at });
+    const inp = document.getElementById(`act-body-${leadId}`); if (inp) inp.value = '';
+    const due = document.getElementById(`act-due-${leadId}`); if (due) due.value = '';
+    loadLeadActivities(leadId);
+    if (kind === 'task') bumpLeadTaskBadge(leadId, 1);
+  } catch (err) { toast(err.message || 'Could not save', 'error'); }
+}
+
+async function toggleLeadTask(leadId, actId, done) {
+  try { await api('PATCH', `/api/lead-pipeline/activities/${actId}`, { done }); loadLeadActivities(leadId); bumpLeadTaskBadge(leadId, done ? -1 : 1); }
+  catch (err) { toast(err.message || 'Could not update', 'error'); }
+}
+
+async function deleteLeadActivity(leadId, actId) {
+  try { await api('DELETE', `/api/lead-pipeline/activities/${actId}`); loadLeadActivities(leadId); }
+  catch (err) { toast(err.message || 'Could not delete', 'error'); }
+}
+
+// keep the card badge roughly in sync without a full reload
+function bumpLeadTaskBadge(leadId, delta) {
+  const lead = (LeadPipelineState.leads || []).find((l) => l.id === leadId);
+  if (lead) { lead.open_tasks = Math.max(0, (lead.open_tasks || 0) + delta); if (LeadPipelineState.leadsView === 'board') renderLeadsBoard(); }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

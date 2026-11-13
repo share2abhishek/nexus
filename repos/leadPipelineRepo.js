@@ -222,6 +222,42 @@ module.exports = (knex) => ({
     return this.getLeadEvent(workspaceId, id);
   },
 
+  // ── CRM activities (notes & follow-up tasks) ────────────────────────────────
+  async addActivity(workspaceId, leadId, { user_id = null, kind = 'note', body = '', due_at = null } = {}) {
+    const now = nowEpoch();
+    const [row] = await knex('lead_activities').insert({
+      workspace_id: workspaceId, lead_event_id: Number(leadId), user_id,
+      kind: kind === 'task' ? 'task' : 'note', body: String(body || '').slice(0, 2000),
+      due_at: due_at ? Number(due_at) : null, created_at: now,
+    }).returning('id');
+    return knex('lead_activities').where({ id: row?.id ?? row }).first();
+  },
+  async listActivities(workspaceId, leadId) {
+    return knex('lead_activities').where({ workspace_id: workspaceId, lead_event_id: Number(leadId) })
+      .orderBy([{ column: 'created_at', order: 'desc' }, { column: 'id', order: 'desc' }]);
+  },
+  async setActivityDone(workspaceId, id, done) {
+    await knex('lead_activities').where({ workspace_id: workspaceId, id: Number(id) }).update({ done_at: done ? nowEpoch() : null });
+    return knex('lead_activities').where({ workspace_id: workspaceId, id: Number(id) }).first();
+  },
+  async deleteActivity(workspaceId, id) {
+    return knex('lead_activities').where({ workspace_id: workspaceId, id: Number(id) }).del();
+  },
+  // Open-task counts per lead, for list/board badges: { leadId: { open, overdue } }
+  async openTaskCounts(workspaceId) {
+    const rows = await knex('lead_activities')
+      .where({ workspace_id: workspaceId, kind: 'task' }).whereNull('done_at')
+      .select('lead_event_id', 'due_at');
+    const now = nowEpoch();
+    const out = {};
+    for (const r of rows) {
+      const o = out[r.lead_event_id] || (out[r.lead_event_id] = { open: 0, overdue: 0 });
+      o.open++;
+      if (r.due_at && Number(r.due_at) < now) o.overdue++;
+    }
+    return out;
+  },
+
   async deleteLeadEvent(workspaceId, id) {
     await knex('whatsapp_messages').where({ workspace_id: workspaceId, lead_id: id }).delete().catch(() => {});
     await knex('messenger_events').where({ workspace_id: workspaceId, lead_id: id }).delete().catch(() => {});

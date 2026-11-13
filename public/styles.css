@@ -5080,6 +5080,19 @@ body:not(.light-mode) .chat-bot-notice { background: #2a2414; color: #e9edef; }
 .crm-score.hot { background: rgba(16,185,129,.18); color: #10b981; }
 .crm-score.warm { background: rgba(245,158,11,.18); color: #f59e0b; }
 .crm-owner { margin-left: auto; font-size: 11px; color: var(--text-secondary); background: var(--bg2); border-radius: 6px; padding: 1px 7px; }
+.crm-task-badge { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 1px 6px; background: rgba(59,130,246,.15); color: #3b82f6; }
+.crm-task-badge.overdue { background: rgba(239,68,68,.15); color: #ef4444; }
+/* Activity timeline */
+.crm-activity-list { display: flex; flex-direction: column; gap: 8px; }
+.crm-act { display: flex; gap: 8px; align-items: flex-start; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+.crm-act.done .crm-act-body { text-decoration: line-through; color: var(--text-muted); }
+.crm-act-main { flex: 1; min-width: 0; }
+.crm-act-body { font-size: 13px; color: var(--text-primary); word-wrap: break-word; }
+.crm-act-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.crm-act-due { margin-left: 6px; font-weight: 700; color: var(--text-secondary); }
+.crm-act-due.overdue { color: #ef4444; }
+.crm-act-del { background: none; border: 0; color: var(--text-muted); cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 4px; }
+.crm-act-del:hover { color: #ef4444; }
 
 .md-preview { font-size: 14px; line-height: 1.6; color: var(--text-primary); }
 .md-preview h1, .md-preview h2, .md-preview h3, .md-preview h4 { margin: 14px 0 6px; line-height: 1.3; }
