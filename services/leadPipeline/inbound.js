@@ -174,4 +174,104 @@ async function handleInboundWebChat(knex, { config, visitorId, name, text }) {
   return { reply: captured.join('\n\n') || null, lead_id: lead.id, action: bot?.action || null, reason: bot?.reason || null };
 }
 
-module.exports = { handleInboundWhatsApp, handleInboundWebChat, sendText };
+/**
+ * Inbound Call Handler for WhatsApp (Voice or Video calls)
+ * Triggered by Evolution API webhook 'call' or Meta calling events.
+ */
+async function handleInboundWhatsAppCall(knex, { config, phone, name, isVideo = false, callId = null, source = 'whatsapp_call' }) {
+  const repo = leadPipelineRepoFactory(knex);
+  const workspaceId = config.workspace_id;
+  const cleanPhone = String(phone || '').replace(/[^0-9]/g, '');
+  if (!cleanPhone) return null;
+  const callerName = name || `WhatsApp Caller (+${cleanPhone.slice(-4)})`;
+  const callTypeStr = isVideo ? 'Video Call' : 'Voice Call';
+
+  // 1. Locate existing lead or create a new one
+  let lead = await repo.findLeadByPhone(workspaceId, cleanPhone);
+  const nowSec = Math.floor(Date.now() / 1000);
+
+  // Pick an active agent to route to
+  let assignedAgent = lead?.assigned_agent_name;
+  if (!assignedAgent) {
+    const defaultUser = await knex('memberships')
+      .join('users', 'memberships.user_id', 'users.id')
+      .where('memberships.workspace_id', workspaceId)
+      .select('users.name')
+      .first()
+      .catch(() => null);
+    assignedAgent = defaultUser?.name || 'Support Agent';
+  }
+
+  if (!lead) {
+    lead = await repo.addLeadEvent(workspaceId, {
+      full_name: callerName,
+      phone_number: '+' + cleanPhone,
+      form_id: 'whatsapp_inbound_call',
+      intent_summary: `Placed an inbound WhatsApp ${callTypeStr}`,
+      status: 'new',
+      pipeline_stage: 'contacted',
+      lead_score: 95,
+      assigned_agent_name: assignedAgent,
+      tag: '📞 Call Inbound',
+      source: 'WHATSAPP_CALL',
+      suggested_reply: `Hi ${callerName}, we noticed your call! How can we assist you?`,
+    });
+  } else {
+    // Existing lead: elevate score, add tag, and assign agent
+    const tags = Array.isArray(lead.tags_json) ? lead.tags_json : [];
+    if (!tags.includes('📞 Call Inbound')) tags.push('📞 Call Inbound');
+    await repo.updateLeadEvent(workspaceId, lead.id, {
+      lead_score: Math.max(Number(lead.lead_score || 0), 95),
+      assigned_agent_name: assignedAgent,
+      pipeline_stage: (lead.pipeline_stage === 'won' || lead.pipeline_stage === 'lost') ? lead.pipeline_stage : 'contacted',
+      tags_json: tags,
+    });
+  }
+
+  // 2. Add an explicit record in the chat stream
+  await repo.addLeadMessage(workspaceId, lead.id, {
+    sender_type: 'lead',
+    sender_name: callerName,
+    message_text: `📞 Inbound WhatsApp ${callTypeStr} (${cleanPhone}) — Missed/Declined`,
+    channel: 'whatsapp',
+  });
+
+  // 3. Add an urgent CRM follow-up task on the contact
+  await repo.addActivity(workspaceId, lead.id, {
+    kind: 'task',
+    body: `🚨 Call Follow-Up: ${callerName} placed an inbound WhatsApp ${callTypeStr}. Follow up promptly or call back on +${cleanPhone}.`,
+    due_at: nowSec + 15 * 60, // Due in 15 mins
+  }).catch(() => {});
+
+  // 4. Pause the auto-reply bot so human agent has takeover
+  await chatbot.pauseForHuman(knex, workspaceId, lead.id).catch(() => {});
+
+  // 5. Send automated polite WhatsApp acknowledgment message to the caller
+  const firstName = (callerName || '').split(' ')[0] || 'there';
+  const autoCallReply = `Hi ${firstName}, we noticed you called our WhatsApp line! Our audio lines are currently occupied, but our agent ${assignedAgent} has been notified and will assist you right here or call you back shortly. How can we help you today?`;
+
+  try {
+    await sendText(config, cleanPhone, autoCallReply);
+    await repo.addLeadMessage(workspaceId, lead.id, {
+      sender_type: 'bot',
+      sender_name: 'Auto-reply (Call)',
+      message_text: autoCallReply,
+      channel: 'whatsapp',
+    });
+  } catch (err) {
+    console.warn('[WhatsApp Call Handler] Could not send call-reply text:', err.message);
+  }
+
+  // 6. Notify n8n or external workflow if configured
+  if (config.n8n_webhook_url) {
+    const event = buildEvent('whatsapp.call_received', workspaceId, {
+      contact: { lead_id: lead.id, name: callerName, phone: '+' + cleanPhone, assigned_to: assignedAgent },
+      call: { type: isVideo ? 'video' : 'voice', call_id: callId, source },
+    });
+    forwardToN8n(config.n8n_webhook_url, event).catch(() => {});
+  }
+
+  return { success: true, lead_id: lead.id, assigned_to: assignedAgent, caller: cleanPhone };
+}
+
+module.exports = { handleInboundWhatsApp, handleInboundWebChat, handleInboundWhatsAppCall, sendText };

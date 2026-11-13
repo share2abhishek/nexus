@@ -253,6 +253,7 @@ async function setWebhook({ apiUrl, apiKey, instanceName = 'social-nexus', webho
         'MESSAGES_UPSERT',
         'MESSAGES_UPDATE',
         'CONNECTION_UPDATE',
+        'CALL',
       ],
     },
   };
@@ -263,6 +264,32 @@ async function setWebhook({ apiUrl, apiKey, instanceName = 'social-nexus', webho
   });
 
   return res.data;
+}
+
+/**
+ * Configure Instance Settings (e.g. Call rejection and auto-response)
+ */
+async function configureSettings({ apiUrl, apiKey, instanceName = 'social-nexus', rejectCall = true, msgCall = null }) {
+  const baseUrl = cleanUrl(apiUrl);
+  const endpoint = `${baseUrl}/settings/set/${instanceName}`;
+
+  const payload = {
+    rejectCall: !!rejectCall,
+    msgCall: msgCall || 'Hello! We do not take WhatsApp voice calls on this number. An agent has been alerted and will reach out to you shortly.',
+    groupsIgnore: false,
+    alwaysOnline: true,
+    readMessages: true,
+  };
+
+  try {
+    const res = await axios.post(endpoint, payload, {
+      headers: getHeaders(apiKey),
+      timeout: DEFAULT_TIMEOUT_MS,
+    });
+    return { success: true, data: res.data };
+  } catch (err) {
+    return { success: false, error: err.response?.data?.message || err.message };
+  }
 }
 
 /**
@@ -290,6 +317,7 @@ module.exports = {
   sendTextMessage,
   sendPaymentLinkMessage,
   setWebhook,
+  configureSettings,
   logoutInstance,
   cleanPhoneNumber,
 };

@@ -41,12 +41,14 @@ const DEFAULT_CONFIG = {
       { label: 'Prices', reply: '' },
       { label: 'Opening hours & address', reply: '' },
       { label: 'Talk to a person', reply: 'Sure! Someone from our team will reply here soon.', handover: true },
+      { label: 'Request a callback', reply: 'We have registered your callback request! An agent has been alerted and will call you on your mobile number shortly.', handover: true },
     ],
   },
   keywords: [
     { keywords: ['price', 'prices', 'cost', 'rate', 'charges', 'fees'], reply: '' },
     { keywords: ['address', 'location', 'where are you', 'directions'], reply: '' },
-    { keywords: ['agent', 'human', 'real person', 'call me', 'talk to someone'], reply: 'Sure! Someone from our team will reply here soon.', handover: true },
+    { keywords: ['agent', 'human', 'real person', 'talk to someone'], reply: 'Sure! Someone from our team will reply here soon.', handover: true },
+    { keywords: ['callback', 'call me', 'call back', 'voice call', 'phone call', 'speak on call'], reply: 'We have registered your callback request! An agent has been alerted and will call you on your mobile number shortly.', handover: true },
   ],
   away: {
     enabled: false,
@@ -404,7 +406,31 @@ async function handleInbound(db, { workspaceId, lead, text, name, send, askN8n }
   } else if (!state.welcomed_at && d.reason !== 'paused') {
     patch.welcomed_at = at; // don't greet later as if it were the first message
   }
-  if (d.action === 'handover') patch.paused_until = at + settings.config.handover.pause_hours * 3600;
+  if (d.action === 'handover') {
+    patch.paused_until = at + settings.config.handover.pause_hours * 3600;
+    try {
+      const repo = require('../../repos/leadPipelineRepo')(db);
+      const isCall = containsPhrase(normalizeText(text), 'call') || containsPhrase(normalizeText(text), 'phone') || d.reason === 'menu_handover';
+      const taskBody = isCall
+        ? `🚨 Callback Requested by ${lead.full_name || 'Customer'}: "${String(text).slice(0, 100)}"`
+        : `💬 Agent Handover Requested by ${lead.full_name || 'Customer'}: "${String(text).slice(0, 100)}"`;
+
+      await repo.addActivity(workspaceId, lead.id, {
+        kind: 'task',
+        body: taskBody,
+        due_at: at + 15 * 60,
+      }).catch(() => {});
+
+      if (isCall) {
+        const tags = Array.isArray(lead.tags_json) ? lead.tags_json : [];
+        if (!tags.includes('📞 Call Inbound')) tags.push('📞 Call Inbound');
+        await repo.updateLeadEvent(workspaceId, lead.id, {
+          lead_score: Math.max(Number(lead.lead_score || 0), 95),
+          tags_json: tags,
+        }).catch(() => {});
+      }
+    } catch (_) {}
+  }
   if (Object.keys(patch).length) await setState(db, workspaceId, lead.id, patch);
   return { sent, reason: d.reason, action: d.action, n8nAsked };
 }

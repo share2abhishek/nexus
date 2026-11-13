@@ -5,7 +5,7 @@ const express = require('express');
 const router = express.Router();
 const leadPipelineRepoFactory = require('../repos/leadPipelineRepo');
 const { fetchMetaLeadDetails, verifyMetaSignature } = require('../services/leadPipeline/metaWebhook');
-const { handleInboundWhatsApp, handleInboundWebChat } = require('../services/leadPipeline/inbound');
+const { handleInboundWhatsApp, handleInboundWebChat, handleInboundWhatsAppCall } = require('../services/leadPipeline/inbound');
 const { qualifyLead } = require('../services/leadPipeline/leadQualifier');
 const { forwardToN8n } = require('../services/leadPipeline/n8nForwarder');
 const { syncContactToChatwoot } = require('../services/leadPipeline/chatwootClient');
@@ -75,6 +75,24 @@ module.exports = (knex) => {
           const contacts = change.value.contacts || [];
           for (const msg of change.value.messages || []) {
             const contact = contacts.find((c) => c.wa_id === msg.from) || {};
+
+            // Handle WhatsApp incoming call signal/event
+            if (msg.type === 'call' || msg.call || (msg.system && msg.system.type === 'call')) {
+              try {
+                await handleInboundWhatsAppCall(knex, {
+                  config,
+                  phone: msg.from,
+                  name: contact.profile?.name,
+                  isVideo: !!(msg.call?.is_video),
+                  callId: msg.id,
+                  source: 'cloud_api_call',
+                });
+              } catch (err) {
+                console.error('[Meta WhatsApp Call Webhook] Error:', err.message);
+              }
+              continue;
+            }
+
             const text = msg.type === 'text' ? msg.text?.body
               : msg.type === 'button' ? msg.button?.text
               : msg.type === 'interactive' ? (msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title)
@@ -229,7 +247,27 @@ module.exports = (knex) => {
     res.status(200).json({ status: 'received' });
     try {
       const body = req.body || {};
-      if ((body.event || body.type) !== 'messages.upsert' || !body.data) return;
+      const eventType = String(body.event || body.type || '').toLowerCase();
+
+      // Inbound Call Event from Evolution API / Baileys
+      if (eventType === 'call' || eventType === 'call.received') {
+        const callData = Array.isArray(body.data) ? body.data[0] : (body.data || {});
+        const rawFrom = callData.from || callData.remoteJid || (callData.key && callData.key.remoteJid) || '';
+        const cleanFrom = String(rawFrom).split('@')[0].replace(/[^0-9]/g, '');
+        if (cleanFrom) {
+          await handleInboundWhatsAppCall(knex, {
+            config,
+            phone: cleanFrom,
+            name: callData.pushName || null,
+            isVideo: !!callData.isVideo,
+            callId: callData.id || null,
+            source: 'evolution_call',
+          });
+        }
+        return;
+      }
+
+      if (eventType !== 'messages.upsert' || !body.data) return;
       const key = body.data.key || {};
       if (key.fromMe || !key.remoteJid || /@g.us$/.test(key.remoteJid)) return; // own messages and groups
       const m = body.data.message || {};

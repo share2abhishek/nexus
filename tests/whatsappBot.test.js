@@ -245,4 +245,42 @@ describe('Auto-replies end to end', () => {
     const m = await knex('lead_conversation_messages').where({ message_text: 'hello from web' }).first();
     expect(m).toBeTruthy();
   });
+
+  test('Evolution WhatsApp voice call event creates lead, alerts agent with task, tags lead, and pauses bot', async () => {
+    const cfgRow = await knex('meta_lead_configs').where({ workspace_id: workspaceId }).first();
+    const r = await request(app).post(`/api/webhooks/evolution/${cfgRow.verify_token}`).send({
+      event: 'call',
+      data: [{
+        id: 'call_test_123',
+        from: '918149498945@s.whatsapp.net',
+        isVideo: false,
+        isGroup: false,
+        status: 'offer',
+        pushName: 'Abhishek Caller',
+      }],
+    });
+    expect(r.status).toBe(200);
+    await settle();
+
+    // Verify lead was identified/created
+    const lead = await knex('meta_lead_events').where({ phone_number: '+918149498945' }).first();
+    expect(lead).toBeTruthy();
+    expect(lead.lead_score).toBe(95);
+    expect(lead.pipeline_stage).toBe('contacted');
+    expect(lead.tags_json).toContain('📞 Call Inbound');
+
+    // Verify call activity task was created for the agent
+    const tasks = await knex('lead_activities').where({ lead_event_id: lead.id, kind: 'task' });
+    expect(tasks.length).toBeGreaterThanOrEqual(1);
+    expect(tasks[0].body).toContain('Call Follow-Up');
+
+    // Verify bot entered handover/paused mode
+    const botState = await knex('whatsapp_bot_state').where({ lead_id: lead.id }).first();
+    expect(botState).toBeTruthy();
+    expect(botState.paused_until).toBeGreaterThan(Math.floor(Date.now() / 1000));
+
+    // Verify missed call record in chat messages
+    const callMsg = await knex('lead_conversation_messages').where({ lead_id: lead.id }).where('message_text', 'like', '%Voice Call%').first();
+    expect(callMsg).toBeTruthy();
+  });
 });
