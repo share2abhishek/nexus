@@ -1002,6 +1002,20 @@
       </div>
       <div class="admin-note" style="margin-bottom:16px">Numbers come from Facebook, Instagram, Pinterest and X. LinkedIn and Google Business don't share numbers for these posts through their APIs, so they aren't counted here. Reach on Facebook and Instagram needs the insights permission (sign in again on the card if it is missing).</div>
 
+      <div id="analytics-empty-hint" style="display:none;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;line-height:1.6;color:var(--text)">
+        <div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+          <span>ℹ️</span> <span>No social media posts published yet</span>
+        </div>
+        <div>
+          This <strong>Results</strong> screen tracks reach and engagement (likes, comments, impressions) from published social media posts (Facebook, Instagram, X).
+        </div>
+        <div style="margin-top:6px;display:flex;gap:12px;flex-wrap:wrap">
+          <a href="#compose" onclick="navigateTo('compose'); return false;" style="color:#38bdf8;font-weight:600">✍️ Publish a new post</a>
+          <span style="color:var(--text-muted)">•</span>
+          <a href="#lead-ads" onclick="navigateTo('lead-ads'); switchLeadTab('reports'); return false;" style="color:#22c55e;font-weight:600">📈 View WhatsApp & Leads Reports</a>
+        </div>
+      </div>
+
       <div class="stats-grid" id="analytics-stats">
         <div class="stat-card">
           <span class="stat-icon">👍</span>

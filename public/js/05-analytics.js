@@ -138,11 +138,26 @@ async function importCSV() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function loadAnalytics() {
+  const monthInput = document.getElementById('report-month');
+  if (monthInput && !monthInput.value) {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    monthInput.value = `${yyyy}-${mm}`;
+  }
+
   try {
     const data = await api('GET', '/api/analytics');
-    renderAnalyticsSummary(data.summary);
-    renderAnalyticsCharts(data.summary);
-    renderAnalyticsTable(data.summary);
+    const summary = Array.isArray(data?.summary) ? data.summary : [];
+    
+    const emptyHint = document.getElementById('analytics-empty-hint');
+    if (emptyHint) {
+      emptyHint.style.display = summary.length === 0 ? 'block' : 'none';
+    }
+
+    renderAnalyticsSummary(summary);
+    renderAnalyticsCharts(summary);
+    renderAnalyticsTable(summary);
   } catch (err) {
     toast(err.message, 'error');
   }
