@@ -21,11 +21,11 @@ const now = () => Math.floor(Date.now() / 1000);
 // free). price_monthly null = quoted by sales (Enterprise).
 const CURRENCY = 'INR';
 const DEFAULT_PLANS = {
-  trial:      { name: 'Free Trial', limits: { workspaces: 3, users: 5, seo_sites: 1 }, price_monthly: 0, price_yearly: 0 },
-  free:       { name: 'Free Starter', limits: { workspaces: 1, users: 2, seo_sites: 1 }, price_monthly: 0, price_yearly: 0 },
-  individual: { name: 'Individual / Starter', limits: { workspaces: 3, users: 3, seo_sites: 3 }, price_monthly: 1275, price_yearly: 12750 },
-  agency:     { name: 'Agency Pro', limits: { workspaces: 25, users: 10, seo_sites: 10 }, price_monthly: 10200, price_yearly: 102000 },
-  full:       { name: 'Enterprise / Unlimited', limits: { workspaces: -1, users: -1, seo_sites: -1 }, price_monthly: null, price_yearly: null },
+  trial:      { name: 'Free trial', limits: { workspaces: 3, users: 5, seo_sites: 1 }, price_monthly: 0, price_yearly: 0 },
+  individual: { name: 'Individual', limits: { workspaces: 1, users: 2, seo_sites: 1 }, price_monthly: 1275, price_yearly: 12750 },
+  agency:     { name: 'Agency', limits: { workspaces: 25, users: 10, seo_sites: 10 }, price_monthly: 10200, price_yearly: 102000 },
+  full:       { name: 'Full', limits: { workspaces: -1, users: -1, seo_sites: -1 }, price_monthly: null, price_yearly: null },
+  free:       { name: 'Free', limits: { workspaces: 1, users: 2, seo_sites: 1 }, price_monthly: 0, price_yearly: 0 },
 };
 
 let plansCache = { at: 0, plans: DEFAULT_PLANS };
