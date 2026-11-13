@@ -2971,10 +2971,23 @@ async function simulateCustomerWhatsAppReply() {
    WhatsApp Cloud API Configuration Modal & Actions
    ───────────────────────────────────────────────────────────────────────────── */
 
-function openWhatsAppConfigModal() {
+async function openWhatsAppConfigModal() {
   const modal = document.getElementById("modal-whatsapp-config");
   if (!modal) return;
   modal.style.display = "flex";
+
+  // Always fetch fresh configuration directly from the database so text boxes are populated
+  try {
+    const configData = await api("GET", "/api/lead-pipeline/config");
+    if (configData && configData.config) {
+      LeadPipelineState.config = configData.config;
+      if (configData.stats) LeadPipelineState.stats = configData.stats;
+      if (configData.facebook_page) LeadPipelineState.facebookPage = configData.facebook_page;
+      if (configData.tunnel) LeadPipelineState.tunnel = configData.tunnel;
+    }
+  } catch (err) {
+    console.warn("Could not load lead pipeline config from server:", err);
+  }
 
   const cfg = LeadPipelineState.config || {};
   const tokenInput = document.getElementById("wa-cfg-access-token");
@@ -2982,7 +2995,12 @@ function openWhatsAppConfigModal() {
   const wabaInput = document.getElementById("wa-cfg-waba-id");
   const recipientInput = document.getElementById("wa-cfg-test-recipient");
 
-  if (tokenInput) tokenInput.value = cfg.whatsapp_access_token || "";
+  if (tokenInput) {
+    tokenInput.value = cfg.whatsapp_access_token || "";
+    if (cfg.whatsapp_access_token || cfg.whatsapp_access_token_set) {
+      tokenInput.placeholder = "Saved in DB — leave unchanged or paste a new token";
+    }
+  }
   if (phoneInput) phoneInput.value = cfg.whatsapp_phone_number_id || "";
   if (wabaInput) wabaInput.value = cfg.whatsapp_business_account_id || "";
   if (recipientInput) recipientInput.value = cfg.whatsapp_test_recipient || "";
@@ -3014,8 +3032,15 @@ async function saveWhatsAppConfig() {
   const wabaId = document.getElementById("wa-cfg-waba-id")?.value?.trim() || "";
   const testRecipient = document.getElementById("wa-cfg-test-recipient")?.value?.trim() || "";
 
-  if (!token) {
+  const savedToken = LeadPipelineState.config?.whatsapp_access_token;
+  const tokenToSubmit = token || savedToken;
+
+  if (!tokenToSubmit) {
     toast("Please enter your Meta WhatsApp Permanent Access Token", "warning");
+    return;
+  }
+  if (!phoneId) {
+    toast("Please enter your WhatsApp Phone Number ID", "warning");
     return;
   }
 
@@ -3027,19 +3052,14 @@ async function saveWhatsAppConfig() {
     }
 
     const res = await api("POST", "/api/lead-pipeline/whatsapp/verify-connection", {
-      access_token: token,
+      access_token: tokenToSubmit,
       phone_number_id: phoneId,
       waba_id: wabaId,
       test_recipient: testRecipient,
     });
 
     if (res.valid) {
-      if (!LeadPipelineState.config) LeadPipelineState.config = {};
-      LeadPipelineState.config.whatsapp_access_token = token;
-      LeadPipelineState.config.whatsapp_phone_number_id = phoneId;
-      LeadPipelineState.config.whatsapp_business_account_id = wabaId;
-      LeadPipelineState.config.whatsapp_test_recipient = testRecipient;
-
+      await loadLeadPipeline().catch(() => {});
       toast("WhatsApp is connected" + (res.verified_name ? " as " + res.verified_name : "") + ".", "success", 5000);
       renderWhatsAppConfigBadges();
       closeWhatsAppConfigModal();
@@ -3325,7 +3345,7 @@ async function saveCardWhatsAppConfig() {
 
 function renderWhatsAppConfigBadges() {
   const cfg = LeadPipelineState.config || {};
-  const hasToken = !!cfg.whatsapp_access_token;
+  const hasToken = !!(cfg.whatsapp_access_token || cfg.whatsapp_access_token_set || (cfg.whatsapp_phone_number_id && cfg.whatsapp_business_account_id));
 
   // 1. Setup Card Badge
   const cardBadge = document.getElementById("card-wa-status-badge");

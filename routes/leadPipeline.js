@@ -36,7 +36,29 @@ module.exports = (knex, requirePermission) => {
   // ── Configuration & Status ──────────────────────────────────────────────────
   router.get('/config', requirePermission('content.view'), async (req, res) => {
     try {
-      const config = await repo.getOrCreateConfig(req.workspaceId);
+      let config = await repo.getOrCreateConfig(req.workspaceId);
+
+      // If this workspace has not configured WhatsApp yet, check if the current user has configured WhatsApp in another workspace
+      if (!config.whatsapp_phone_number_id && req.session?.userId) {
+        try {
+          const userWorkspaces = await knex('memberships').where({ user_id: req.session.userId }).pluck('workspace_id');
+          const otherCfg = await knex('meta_lead_configs')
+            .whereIn('workspace_id', userWorkspaces)
+            .whereNotNull('whatsapp_phone_number_id')
+            .first();
+          if (otherCfg && otherCfg.whatsapp_phone_number_id) {
+            await repo.updateConfig(req.workspaceId, {
+              whatsapp_access_token: otherCfg.whatsapp_access_token,
+              whatsapp_phone_number_id: otherCfg.whatsapp_phone_number_id,
+              whatsapp_business_account_id: otherCfg.whatsapp_business_account_id,
+              whatsapp_test_recipient: otherCfg.whatsapp_test_recipient,
+              delivery_engine: otherCfg.delivery_engine || 'cloud_api',
+            });
+            config = await repo.getOrCreateConfig(req.workspaceId);
+          }
+        } catch (_) {}
+      }
+
       const stats = await repo.getStats(req.workspaceId);
 
       // Check if this workspace has a connected Facebook page
@@ -1674,6 +1696,26 @@ module.exports = (knex, requirePermission) => {
           whatsapp_test_recipient: test_recipient || config.whatsapp_test_recipient || null,
           delivery_engine: delivery_engine || config.delivery_engine || 'cloud_api',
         });
+
+        // Also persist per-user across user's other workspaces if empty
+        if (req.session?.userId) {
+          try {
+            const userWorkspaces = await knex('memberships').where({ user_id: req.session.userId }).pluck('workspace_id');
+            for (const wsId of userWorkspaces) {
+              if (wsId !== req.workspaceId) {
+                const other = await knex('meta_lead_configs').where({ workspace_id: wsId }).first();
+                if (other && !other.whatsapp_phone_number_id) {
+                  await repo.updateConfig(wsId, {
+                    whatsapp_access_token: targetToken,
+                    whatsapp_phone_number_id: targetPhoneId,
+                    whatsapp_business_account_id: waba_id || config.whatsapp_business_account_id || null,
+                    whatsapp_test_recipient: test_recipient || config.whatsapp_test_recipient || null,
+                  }).catch(() => {});
+                }
+              }
+            }
+          } catch (_) {}
+        }
       }
 
       res.json(verifyRes);

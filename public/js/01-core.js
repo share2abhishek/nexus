@@ -195,13 +195,25 @@ function navigateTo(page) {
       if (typeof window.loadEmailCampaigns === 'function') window.loadEmailCampaigns();
       if (typeof window.loadSubscribers === 'function') window.loadSubscribers();
     },
-    'lead-ads':        () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : (typeof loadLeadPipeline === 'function' ? loadLeadPipeline() : null)),
-    'leads-contacts':   () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : (typeof loadLeadPipeline === 'function' ? loadLeadPipeline() : null)),
-    'leads-inbox':      () => (typeof window.loadWhatsAppConversations === 'function' ? window.loadWhatsAppConversations() : (typeof loadWhatsAppConversations === 'function' ? loadWhatsAppConversations() : null)),
-    'leads-broadcast':  () => (typeof window.loadBroadcastPage === 'function' ? window.loadBroadcastPage() : null),
-    'leads-templates':  () => (typeof window.loadWhatsAppTemplates === 'function' ? window.loadWhatsAppTemplates() : null),
-    'leads-bot':        () => (typeof window.loadWhatsAppBot === 'function' ? window.loadWhatsAppBot() : null),
-    'leads-settings':   () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : (typeof loadLeadPipeline === 'function' ? loadLeadPipeline() : null)),
+    'lead-ads':        () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : null),
+    'leads-contacts':   () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : null),
+    'leads-inbox':      () => {
+      if (typeof window.loadLeadPipeline === 'function') window.loadLeadPipeline();
+      if (typeof window.loadWhatsAppConversations === 'function') window.loadWhatsAppConversations();
+    },
+    'leads-broadcast':  () => {
+      if (typeof window.loadLeadPipeline === 'function') window.loadLeadPipeline();
+      if (typeof window.loadBroadcastPage === 'function') window.loadBroadcastPage();
+    },
+    'leads-templates':  () => {
+      if (typeof window.loadLeadPipeline === 'function') window.loadLeadPipeline();
+      if (typeof window.loadWhatsAppTemplates === 'function') window.loadWhatsAppTemplates();
+    },
+    'leads-bot':        () => {
+      if (typeof window.loadLeadPipeline === 'function') window.loadLeadPipeline();
+      if (typeof window.loadWhatsAppBot === 'function') window.loadWhatsAppBot();
+    },
+    'leads-settings':   () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : null),
     brand:     () => (typeof window.loadBrandKit === 'function' ? window.loadBrandKit() : (typeof loadBrandKit === 'function' ? loadBrandKit() : null)),
     // Server edition: open on the Autopilot tab the first time
     seo:       () => (typeof loadFeatures === 'function' ? loadFeatures().then(f => { if (f.seo_autopilot && !State.seoTabChosen) { State.seoTabChosen = true; switchSeoTab('autopilot'); } }) : null),
