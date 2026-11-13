@@ -537,6 +537,7 @@ function renderLeadsTable(searchFilter = '') {
       </tr>
     `;
   }).join('');
+  if (LeadPipelineState.leadsView === 'board') renderLeadsBoard();
 }
 async function updateLeadStatus(id, newStatus) {
   try {
@@ -545,6 +546,85 @@ async function updateLeadStatus(id, newStatus) {
   } catch (err) {
     toast(err.message || 'Error updating status', 'error');
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CRM Kanban pipeline board
+   ───────────────────────────────────────────────────────────────────────────── */
+
+const CRM_STAGES = [
+  { key: 'new', label: 'New', color: '#64748b' },
+  { key: 'contacted', label: 'Contacted', color: '#3b82f6' },
+  { key: 'qualified', label: 'Qualified', color: '#8b5cf6' },
+  { key: 'proposal', label: 'Proposal', color: '#f59e0b' },
+  { key: 'won', label: 'Won', color: '#10b981' },
+  { key: 'lost', label: 'Lost', color: '#ef4444' },
+];
+function crmMoney(n) { return n ? '₹' + Number(n).toLocaleString('en-IN') : ''; }
+
+function switchLeadsView(view) {
+  LeadPipelineState.leadsView = view;
+  const board = document.getElementById('pipeline-leads-board');
+  const tableCard = document.getElementById('pipeline-leads-table-card');
+  const tb = document.getElementById('lead-view-table-btn');
+  const bb = document.getElementById('lead-view-board-btn');
+  if (view === 'board') {
+    if (board) board.style.display = 'flex';
+    if (tableCard) tableCard.style.display = 'none';
+    bb && bb.classList.add('active'); tb && tb.classList.remove('active');
+    renderLeadsBoard();
+  } else {
+    if (board) board.style.display = 'none';
+    if (tableCard) tableCard.style.display = '';
+    tb && tb.classList.add('active'); bb && bb.classList.remove('active');
+  }
+}
+
+function renderLeadsBoard() {
+  const board = document.getElementById('pipeline-leads-board');
+  if (!board) return;
+  const leads = LeadPipelineState.leads || [];
+  const byStage = {};
+  CRM_STAGES.forEach((s) => { byStage[s.key] = []; });
+  leads.forEach((l) => { (byStage[l.pipeline_stage] || byStage.new).push(l); });
+  board.innerHTML = CRM_STAGES.map((s) => {
+    const items = byStage[s.key] || [];
+    const total = items.reduce((a, l) => a + (Number(l.deal_value) || 0), 0);
+    return `<div class="crm-col" data-stage="${s.key}" ondragover="crmDragOver(event)" ondragleave="crmDragLeave(event)" ondrop="crmDrop(event,'${s.key}')">
+      <div class="crm-col-head"><span class="crm-col-dot" style="background:${s.color}"></span><span class="crm-col-label">${s.label}</span><span class="crm-col-count">${items.length}</span>${total ? `<span class="crm-col-total">${crmMoney(total)}</span>` : ''}</div>
+      <div class="crm-col-body">${items.map(crmCardHtml).join('') || '<div class="crm-empty">Drop leads here</div>'}</div>
+    </div>`;
+  }).join('');
+}
+
+function crmCardHtml(l) {
+  const score = Number(l.lead_score || 50);
+  const scoreCls = score >= 75 ? 'hot' : 'warm';
+  const owner = l.assigned_agent_name ? `<span class="crm-owner" title="Owner">${escapeHtml(l.assigned_agent_name)}</span>` : '';
+  const val = l.deal_value ? `<span class="crm-val">${crmMoney(l.deal_value)}</span>` : '';
+  return `<div class="crm-card" draggable="true" data-lead-id="${l.id}" ondragstart="crmDragStart(event,${l.id})" ondragend="crmDragEnd(event)" onclick="openEditLeadModal(${l.id})">
+    <div class="crm-card-name">${escapeHtml(l.full_name || 'Anonymous Lead')}</div>
+    <div class="crm-card-sub">${escapeHtml(l.phone_number || '')}</div>
+    <div class="crm-card-foot">${val}<span class="crm-score ${scoreCls}">${score}</span>${owner}</div>
+  </div>`;
+}
+
+let _crmDragId = null;
+function crmDragStart(e, id) { _crmDragId = id; e.dataTransfer.effectAllowed = 'move'; e.currentTarget.classList.add('dragging'); }
+function crmDragEnd(e) { e.currentTarget.classList.remove('dragging'); document.querySelectorAll('.crm-col.over').forEach((c) => c.classList.remove('over')); }
+function crmDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('over'); }
+function crmDragLeave(e) { if (e.currentTarget === e.target) e.currentTarget.classList.remove('over'); }
+async function crmDrop(e, stage) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('over');
+  const id = _crmDragId; _crmDragId = null;
+  if (!id) return;
+  const lead = (LeadPipelineState.leads || []).find((l) => l.id === id);
+  if (!lead || lead.pipeline_stage === stage) { renderLeadsBoard(); return; }
+  const prev = lead.pipeline_stage; lead.pipeline_stage = stage;
+  renderLeadsBoard();
+  try { await api('PATCH', `/api/lead-pipeline/leads/${id}`, { pipeline_stage: stage }); }
+  catch (err) { lead.pipeline_stage = prev; renderLeadsBoard(); toast(err.message || 'Could not move the lead', 'error'); }
 }
 
 
@@ -717,6 +797,15 @@ function openEditLeadModal(id) {
   if (scoreInput) scoreInput.value = lead.lead_score != null ? lead.lead_score : 85;
   if (statusSelect) statusSelect.value = lead.status || 'new';
   if (replyInput) replyInput.value = lead.suggested_reply || '';
+  // CRM pipeline fields
+  const stageSel = document.getElementById('edit-lead-stage');
+  const valInput = document.getElementById('edit-lead-value');
+  const ownerInput = document.getElementById('edit-lead-owner');
+  const closeInput = document.getElementById('edit-lead-close');
+  if (stageSel) stageSel.value = lead.pipeline_stage || 'new';
+  if (valInput) valInput.value = lead.deal_value != null ? lead.deal_value : '';
+  if (ownerInput) ownerInput.value = lead.assigned_agent_name || '';
+  if (closeInput) closeInput.value = lead.expected_close ? new Date(lead.expected_close * 1000).toISOString().slice(0, 10) : '';
 
   modal.style.display = 'flex';
 }
@@ -750,6 +839,13 @@ async function saveLeadDetails() {
   const lead_score = scoreInput?.value ? Number(scoreInput.value) : 85;
   const status = statusSelect?.value || 'new';
   const suggested_reply = (replyInput?.value || '').trim();
+  // CRM pipeline fields
+  const pipeline_stage = document.getElementById('edit-lead-stage')?.value || 'new';
+  const valRaw = document.getElementById('edit-lead-value')?.value;
+  const deal_value = valRaw ? Number(valRaw) : null;
+  const assigned_agent_name = (document.getElementById('edit-lead-owner')?.value || '').trim();
+  const closeRaw = document.getElementById('edit-lead-close')?.value;
+  const expected_close = closeRaw ? Math.floor(new Date(closeRaw + 'T12:00:00').getTime() / 1000) : null;
 
   if (!full_name || !phone_number) {
     toast('Please enter both Full Name and Mobile Number.', 'error');
@@ -768,6 +864,10 @@ async function saveLeadDetails() {
     lead.lead_score = lead_score;
     lead.status = status;
     lead.suggested_reply = suggested_reply;
+    lead.pipeline_stage = pipeline_stage;
+    lead.deal_value = deal_value;
+    lead.assigned_agent_name = assigned_agent_name;
+    lead.expected_close = expected_close;
   }
 
   // Persist to server
@@ -782,6 +882,10 @@ async function saveLeadDetails() {
       status,
       suggested_reply,
       tags_json: [tag],
+      pipeline_stage,
+      deal_value,
+      assigned_agent_name,
+      expected_close,
     });
   } catch (err) {
     console.warn('[Lead Pipeline] Server patch warning (updated in state):', err.message);

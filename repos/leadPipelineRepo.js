@@ -192,6 +192,10 @@ module.exports = (knex) => ({
     if (data.channel_source !== undefined) patch.channel_source = data.channel_source;
     if (data.payment_status !== undefined) patch.payment_status = data.payment_status;
     if (data.assigned_agent_name !== undefined) patch.assigned_agent_name = data.assigned_agent_name;
+    // CRM pipeline (Kanban)
+    if (data.pipeline_stage !== undefined) patch.pipeline_stage = String(data.pipeline_stage).slice(0, 40);
+    if (data.deal_value !== undefined) patch.deal_value = (data.deal_value === null || data.deal_value === '') ? null : Math.max(0, Math.round(Number(data.deal_value)) || 0);
+    if (data.expected_close !== undefined) patch.expected_close = data.expected_close ? Number(data.expected_close) : null;
     if (data.tags_json !== undefined) {
       patch.tags_json = typeof data.tags_json === 'string' ? data.tags_json : JSON.stringify(data.tags_json);
     }

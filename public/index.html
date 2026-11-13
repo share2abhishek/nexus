@@ -3029,8 +3029,17 @@
           </div>
         </div>
 
+        <!-- View toggle: Table list vs Kanban pipeline board -->
+        <div style="display:flex;gap:6px;margin-bottom:14px">
+          <button class="btn btn-sm lead-view-btn active" id="lead-view-table-btn" onclick="switchLeadsView('table')">☰ List</button>
+          <button class="btn btn-sm lead-view-btn" id="lead-view-board-btn" onclick="switchLeadsView('board')">▦ Pipeline</button>
+        </div>
+
+        <!-- Kanban pipeline board -->
+        <div id="pipeline-leads-board" class="crm-board" style="display:none"></div>
+
         <!-- Contacts Table (Matching Image 2: Checkbox, Name, Mobile Number, Tags, Source) -->
-        <div class="card" style="padding:0;overflow:hidden;border:1px solid var(--border);border-radius:12px;margin-bottom:24px;background:var(--bg-card)">
+        <div class="card" id="pipeline-leads-table-card" style="padding:0;overflow:hidden;border:1px solid var(--border);border-radius:12px;margin-bottom:24px;background:var(--bg-card)">
           <div class="table-wrap" style="overflow-x:auto">
             <table class="table" style="width:100%;margin:0;border-collapse:collapse">
               <thead style="background:var(--bg2);border-bottom:1px solid var(--border)">
@@ -4555,6 +4564,31 @@
             <option value="closed">✅ Closed / Won</option>
             <option value="junk">🛑 Junk / Archived</option>
           </select>
+        </div>
+      </div>
+      <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div class="form-group">
+          <label class="form-label" style="font-size:12px;font-weight:700;margin-bottom:4px;display:block">Pipeline Stage</label>
+          <select id="edit-lead-stage" class="form-select" style="width:100%">
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="qualified">Qualified</option>
+            <option value="proposal">Proposal sent</option>
+            <option value="won">Won</option>
+            <option value="lost">Lost</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-size:12px;font-weight:700;margin-bottom:4px;display:block">Deal value (₹)</label>
+          <input type="number" id="edit-lead-value" class="form-input" min="0" placeholder="e.g. 50000" style="width:100%" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-size:12px;font-weight:700;margin-bottom:4px;display:block">Owner</label>
+          <input type="text" id="edit-lead-owner" class="form-input" placeholder="Team member" style="width:100%" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-size:12px;font-weight:700;margin-bottom:4px;display:block">Expected close</label>
+          <input type="date" id="edit-lead-close" class="form-input" style="width:100%" />
         </div>
       </div>
       <div class="form-group" style="margin-bottom:14px">
