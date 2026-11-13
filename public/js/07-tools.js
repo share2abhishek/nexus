@@ -270,11 +270,18 @@ function switchEmailTab(tab, btn) {
 }
 
 function loadEmailPage() {
-  loadCampaigns();
+  loadEmailCampaigns();
   loadSubscribers();
 }
 
-async function loadCampaigns() {
+function toggleSellbirdAiEmailGen() {
+  const acc = document.getElementById('sb-ai-email-accordion');
+  if (!acc) return;
+  acc.style.display = acc.style.display === 'none' ? 'block' : 'none';
+}
+window.toggleSellbirdAiEmailGen = toggleSellbirdAiEmailGen;
+
+async function loadEmailCampaigns() {
   const list = document.getElementById('campaigns-list');
   if (!list) return;
   try {
@@ -298,6 +305,7 @@ async function loadCampaigns() {
       </div>`).join('');
   } catch {}
 }
+window.loadEmailCampaigns = loadEmailCampaigns;
 
 function loadCampaignToEditor(c) {
   document.getElementById('camp-name').value = c.name;
@@ -323,7 +331,7 @@ async function saveCampaign() {
       State.editingCampaignId = res.id;
     }
     toast('Campaign saved!', 'success');
-    loadCampaigns();
+    loadEmailCampaigns();
     return State.editingCampaignId;
   } catch (err) { toast(err.message, 'error'); return null; }
 }
@@ -343,7 +351,7 @@ async function sendCampaign() {
     const result = await api('POST', `/api/email/campaigns/${campId}/send`);
     toast(`Sent to ${result.sent} subscribers!`, 'success');
     State.editingCampaignId = null;
-    loadCampaigns();
+    loadEmailCampaigns();
   } catch (err) { toast(err.message, 'error'); }
   finally { btn.disabled = false; btn.innerHTML = '📤 Send Now'; }
 }
@@ -352,7 +360,7 @@ async function deleteCampaign(id) {
   if (!confirm('Delete this campaign?')) return;
   await api('DELETE', `/api/email/campaigns/${id}`);
   if (State.editingCampaignId === id) State.editingCampaignId = null;
-  loadCampaigns();
+  loadEmailCampaigns();
 }
 
 async function loadSubscribers() {

@@ -8,7 +8,7 @@ const { extractProspectNames, predictEmailPatterns, verifyContactEmail } = requi
 const { generateOutreachSequence, classifyReplyIntent, draftReplyResponse } = require('../services/sellbird/aiEngine');
 const { runHeartbeat } = require('../services/sellbird/heartbeat');
 const { sendOutreachEmail } = require('../services/sellbird/dispatcher');
-const { aiOptionsFromReq } = require('../services/aiHelper');
+const { aiOptionsFromReq, aiArgsFromReq, aiJSON } = require('../services/aiHelper');
 
 module.exports = (knex, requirePermission) => {
   const router = express.Router();
@@ -369,6 +369,122 @@ module.exports = (knex, requirePermission) => {
     } catch (err) {
       console.error('[Sellbird Discover Real] Error:', err);
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Discover by Business Type & Location (AI Entity & Web Crawler) ────────
+  router.post('/discover-by-type', requirePermission('content.create'), async (req, res) => {
+    let { campaign_id, business_type, location, count = 8 } = req.body || {};
+    business_type = String(business_type || '').trim();
+    location = String(location || '').trim();
+    if (!business_type) {
+      return res.status(400).json({ error: 'Please enter a business type (e.g. "Dental clinics", "Law firms", "Architects").' });
+    }
+
+    try {
+      let campaign;
+      if (campaign_id) {
+        campaign = await repo.getCampaign(req.workspaceId, Number(campaign_id));
+      } else {
+        const campaigns = await repo.listCampaigns(req.workspaceId);
+        campaign = campaigns[0];
+        if (!campaign) {
+          campaign = await repo.createCampaign(req.workspaceId, {
+            name: `${business_type}${location ? ' – ' + location : ''} Outreach`,
+            product_url: '',
+            product_description: '',
+            max_emails_per_day: 25,
+            auto_approve: false,
+          });
+        }
+      }
+      if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+      const safeCount = Math.min(Math.max(Number(count) || 8, 3), 15);
+      const locStr = location ? ` located in or around "${location}"` : '';
+
+      const prompt = `You are a B2B sales research assistant.
+Find ${safeCount} real, authentic businesses belonging to the category: "${business_type}"${locStr}.
+Return ONLY a valid JSON array of objects with the following structure:
+[
+  {
+    "name": "Exact Business Name",
+    "domain": "clean-website-domain.com",
+    "city": "${location || 'City'}",
+    "industry": "${business_type}"
+  }
+]
+Important rules:
+1. Provide only real, legitimate companies with valid, public domain names (e.g. 'company.com' or 'clinic.in', without 'http://' or 'www.').
+2. Do not invent fake or placeholder domains like 'example.com'.
+3. Output strictly valid JSON with no markdown formatting or commentary.`;
+
+      let discovered = [];
+      try {
+        const { apiKey, options, model } = aiArgsFromReq(req);
+        const resAi = await aiJSON(prompt, apiKey, 2048, options, model);
+        if (Array.isArray(resAi?.data)) {
+          discovered = resAi.data;
+        } else if (Array.isArray(resAi?.data?.businesses)) {
+          discovered = resAi.data.businesses;
+        } else if (Array.isArray(resAi?.data?.companies)) {
+          discovered = resAi.data.companies;
+        }
+      } catch (aiErr) {
+        console.warn('[Sellbird] AI discovery error:', aiErr.message);
+      }
+
+      if (!discovered || !discovered.length) {
+        return res.status(422).json({
+          error: 'Could not automatically identify domains for that business category and location. Try a more specific category (e.g. "Dental clinics") or enter websites directly.'
+        });
+      }
+
+      const discoveredResults = [];
+      const skipped = [];
+      for (const item of discovered.slice(0, safeCount)) {
+        const cleanDomain = String(item.domain || '')
+          .trim()
+          .replace(/^https?:\/\//i, '')
+          .replace(/^www\./i, '')
+          .replace(/\/.*$/, '')
+          .toLowerCase();
+        if (!cleanDomain || !cleanDomain.includes('.') || cleanDomain.includes('example.com')) continue;
+
+        try {
+          const { company, contact, outbox } = await addCompanyWithEmails(req, campaign, {
+            ...item,
+            domain: cleanDomain,
+            name: item.name || '',
+            location: item.city || location || null,
+            industry: item.industry || business_type || null,
+          });
+          discoveredResults.push({
+            domain: company.domain,
+            company_name: company.name,
+            contact_name: contact.full_name,
+            contact_email: contact.email,
+            email_status: contact.email_status,
+            signals_count: company.buying_signals?.signals?.length || 0,
+            steps_queued: outbox.length,
+          });
+        } catch (itemErr) {
+          skipped.push({ domain: cleanDomain, reason: itemErr.message });
+        }
+      }
+
+      res.json({
+        success: true,
+        campaign_id: campaign.id,
+        business_type,
+        location,
+        total_discovered: discovered.length,
+        added_count: discoveredResults.length,
+        results: discoveredResults,
+        skipped,
+      });
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
     }
   });
 

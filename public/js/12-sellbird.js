@@ -110,15 +110,17 @@ function switchSellbirdTab(tabName, clickedBtn) {
     const titles = {
       explorer: 'Contacts',
       outbox: 'Outbox',
-      campaigns: 'Campaigns',
+      campaigns: 'Cold Campaigns',
       replies: 'Conversations',
       deliverability: 'Deliverability & Warmup',
+      newsletters: 'Newsletters & Broadcasts',
+      subscribers: 'Subscribers',
     };
     breadcrumbEl.textContent = titles[tabName] || 'Outbox';
   }
 
   // Toggle tab panels
-  const panels = ['outbox', 'explorer', 'campaigns', 'replies', 'deliverability'];
+  const panels = ['outbox', 'explorer', 'campaigns', 'replies', 'deliverability', 'newsletters', 'subscribers'];
   panels.forEach((p) => {
     const panelEl = document.getElementById(`sellbird-panel-${p}`);
     if (panelEl) {
@@ -131,6 +133,8 @@ function switchSellbirdTab(tabName, clickedBtn) {
   else if (tabName === 'explorer') loadCompanies();
   else if (tabName === 'campaigns') loadCampaigns();
   else if (tabName === 'replies') loadReplies();
+  else if (tabName === 'newsletters') { if (typeof window.loadEmailCampaigns === 'function') window.loadEmailCampaigns(); }
+  else if (tabName === 'subscribers') { if (typeof window.loadSubscribers === 'function') window.loadSubscribers(); }
 }
 
 function openSellbirdTab(tabName, clickedBtn) {
@@ -1817,8 +1821,86 @@ function formatInitials(name) {
 
 function openPullRealProspectsModal() {
   const modal = document.getElementById('modal-sellbird-pull-real');
-  if (modal) modal.style.display = 'flex';
+  if (modal) {
+    const select = document.getElementById('discover-type-campaign-id');
+    if (select && SellbirdState.campaigns && SellbirdState.campaigns.length) {
+      select.innerHTML = SellbirdState.campaigns.map((c) =>
+        `<option value="${c.id}" ${c.id === SellbirdState.selectedCampaignId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`
+      ).join('');
+    }
+    toggleSellbirdDiscoveryMode('type');
+    modal.style.display = 'flex';
+  }
 }
+
+function toggleSellbirdDiscoveryMode(mode) {
+  const boxType = document.getElementById('box-discover-by-type');
+  const boxCustom = document.getElementById('box-custom-domains');
+  const btnType = document.getElementById('btn-discover-mode-type');
+  const btnDomain = document.getElementById('btn-discover-mode-domain');
+  const btnSubmitType = document.getElementById('btn-start-type-discovery');
+  const btnSubmitDomain = document.getElementById('btn-start-real-discovery');
+
+  if (mode === 'domain') {
+    if (boxType) boxType.style.display = 'none';
+    if (boxCustom) boxCustom.style.display = 'block';
+    if (btnType) { btnType.className = 'btn btn-sm btn-secondary'; }
+    if (btnDomain) { btnDomain.className = 'btn btn-sm btn-primary'; }
+    if (btnSubmitType) btnSubmitType.style.display = 'none';
+    if (btnSubmitDomain) btnSubmitDomain.style.display = 'inline-block';
+  } else {
+    if (boxType) boxType.style.display = 'flex';
+    if (boxCustom) boxCustom.style.display = 'none';
+    if (btnType) { btnType.className = 'btn btn-sm btn-primary'; }
+    if (btnDomain) { btnDomain.className = 'btn btn-sm btn-secondary'; }
+    if (btnSubmitType) btnSubmitType.style.display = 'inline-block';
+    if (btnSubmitDomain) btnSubmitDomain.style.display = 'none';
+  }
+}
+window.toggleSellbirdDiscoveryMode = toggleSellbirdDiscoveryMode;
+
+async function submitDiscoverByType() {
+  const btn = document.getElementById('btn-start-type-discovery');
+  const originalText = btn ? btn.innerHTML : '';
+  const business_type = document.getElementById('discover-business-type')?.value?.trim();
+  const location = document.getElementById('discover-city')?.value?.trim();
+  const count = document.getElementById('discover-count')?.value || 8;
+  const campaign_id = document.getElementById('discover-type-campaign-id')?.value;
+
+  if (!business_type) {
+    toast('Please enter a business type (e.g. "Dental clinics", "Law firms", "Architects")', 'warning');
+    return;
+  }
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;margin-right:8px"></span> AI finding & crawling websites…';
+    }
+
+    const res = await api('POST', '/api/sellbird/discover-by-type', {
+      business_type,
+      location,
+      count: Number(count),
+      campaign_id: campaign_id ? Number(campaign_id) : undefined,
+    });
+
+    toast(`Discovered & crawled ${res.added_count || 0} companies! 3 outreach emails queued in Outbox.`, 'success', 7000);
+    closeSellbirdModals();
+
+    await loadSellbird();
+    switchSellbirdTab('outbox');
+  } catch (err) {
+    console.error('[Sellbird Discover By Type] Error:', err);
+    toast(err.message || 'Error discovering businesses by type', 'error', 6000);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  }
+}
+window.submitDiscoverByType = submitDiscoverByType;
 
 // Only one source now: companies the user types (no built-in list of real executives)
 function toggleRealTargetMode() {
@@ -1934,6 +2016,8 @@ if (typeof window !== 'undefined') {
     openBulkDiscoverModal,
     openPullRealProspectsModal,
     toggleRealTargetMode,
+    toggleSellbirdDiscoveryMode,
+    submitDiscoverByType,
     triggerRealWorldDiscovery,
     cleanSellbirdDummyDataUI,
     closeSellbirdModals,

@@ -1416,7 +1416,7 @@ function renderVisualNodeView(nodeId, step) {
       <!-- 1-Click Actions Bar -->
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <a href="${waUrl}" target="_blank" rel="noopener" class="btn btn-secondary" style="color:#10b981;font-weight:700;display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(16,185,129,0.3);background:rgba(16,185,129,0.08)">
-          <span>💬 Open Pre-filled WhatsApp Web</span>
+          <svg style="width:14px;height:14px;flex-shrink:0" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg><span>Open Pre-filled WhatsApp Web</span>
           <span>↗</span>
         </a>
         <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(${JSON.stringify(msgText)}); toast('Message text copied to clipboard!', 'info')">
@@ -1865,8 +1865,8 @@ async function openLiveTakeoverDrawer(leadId) {
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
                   ${waLink ? `
-                    <a href="${waLink}" target="_blank" rel="noopener" class="btn btn-sm btn-secondary" style="color:#10b981;font-weight:700;font-size:11.5px">
-                      💬 Open in WhatsApp Direct
+                    <a href="${waLink}" target="_blank" rel="noopener" class="btn btn-sm btn-secondary" style="color:#10b981;font-weight:700;font-size:11.5px;display:inline-flex;align-items:center;gap:5px">
+                      <svg style="width:13px;height:13px;flex-shrink:0" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg> Open in WhatsApp Direct
                     </a>
                   ` : '<span></span>'}
                   <div style="font-size:11px;color:var(--text-muted)">

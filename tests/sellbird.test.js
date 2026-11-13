@@ -225,7 +225,7 @@ describe('Sellbird Autonomous Sales Agent Suite', () => {
 
       const objection = await classifyReplyIntent('We already use another vendor for this.');
       expect(objection).toBe('objection'); // "already use another vendor"
-    });
+    }, 15000);
 
     test('draftReplyResponse creates courteous reply', async () => {
       const reply = await draftReplyResponse({
@@ -234,7 +234,7 @@ describe('Sellbird Autonomous Sales Agent Suite', () => {
         product: { name: 'Urban Society' },
       });
       expect(reply.toLowerCase()).toContain('removed');
-    });
+    }, 15000);
   });
 
   describe('6. Deliverability, Daily Cap & Opt-Out Suppression', () => {

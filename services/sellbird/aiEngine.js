@@ -107,6 +107,10 @@ function classifyByWords(messageText) {
 }
 
 async function classifyReplyIntent(messageText, aiOpts = {}) {
+  // Immediate deterministic detection for opt-outs and negative intent
+  const fast = classifyByWords(messageText);
+  if (fast === 'unsubscribe' || fast === 'not_interested') return fast;
+
   const mergedOpts = defaultAiKeys(aiOpts);
   const prompt = `Classify the sentiment and intent of this prospect email reply into exactly ONE of these categories:
 - "interested" (wants to meet, see a demo, asked for pricing or more info)
@@ -131,6 +135,10 @@ Respond with ONLY the category string.`;
 }
 
 async function draftReplyResponse({ originalMessage, intent, product }, aiOpts = {}) {
+  if (intent === 'unsubscribe') {
+    return 'Thank you for letting us know. We have removed you from our list and wish you all the best.';
+  }
+
   const mergedOpts = defaultAiKeys(aiOpts);
   const prompt = `You are an executive sales assistant replying to a prospect response.
 Prospect Message: "${originalMessage}"

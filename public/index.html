@@ -85,15 +85,12 @@
       </a>
 
       <div class="nav-section-label">Grow</div>
-      <a class="nav-item" data-page="sellbird" id="nav-sellbird" title="Find business customers and send outreach emails">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-briefcase-business"/></svg>
-        <span class="nav-label">Sales outreach</span>
+      <a class="nav-item" data-page="sellbird" id="nav-sellbird" title="Cold outreach sequences, email marketing campaigns and newsletters">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-mail"/></svg>
+        <span class="nav-label">Email &amp; Outreach</span>
         <span class="nav-badge sellbird-badge" id="sellbird-nav-badge" style="display:none">0</span>
       </a>
-      <a class="nav-item" data-page="email" id="nav-email" title="Newsletters and email campaigns">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-mail"/></svg>
-        <span class="nav-label">Email</span>
-      </a>
+      <a class="nav-item" data-page="email" id="nav-email" style="display:none" aria-hidden="true"></a>
       <a class="nav-item agency-only" data-page="clients" id="nav-clients" title="Separate brands for each client">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layers"/></svg>
         <span class="nav-label">Clients</span>
@@ -740,7 +737,7 @@
                 </div>
               </div>
               <div class="form-group">
-                <button type="button" class="btn btn-secondary btn-sm" onclick="shareToWhatsApp()" title="WhatsApp has no way for apps to post to Channels or Status: this copies the text and opens WhatsApp">💬 Copy for WhatsApp (Channel or Status)</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="shareToWhatsApp()" title="WhatsApp has no way for apps to post to Channels or Status: this copies the text and opens WhatsApp" style="display:inline-flex;align-items:center;gap:6px"><svg style="width:13px;height:13px;flex-shrink:0" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg> Copy for WhatsApp (Channel or Status)</button>
               </div>
               <div class="form-group" id="compose-cloud-wrap" style="display:none">
                 <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer">
@@ -1584,97 +1581,8 @@
       </div>
     </section>
 
-    <!-- ── Email Marketing ───────────────────────────────────────────────────── -->
-    <section class="page" id="page-email">
-      <div class="section-header">
-        <div><div class="section-title">📧 Email Marketing</div><div class="section-desc">Manage subscribers, create campaigns, and send via SMTP.</div></div>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:20px">
-        <button class="btn btn-primary btn-sm email-tab-btn active" data-tab="campaigns" onclick="switchEmailTab('campaigns',this)">📨 Campaigns</button>
-        <button class="btn btn-secondary btn-sm email-tab-btn" data-tab="subscribers" onclick="switchEmailTab('subscribers',this)">👥 Subscribers</button>
-        <button class="btn btn-secondary btn-sm email-tab-btn" data-tab="generate" onclick="switchEmailTab('generate',this)">✨ AI Generate</button>
-      </div>
-
-      <!-- Campaigns -->
-      <div class="email-panel" id="email-panel-campaigns">
-        <div class="grid-2">
-          <div class="card"><div class="card-header"><div class="card-title">📨 New Campaign</div></div>
-            <div class="card-body">
-              <div class="form-group"><label class="form-label">Campaign Name</label><input type="text" class="form-input" id="camp-name" placeholder="e.g. July Newsletter" /></div>
-              <div class="form-group"><label class="form-label">Subject Line</label><input type="text" class="form-input" id="camp-subject" placeholder="Your compelling subject line…" /></div>
-              <div class="form-group"><label class="form-label">Email message</label><textarea class="form-textarea" id="camp-body" placeholder="Write your email here, or use AI Generate to write it for you. (HTML is allowed.)" style="min-height:200px"></textarea></div>
-              <div style="display:flex;gap:8px">
-                <button class="btn btn-primary" onclick="saveCampaign()" id="btn-save-camp" style="flex:1">💾 Save Campaign</button>
-                <button class="btn btn-success" onclick="sendCampaign()" id="btn-send-camp" style="flex:1">📤 Send Now</button>
-              </div>
-            </div>
-          </div>
-          <div class="card"><div class="card-header"><div class="card-title">📋 Saved Campaigns</div><button class="btn btn-secondary btn-sm" onclick="loadCampaigns()">🔄 Refresh</button></div>
-            <div class="card-body" style="padding:0;max-height:500px;overflow-y:auto" id="campaigns-list">
-              <div class="empty-state" style="padding:40px 0"><div class="empty-icon">📨</div><div class="empty-title">No campaigns yet</div></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Subscribers -->
-      <div class="email-panel" id="email-panel-subscribers" style="display:none">
-        <div class="grid-2">
-          <div class="card"><div class="card-header"><div class="card-title">➕ Add Subscriber</div></div>
-            <div class="card-body">
-              <div class="form-group"><label class="form-label">Email Address *</label><input type="email" class="form-input" id="sub-email" placeholder="subscriber@example.com" /></div>
-              <div class="form-group"><label class="form-label">Name (optional)</label><input type="text" class="form-input" id="sub-name" placeholder="John Doe" /></div>
-              <div class="form-group"><label class="form-label">Tags (optional)</label><input type="text" class="form-input" id="sub-tags" placeholder="vip, newsletter, beta" /></div>
-              <button class="btn btn-primary" onclick="addSubscriber()" style="width:100%">➕ Add Subscriber</button>
-              <div class="divider">OR</div>
-              <div class="form-group"><label class="form-label">Bulk Import (one email per line)</label><textarea class="form-textarea" id="bulk-emails" placeholder="user1@example.com&#10;user2@example.com&#10;user3@example.com" style="min-height:100px"></textarea></div>
-              <button class="btn btn-secondary" onclick="bulkImportSubscribers()" style="width:100%">📥 Bulk Import</button>
-            </div>
-          </div>
-          <div class="card"><div class="card-header"><div class="card-title">👥 Subscribers (<span id="sub-count">0</span>)</div><button class="btn btn-secondary btn-sm" onclick="loadSubscribers()">🔄 Refresh</button></div>
-            <div class="card-body" style="padding:0;max-height:500px;overflow-y:auto" id="subscribers-list">
-              <div class="empty-state" style="padding:40px 0"><div class="empty-icon">👥</div><div class="empty-title">No subscribers yet</div></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- AI Generate Email -->
-      <div class="email-panel" id="email-panel-generate" style="display:none">
-        <div class="grid-2">
-          <div class="card"><div class="card-header"><div class="card-title">✨ AI Email Generator</div></div>
-            <div class="card-body">
-              <div class="form-group"><label class="form-label">Email Type</label>
-                <select class="form-select" id="email-gen-type">
-                  <option value="newsletter">📰 Newsletter</option>
-                  <option value="launch">🚀 Product Launch</option>
-                  <option value="promo">🎁 Promotional</option>
-                  <option value="onboarding">👋 Welcome / Onboarding</option>
-                  <option value="reengagement">💫 Re-engagement</option>
-                  <option value="update">🔔 Product Update</option>
-                </select>
-              </div>
-              <div class="form-group"><label class="form-label">App / Brand Name</label><input type="text" class="form-input" id="email-gen-app" placeholder="e.g. TaskFlow" /></div>
-              <div class="form-group"><label class="form-label">Topic / Key Points</label><textarea class="form-textarea" id="email-gen-topic" placeholder="What's this email about? Key features, news, or offer to highlight…" style="min-height:100px"></textarea></div>
-              <div class="form-group"><label class="form-label">Tone</label>
-                <select class="form-select" id="email-gen-tone">
-                  <option value="professional">💼 Professional</option>
-                  <option value="friendly">😊 Friendly</option>
-                  <option value="exciting">🎉 Exciting</option>
-                  <option value="minimal">✨ Minimal</option>
-                </select>
-              </div>
-              <button class="btn btn-primary btn-lg" onclick="generateEmail()" id="btn-gen-email" style="width:100%">✨ Generate Email</button>
-            </div>
-          </div>
-          <div class="card"><div class="card-header"><div class="card-title">📬 Generated Email</div><button class="btn btn-secondary btn-sm" onclick="sendGeneratedToCampaign()" id="btn-email-to-camp" disabled>→ Save as Campaign</button></div>
-            <div class="card-body" style="max-height:580px;overflow-y:auto" id="email-gen-output">
-              <div class="empty-state" style="padding:40px 0"><div class="empty-icon">📧</div><div class="empty-title">Generated email will appear here</div></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+    <!-- ── Email Marketing (Merged into Email & Outreach Hub #page-sellbird) ── -->
+    <section class="page" id="page-email" style="display:none" aria-hidden="true"></section>
 
     <!-- ── Sellbird Autonomous Sales Agent ───────────────────────────────────── -->
     <section class="page" id="page-sellbird">
@@ -1693,12 +1601,20 @@
           </button>
           <button class="sb-floating-tab" id="floating-tab-campaigns" data-tab="campaigns" onclick="switchSellbirdTab('campaigns', this)">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m10 8 4 4-4 4"/></svg>
-            <span>Run campaigns</span>
+            <span>Cold campaigns</span>
           </button>
           <button class="sb-floating-tab" id="floating-tab-replies" data-tab="replies" onclick="switchSellbirdTab('replies', this)">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span>Handle replies</span>
             <span class="sb-floating-badge red" id="tab-badge-replies" style="display:none">0</span>
+          </button>
+          <button class="sb-floating-tab" id="floating-tab-newsletters" data-tab="newsletters" onclick="switchSellbirdTab('newsletters', this)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+            <span>Newsletters &amp; Broadcasts</span>
+          </button>
+          <button class="sb-floating-tab" id="floating-tab-subscribers" data-tab="subscribers" onclick="switchSellbirdTab('subscribers', this)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Subscribers</span>
           </button>
         </div>
 
@@ -1748,7 +1664,7 @@
                   <polygon points="14,9 22,6 18,14" fill="#38bdf8" />
                   <polygon points="9,13 14,9 15,19" fill="#1e293b" />
                 </svg>
-                <span>Sales outreach</span>
+                <span>Email &amp; Outreach</span>
               </div>
               <div class="sb-brand-dropdown" id="sb-brand-selector" onclick="openAddCompanyModal()">
                 <span style="display:inline-block;width:14px;height:14px;background:#0f172a;color:#fff;border-radius:3px;font-size:9px;text-align:center;line-height:14px;font-weight:700">U</span>
@@ -1824,8 +1740,23 @@
                 <span class="sb-subnav-badge red-pill" id="sb-subnav-replies-count">0</span>
               </div>
 
+              <div class="sb-nav-section-title" style="margin-top:16px">Newsletters &amp; Email</div>
+              <div class="sb-subnav-item" id="sb-subnav-newsletters" onclick="switchSellbirdTab('newsletters', this)">
+                <span class="sb-subnav-label-wrap">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                  5. Broadcasts
+                </span>
+              </div>
+              <div class="sb-subnav-item" id="sb-subnav-subscribers" onclick="switchSellbirdTab('subscribers', this)">
+                <span class="sb-subnav-label-wrap">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  6. Subscribers
+                </span>
+                <span class="sb-subnav-badge" id="sb-subnav-subscribers-count">0</span>
+              </div>
+
               <div class="sb-nav-section-title" style="margin-top:16px">Sending</div>
-              <div class="sb-subnav-item" onclick="switchSellbirdTab('deliverability', this)">
+              <div class="sb-subnav-item" id="sb-subnav-deliverability" onclick="switchSellbirdTab('deliverability', this)">
                 <span class="sb-subnav-label-wrap">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
                   How sending works
@@ -2044,6 +1975,98 @@
                   </div>
                 </div>
               </div>
+
+              <!-- ═══════════════════════════════════════════════════════════════ -->
+              <!-- SCREEN 6: NEWSLETTERS & BROADCASTS (MERGED FROM EMAIL)          -->
+              <!-- ═══════════════════════════════════════════════════════════════ -->
+              <div class="sellbird-panel" id="sellbird-panel-newsletters" style="display:none">
+                <div class="grid-2">
+                  <div class="sellbird-card">
+                    <div class="sellbird-card-header" style="justify-content:space-between">
+                      <div class="sellbird-card-title">📨 Newsletter &amp; Email Broadcast</div>
+                      <button class="btn btn-secondary btn-sm" onclick="toggleSellbirdAiEmailGen()" id="btn-toggle-ai-gen">✨ AI Draft</button>
+                    </div>
+                    <div class="sellbird-card-body">
+                      <!-- AI Assistant Accordion -->
+                      <div id="sb-ai-email-accordion" style="display:none;margin-bottom:16px;padding:12px;background:rgba(2,132,199,0.06);border:1px solid rgba(2,132,199,0.25);border-radius:8px">
+                        <div style="font-size:12px;font-weight:700;color:var(--text-primary);margin-bottom:8px">✨ Quick AI Generator</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                          <select class="form-select sellbird-select" id="email-gen-type" style="font-size:12px">
+                            <option value="newsletter">📰 Newsletter</option>
+                            <option value="launch">🚀 Product Launch</option>
+                            <option value="promo">🎁 Promotional</option>
+                            <option value="onboarding">👋 Welcome</option>
+                            <option value="update">🔔 Product Update</option>
+                          </select>
+                          <input type="text" class="form-input sellbird-input" id="email-gen-app" placeholder="Brand / App Name" style="font-size:12px" />
+                        </div>
+                        <textarea class="form-textarea sellbird-textarea" id="email-gen-topic" rows="2" placeholder="Key points or announcement…" style="font-size:12px;margin-bottom:8px"></textarea>
+                        <div style="display:flex;justify-content:flex-end;gap:6px">
+                          <button class="btn btn-secondary btn-sm" onclick="toggleSellbirdAiEmailGen()">Cancel</button>
+                          <button class="btn btn-sellbird-primary btn-sm" onclick="generateEmail()" id="btn-gen-email">✨ Write Email</button>
+                        </div>
+                      </div>
+
+                      <div class="form-group">
+                        <label class="form-label">Campaign Name *</label>
+                        <input type="text" class="form-input sellbird-input" id="camp-name" placeholder="e.g. November Community Newsletter" />
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Subject Line *</label>
+                        <input type="text" class="form-input sellbird-input" id="camp-subject" placeholder="Compelling subject line that gets opened…" />
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Email Message (HTML allowed) *</label>
+                        <textarea class="form-textarea sellbird-textarea" id="camp-body" placeholder="Write your newsletter or marketing announcement here. (Supports HTML & rich text)" style="min-height:220px"></textarea>
+                      </div>
+                      <div style="display:flex;gap:8px">
+                        <button class="btn btn-secondary" onclick="saveCampaign()" id="btn-save-camp" style="flex:1">💾 Save Draft</button>
+                        <button class="btn btn-sellbird-primary" onclick="sendCampaign()" id="btn-send-camp" style="flex:1">📤 Send Broadcast</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="sellbird-card">
+                    <div class="sellbird-card-header" style="justify-content:space-between">
+                      <div class="sellbird-card-title">📋 Saved Broadcasts</div>
+                      <button class="btn btn-secondary btn-sm" onclick="loadEmailCampaigns()">🔄 Refresh</button>
+                    </div>
+                    <div class="sellbird-card-body" style="padding:0;max-height:560px;overflow-y:auto" id="campaigns-list">
+                      <div class="sellbird-loading-state"><div class="spinner"></div><div>Loading saved broadcasts...</div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ═══════════════════════════════════════════════════════════════ -->
+              <!-- SCREEN 7: SUBSCRIBERS (MERGED FROM EMAIL)                       -->
+              <!-- ═══════════════════════════════════════════════════════════════ -->
+              <div class="sellbird-panel" id="sellbird-panel-subscribers" style="display:none">
+                <div class="grid-2">
+                  <div class="sellbird-card">
+                    <div class="sellbird-card-header"><div class="sellbird-card-title">➕ Add Subscriber</div></div>
+                    <div class="sellbird-card-body">
+                      <div class="form-group"><label class="form-label">Email Address *</label><input type="email" class="form-input sellbird-input" id="sub-email" placeholder="subscriber@example.com" /></div>
+                      <div class="form-group"><label class="form-label">Name (optional)</label><input type="text" class="form-input sellbird-input" id="sub-name" placeholder="John Doe" /></div>
+                      <div class="form-group"><label class="form-label">Tags (optional)</label><input type="text" class="form-input sellbird-input" id="sub-tags" placeholder="vip, newsletter, beta" /></div>
+                      <button class="btn btn-sellbird-primary" onclick="addSubscriber()" style="width:100%">➕ Add Subscriber</button>
+                      <div class="divider" style="margin:16px 0;text-align:center;color:var(--text-muted);font-size:11px">OR BULK IMPORT</div>
+                      <div class="form-group"><label class="form-label">Bulk Import (one email per line)</label><textarea class="form-textarea sellbird-textarea" id="bulk-emails" placeholder="user1@example.com&#10;user2@example.com&#10;user3@example.com" style="min-height:90px"></textarea></div>
+                      <button class="btn btn-secondary" onclick="bulkImportSubscribers()" style="width:100%">📥 Bulk Import</button>
+                    </div>
+                  </div>
+
+                  <div class="sellbird-card">
+                    <div class="sellbird-card-header" style="justify-content:space-between">
+                      <div class="sellbird-card-title">👥 Audience (<span id="sub-count">0</span>)</div>
+                      <button class="btn btn-secondary btn-sm" onclick="loadSubscribers()">🔄 Refresh</button>
+                    </div>
+                    <div class="sellbird-card-body" style="padding:0;max-height:560px;overflow-y:auto" id="subscribers-list">
+                      <div class="sellbird-loading-state"><div class="spinner"></div><div>Loading subscribers...</div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2172,27 +2195,65 @@
           <div class="modal-title">Find companies</div>
           <button class="modal-close" onclick="closeSellbirdModals()">✕</button>
         </div>
-        <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
+        <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
           <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px">
             <span style="font-size:20px">✨</span>
             <div style="font-size:12.5px;color:var(--text-primary);line-height:1.4">
               <strong>100% Real-World Verified:</strong> Crawls real live websites, detects live infrastructure tech stacks, and verifies mail deliverability via DNS MX lookups. Zero fake demo seed data.
             </div>
           </div>
-          <div>
-            
-            <input type="radio" name="real_target_mode" value="custom" checked hidden />
-            <div class="form-hint">Type the websites of companies you’d like as customers. Social-Nexus reads their public pages and finds who to contact.</div>
+
+          <!-- Mode Toggle: By Business Type vs Specific Domains -->
+          <div style="display:flex;gap:6px;background:rgba(255,255,255,0.04);padding:4px;border-radius:8px;border:1px solid var(--border)">
+            <button type="button" class="btn btn-sm btn-primary" id="btn-discover-mode-type" onclick="toggleSellbirdDiscoveryMode('type')" style="flex:1;font-size:12px">
+              🏢 By Business Type &amp; City (AI)
+            </button>
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-discover-mode-domain" onclick="toggleSellbirdDiscoveryMode('domain')" style="flex:1;font-size:12px">
+              🌐 Specific Websites (Direct)
+            </button>
           </div>
-          <div id="box-custom-domains">
+
+          <!-- Mode A: Business Type & City Search -->
+          <div id="box-discover-by-type" style="display:flex;flex-direction:column;gap:10px">
+            <div class="form-hint">AI searches authentic businesses in your target city, finds their official domains, crawls their websites, and drafts outreach emails into Outbox.</div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Outreach Campaign *</label>
+              <select class="form-select sellbird-select" id="discover-type-campaign-id"></select>
+            </div>
+            <div class="sellbird-grid-2col">
+              <div class="form-group" style="margin-bottom:0">
+                <label class="form-label">Business Type / Category *</label>
+                <input type="text" class="form-input sellbird-input" id="discover-business-type" placeholder="e.g. Dental clinics, Law firms, Architects" />
+              </div>
+              <div class="form-group" style="margin-bottom:0">
+                <label class="form-label">City / Region (optional)</label>
+                <input type="text" class="form-input sellbird-input" id="discover-city" placeholder="e.g. Pune, Mumbai, London" />
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">How many companies to find</label>
+              <select class="form-select sellbird-select" id="discover-count">
+                <option value="5">5 companies (Fastest)</option>
+                <option value="8" selected>8 companies (Recommended)</option>
+                <option value="12">12 companies</option>
+                <option value="15">15 companies</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Mode B: Specific Domains -->
+          <div id="box-custom-domains" style="display:none">
+            <div class="form-hint" style="margin-bottom:8px">Type the websites of companies you’d like as customers. Social-Nexus reads their public pages and finds who to contact.</div>
             <label style="font-size:12px;font-weight:700;color:var(--text-primary);display:block;margin-bottom:6px">Company websites (one per line):</label>
             <textarea class="form-textarea sellbird-textarea" id="input-custom-real-domains" rows="3" placeholder="example.com&#10;another-company.in"></textarea>
           </div>
-          
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="closeSellbirdModals()">Cancel</button>
-          <button class="btn btn-sellbird-primary" id="btn-start-real-discovery" onclick="triggerRealWorldDiscovery()">
+          <button class="btn btn-sellbird-primary" id="btn-start-type-discovery" onclick="submitDiscoverByType()">
+            🔍 Discover &amp; write emails
+          </button>
+          <button class="btn btn-sellbird-primary" id="btn-start-real-discovery" onclick="triggerRealWorldDiscovery()" style="display:none">
             Add them and write emails
           </button>
         </div>
@@ -2366,7 +2427,7 @@
           <span style="font-size:12.5px;color:var(--text-secondary)">This inbox manages <b>public comments &amp; mentions</b> on social posts. For <b>1:1 WhatsApp customer conversations &amp; UPI payments</b>, use Live Chat &amp; CRM.</span>
         </div>
         <button class="btn btn-primary btn-sm" onclick="navigateTo('leads-inbox')" style="background:#073b3a;border-color:#073b3a;color:#fff;font-size:12px;display:inline-flex;align-items:center;gap:6px">
-          <span>💬 Open WhatsApp Live Chat →</span>
+          <svg style="width:13px;height:13px;flex-shrink:0" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg><span>Open WhatsApp Live Chat →</span>
         </button>
       </div>
 
@@ -3975,7 +4036,7 @@
           <label class="platform-toggle facebook" data-platform="facebook">📘 Facebook</label>
           <label class="platform-toggle instagram" data-platform="instagram">📸 Instagram</label>
           <label class="platform-toggle twitter" data-platform="twitter">🐦 Twitter/X</label>
-          <label class="platform-toggle whatsapp" data-platform="whatsapp" style="background:rgba(37,211,102,0.12);border-color:rgba(37,211,102,0.3);color:#25d366">💬 WhatsApp</label>
+          <label class="platform-toggle whatsapp" data-platform="whatsapp" style="background:rgba(37,211,102,0.12);border-color:rgba(37,211,102,0.3);color:#25d366;display:inline-flex;align-items:center;gap:6px"><svg style="width:14px;height:14px;flex-shrink:0" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg> WhatsApp</label>
         </div>
       </div>
     </div>

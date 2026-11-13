@@ -42,8 +42,8 @@ const PAGE_META = {
   files:     { title: 'Files on this PC',       subtitle: 'Pictures and spreadsheets in your content folder' },
   seo:       { title: 'Website SEO',            subtitle: 'Titles, descriptions and keywords for your website' },
   aso:       { title: 'App store listing',      subtitle: 'Text for your App Store and Play Store page' },
-  email:     { title: 'Email',                  subtitle: 'Your subscribers and email campaigns' },
-  'sellbird': { title: 'Sales outreach',        subtitle: 'Find business customers, check drafts, then send' },
+  email:     { title: 'Email & Outreach',       subtitle: 'Cold outreach sequences, email marketing campaigns and newsletters' },
+  'sellbird': { title: 'Email & Outreach',       subtitle: 'Cold outreach sequences, email marketing campaigns and newsletters' },
   'lead-ads':        { title: 'WhatsApp · Contacts',   subtitle: 'People who wrote to you or filled in your ad forms' },
   'leads-contacts':  { title: 'WhatsApp · Contacts',   subtitle: 'People who wrote to you or filled in your ad forms' },
   'leads-inbox':     { title: 'WhatsApp · Chats',      subtitle: 'Reply to customers on WhatsApp and Messenger' },
@@ -86,8 +86,11 @@ const PLATFORMS = {
 // Navigation
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Screens that moved into Settings
-const PAGE_REDIRECTS = { 'user-settings': ['settings', 'ai'] };
+// Screens that moved or merged
+const PAGE_REDIRECTS = {
+  'user-settings': ['settings', 'ai'],
+  'email': ['sellbird', 'newsletters'],
+};
 
 function navigateTo(page) {
   // Close mobile sidebar if open
@@ -95,7 +98,13 @@ function navigateTo(page) {
 
   if (PAGE_REDIRECTS[page]) {
     const [to, tab] = PAGE_REDIRECTS[page];
-    State.pendingSettingsTab = tab;
+    if (to === 'settings') {
+      State.pendingSettingsTab = tab;
+    } else if (to === 'sellbird') {
+      setTimeout(() => {
+        if (typeof switchSellbirdTab === 'function') switchSellbirdTab(tab);
+      }, 50);
+    }
     page = to;
   }
   // Reset scroll position so new page always starts cleanly at the top
@@ -180,7 +189,12 @@ function navigateTo(page) {
     templates: () => (typeof window.loadTemplates === 'function' ? window.loadTemplates() : (typeof loadTemplates === 'function' ? loadTemplates() : null)),
     utm:       () => (typeof window.loadUTMLinks === 'function' ? window.loadUTMLinks() : (typeof loadUTMLinks === 'function' ? loadUTMLinks() : null)),
     email:     () => (typeof window.loadEmailPage === 'function' ? window.loadEmailPage() : (typeof loadEmailPage === 'function' ? loadEmailPage() : null)),
-    sellbird:  () => (typeof window.loadSellbird === 'function' ? window.loadSellbird() : (typeof loadSellbird === 'function' ? loadSellbird() : null)),
+    sellbird:  () => {
+      if (typeof window.loadSellbird === 'function') window.loadSellbird();
+      else if (typeof loadSellbird === 'function') loadSellbird();
+      if (typeof window.loadEmailCampaigns === 'function') window.loadEmailCampaigns();
+      if (typeof window.loadSubscribers === 'function') window.loadSubscribers();
+    },
     'lead-ads':        () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : (typeof loadLeadPipeline === 'function' ? loadLeadPipeline() : null)),
     'leads-contacts':   () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : (typeof loadLeadPipeline === 'function' ? loadLeadPipeline() : null)),
     'leads-inbox':      () => (typeof window.loadWhatsAppConversations === 'function' ? window.loadWhatsAppConversations() : (typeof loadWhatsAppConversations === 'function' ? loadWhatsAppConversations() : null)),
