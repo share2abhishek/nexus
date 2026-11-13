@@ -2007,6 +2007,69 @@ function toggleLeadSubmenu(e) {
    Outbound WhatsApp Broadcast Studio (Excel / CSV / Manual)
    ───────────────────────────────────────────────────────────────────────────── */
 
+function exportToSalesforceCsv() {
+  const leads = LeadPipelineState.leads || [];
+  if (!leads.length) {
+    toast('No leads found in CRM to export', 'warning');
+    return;
+  }
+
+  // Standard Salesforce Lead import headers
+  const headers = [
+    'FirstName',
+    'LastName',
+    'Company',
+    'Phone',
+    'Email',
+    'LeadSource',
+    'Status',
+    'Rating',
+    'Description',
+    'UrbanSociety_Lead_ID'
+  ];
+
+  const rows = leads.map(l => {
+    const fullName = String(l.full_name || 'Website Lead').trim();
+    const nameParts = fullName.split(' ');
+    const firstName = nameParts[0] || 'Prospect';
+    const lastName = nameParts.slice(1).join(' ') || '(Inquiry)';
+    const company = l.society || l.organization_name || 'Urban Society Prospect';
+    const phone = l.phone_number || '';
+    const email = l.email || '';
+    const isWeb = l.leadgen_id && String(l.leadgen_id).startsWith('web:');
+    const source = l.source || (isWeb ? 'UrbanSociety Webchat' : 'Meta Lead Ad');
+    const status = l.status === 'won' ? 'Closed - Converted' : (l.status === 'qualified' ? 'Working - Contacted' : 'Open - Not Contacted');
+    const rating = Number(l.lead_score || 50) >= 75 ? 'Hot' : 'Warm';
+    const desc = `${l.intent_summary || 'Urban Society Lead'}${l.suggested_reply ? ' | Note: ' + l.suggested_reply : ''}`.replace(/"/g, '""');
+    const extId = l.id;
+
+    return [
+      `"${firstName}"`,
+      `"${lastName}"`,
+      `"${company.replace(/"/g, '""')}"`,
+      `"${phone}"`,
+      `"${email}"`,
+      `"${source}"`,
+      `"${status}"`,
+      `"${rating}"`,
+      `"${desc}"`,
+      `"${extId}"`
+    ].join(',');
+  });
+
+  const csvContent = headers.join(',') + '\n' + rows.join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `salesforce_leads_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  toast(`☁️ Exported ${leads.length} leads in Salesforce Lead CSV format!`, 'success');
+}
+
 function downloadSampleWhatsAppCsv() {
   const csvContent = 'Name,Phone,Society,Role,Units\n' +
     'Priya Sharma,+91 98765 43210,Green Valley,Owner,\n' +
@@ -3969,6 +4032,7 @@ Object.assign(window, {
     toggleLeadSubmenu,
     navigateToLeadTab,
     downloadSampleWhatsAppCsv,
+    exportToSalesforceCsv,
     handleBroadcastFileSelect,
     handleBroadcastFileDrop,
     parseCsvText,

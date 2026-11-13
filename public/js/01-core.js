@@ -122,6 +122,10 @@ function navigateTo(page) {
   document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => el.classList.remove('active'));
   const navEl = document.getElementById(`nav-${page}`);
   if (navEl) navEl.classList.add('active');
+  if (page === 'lead-ads') {
+    const crmNav = document.getElementById('nav-crm-pipeline');
+    if (crmNav) crmNav.classList.add('active');
+  }
 
   // Update pages
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));

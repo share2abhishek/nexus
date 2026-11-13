@@ -137,18 +137,35 @@ async function handleInboundWebChat(knex, { config, visitorId, name, text }) {
   }
   // Auto-detect phone number in message to enrich lead
   const phoneMatch = msg.match(/(?:\+91|91|0)?[6-9]\d{9}\b/);
+  const emailMatch = msg.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/);
+  const nameMatch = msg.match(/(?:my name is|i am|this is|call me)\s+([A-Za-z]{2,25}(?:\s+[A-Za-z]{2,25})?)/i);
+
+  const leadUpdates = {};
+
   if (phoneMatch && !lead.phone_number) {
     let clean = phoneMatch[0].replace(/[^0-9]/g, '');
     if (clean.length === 10) clean = '91' + clean;
-    await repo.updateLeadEvent(workspaceId, lead.id, { phone_number: clean }).catch(() => {});
+    leadUpdates.phone_number = clean;
+    leadUpdates.status = 'qualified';
+    leadUpdates.lead_score = Math.max(lead.lead_score || 50, 85);
     lead.phone_number = clean;
+    lead.status = 'qualified';
+    lead.lead_score = 85;
   }
-  // Auto-detect visitor name
-  const nameMatch = msg.match(/(?:my name is|i am|this is)\s+([A-Za-z]{2,25}(?:\s+[A-Za-z]{2,25})?)/i);
+
+  if (emailMatch && !lead.email) {
+    leadUpdates.email = emailMatch[0].toLowerCase();
+    lead.email = leadUpdates.email;
+  }
+
   if (nameMatch && (lead.full_name === 'Website visitor' || !lead.full_name)) {
     const newName = nameMatch[1].trim();
-    await repo.updateLeadEvent(workspaceId, lead.id, { full_name: newName }).catch(() => {});
+    leadUpdates.full_name = newName;
     lead.full_name = newName;
+  }
+
+  if (Object.keys(leadUpdates).length > 0) {
+    await repo.updateLeadEvent(workspaceId, lead.id, leadUpdates).catch(() => {});
   }
 
   await repo.addLeadMessage(workspaceId, lead.id, {
@@ -186,8 +203,37 @@ async function handleInboundWebChat(knex, { config, visitorId, name, text }) {
         return replyFrom(r);
       } : null,
     });
+    if (phoneMatch && captured.length === 0) {
+      const thankYou = `Thank you${lead.full_name && lead.full_name !== 'Website visitor' ? ' ' + lead.full_name : ''}! We have registered your contact number (+${lead.phone_number}). Our society onboarding specialist has been notified and will reach out to you shortly.`;
+      captured.push(thankYou);
+      await repo
+        .addLeadMessage(workspaceId, lead.id, {
+          sender_type: 'bot',
+          sender_name: 'Nexus Bot',
+          message_text: thankYou,
+          channel: 'web',
+        })
+        .catch(() => {});
+    }
   } catch (err) {
     console.warn('[WebChat] Auto-reply failed:', err.message);
+  }
+
+  // Handover event to Salesforce / n8n workflow
+  if (n8nUrl && phoneMatch) {
+    forwardToN8n(
+      n8nUrl,
+      buildEvent('salesforce.lead_handover', workspaceId, {
+        lead_id: lead.id,
+        full_name: lead.full_name,
+        phone: lead.phone_number,
+        email: lead.email || '',
+        company: 'Urban Society Prospect',
+        status: 'Qualified',
+        lead_score: 85,
+        description: `Qualified from website chat: "${msg}"`,
+      })
+    ).catch(() => {});
   }
 
   // Tell an n8n workflow about the message too (unless it was the one that answered)

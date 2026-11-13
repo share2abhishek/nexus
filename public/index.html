@@ -43,6 +43,10 @@
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layers"/></svg>
         <span class="nav-label">Schedule from Excel</span>
       </a>
+      <a class="nav-item" data-page="lead-ads" id="nav-crm-pipeline" title="Complete CRM: Contacts, Kanban Pipeline, Salesforce Handover & Reports" href="javascript:void(0)" onclick="navigateTo('lead-ads')">
+        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-users"/></svg>
+        <span class="nav-label">Leads &amp; CRM</span>
+      </a>
       <div class="nav-group-parent" id="group-lead-ads">
         <a class="nav-item has-subnav" data-page="leads-inbox" id="nav-lead-ads" title="Chat with customers, send broadcasts, manage contacts">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg>
@@ -3087,6 +3091,9 @@
             </button>
             <button class="btn btn-secondary" onclick="deleteSelectedContacts()" id="btn-contacts-delete-selected" style="display:none;height:40px;padding:0 14px;border-radius:8px;border:1px solid rgba(239,68,68,0.4);background:rgba(239,68,68,0.08);color:#ef4444;font-weight:700;font-size:12.5px;cursor:pointer;align-items:center;gap:6px">
               <span>🗑️ Delete (<span id="delete-selected-count">0</span>)</span>
+            </button>
+            <button class="btn btn-secondary" onclick="exportToSalesforceCsv()" id="btn-salesforce-csv" style="height:40px;padding:0 16px;border-radius:8px;border:1px solid #00a1e0;background:rgba(0,161,224,0.08);color:#0284c7;font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px" title="Export qualified leads to Salesforce CSV format">
+              <span>☁️ Salesforce Handover</span>
             </button>
             <button class="btn btn-secondary" onclick="openAddContactModal()" id="btn-add-contact-modal" style="height:40px;padding:0 18px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">
               <span>+ Add Contact</span>
