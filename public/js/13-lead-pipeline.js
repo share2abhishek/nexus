@@ -2070,6 +2070,323 @@ function exportToSalesforceCsv() {
   toast(`☁️ Exported ${leads.length} leads in Salesforce Lead CSV format!`, 'success');
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Complete Lead CRM & Pipeline Controller
+   ───────────────────────────────────────────────────────────────────────────── */
+
+async function loadCrmPipeline() {
+  LeadPipelineState.loading = true;
+  try {
+    const [configData, leadsData] = await Promise.all([
+      api('GET', '/api/lead-pipeline/config').catch(() => null),
+      api('GET', '/api/lead-pipeline/leads?limit=200').catch(() => []),
+    ]);
+
+    if (configData) {
+      LeadPipelineState.config = configData.config || {};
+      LeadPipelineState.stats = configData.stats || {};
+    }
+
+    LeadPipelineState.leads = Array.isArray(leadsData) ? leadsData : [];
+    renderCrmKpis();
+    renderCrmBoard();
+    renderCrmTable();
+    switchCrmView(LeadPipelineState.crmActiveTab || 'board');
+  } catch (err) {
+    console.error('[CRM Pipeline] Error loading data:', err);
+    toast(err.message || 'Error loading CRM data', 'error');
+  } finally {
+    LeadPipelineState.loading = false;
+  }
+}
+
+function renderCrmKpis() {
+  const leads = LeadPipelineState.leads || [];
+  const total = leads.length;
+  const qualified = leads.filter(l => (l.pipeline_stage === 'qualified' || l.status === 'qualified' || Number(l.lead_score || 0) >= 80)).length;
+  const active = leads.filter(l => ['contacted', 'proposal', 'qualified'].includes(l.pipeline_stage || l.status)).length;
+  const value = leads.reduce((acc, l) => acc + (Number(l.deal_value) || 0), 0);
+  const won = leads.filter(l => (l.pipeline_stage === 'won' || l.status === 'won')).length;
+
+  const elTotal = document.getElementById('crm-kpi-total');
+  const elQual = document.getElementById('crm-kpi-qualified');
+  const elActive = document.getElementById('crm-kpi-active');
+  const elVal = document.getElementById('crm-kpi-value');
+  const elWon = document.getElementById('crm-kpi-won');
+
+  if (elTotal) elTotal.textContent = total;
+  if (elQual) elQual.textContent = qualified;
+  if (elActive) elActive.textContent = active;
+  if (elVal) elVal.textContent = value > 0 ? crmMoney(value) : '₹' + (total * 25000).toLocaleString('en-IN');
+  if (elWon) elWon.textContent = won;
+}
+
+function switchCrmView(view) {
+  LeadPipelineState.crmActiveTab = view;
+  const board = document.getElementById('crm-main-board');
+  const tableCard = document.getElementById('crm-main-table-card');
+  const reports = document.getElementById('crm-main-reports');
+
+  document.querySelectorAll('.crm-tab-btn').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = document.getElementById(`crm-tab-${view}-btn`);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  if (board) board.style.display = view === 'board' ? 'flex' : 'none';
+  if (tableCard) tableCard.style.display = view === 'table' ? 'block' : 'none';
+  if (reports) reports.style.display = view === 'reports' ? 'block' : 'none';
+
+  if (view === 'board') renderCrmBoard();
+  else if (view === 'table') renderCrmTable();
+  else if (view === 'reports') loadCrmReports();
+}
+
+function renderCrmBoard(filterQuery) {
+  const board = document.getElementById('crm-main-board');
+  if (!board) return;
+
+  let leads = LeadPipelineState.leads || [];
+  if (filterQuery && filterQuery.trim()) {
+    const q = filterQuery.toLowerCase().trim();
+    leads = leads.filter(l =>
+      (l.full_name || '').toLowerCase().includes(q) ||
+      (l.phone_number || '').includes(q) ||
+      (l.society || '').toLowerCase().includes(q) ||
+      (l.email || '').toLowerCase().includes(q)
+    );
+  }
+
+  const byStage = {};
+  CRM_STAGES.forEach(s => { byStage[s.key] = []; });
+
+  leads.forEach(l => {
+    const stage = l.pipeline_stage || (l.status === 'qualified' ? 'qualified' : (l.status === 'contacted' ? 'contacted' : 'new'));
+    (byStage[stage] || byStage.new).push(l);
+  });
+
+  board.innerHTML = CRM_STAGES.map(s => {
+    const items = byStage[s.key] || [];
+    const total = items.reduce((a, l) => a + (Number(l.deal_value) || 0), 0);
+    return `
+      <div class="crm-col" data-stage="${s.key}" ondragover="crmDragOver(event)" ondragleave="crmDragLeave(event)" ondrop="crmDropCrm(event,'${s.key}')">
+        <div class="crm-col-head">
+          <span class="crm-col-dot" style="background:${s.color}"></span>
+          <span class="crm-col-label">${s.label}</span>
+          <span class="crm-col-count">${items.length}</span>
+          ${total ? `<span class="crm-col-total">${crmMoney(total)}</span>` : ''}
+        </div>
+        <div class="crm-col-body">
+          ${items.map(crmLeadCardHtml).join('') || '<div class="crm-empty">Drop leads here</div>'}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function crmLeadCardHtml(l) {
+  const score = Number(l.lead_score || 50);
+  const scoreCls = score >= 75 ? 'hot' : 'warm';
+  const cleanPhone = (l.phone_number || '').replace(/[^0-9+]/g, '');
+  const isWeb = l.leadgen_id && String(l.leadgen_id).startsWith('web:');
+  const sourceLabel = isWeb ? '⚡ Webchat' : 'Meta Ad';
+  const sourceBg = isWeb ? '#ecfdf5' : '#eff6ff';
+  const sourceColor = isWeb ? '#059669' : '#2563eb';
+
+  return `
+    <div class="crm-card" draggable="true" data-lead-id="${l.id}" ondragstart="crmDragStart(event,${l.id})" ondragend="crmDragEnd(event)" style="cursor:grab;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
+        <div class="crm-card-name" onclick="viewLeadDetails(${l.id})" style="cursor:pointer;color:var(--text-primary);font-size:13.5px;font-weight:700">
+          ${escapeHtml(l.full_name || 'Website Visitor')}
+        </div>
+        <span class="badge" style="background:${sourceBg};color:${sourceColor};font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:4px">
+          ${sourceLabel}
+        </span>
+      </div>
+
+      <div class="crm-card-sub" style="margin-top:3px;font-size:12px;color:var(--text-muted)">
+        ${escapeHtml(l.society || l.organization_name || 'Urban Society Prospect')}
+      </div>
+
+      <div style="margin-top:6px;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:space-between">
+        ${l.phone_number ? `
+          <a href="tel:${escapeHtml(cleanPhone)}" style="color:var(--text-primary);text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+            📞 ${escapeHtml(l.phone_number)}
+          </a>
+        ` : '<span style="color:var(--text-muted);font-size:11px">No phone registered</span>'}
+        <span class="crm-score ${scoreCls}">Score ${score}</span>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(0,0,0,0.05)">
+        <div style="display:flex;gap:4px">
+          ${l.phone_number ? `
+            <button type="button" class="btn btn-sm" onclick="event.stopPropagation();openInAppWhatsAppChat(${l.id})" title="Chat on WhatsApp" style="padding:2px 8px;font-size:11px;background:#25D366;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer">
+              💬 WhatsApp
+            </button>
+          ` : ''}
+          <button type="button" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();viewLeadDetails(${l.id})" title="View Complete Conversation & Details" style="padding:2px 8px;font-size:11px;border-radius:6px;cursor:pointer">
+            🔍 Details
+          </button>
+        </div>
+        <select onchange="changeLeadStageDirect(${l.id}, this.value)" onclick="event.stopPropagation()" style="font-size:11px;padding:2px 4px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);cursor:pointer">
+          ${CRM_STAGES.map(st => `<option value="${st.key}" ${(l.pipeline_stage || l.status) === st.key ? 'selected' : ''}>${st.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+  `;
+}
+
+async function crmDropCrm(e, stage) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('over');
+  const id = _crmDragId; _crmDragId = null;
+  if (!id) return;
+  const lead = (LeadPipelineState.leads || []).find((l) => l.id === id);
+  if (!lead || (lead.pipeline_stage === stage && lead.status === stage)) { renderCrmBoard(); return; }
+  const prevStage = lead.pipeline_stage;
+  lead.pipeline_stage = stage;
+  lead.status = stage;
+  renderCrmBoard();
+  renderCrmKpis();
+  try {
+    await api('PATCH', `/api/lead-pipeline/leads/${id}`, { pipeline_stage: stage, status: stage });
+    toast(`Lead moved to ${stage.toUpperCase()}`, 'success');
+  } catch (err) {
+    lead.pipeline_stage = prevStage;
+    renderCrmBoard();
+    toast(err.message || 'Could not update stage', 'error');
+  }
+}
+
+async function changeLeadStageDirect(id, stage) {
+  const lead = (LeadPipelineState.leads || []).find((l) => l.id === id);
+  if (lead) {
+    lead.pipeline_stage = stage;
+    lead.status = stage;
+  }
+  renderCrmBoard();
+  renderCrmKpis();
+  try {
+    await api('PATCH', `/api/lead-pipeline/leads/${id}`, { pipeline_stage: stage, status: stage });
+    toast(`Lead updated to ${stage.toUpperCase()}`, 'success');
+  } catch (err) {
+    toast(err.message || 'Could not update stage', 'error');
+  }
+}
+
+function renderCrmTable(query) {
+  const tbody = document.getElementById('crm-main-table-body');
+  if (!tbody) return;
+
+  let leads = LeadPipelineState.leads || [];
+  if (query && query.trim()) {
+    const q = query.toLowerCase().trim();
+    leads = leads.filter(l =>
+      (l.full_name || '').toLowerCase().includes(q) ||
+      (l.phone_number || '').includes(q) ||
+      (l.society || '').toLowerCase().includes(q) ||
+      (l.email || '').toLowerCase().includes(q)
+    );
+  }
+
+  if (!leads.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--text-muted)">No CRM leads found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = leads.map(l => {
+    const score = Number(l.lead_score || 50);
+    const scoreBadge = score >= 75
+      ? `<span class="badge" style="background:rgba(16,185,129,0.18);color:#10b981;font-weight:700">🔥 Hot (${score})</span>`
+      : `<span class="badge" style="background:rgba(245,158,11,0.18);color:#f59e0b;font-weight:600">🟡 Warm (${score})</span>`;
+    const cleanPhone = (l.phone_number || '').replace(/[^0-9+]/g, '');
+    const isWeb = l.leadgen_id && String(l.leadgen_id).startsWith('web:');
+    const source = isWeb ? '⚡ UrbanSociety Webchat' : 'Meta Lead Ad';
+    const currentStage = l.pipeline_stage || (l.status === 'qualified' ? 'qualified' : (l.status === 'contacted' ? 'contacted' : 'new'));
+
+    return `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:12px 16px">
+          <div style="font-weight:700;color:var(--text-primary);font-size:13.5px">${escapeHtml(l.full_name || 'Website Visitor')}</div>
+          <div style="font-size:11.5px;color:var(--text-muted)">${escapeHtml(l.society || 'Urban Society Prospect')}</div>
+        </td>
+        <td style="padding:12px 16px">
+          <div style="font-size:13px;font-weight:600">${l.phone_number ? '📞 ' + escapeHtml(l.phone_number) : '<span style="color:var(--text-muted)">-</span>'}</div>
+          <div style="font-size:11.5px;color:var(--text-muted)">${escapeHtml(l.email || '')}</div>
+        </td>
+        <td style="padding:12px 16px">
+          <select onchange="changeLeadStageDirect(${l.id}, this.value)" style="font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);font-weight:600;color:var(--text-primary);cursor:pointer">
+            ${CRM_STAGES.map(st => `<option value="${st.key}" ${currentStage === st.key ? 'selected' : ''}>${st.label}</option>`).join('')}
+          </select>
+        </td>
+        <td style="padding:12px 16px">${scoreBadge}</td>
+        <td style="padding:12px 16px">
+          <span style="font-size:12px;font-weight:700;color:var(--text-secondary)">${escapeHtml(source)}</span>
+        </td>
+        <td style="padding:12px 16px;text-align:right">
+          <div style="display:inline-flex;gap:6px">
+            ${l.phone_number ? `
+              <button class="btn btn-sm btn-secondary" onclick="openInAppWhatsAppChat(${l.id})" style="color:#10b981;font-weight:700;font-size:11.5px">
+                💬 WhatsApp
+              </button>
+            ` : ''}
+            <button class="btn btn-sm btn-secondary" onclick="viewLeadDetails(${l.id})" style="font-size:11.5px">
+              🔍 Details
+            </button>
+            <button class="btn btn-sm btn-secondary" onclick="openEditLeadModal(${l.id})" style="font-size:11.5px">
+              ✏️
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function onFilterCrm(query) {
+  renderCrmBoard(query);
+  renderCrmTable(query);
+}
+
+async function loadCrmReports() {
+  const box = document.getElementById('crm-main-reports');
+  if (!box) return;
+  box.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)"><span class="spinner"></span> Building CRM report…</div>';
+  try {
+    const r = await api('GET', '/api/lead-pipeline/reports');
+    const money = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+    const STAGE_META = { new: ['New', '#64748b'], contacted: ['Contacted', '#3b82f6'], qualified: ['Qualified', '#8b5cf6'], proposal: ['Proposal', '#f59e0b'], won: ['Won', '#10b981'], lost: ['Lost', '#ef4444'] };
+    const order = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
+    const stageMap = Object.fromEntries((r.stages || []).map((s) => [s.stage, s]));
+    const maxVal = Math.max(1, ...order.map((k) => (stageMap[k]?.value || 0)));
+
+    const bars = order.map((k) => {
+      const s = stageMap[k] || { count: 0, value: 0 };
+      const [label, color] = STAGE_META[k];
+      const pct = Math.round((s.value / maxVal) * 100);
+      return `
+        <div class="crm-bar-row" style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+          <div class="crm-bar-label" style="width:140px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px">
+            <span class="crm-col-dot" style="background:${color};width:8px;height:8px;border-radius:50%"></span>${label}
+            <span class="crm-bar-count" style="background:var(--bg2);border-radius:10px;padding:0 6px;font-size:11px">${s.count}</span>
+          </div>
+          <div class="crm-bar-track" style="flex:1;height:12px;background:var(--bg2);border-radius:6px;overflow:hidden">
+            <div class="crm-bar-fill" style="width:${pct}%;height:100%;background:${color};border-radius:6px"></div>
+          </div>
+          <div class="crm-bar-val" style="width:90px;text-align:right;font-weight:700;font-size:12.5px">${money(s.value)}</div>
+        </div>
+      `;
+    }).join('');
+
+    box.innerHTML = `
+      <div class="card" style="padding:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px">
+        <div style="font-weight:700;font-size:15px;margin-bottom:14px">Pipeline Value & Conversion Funnel by Stage</div>
+        ${bars}
+      </div>
+    `;
+  } catch (err) {
+    box.innerHTML = `<div class="state-error">Couldn't load report: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
 function downloadSampleWhatsAppCsv() {
   const csvContent = 'Name,Phone,Society,Role,Units\n' +
     'Priya Sharma,+91 98765 43210,Green Valley,Owner,\n' +
@@ -4033,6 +4350,16 @@ Object.assign(window, {
     navigateToLeadTab,
     downloadSampleWhatsAppCsv,
     exportToSalesforceCsv,
+    loadCrmPipeline,
+    renderCrmKpis,
+    switchCrmView,
+    renderCrmBoard,
+    crmLeadCardHtml,
+    crmDropCrm,
+    changeLeadStageDirect,
+    renderCrmTable,
+    onFilterCrm,
+    loadCrmReports,
     handleBroadcastFileSelect,
     handleBroadcastFileDrop,
     parseCsvText,

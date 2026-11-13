@@ -44,6 +44,7 @@ const PAGE_META = {
   aso:       { title: 'App store listing',      subtitle: 'Text for your App Store and Play Store page' },
   email:     { title: 'Email & Outreach',       subtitle: 'Cold outreach sequences, email marketing campaigns and newsletters' },
   'sellbird': { title: 'Email & Outreach',       subtitle: 'Cold outreach sequences, email marketing campaigns and newsletters' },
+  'crm-pipeline':    { title: 'Lead CRM & Pipeline',   subtitle: 'Visual sales pipeline, deal tracking, lead qualification & Salesforce handover' },
   'lead-ads':        { title: 'WhatsApp · Contacts',   subtitle: 'People who wrote to you or filled in your ad forms' },
   'leads-contacts':  { title: 'WhatsApp · Contacts',   subtitle: 'People who wrote to you or filled in your ad forms' },
   'leads-inbox':     { title: 'WhatsApp · Chats',      subtitle: 'Reply to customers on WhatsApp and Messenger' },
@@ -122,10 +123,6 @@ function navigateTo(page) {
   document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => el.classList.remove('active'));
   const navEl = document.getElementById(`nav-${page}`);
   if (navEl) navEl.classList.add('active');
-  if (page === 'lead-ads') {
-    const crmNav = document.getElementById('nav-crm-pipeline');
-    if (crmNav) crmNav.classList.add('active');
-  }
 
   // Update pages
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
@@ -199,6 +196,7 @@ function navigateTo(page) {
       if (typeof window.loadEmailCampaigns === 'function') window.loadEmailCampaigns();
       if (typeof window.loadSubscribers === 'function') window.loadSubscribers();
     },
+    'crm-pipeline':    () => (typeof window.loadCrmPipeline === 'function' ? window.loadCrmPipeline() : null),
     'lead-ads':        () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : null),
     'leads-contacts':   () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : null),
     'leads-inbox':      () => {

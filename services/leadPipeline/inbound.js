@@ -147,9 +147,11 @@ async function handleInboundWebChat(knex, { config, visitorId, name, text }) {
     if (clean.length === 10) clean = '91' + clean;
     leadUpdates.phone_number = clean;
     leadUpdates.status = 'qualified';
+    leadUpdates.pipeline_stage = 'qualified';
     leadUpdates.lead_score = Math.max(lead.lead_score || 50, 85);
     lead.phone_number = clean;
     lead.status = 'qualified';
+    lead.pipeline_stage = 'qualified';
     lead.lead_score = 85;
   }
 

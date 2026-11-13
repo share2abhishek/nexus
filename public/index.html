@@ -43,7 +43,7 @@
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layers"/></svg>
         <span class="nav-label">Schedule from Excel</span>
       </a>
-      <a class="nav-item" data-page="lead-ads" id="nav-crm-pipeline" title="Complete CRM: Contacts, Kanban Pipeline, Salesforce Handover & Reports" href="javascript:void(0)" onclick="navigateTo('lead-ads')">
+      <a class="nav-item" data-page="crm-pipeline" id="nav-crm-pipeline" title="Complete CRM: Kanban Pipeline, Salesforce Handover & Reports" href="javascript:void(0)" onclick="navigateTo('crm-pipeline')">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-users"/></svg>
         <span class="nav-label">Leads &amp; CRM</span>
       </a>
@@ -3044,12 +3044,112 @@
     </section>
 
   
-    <!-- 🎯 Meta Lead Ads & Click-to-Messenger Automated Pipeline -->
-        <!-- 🎯 Screen 1: Contacts & Leads (Matching Reference Design Image 2) -->
+    <!-- 🏢 Complete Lead CRM & Sales Pipeline Screen -->
+    <section class="page" id="page-crm-pipeline">
+      <!-- CRM Top Header -->
+      <div class="crm-page-header" style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px">
+          <div>
+            <div style="display:inline-flex;align-items:center;gap:8px;margin-bottom:4px">
+              <h1 style="font-size:26px;font-weight:800;color:var(--text-primary);margin:0;letter-spacing:-0.02em">Lead CRM &amp; Pipeline</h1>
+              <span class="badge" style="background:#e0f2fe;color:#0284c7;font-weight:700;font-size:11px;padding:3px 9px;border-radius:999px">Enterprise Edition</span>
+            </div>
+            <div style="font-size:13.5px;color:var(--text-muted);margin-bottom:6px">Manage inbound leads, track deals across funnel stages, and sync with Salesforce CRM</div>
+            <div style="display:flex;align-items:center;gap:16px;font-size:12px;color:var(--text-secondary)">
+              <span style="display:inline-flex;align-items:center;gap:6px">⚡ <span>Auto-capture active from UrbanSociety webchat &amp; Meta Lead Ads</span></span>
+              <span style="color:var(--border)">•</span>
+              <span style="display:inline-flex;align-items:center;gap:6px">🤖 <span>AI Qualification &amp; Hot Scoring enabled</span></span>
+            </div>
+          </div>
+          
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-secondary" onclick="exportToSalesforceCsv()" id="btn-crm-salesforce-csv" style="height:40px;padding:0 18px;border-radius:8px;border:1px solid #00a1e0;background:rgba(0,161,224,0.08);color:#0284c7;font-weight:700;font-size:13px;display:flex;align-items:center;gap:7px" title="Export qualified leads to Salesforce standard Lead CSV format">
+              <span>☁️ Salesforce Handover</span>
+            </button>
+            <button class="btn btn-secondary" onclick="openAddContactModal()" style="height:40px;padding:0 16px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">
+              <span>+ Add Lead</span>
+            </button>
+            <button class="btn btn-secondary" onclick="loadCrmPipeline()" title="Refresh Pipeline" style="height:40px;width:40px;padding:0;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);display:flex;align-items:center;justify-content:center">
+              <svg class="ico" aria-hidden="true"><use href="icons/sprite.svg#i-rotate-cw"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CRM Metrics KPI Strip -->
+      <div id="crm-metrics-strip" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:14px;margin-bottom:22px">
+        <div class="card" style="padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">Total Inbound Leads</div>
+          <div id="crm-kpi-total" style="font-size:26px;font-weight:800;color:var(--text-primary);margin-top:6px">0</div>
+          <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px">All inbound sources</div>
+        </div>
+        <div class="card" style="padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">🔥 Hot &amp; Qualified</div>
+          <div id="crm-kpi-qualified" style="font-size:26px;font-weight:800;color:#10b981;margin-top:6px">0</div>
+          <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px">Phone captured / Score 85+</div>
+        </div>
+        <div class="card" style="padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">💬 In Progress</div>
+          <div id="crm-kpi-active" style="font-size:26px;font-weight:800;color:#3b82f6;margin-top:6px">0</div>
+          <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px">Contacted &amp; Proposal</div>
+        </div>
+        <div class="card" style="padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">💰 Pipeline Value</div>
+          <div id="crm-kpi-value" style="font-size:26px;font-weight:800;color:#8b5cf6;margin-top:6px">₹0</div>
+          <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px">Active pipeline deals</div>
+        </div>
+        <div class="card" style="padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">🏆 Won &amp; Closed</div>
+          <div id="crm-kpi-won" style="font-size:26px;font-weight:800;color:#10b981;margin-top:6px">0</div>
+          <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px">Successfully onboarded</div>
+        </div>
+      </div>
+
+      <!-- CRM Controls & View Switcher Bar -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px">
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm crm-tab-btn active" id="crm-tab-board-btn" onclick="switchCrmView('board')" style="font-weight:700;border-radius:8px;padding:8px 16px;font-size:13px">▦ Kanban Board</button>
+          <button class="btn btn-sm crm-tab-btn" id="crm-tab-table-btn" onclick="switchCrmView('table')" style="font-weight:700;border-radius:8px;padding:8px 16px;font-size:13px">☰ Leads Table</button>
+          <button class="btn btn-sm crm-tab-btn" id="crm-tab-reports-btn" onclick="switchCrmView('reports')" style="font-weight:700;border-radius:8px;padding:8px 16px;font-size:13px">📊 Funnel &amp; Reports</button>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <input type="text" id="crm-search-filter" placeholder="🔍 Filter leads by name, phone or society..." oninput="onFilterCrm(this.value)" class="form-input" style="border-radius:8px;height:38px;background:var(--bg-card);border:1px solid var(--border);width:280px;font-size:12.5px;padding:6px 14px" />
+        </div>
+      </div>
+
+      <!-- View 1: CRM Kanban Pipeline Board -->
+      <div id="crm-main-board" class="crm-board" style="display:flex;gap:14px;overflow-x:auto;padding-bottom:16px;margin-bottom:24px;min-height:480px"></div>
+
+      <!-- View 2: CRM Leads Data Table -->
+      <div class="card" id="crm-main-table-card" style="display:none;padding:0;overflow:hidden;border:1px solid var(--border);border-radius:12px;margin-bottom:24px;background:var(--bg-card)">
+        <div class="table-wrap" style="overflow-x:auto">
+          <table class="table" style="width:100%;margin:0;border-collapse:collapse">
+            <thead style="background:var(--bg2);border-bottom:1px solid var(--border)">
+              <tr>
+                <th style="padding:12px 16px;font-size:12.5px;font-weight:700;color:var(--text-secondary);text-align:left">Lead Name</th>
+                <th style="padding:12px 16px;font-size:12.5px;font-weight:700;color:var(--text-secondary);text-align:left">Phone &amp; Email</th>
+                <th style="padding:12px 16px;font-size:12.5px;font-weight:700;color:var(--text-secondary);text-align:left">Stage</th>
+                <th style="padding:12px 16px;font-size:12.5px;font-weight:700;color:var(--text-secondary);text-align:left">Score &amp; Rating</th>
+                <th style="padding:12px 16px;font-size:12.5px;font-weight:700;color:var(--text-secondary);text-align:left">Channel Source</th>
+                <th style="padding:12px 16px;font-size:12.5px;font-weight:700;color:var(--text-secondary);text-align:right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="crm-main-table-body">
+              <tr><td colspan="6" style="text-align:center;padding:36px;color:var(--text-muted)">Loading CRM leads...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- View 3: CRM Funnel & Analytics -->
+      <div id="crm-main-reports" style="display:none;margin-bottom:24px"></div>
+    </section>
+
+    <!-- 🎯 Screen 1: Contacts & Audience (Under WhatsApp Menu) -->
     <section class="page" id="page-lead-ads">
       <div id="panel-lead-inbound" style="display:block">
         
-        <!-- Contacts Top Header Banner (Matching Image 2) -->
+        <!-- Contacts Top Header Banner -->
         <div class="contacts-page-header" style="margin-bottom:20px">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px">
             <div>
@@ -3079,7 +3179,7 @@
           </div>
         </div>
 
-        <!-- Contacts Search & Action Toolbar (Matching Image 2) -->
+        <!-- Contacts Search & Action Toolbar -->
         <div class="contacts-toolbar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px">
           <div style="position:relative;width:340px;max-width:100%">
             <input type="text" id="contact-search-input" placeholder="🔍 Search name or mobile number" oninput="onSearchContacts(this.value)" class="form-input" style="border-radius:8px;height:40px;background:var(--bg-card);border:1px solid var(--border);width:100%;font-size:13px;padding:8px 14px" />
@@ -3091,9 +3191,6 @@
             </button>
             <button class="btn btn-secondary" onclick="deleteSelectedContacts()" id="btn-contacts-delete-selected" style="display:none;height:40px;padding:0 14px;border-radius:8px;border:1px solid rgba(239,68,68,0.4);background:rgba(239,68,68,0.08);color:#ef4444;font-weight:700;font-size:12.5px;cursor:pointer;align-items:center;gap:6px">
               <span>🗑️ Delete (<span id="delete-selected-count">0</span>)</span>
-            </button>
-            <button class="btn btn-secondary" onclick="exportToSalesforceCsv()" id="btn-salesforce-csv" style="height:40px;padding:0 16px;border-radius:8px;border:1px solid #00a1e0;background:rgba(0,161,224,0.08);color:#0284c7;font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px" title="Export qualified leads to Salesforce CSV format">
-              <span>☁️ Salesforce Handover</span>
             </button>
             <button class="btn btn-secondary" onclick="openAddContactModal()" id="btn-add-contact-modal" style="height:40px;padding:0 18px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">
               <span>+ Add Contact</span>
@@ -3117,18 +3214,6 @@
             </div>
           </div>
         </div>
-
-        <!-- View toggle: Table list vs Kanban pipeline board -->
-        <div style="display:flex;gap:6px;margin-bottom:14px">
-          <button class="btn btn-sm lead-view-btn active" id="lead-view-table-btn" onclick="switchLeadsView('table')">☰ List</button>
-          <button class="btn btn-sm lead-view-btn" id="lead-view-board-btn" onclick="switchLeadsView('board')">▦ Pipeline</button>
-          <button class="btn btn-sm lead-view-btn" id="lead-view-reports-btn" onclick="switchLeadsView('reports')">📊 Reports</button>
-        </div>
-
-        <!-- Kanban pipeline board -->
-        <div id="pipeline-leads-board" class="crm-board" style="display:none"></div>
-        <!-- CRM reports / dashboard -->
-        <div id="pipeline-leads-reports" style="display:none;margin-bottom:24px"></div>
 
         <!-- Contacts Table (Matching Image 2: Checkbox, Name, Mobile Number, Tags, Source) -->
         <div class="card" id="pipeline-leads-table-card" style="padding:0;overflow:hidden;border:1px solid var(--border);border-radius:12px;margin-bottom:24px;background:var(--bg-card)">
