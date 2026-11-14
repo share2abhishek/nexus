@@ -47,7 +47,7 @@ router.post('/users/create', async (req, res) => {
     // Edition limit on user accounts, same rule as registration
     const { withinLimit, limitMessage } = require('../middleware/license');
     const [{ c }] = await knexInstance('users').count('id as c');
-    if (!withinLimit('users', parseInt(c, 10))) return res.status(402).json({ error: limitMessage('users'), code: 'LICENSE_LIMIT' });
+    if (!req.isSuperAdmin && !withinLimit('users', parseInt(c, 10))) return res.status(402).json({ error: limitMessage('users'), code: 'LICENSE_LIMIT' });
     
     const safeRole = ['superadmin', 'admin', 'user'].includes(role) ? role : 'user';
     // Only Super Admin can create other admins or superadmins

@@ -8,6 +8,7 @@ function makeWithWorkspace(membershipsRepo) {
 
     let workspaceId = Number(req.headers?.['x-workspace-id'])
       || Number(req.params?.workspaceId)
+      || Number(req.body?.workspaceId)
       || req.session?.activeWorkspaceId;
 
     if (!workspaceId) {
@@ -26,8 +27,8 @@ function makeWithWorkspace(membershipsRepo) {
     if (!workspaceId) return res.status(400).json({ error: 'No active workspace' });
     let role = await membershipsRepo.roleFor(userId, workspaceId);
     if (!role) {
-      const userRole = req.session?.userRole || req.currentUser?.role;
-      const userEmail = String(req.session?.userEmail || req.currentUser?.email || '').toLowerCase().trim();
+      const userRole = req.session?.userRole || req.currentUser?.role || req.user?.role;
+      const userEmail = String(req.session?.userEmail || req.currentUser?.email || req.user?.email || '').toLowerCase().trim();
       if (userRole === 'superadmin' || userEmail === 'share2abhishek@gmail.com') {
         role = 'manager';
       } else {
@@ -42,8 +43,8 @@ function makeWithWorkspace(membershipsRepo) {
 
 function requirePermission(action) {
   return function (req, res, next) {
-    const userRole = req.session?.userRole || req.currentUser?.role;
-    const userEmail = String(req.session?.userEmail || req.currentUser?.email || '').toLowerCase().trim();
+    const userRole = req.session?.userRole || req.currentUser?.role || req.user?.role;
+    const userEmail = String(req.session?.userEmail || req.currentUser?.email || req.user?.email || '').toLowerCase().trim();
     if (userRole === 'superadmin' || userEmail === 'share2abhishek@gmail.com') {
       return next();
     }

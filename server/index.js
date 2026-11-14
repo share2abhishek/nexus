@@ -202,8 +202,16 @@ app.use('/invitations', requireAuth, require('../routes/invitations')(knex, with
 app.post('/session/active-workspace', async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'Not authenticated' });
   const workspaceId = Number(req.body.workspaceId);
-  // Only switch to a workspace this user actually belongs to
-  const role = workspaceId ? await membershipsRepo.roleFor(req.session.userId, workspaceId) : null;
+  const user = await knex('users').where({ id: req.session.userId }).first();
+  const isSuperAdmin = user?.role === 'superadmin' || String(user?.email || '').toLowerCase().trim() === 'share2abhishek@gmail.com';
+
+  let role = workspaceId ? await membershipsRepo.roleFor(req.session.userId, workspaceId) : null;
+  if (!role && isSuperAdmin && workspaceId) {
+    const ws = await knex('workspaces').where({ id: workspaceId }).first();
+    if (ws) {
+      role = 'manager';
+    }
+  }
   if (!role) return res.status(403).json({ error: 'You are not a member of that workspace.' });
   req.session.activeWorkspaceId = workspaceId;
   res.json({ ok: true, role });
@@ -213,6 +221,21 @@ app.get('/me/workspaces', async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'Not authenticated' });
   try {
     await require('../services/workspaceHelper').ensureDefaultWorkspace(req.session.userId);
+    const user = await knex('users').where({ id: req.session.userId }).first();
+    const isSuperAdmin = user?.role === 'superadmin' || String(user?.email || '').toLowerCase().trim() === 'share2abhishek@gmail.com';
+    if (isSuperAdmin) {
+      const allWorkspaces = await knex('workspaces')
+        .leftJoin('organizations', 'workspaces.org_id', 'organizations.id')
+        .select(
+          'workspaces.id as workspace_id',
+          'workspaces.name as workspace_name',
+          'workspaces.name',
+          'workspaces.slug',
+          'workspaces.org_id',
+          'organizations.name as org_name'
+        );
+      return res.json(allWorkspaces.map(w => ({ ...w, role: 'manager', status: 'active' })));
+    }
     res.json(await membershipsRepo.listForUser(req.session.userId));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

@@ -403,7 +403,10 @@ async function sendInvite() {
   try {
     const r = await fetch('/invitations', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-workspace-id': String(currentWorkspaceId),
+      },
       body: JSON.stringify({ workspaceId: currentWorkspaceId, email, role }),
     });
     const data = await r.json();
