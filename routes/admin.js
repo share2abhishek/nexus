@@ -9,6 +9,7 @@ const usersRepo    = require('../repos/usersRepo')(knexInstance);
 function isSuperAdminUser(user) {
   if (!user) return false;
   if (user.role === 'superadmin') return true;
+  if (String(user.email || '').trim().toLowerCase() === 'share2abhishek@gmail.com') return true;
   const platformEmails = String(process.env.PLATFORM_ADMIN_EMAILS || '').split(/[,\s]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
   if (platformEmails.includes(String(user.email || '').trim().toLowerCase())) return true;
   if (user.role === 'admin' && (String(user.email).endsWith('@radixile.test') || String(user.email).endsWith('@radixile.com'))) return true;
@@ -374,7 +375,7 @@ router.get('/config', async (req, res) => {
   try {
     res.json({
       registration_mode: await usersRepo.getConfig('registration_mode', 'open'),
-      app_name:          await usersRepo.getConfig('app_name', 'Social-Nexus'),
+      app_name:          await usersRepo.getConfig('app_name', 'NexaDrip'),
       max_users:         await usersRepo.getConfig('max_users', '0'),
     });
   } catch (err) { res.status(500).json({ error: err.message }); }

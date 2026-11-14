@@ -1,7 +1,17 @@
 // Desktop app or server? Some features need to run all the time (the SEO
 // autopilot re-checks websites on a schedule), so they are on only for the
 // server edition: NEXUS_MODE=server, or the cloud database (DB_CLIENT=pg).
-const isServer = () => process.env.NEXUS_MODE === 'server' || process.env.DB_CLIENT === 'pg';
+const isServer = () => {
+  if (process.env.NEXUS_DESKTOP === '1') return false;
+  return (
+    process.env.NEXUS_MODE === 'server' ||
+    process.env.DB_CLIENT === 'pg' ||
+    process.env.SAAS === 'true' ||
+    process.env.EDITION === 'server' ||
+    process.env.EDITION === 'saas' ||
+    process.env.IS_SERVER === 'true'
+  );
+};
 
 // Features only the server edition has, for the screens to show or hide
 const features = () => ({ server: isServer(), seo_autopilot: isServer() });

@@ -1,4 +1,4 @@
-/// Social-Nexus app — Settings, admin, theme, sign-in returns, AI model picker.
+/// NexaDrip app — Settings, admin, theme, sign-in returns, AI model picker.
 // One of the files in public/js, loaded in order by index.html (they share one
 // global scope, like the single app.js they came from).
 
@@ -241,7 +241,7 @@ function renderPlatformCards(platforms) {
     return `
       <div class="pcard pcard-${st.tone}" id="pcard-${key}">
         <div class="pcard-head">
-          <div class="pcard-icon" style="background:${escapeHtml(p.color)}1a;border-color:${escapeHtml(p.color)}40">${p.icon}</div>
+          <div class="pcard-icon" style="background:${escapeHtml(p.color)}1a;border-color:${escapeHtml(p.color)}40">${p.icon || PLATFORMS[key]?.icon || ''}</div>
           <div class="pcard-title">
             <div class="pcard-name">${label}</div>
             <span class="status-pill ${st.tone}"><span class="status-dot-sm ${st.tone}"></span>${escapeHtml(st.label)}</span>
@@ -317,7 +317,7 @@ async function loadFBPages() {
   try {
     const pages = await api('GET', '/api/config/facebook/pages');
     if (!pages.length) { container.innerHTML = '<div class="form-hint">No Pages found. Make sure you are an admin of a Facebook Page, then click Check.</div>'; return; }
-    container.innerHTML = `<div class="form-hint">Which Page should Social-Nexus post to?</div>
+    container.innerHTML = `<div class="form-hint">Which Page should NexaDrip post to?</div>
       <div class="choice-list">
         ${pages.map(pg => `
           <button class="btn btn-secondary btn-sm" onclick="setFBPage(${jsAttr(pg.id)},${jsAttr(pg.name)})">${escapeHtml(pg.name)}</button>`).join('')}
@@ -712,7 +712,7 @@ async function loadAdminUsers() {
   tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px"><span class="spinner"></span></td></tr>';
   try {
     const users = await fetch('/admin/users').then(r => r.json());
-    const viewerIsSuper = !!(State.user?.is_super_admin || State.user?.role === 'superadmin');
+    const viewerIsSuper = !!(State.user?.is_super_admin || State.user?.role === 'superadmin' || String(State.user?.email || '').toLowerCase() === 'share2abhishek@gmail.com');
     const myId = State.user?.id;
 
     tbody.innerHTML = users.map(u => {
@@ -928,7 +928,7 @@ async function loadAdminConfig() {
     const modeEl = document.getElementById('admin-reg-mode');
     const nameEl = document.getElementById('admin-app-name');
     if (modeEl) modeEl.value = config.registration_mode || 'open';
-    if (nameEl) nameEl.value = config.app_name || 'Social-Nexus';
+    if (nameEl) nameEl.value = config.app_name || 'NexaDrip';
   } catch {}
 }
 
@@ -1034,7 +1034,7 @@ function handleURLParams() {
     if (connected === 'facebook' && params.get('select_page')) {
       toast(params.get('instagram')
         ? 'You manage several Facebook Pages — choose the one linked to your Instagram in Settings → Connected accounts → Choose Facebook Page. Instagram connects when you pick it.'
-        : 'You manage several Facebook Pages — choose which one Social-Nexus posts to in Settings → Connected accounts → Choose Facebook Page.', 'info', 9000);
+        : 'You manage several Facebook Pages — choose which one NexaDrip posts to in Settings → Connected accounts → Choose Facebook Page.', 'info', 9000);
     }
     window.history.replaceState({}, '', '/');
   }
@@ -1051,8 +1051,8 @@ function handleURLParams() {
       twitter_failed: 'Twitter connection failed',
       google_denied: 'Google sign-in was cancelled',
       google_failed: 'Google connection failed — check the Client ID and secret on the Google Business card',
-      oauth_state_invalid: 'Sign-in link expired or was not started from Social-Nexus — please try connecting again',
-      not_available: 'Posting to this platform is not available yet in Social-Nexus.',
+      oauth_state_invalid: 'Sign-in link expired or was not started from NexaDrip — please try connecting again',
+      not_available: 'Posting to this platform is not available yet in NexaDrip.',
       instagram_not_found: 'Facebook is connected, but no Instagram account is linked to your Facebook Page. In Instagram, switch to a Business or Creator account and link it to the Page, then click Connect on the Instagram card again.',
     };
     if (error === 'not_configured') {

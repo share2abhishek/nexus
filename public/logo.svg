@@ -1,167 +1,60 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="600" height="200">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 210" width="100%" height="100%" shape-rendering="geometricPrecision">
   <defs>
-    <!-- Main purple → blue → cyan gradient -->
-    <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%"   stop-color="#7c3aed"/>
-      <stop offset="50%"  stop-color="#3b82f6"/>
-      <stop offset="100%" stop-color="#06b6d4"/>
+    <linearGradient id="dropGrad" x1="15%" y1="5%" x2="85%" y2="95%">
+      <stop offset="0%" stop-color="#00f0ff" />
+      <stop offset="35%" stop-color="#00a8ff" />
+      <stop offset="70%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#8b5cf6" />
     </linearGradient>
-
-    <!-- Text gradient (horizontal) -->
-    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%"   stop-color="#a78bfa"/>
-      <stop offset="50%"  stop-color="#60a5fa"/>
-      <stop offset="100%" stop-color="#22d3ee"/>
+    <linearGradient id="dripGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00f0ff" />
+      <stop offset="40%" stop-color="#00b4d8" />
+      <stop offset="100%" stop-color="#0072ff" />
     </linearGradient>
-
-    <!-- Radial glow behind icon -->
-    <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
-      <stop offset="0%"   stop-color="#7c3aed" stop-opacity="0.35"/>
-      <stop offset="100%" stop-color="#080c14" stop-opacity="0"/>
-    </radialGradient>
-
-    <!-- Glow filter for nodes & lines -->
-    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-
-    <!-- Subtle glow for text -->
-    <filter id="textGlow" x="-5%" y="-20%" width="110%" height="140%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-
-    <!-- Clip the background -->
-    <clipPath id="bgClip">
-      <rect width="600" height="200" rx="20"/>
-    </clipPath>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;800&amp;display=swap');
+      
+      .brand-nexa { fill: #0f172a; }
+      .brand-tagline { fill: #64748b; }
+      @media (prefers-color-scheme: dark) {
+        .brand-nexa { fill: #ffffff; }
+        .brand-tagline { fill: #94a3b8; }
+      }
+        
+      .brand-nexa, .brand-drip {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        font-weight: 800;
+        font-size: 104px;
+        letter-spacing: -0.03em;
+      }
+      .brand-drip {
+        fill: url(#dripGrad);
+      }
+      .brand-tagline {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        font-weight: 500;
+        font-size: 26px;
+        letter-spacing: 0.01em;
+      }
+    </style>
   </defs>
+  
+  <!-- Droplet Mark -->
+  <g transform="translate(12, 10) scale(0.95)">
+    <path d="M 108.30 185.81 C 110.68 185.46, 115.15 185.07, 119.04 183.93 C 122.92 182.78, 127.79 180.90, 131.63 178.93 C 135.47 176.96, 138.39 175.08, 142.05 172.11 C 145.71 169.13, 150.40 164.77, 153.59 161.08 C 156.79 157.40, 159.13 153.75, 161.23 149.99 C 163.33 146.23, 164.95 142.79, 166.19 138.51 C 167.44 134.23, 168.29 128.52, 168.71 124.31 C 169.12 120.11, 169.17 117.70, 168.68 113.28 C 168.18 108.86, 167.47 102.92, 165.73 97.77 C 164.00 92.62, 164.98 91.19, 158.25 82.39 C 151.53 73.59, 131.73 48.58, 125.39 44.96 C 119.05 41.34, 122.28 56.20, 120.22 60.69 C 118.16 65.17, 114.30 68.18, 113.02 71.87 C 111.75 75.56, 109.99 77.31, 112.55 82.83 C 115.12 88.34, 125.02 98.12, 128.44 104.96 C 131.85 111.79, 131.44 120.26, 133.04 123.86 C 134.63 127.47, 136.31 126.59, 138.01 126.56 C 139.70 126.53, 142.23 126.46, 143.20 123.70 C 144.17 120.95, 144.57 114.50, 143.83 110.05 C 143.08 105.60, 141.80 102.21, 138.72 97.01 C 135.64 91.82, 127.39 82.79, 125.34 78.88 C 123.29 74.97, 125.64 75.19, 126.40 73.56 C 127.16 71.92, 126.33 66.32, 129.91 69.05 C 133.50 71.78, 143.87 84.19, 147.90 89.94 C 151.93 95.69, 152.81 99.76, 154.12 103.53 C 155.43 107.31, 155.58 108.65, 155.77 112.60 C 155.96 116.55, 156.17 122.26, 155.26 127.26 C 154.36 132.25, 152.04 138.57, 150.34 142.56 C 148.64 146.56, 148.03 147.77, 145.08 151.22 C 142.13 154.68, 135.82 160.59, 132.65 163.30 C 129.48 166.00, 129.36 165.95, 126.06 167.44 C 122.77 168.93, 116.67 171.22, 112.89 172.24 C 109.12 173.25, 107.33 173.49, 103.42 173.54 C 99.51 173.58, 94.36 173.59, 89.41 172.50 C 84.46 171.41, 77.63 168.81, 73.73 167.01 C 69.84 165.21, 67.36 162.89, 66.03 161.70 C 64.70 160.50, 63.70 160.64, 65.76 159.84 C 67.81 159.04, 73.80 156.64, 78.36 156.91 C 82.91 157.18, 89.05 160.66, 93.09 161.46 C 97.14 162.27, 100.65 161.94, 102.65 161.74 C 104.65 161.53, 104.47 161.15, 105.10 160.23 C 105.72 159.31, 106.65 157.85, 106.40 156.24 C 106.16 154.64, 107.53 152.42, 103.64 150.58 C 99.74 148.74, 88.98 145.54, 83.04 145.19 C 77.09 144.85, 69.77 150.10, 67.97 148.51 C 66.16 146.91, 72.00 140.27, 72.22 135.63 C 72.43 131.00, 69.29 125.86, 69.26 120.71 C 69.24 115.57, 65.66 114.45, 72.07 104.76 C 78.48 95.07, 100.69 71.76, 107.72 62.58 C 114.76 53.40, 113.02 53.76, 114.26 49.67 C 115.51 45.58, 115.28 40.92, 115.19 38.03 C 115.09 35.15, 115.31 35.43, 113.68 32.37 C 112.05 29.30, 107.72 22.68, 105.40 19.62 C 103.07 16.56, 104.17 10.52, 99.73 14.00 C 95.28 17.48, 88.28 29.18, 78.74 40.48 C 69.19 51.77, 50.05 71.40, 42.45 81.75 C 34.84 92.10, 34.97 95.90, 33.11 102.57 C 31.25 109.24, 31.28 116.44, 31.29 121.76 C 31.30 127.09, 32.12 130.37, 33.16 134.54 C 34.21 138.70, 36.02 143.29, 37.56 146.77 C 39.10 150.24, 39.86 151.93, 42.38 155.39 C 44.91 158.85, 48.28 163.60, 52.72 167.52 C 57.17 171.43, 64.24 176.11, 69.07 178.88 C 73.90 181.64, 75.73 182.91, 81.69 184.10 C 87.64 185.29, 100.37 185.72, 104.81 186.00 C 109.24 186.28, 105.93 186.15, 108.30 185.81 Z M 54.74 150.47 C 53.45 147.88, 49.02 140.48, 47.27 135.43 C 45.52 130.38, 44.61 124.67, 44.24 120.16 C 43.87 115.64, 44.32 112.10, 45.06 108.33 C 45.80 104.57, 46.44 102.08, 48.70 97.57 C 50.96 93.07, 52.64 88.79, 58.64 81.31 C 64.64 73.83, 78.00 60.42, 84.68 52.69 C 91.37 44.95, 96.08 37.81, 98.76 34.88 C 101.44 31.96, 100.16 34.35, 100.75 35.14 C 101.35 35.92, 102.22 37.38, 102.34 39.59 C 102.46 41.79, 103.18 44.64, 101.48 48.36 C 99.78 52.08, 98.25 54.60, 92.17 61.92 C 86.09 69.23, 70.38 85.80, 65.00 92.26 C 59.61 98.72, 61.26 97.36, 59.86 100.67 C 58.46 103.98, 57.21 108.91, 56.60 112.13 C 56.00 115.34, 56.18 117.44, 56.25 119.97 C 56.32 122.50, 56.26 124.28, 57.05 127.31 C 57.83 130.35, 60.92 134.58, 60.98 138.19 C 61.03 141.80, 58.16 146.82, 57.40 148.96 C 56.63 151.09, 56.78 150.67, 56.39 151.00 C 56.00 151.33, 55.31 151.03, 55.04 150.94 C 54.76 150.85, 56.04 153.05, 54.74 150.47 Z M 122.19 156.34 C 124.16 154.87, 129.42 150.88, 132.11 148.21 C 134.80 145.55, 137.29 142.40, 138.33 140.37 C 139.36 138.33, 138.63 137.09, 138.31 135.99 C 137.98 134.88, 137.98 134.19, 136.37 133.75 C 134.76 133.30, 131.29 131.91, 128.66 133.32 C 126.02 134.74, 123.28 139.76, 120.55 142.23 C 117.82 144.70, 113.75 146.72, 112.26 148.15 C 110.78 149.58, 111.38 149.58, 111.64 150.83 C 111.91 152.08, 112.43 154.63, 113.88 155.66 C 115.32 156.69, 118.92 156.90, 120.30 157.02 C 121.69 157.13, 120.22 157.80, 122.19 156.34 Z" fill="url(#dropGrad)" fill-rule="evenodd" />
+    
+    <circle cx="84.34" cy="118.56" r="4.96" fill="url(#dropGrad)" />
+    <circle cx="99.75" cy="118.56" r="4.96" fill="url(#dropGrad)" />
+    <circle cx="117.49" cy="118.56" r="4.96" fill="url(#dropGrad)" />
 
-  <!-- ── Background ─────────────────────────────────────────────── -->
-  <rect width="600" height="200" fill="#080c14" rx="20"/>
-
-  <!-- Subtle grid lines -->
-  <g opacity="0.06" stroke="#ffffff" stroke-width="0.5">
-    <line x1="0"   y1="50"  x2="600" y2="50"/>
-    <line x1="0"   y1="100" x2="600" y2="100"/>
-    <line x1="0"   y1="150" x2="600" y2="150"/>
-    <line x1="100" y1="0"   x2="100" y2="200"/>
-    <line x1="200" y1="0"   x2="200" y2="200"/>
-    <line x1="300" y1="0"   x2="300" y2="200"/>
-    <line x1="400" y1="0"   x2="400" y2="200"/>
-    <line x1="500" y1="0"   x2="500" y2="200"/>
   </g>
-
-  <!-- Radial glow behind icon -->
-  <circle cx="100" cy="100" r="110" fill="url(#glowGrad)"/>
-
-  <!-- ── Icon Mark ──────────────────────────────────────────────── -->
-
-  <!-- Outer hexagon ring -->
-  <polygon
-    points="100,28 136,48 136,88 100,108 64,88 64,48"
-    fill="none"
-    stroke="url(#mainGrad)"
-    stroke-width="2"
-    opacity="0.6"
-    filter="url(#glow)"/>
-
-  <!-- Inner hexagon ring -->
-  <polygon
-    points="100,42 120,54 120,78 100,90 80,78 80,54"
-    fill="none"
-    stroke="url(#mainGrad)"
-    stroke-width="1"
-    opacity="0.3"/>
-
-  <!-- Connection lines (N shape) -->
-  <!-- Left vertical -->
-  <line x1="82" y1="48" x2="82" y2="88"
-    stroke="url(#mainGrad)" stroke-width="3.5"
-    stroke-linecap="round" filter="url(#glow)"/>
-  <!-- Diagonal top-left → bottom-right -->
-  <line x1="82" y1="48" x2="118" y2="88"
-    stroke="url(#mainGrad)" stroke-width="3.5"
-    stroke-linecap="round" filter="url(#glow)"/>
-  <!-- Right vertical -->
-  <line x1="118" y1="48" x2="118" y2="88"
-    stroke="url(#mainGrad)" stroke-width="3.5"
-    stroke-linecap="round" filter="url(#glow)"/>
-
-  <!-- Extra spoke lines from center to hexagon vertices (network feel) -->
-  <g opacity="0.25" stroke="#06b6d4" stroke-width="1" filter="url(#glow)">
-    <line x1="100" y1="68" x2="100" y2="28"/>
-    <line x1="100" y1="68" x2="136" y2="48"/>
-    <line x1="100" y1="68" x2="136" y2="88"/>
-    <line x1="100" y1="68" x2="100" y2="108"/>
-    <line x1="100" y1="68" x2="64"  y2="88"/>
-    <line x1="100" y1="68" x2="64"  y2="48"/>
+  
+  <!-- Brand Typography (Enlarged & Prominent) -->
+  <g transform="translate(215, 126)">
+    <text x="0" y="0">
+      <tspan class="brand-nexa">Nexa</tspan>
+      <tspan class="brand-drip">Drip</tspan>
+    </text>
+    <text x="4" y="46" class="brand-tagline">Digital Marketing &amp; Bot Platform</text>
   </g>
-
-  <!-- Center node -->
-  <circle cx="100" cy="68" r="5" fill="#3b82f6" filter="url(#glow)"/>
-  <circle cx="100" cy="68" r="2.5" fill="#ffffff"/>
-
-  <!-- Corner nodes (N vertices) -->
-  <circle cx="82"  cy="48" r="6" fill="#7c3aed" filter="url(#glow)"/>
-  <circle cx="82"  cy="48" r="3" fill="#ffffff"/>
-
-  <circle cx="118" cy="48" r="6" fill="#3b82f6" filter="url(#glow)"/>
-  <circle cx="118" cy="48" r="3" fill="#ffffff"/>
-
-  <circle cx="82"  cy="88" r="6" fill="#3b82f6" filter="url(#glow)"/>
-  <circle cx="82"  cy="88" r="3" fill="#ffffff"/>
-
-  <circle cx="118" cy="88" r="6" fill="#06b6d4" filter="url(#glow)"/>
-  <circle cx="118" cy="88" r="3" fill="#ffffff"/>
-
-  <!-- Hexagon vertex nodes (decorative) -->
-  <circle cx="100" cy="28"  r="3.5" fill="#7c3aed" opacity="0.7" filter="url(#glow)"/>
-  <circle cx="136" cy="48"  r="3.5" fill="#3b82f6" opacity="0.7" filter="url(#glow)"/>
-  <circle cx="136" cy="88"  r="3.5" fill="#06b6d4" opacity="0.7" filter="url(#glow)"/>
-  <circle cx="100" cy="108" r="3.5" fill="#06b6d4" opacity="0.7" filter="url(#glow)"/>
-  <circle cx="64"  cy="88"  r="3.5" fill="#3b82f6" opacity="0.7" filter="url(#glow)"/>
-  <circle cx="64"  cy="48"  r="3.5" fill="#7c3aed" opacity="0.7" filter="url(#glow)"/>
-
-  <!-- ── Text ──────────────────────────────────────────────────── -->
-
-  <!-- NEXUS wordmark -->
-  <text
-    x="168" y="90"
-    font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif"
-    font-size="62"
-    font-weight="900"
-    letter-spacing="6"
-    fill="url(#textGrad)"
-    filter="url(#textGlow)">NEXUS</text>
-
-  <!-- Divider line -->
-  <rect x="170" y="102" width="380" height="1.5" fill="url(#mainGrad)" opacity="0.4" rx="1"/>
-
-  <!-- Tagline -->
-  <text
-    x="172" y="125"
-    font-family="'Arial', 'Helvetica Neue', sans-serif"
-    font-size="13"
-    font-weight="400"
-    letter-spacing="5"
-    fill="#475569">AI DIGITAL MARKETING PLATFORM</text>
-
-  <!-- Version badge -->
-  <rect x="170" y="140" width="38" height="16" fill="rgba(124,58,237,0.25)" rx="4"
-        stroke="rgba(124,58,237,0.5)" stroke-width="0.8"/>
-  <text x="174" y="152"
-    font-family="Arial, sans-serif"
-    font-size="9"
-    font-weight="700"
-    letter-spacing="1"
-    fill="#a78bfa">v2.0</text>
-
 </svg>

@@ -4,7 +4,21 @@ const axios = require('axios');
 const dns = require('dns').promises;
 const net = require('net');
 
-const UA = 'Mozilla/5.0 (compatible; Social-Nexus SEO check; +https://radixile.com)';
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 (compatible; Social-Nexus SEO check; +https://radixile.com)';
+
+const BROWSER_HEADERS = {
+  'User-Agent': UA,
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+  'Sec-Ch-Ua-Mobile': '?0',
+  'Sec-Ch-Ua-Platform': '"Windows"',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'none',
+  'Sec-Fetch-User': '?1',
+  'Upgrade-Insecure-Requests': '1',
+};
 
 function isPrivateIp(ip) {
   const h = String(ip || '').toLowerCase();
@@ -42,24 +56,38 @@ function normaliseUrl(input) {
   return /^https?:\/\//i.test(s) ? s : `https://${s}`;
 }
 
-async function fetchText(url, { accept = 'text/html,application/xhtml+xml,*/*;q=0.8', maxBytes = 3 * 1024 * 1024 } = {}) {
+async function fetchText(url, { accept = 'text/html,application/xhtml+xml,*/*;q=0.8', maxBytes = 3 * 1024 * 1024, timeout = 30000, retries = 1 } = {}) {
   await assertPublic(url);
-  const redirects = [];
-  const res = await axios.get(url, {
-    timeout: 15000,
-    maxContentLength: maxBytes,
-    maxRedirects: 5,
-    responseType: 'text',
-    transformResponse: [(d) => d],
-    validateStatus: () => true,
-    headers: { 'User-Agent': UA, Accept: accept },
-    beforeRedirect: (opts) => {
-      if (isPrivateName(opts.hostname)) throw new Error('The page redirected to a local address.');
-      redirects.push(`${opts.protocol}//${opts.hostname}${opts.path || ''}`);
-    },
-  });
-  const finalUrl = res.request?.res?.responseUrl || redirects[redirects.length - 1] || url;
-  return { status: res.status, headers: res.headers || {}, body: typeof res.data === 'string' ? res.data : '', finalUrl, redirects };
+  let attempt = 0;
+  while (true) {
+    try {
+      const redirects = [];
+      const res = await axios.get(url, {
+        timeout,
+        maxContentLength: maxBytes,
+        maxRedirects: 5,
+        responseType: 'text',
+        transformResponse: [(d) => d],
+        validateStatus: () => true,
+        headers: { ...BROWSER_HEADERS, Accept: accept },
+        beforeRedirect: (opts) => {
+          if (isPrivateName(opts.hostname)) throw new Error('The page redirected to a local address.');
+          redirects.push(`${opts.protocol}//${opts.hostname}${opts.path || ''}`);
+        },
+      });
+      const finalUrl = res.request?.res?.responseUrl || redirects[redirects.length - 1] || url;
+      return { status: res.status, headers: res.headers || {}, body: typeof res.data === 'string' ? res.data : '', finalUrl, redirects };
+    } catch (err) {
+      const isTimeout = /timeout/i.test(err.message) || err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
+      const isConnReset = err.code === 'ECONNRESET';
+      if (attempt < retries && (isTimeout || isConnReset)) {
+        attempt++;
+        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+        continue;
+      }
+      throw err;
+    }
+  }
 }
 
 // ── Reading HTML ────────────────────────────────────────────────────────────
@@ -214,11 +242,14 @@ function keywordChecks(page, keyword) {
   ];
 }
 
-async function checkPage(input, { keyword = '' } = {}) {
+async function checkPage(input, { keyword = '', timeout = 30000 } = {}) {
   const url = normaliseUrl(input);
   let res;
-  try { res = await fetchText(url); } catch (err) {
-    if (/timeout/i.test(err.message)) throw new Error('The page took too long to answer (15 seconds).');
+  try { res = await fetchText(url, { timeout }); } catch (err) {
+    if (/timeout/i.test(err.message) || err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
+      const s = Math.round(timeout / 1000);
+      throw new Error(`The page took too long to answer (${s} seconds).`);
+    }
     if (err.code === 'ENOTFOUND') throw new Error('Couldn’t find that website. Check the address.');
     throw err;
   }
@@ -236,7 +267,7 @@ async function checkPage(input, { keyword = '' } = {}) {
   // robots.txt and sitemap
   let robots = { rules: [], sitemaps: [] }; let robotsFound = false;
   try {
-    const r = await fetchText(`${final.origin}/robots.txt`, { accept: 'text/plain,*/*', maxBytes: 512 * 1024 });
+    const r = await fetchText(`${final.origin}/robots.txt`, { accept: 'text/plain,*/*', maxBytes: 512 * 1024, timeout: 15000 });
     if (r.status >= 200 && r.status < 300 && !/<html/i.test(r.body.slice(0, 500))) { robots = robotsRules(r.body); robotsFound = true; }
   } catch {}
   const allowed = robotsAllows(robots.rules, final.pathname + final.search);
@@ -255,7 +286,7 @@ async function checkPage(input, { keyword = '' } = {}) {
   let sitemap = robots.sitemaps[0] || null;
   if (!sitemap) {
     try {
-      const s = await fetchText(`${final.origin}/sitemap.xml`, { accept: 'application/xml,text/xml,*/*', maxBytes: 5 * 1024 * 1024 });
+      const s = await fetchText(`${final.origin}/sitemap.xml`, { accept: 'application/xml,text/xml,*/*', maxBytes: 5 * 1024 * 1024, timeout: 15000 });
       if (s.status >= 200 && s.status < 300 && /<(urlset|sitemapindex)\b/i.test(s.body)) sitemap = `${final.origin}/sitemap.xml`;
     } catch {}
   }

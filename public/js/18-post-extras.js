@@ -1,4 +1,4 @@
-// Social-Nexus app — Signatures, post sets (in Create post) and RSS feeds (own screen).
+// NexaDrip app — Signatures, post sets (in Create post) and RSS feeds (own screen).
 // One of the files in public/js, loaded in order by index.html (shared global scope).
 
 const PX = { signatures: [], sets: [], feeds: [], sigOn: null, sigId: null };

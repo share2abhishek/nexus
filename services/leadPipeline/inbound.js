@@ -206,7 +206,8 @@ async function handleInboundWebChat(knex, { config, visitorId, name, text }) {
       } : null,
     });
     if (phoneMatch && captured.length === 0) {
-      const thankYou = `Thank you${lead.full_name && lead.full_name !== 'Website visitor' ? ' ' + lead.full_name : ''}! We have registered your contact number (+${lead.phone_number}). Our society onboarding specialist has been notified and will reach out to you shortly.`;
+      const bName = (await chatbot.businessName(knex, workspaceId)) || 'our team';
+      const thankYou = `Thank you${lead.full_name && lead.full_name !== 'Website visitor' ? ' ' + lead.full_name : ''}! We have registered your contact number (+${lead.phone_number}). An onboarding specialist from ${bName} has been notified and will reach out to you shortly.`;
       captured.push(thankYou);
       await repo
         .addLeadMessage(workspaceId, lead.id, {
@@ -223,6 +224,7 @@ async function handleInboundWebChat(knex, { config, visitorId, name, text }) {
 
   // Handover event to Salesforce / n8n workflow
   if (n8nUrl && phoneMatch) {
+    const bName = (await chatbot.businessName(knex, workspaceId)) || 'Prospect';
     forwardToN8n(
       n8nUrl,
       buildEvent('salesforce.lead_handover', workspaceId, {
@@ -230,7 +232,7 @@ async function handleInboundWebChat(knex, { config, visitorId, name, text }) {
         full_name: lead.full_name,
         phone: lead.phone_number,
         email: lead.email || '',
-        company: 'Urban Society Prospect',
+        company: `${bName} Prospect`,
         status: 'Qualified',
         lead_score: 85,
         description: `Qualified from website chat: "${msg}"`,

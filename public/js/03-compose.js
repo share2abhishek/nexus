@@ -1,4 +1,4 @@
-// Social-Nexus app — Create Post (writing, AI help, saving, scheduling).
+// NexaDrip app — Create Post (writing, AI help, saving, scheduling).
 // One of the files in public/js, loaded in order by index.html (they share one
 // global scope, like the single app.js they came from).
 
@@ -51,7 +51,7 @@ function composeWarnings() {
     }
     const igFormat = document.getElementById('compose-ig-format')?.value || 'feed';
     if (p === 'instagram' && igFormat === 'reel' && !composeMediaRefs().some(r => /\.(mp4|mov)(\?|$)/i.test(r) || State.mediaKinds?.[r] === 'video')) warnings.push('An Instagram Reel needs a video.');
-    if (isVideo && PLATFORM_NO_VIDEO.includes(p)) warnings.push(`${label} can’t take videos from Social-Nexus yet — use a photo, or post the video from the ${label} app.`);
+    if (isVideo && PLATFORM_NO_VIDEO.includes(p)) warnings.push(`${label} can’t take videos from NexaDrip yet — use a photo, or post the video from the ${label} app.`);
   }
   // Google Business offer / event: what's still missing (the server checks too)
   if (getSelectedPlatforms('compose-platforms').includes('google_business')) {

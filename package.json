@@ -1,7 +1,7 @@
 {
   "name": "nexus",
   "version": "2.1.0",
-  "description": "Social-Nexus by Radixile Technology Solutions — AI social media marketing for individuals and agencies",
+  "description": "NexaDrip by Radixile Technology Solutions — AI-powered digital marketing and bot platform for individuals and agencies",
   "author": {
     "name": "Radixile Technology Solutions LLP",
     "email": "support@radixile.com",
@@ -66,7 +66,7 @@
   },
   "build": {
     "appId": "com.radixile.nexus",
-    "productName": "Social-Nexus",
+    "productName": "NexaDrip",
     "copyright": "© 2026 Radixile Technology Solutions LLP (India). All rights reserved.",
     "directories": {
       "output": "dist-app",
@@ -137,18 +137,18 @@
       "installerHeaderIcon": "build/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Social-Nexus",
+      "shortcutName": "NexaDrip",
       "runAfterFinish": true,
       "installerLanguages": [
         "en_US"
       ],
       "license": "LICENSE.txt",
-      "artifactName": "Social-Nexus-Setup-${version}.exe",
+      "artifactName": "NexaDrip-Setup-${version}.exe",
       "include": "build/installer.nsh",
       "differentialPackage": true
     },
     "portable": {
-      "artifactName": "Social-Nexus-Portable-${version}.exe"
+      "artifactName": "NexaDrip-Portable-${version}.exe"
     },
     "mac": {
       "target": "dmg",

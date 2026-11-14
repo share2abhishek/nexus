@@ -1,4 +1,4 @@
-// Social-Nexus app — Local files and Analytics.
+// NexaDrip app — Local files and Analytics.
 // One of the files in public/js, loaded in order by index.html (they share one
 // global scope, like the single app.js they came from).
 

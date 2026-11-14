@@ -1,4 +1,4 @@
-// Social-Nexus app — Calendar and the post drawer.
+// NexaDrip app — Calendar and the post drawer.
 // One of the files in public/js, loaded in order by index.html (they share one
 // global scope, like the single app.js they came from).
 

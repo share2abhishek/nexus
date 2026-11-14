@@ -1,4 +1,4 @@
-// Social-Nexus app — Sign-in state, personal keys, tools directory, start-up.
+// NexaDrip app — Sign-in state, personal keys, tools directory, start-up.
 // One of the files in public/js, loaded in order by index.html (they share one
 // global scope, like the single app.js they came from).
 
@@ -15,7 +15,13 @@ async function checkAuth() {
     State.business = data.business || null;
     // Desktop-only features (e.g. the Phone companion, which needs a device licence
     // and a running PC) are hidden on the server/cloud edition
-    if (State.server) document.querySelectorAll('[data-desktop-only]').forEach(el => { el.hidden = true; });
+    if (State.server) {
+      document.body.classList.add('is-server-edition', 'is-saas');
+      document.querySelectorAll('[data-desktop-only]').forEach(el => {
+        el.hidden = true;
+        el.style.display = 'none';
+      });
+    }
     // Server edition: passwords are reset by email, so no recovery-code reminder
     if (State.server) renderAccountBanner(); else setTimeout(showRecoveryNudge, 1500);
     // Back from the link in the confirmation email
@@ -63,7 +69,15 @@ async function checkAuth() {
 
 function toggleUserMenu() {
   const dd = document.getElementById('user-dropdown');
-  if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+  if (dd) {
+    if (State.server) {
+      dd.querySelectorAll('[data-desktop-only]').forEach(el => {
+        el.hidden = true;
+        el.style.display = 'none';
+      });
+    }
+    dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+  }
 }
 
 // Close dropdowns when clicking outside
@@ -524,7 +538,7 @@ const AI_TOOLS = {
       { name: 'Luma (Trial)',    desc: '30 free videos/month. Photorealistic quality.',                url: 'https://lumalabs.ai',                 badge: '🆓 30/month' },
     ],
     paid: [
-      { name: 'Luma Dream Machine', desc: '$29/mo. Best image-to-video. Social-Nexus integrated.',           url: 'https://lumalabs.ai',                 badge: '💲 $29/mo' },
+      { name: 'Luma Dream Machine', desc: '$29/mo. Best image-to-video. NexaDrip integrated.',           url: 'https://lumalabs.ai',                 badge: '💲 $29/mo' },
       { name: 'Runway Gen-3',    desc: '$15/mo. 625 credits. Professional video gen.',                 url: 'https://runwayml.com',                badge: '💲 $15/mo' },
       { name: 'Kling AI Pro',    desc: '$10/mo. Chinese model, excellent quality.',                    url: 'https://klingai.com',                 badge: '💲 $10/mo' },
       { name: 'Pika 2.0',        desc: '$8/mo. 150 videos/month. Good for social.',                   url: 'https://pika.art',                    badge: '💲 $8/mo' },
@@ -590,7 +604,7 @@ const AI_TOOLS = {
   },
   'Social Media Management': {
     free: [
-      { name: 'Social-Nexus (This App)', desc: 'Free, local, AI-powered social marketing suite.',            url: 'http://localhost:3000',               badge: '⚡ You are here' },
+      { name: 'NexaDrip (This App)', desc: 'Free, local, AI-powered social marketing suite.',            url: 'http://localhost:3000',               badge: '⚡ You are here' },
       { name: 'Buffer (Free)',    desc: '3 channels, 10 scheduled posts free.',                       url: 'https://buffer.com',                  badge: '🆓 3 channels' },
       { name: 'Later (Free)',     desc: '30 posts/month per social profile.',                          url: 'https://later.com',                   badge: '🆓 30 posts/mo' },
       { name: 'Zoho Social',     desc: '1 user, 1 brand free. Good all-round tool.',                  url: 'https://www.zoho.com/social',         badge: '🆓 1 brand' },
@@ -729,7 +743,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  console.log('Social-Nexus v2.0 initialized ⚡ — Full Digital Marketing Suite');
+  console.log('NexaDrip v2.0 initialized ⚡ — Full Digital Marketing Suite');
 });
 
 // ── Server edition: confirm your email, and trial days left ─────────────────

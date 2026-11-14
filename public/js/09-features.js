@@ -1,4 +1,4 @@
-// Social-Nexus app — Festivals, repost, onboarding, simple/agency mode, licence.
+// NexaDrip app — Festivals, repost, onboarding, simple/agency mode, licence.
 // One of the files in public/js, loaded in order by index.html (they share one
 // global scope, like the single app.js they came from).
 
@@ -307,7 +307,7 @@ function renderLicenseBanner(s) {
   bar.style.display = show ? 'flex' : 'none';
   if (!show) return;
   document.getElementById('license-banner-text').textContent =
-    s.state === 'active' ? `🔑 ${s.message}` : `🔑 ${s.message || 'Activate Social-Nexus to start publishing.'} You can keep writing, planning and exporting meanwhile.`;
+    s.state === 'active' ? `🔑 ${s.message}` : `🔑 ${s.message || 'Activate NexaDrip to start publishing.'} You can keep writing, planning and exporting meanwhile.`;
   const btn = document.getElementById('license-banner-btn');
   const checkFirst = s.state === 'offline' || (s.lic && s.state === 'invalid');
   btn.textContent = s.state === 'active' ? 'Renew' : checkFirst ? 'Check now' : 'Activate';
@@ -377,7 +377,7 @@ function renderLicensePanel(s) {
       try {
         const r = await api('POST', '/api/license/activate', { key: code.value, email: email.value, name: name.value, device_name: device.value });
         State.license = r;
-        toast('Social-Nexus is activated ✅', 'success');
+        toast('NexaDrip is activated ✅', 'success');
         renderLicensePanel(r); renderLicenseBanner(r);
       } catch (err) {
         msg.textContent = err.message; msg.style.color = '#ef4444';
@@ -425,7 +425,7 @@ function renderLicensePanel(s) {
       el('button', { class: 'btn btn-secondary', onclick: licenseRefresh }, '🔄 Check licence now'),
       s.type !== 'perpetual' ? el('a', { class: 'btn btn-secondary', href: LICENSE_BUY_URL, target: '_blank', rel: 'noopener' }, s.type === 'coupon' ? 'Buy a licence' : 'Manage / renew') : null,
       el('button', { class: 'btn btn-danger', onclick: async () => {
-        if (!confirm('Deactivate this computer? Use this before moving Social-Nexus to a new PC. Your data stays here; publishing stops until you activate again.')) return;
+        if (!confirm('Deactivate this computer? Use this before moving NexaDrip to a new PC. Your data stays here; publishing stops until you activate again.')) return;
         try {
           const r = await api('POST', '/api/license/deactivate');
           State.license = r; toast('This computer was deactivated', 'info'); renderLicensePanel(r); renderLicenseBanner(r);

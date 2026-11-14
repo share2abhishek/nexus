@@ -18,7 +18,7 @@ const locs = (xml) => (String(xml).match(/<loc>\s*([^<\s]+)\s*<\/loc>/gi) || [])
 
 async function fromSitemap(home, sitemapUrl, max) {
   const out = [];
-  const r = await seoCheck.fetchText(sitemapUrl, { accept: 'application/xml,text/xml,*/*', maxBytes: 5 * 1024 * 1024 });
+  const r = await seoCheck.fetchText(sitemapUrl, { accept: 'application/xml,text/xml,*/*', maxBytes: 5 * 1024 * 1024, timeout: 12000 });
   if (r.status < 200 || r.status >= 300) return out;
   if (/<sitemapindex\b/i.test(r.body)) {
     // An index of sitemaps: read the first few
@@ -58,7 +58,7 @@ async function discoverPages(siteUrl, max = 20) {
   // robots.txt "Sitemap:" lines, then /sitemap.xml
   let sitemaps = [];
   try {
-    const r = await seoCheck.fetchText(`${origin}/robots.txt`, { accept: 'text/plain,*/*', maxBytes: 512 * 1024 });
+    const r = await seoCheck.fetchText(`${origin}/robots.txt`, { accept: 'text/plain,*/*', maxBytes: 512 * 1024, timeout: 8000 });
     if (r.status >= 200 && r.status < 300) sitemaps = seoCheck.robotsRules(r.body).sitemaps;
   } catch {}
   if (!sitemaps.length) sitemaps = [`${origin}/sitemap.xml`];
@@ -73,7 +73,7 @@ async function discoverPages(siteUrl, max = 20) {
   }
   if (pages.length === 1) {
     try {
-      const r = await seoCheck.fetchText(home);
+      const r = await seoCheck.fetchText(home, { timeout: 30000 });
       for (const u of internalLinks(r.body, r.finalUrl)) if (!pages.includes(u) && pages.length < max) pages.push(u);
     } catch {}
   }
@@ -282,6 +282,7 @@ async function runSite(db, site, options = {}) {
 
     const results = [];
     for (const url of pages) {
+      if (results.length > 0) await new Promise((res) => setTimeout(res, 100));
       try {
         const r = await seoCheck.checkPage(url);
         // A page that doesn't open: only that matters (not its missing title etc.)
@@ -301,6 +302,26 @@ async function runSite(db, site, options = {}) {
         results.push({ url, error: err.message, checks: [], fromSitemap: pages.fromSitemap?.has(url) });
         await db('seo_page_checks').insert({ workspace_id: site.workspace_id, site_id: site.id, url, checked_at: t, error: err.message, bad: 1, good: 0, warn: 0 });
       }
+    }
+    // If the home page failed on first pass, retry it once before declaring total run failure
+    if (results[0]?.error && results.every((r) => r.error)) {
+      try {
+        const r = await seoCheck.checkPage(pages[0], { timeout: 35000 });
+        if (r.status < 400) {
+          const checks = r.checks.map(({ id, status, label, detail }) => ({ id, status, label, detail }));
+          results[0] = {
+            url: pages[0], checks, title: r.page.title, description: r.page.description, h1: r.page.h1,
+            status: r.status, redirects: r.redirects, canonical: r.page.canonical, json_ld: r.page.json_ld, links: r.page.links,
+            fromSitemap: pages.fromSitemap?.has(pages[0]),
+          };
+          await db('seo_page_checks').where({ site_id: site.id, url: pages[0], checked_at: t }).del();
+          await db('seo_page_checks').insert({
+            workspace_id: site.workspace_id, site_id: site.id, url: pages[0], checked_at: t, http_status: r.status,
+            title: r.page.title || null, description: r.page.description || null, checks_json: JSON.stringify(checks),
+            good: r.counts.good, warn: r.counts.warn, bad: r.counts.bad,
+          });
+        }
+      } catch {}
     }
     // The home page not opening at all is the run failing, not a to-do
     if (results[0]?.error && results.every((r) => r.error)) throw new Error(results[0].error);

@@ -1,4 +1,4 @@
-// Social-Nexus app — WhatsApp broadcasts: one message to many people, in 3 steps.
+// NexaDrip app — WhatsApp broadcasts: one message to many people, in 3 steps.
 // One of the files in public/js, loaded in order by index.html (shared global scope).
 //
 //   1. Who gets it   all contacts / a tag / a spreadsheet — with the real count
@@ -325,7 +325,7 @@ function showBcProgress(b) {
         ${!finished ? `<button class="btn btn-ghost btn-ghost-danger btn-sm" onclick="stopBroadcast(${Number(b.id)})">Stop</button>` : ''}
       </div>
       <div class="bc-bar"><div style="width:${pct}%"></div></div>
-      ${!finished ? '<div class="form-hint">You can leave this screen; sending carries on while Social-Nexus is open.</div>' : ''}
+      ${!finished ? '<div class="form-hint">You can leave this screen; sending carries on while NexaDrip is open.</div>' : ''}
       ${failures.length ? `<details class="settings-more"><summary>Not sent (${b.failed_count})</summary>
         <ul class="bc-fail">${failures.map(f => `<li><b>${escapeHtml(f.name || '+' + f.phone)}</b> — ${escapeHtml(f.error)}</li>`).join('')}</ul></details>` : ''}
     </div>`;

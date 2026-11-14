@@ -1,4 +1,4 @@
-// Social-Nexus app — WhatsApp auto-replies (chatbot) screen.
+// NexaDrip app — WhatsApp auto-replies (chatbot) screen.
 // One of the files in public/js, loaded in order by index.html (shared global scope).
 //
 // Owners write their replies here; "Try it" shows exactly what a customer would
@@ -150,6 +150,12 @@ function renderWhatsAppBot() {
               <label class="form-label" for="bot-knowledge" style="font-size:13px;margin-bottom:4px;display:block">Knowledge base <span class="form-hint" style="display:inline;font-weight:400">— business facts the AI can answer from (optional)</span></label>
               <textarea id="bot-knowledge" class="form-textarea bot-text" rows="6" maxlength="4000" placeholder="Tell the bot about your business so it answers more questions on its own, for example:&#10;• Delivery: free across Pune for orders above ₹999, 2–3 days otherwise.&#10;• Hours: 9am–9pm, closed Sundays.&#10;• Returns: within 7 days with the bill.&#10;• We make eggless cakes on request; ₹100 extra.">${escapeHtml(c.knowledge || '')}</textarea>
               <div class="form-hint">The AI answers only from this and the replies above — it never invents prices or promises. Keep it short and factual: hours, delivery, returns, products, common questions. Up to 4000 characters.</div>
+              <div style="margin-top:10px;padding:10px 14px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.25);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                <div style="font-size:12.5px;color:var(--text-primary)">
+                  ✨ <b>Dedicated AI Knowledge Base Hub:</b> Manage structured Q&A FAQs, business facts, persona tone, and test with the live interactive simulator.
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="navigateTo('ai-knowledge-base')" style="white-space:nowrap">Open AI Knowledge Base →</button>
+              </div>
             </div>
             <label class="bot-radio"><input type="radio" name="bot-fb" value="n8n" ${fbMode === 'n8n' ? 'checked' : ''}/>
               <span><b>Let your n8n workflow answer</b> — it gets the message and replies with <code>{"reply": "…"}</code>. ${d.n8n_configured

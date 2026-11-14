@@ -108,7 +108,7 @@ function legalPage(req, slug) {
   const file = path.join(LEGAL_DIR, `${slug || 'index'}.html`);
   if (!fs.existsSync(file)) return null;
   let body = fs.readFileSync(file, 'utf8');
-  const desc = (body.match(/<!--\s*description:\s*([\s\S]*?)-->/) || [])[1]?.trim() || `${entry[1]} for Social-Nexus by Radixile Technology Solutions.`;
+  const desc = (body.match(/<!--\s*description:\s*([\s\S]*?)-->/) || [])[1]?.trim() || `${entry[1]} for NexaDrip by Radixile Technology Solutions.`;
   const title = entry[1];
   const nav = LEGAL_PAGES.filter(([s]) => s).map(([s, t]) => `<li><a href="/legal/${s}"${s === slug ? ' aria-current="page"' : ''}>${esc(t)}</a></li>`).join('');
   let html = `<!DOCTYPE html>
@@ -116,7 +116,7 @@ function legalPage(req, slug) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${esc(title)} | Social-Nexus</title>
+  <title>${esc(title)} | NexaDrip</title>
   <meta name="description" content="${esc(desc)}" />
   <link rel="canonical" href="%SITE_URL%/legal${slug ? `/${slug}` : ''}" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
@@ -124,7 +124,7 @@ function legalPage(req, slug) {
 </head>
 <body>
 <header class="top"><div class="wrap">
-  <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">✦</span>Social-Nexus</a>
+  <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><img src="/icon.svg" style="width:20px;height:20px;vertical-align:middle;margin-right:6px;object-fit:contain;" alt="" /></span>Nexa<span style="color:#00d2ff">Drip</span></a>
   <nav class="top-links"><a class="btn" href="/">Home</a><a class="btn btn-primary" href="/login.html">Sign in</a></nav>
 </div></header>
 <main class="wrap layout">

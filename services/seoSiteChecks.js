@@ -19,8 +19,12 @@ const sameHost = (a, b) => { try { return new URL(a).hostname.replace(/^www\./, 
 async function statusOf(url) {
   try { await seoCheck.assertPublic(url); } catch { return { status: 0, error: 'not a public address' }; }
   const opts = {
-    timeout: 12000, maxRedirects: 5, validateStatus: () => true,
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Social-Nexus SEO check)' },
+    timeout: 20000, maxRedirects: 5, validateStatus: () => true,
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 (compatible; Social-Nexus SEO check; +https://radixile.com)',
+      'Accept': '*/*',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
     beforeRedirect: (o) => { if (seoCheck.isPrivateName(o.hostname)) throw new Error('redirects to a local address'); },
   };
   try {
@@ -55,7 +59,7 @@ async function brokenLinks(results, home) {
   // Pages already checked give their status for free
   const broken = [];
   for (const r of results) if (r.error || (r.status && r.status >= 400)) for (const [l, p] of from) if (l === r.url && p !== r.url) broken.push({ link: l, page: p, why: r.error || `answers ${r.status}` });
-  const statuses = await mapLimit([...internal, ...external], 6, async (l) => ({ l, s: await statusOf(l) }));
+  const statuses = await mapLimit([...internal, ...external], 3, async (l) => ({ l, s: await statusOf(l) }));
   for (const { l, s } of statuses) {
     const isExternal = !sameHost(l, home);
     // Other sites often refuse checkers (401/403/429): only count clear failures there

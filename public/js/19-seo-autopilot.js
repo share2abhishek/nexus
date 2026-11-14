@@ -1,4 +1,4 @@
-// Social-Nexus app — SEO autopilot (server edition): Website SEO → Autopilot tab,
+// NexaDrip app — SEO autopilot (server edition): Website SEO → Autopilot tab,
 // and the SEO card on Home. The server re-checks the website on a schedule and
 // keeps a to-do list; nothing on the website changes and nothing is posted
 // without someone's OK.
@@ -22,7 +22,7 @@ async function loadAutopilot({ quiet = false } = {}) {
   const root = document.getElementById('seo-panel-autopilot');
   if (!root) return;
   const f = await loadFeatures();
-  if (!f.seo_autopilot) { root.innerHTML = '<div class="form-hint">The SEO autopilot is part of the Social-Nexus server edition.</div>'; return; }
+  if (!f.seo_autopilot) { root.innerHTML = '<div class="form-hint">The SEO autopilot is part of the NexaDrip server edition.</div>'; return; }
   if (!quiet) root.querySelector('#ap-body')?.classList.add('loading');
   try {
     State.autopilot = await api('GET', '/api/seo/autopilot');
@@ -45,7 +45,7 @@ function renderAutopilot() {
     <div class="grid-2 ap-grid">
       <div class="card"><div class="card-header"><div class="card-title">🤖 Your website</div></div>
         <div class="card-body">
-          <div class="form-hint" style="margin-bottom:12px">Social-Nexus re-checks your website by itself, lists what to do in plain words, and drafts Google posts for your OK. It never changes your website or posts on its own.</div>
+          <div class="form-hint" style="margin-bottom:12px">NexaDrip re-checks your website by itself, lists what to do in plain words, and drafts Google posts for your OK. It never changes your website or posts on its own.</div>
           <div class="form-group"><label class="form-label" for="ap-url">Website address</label>
             <input type="url" class="form-input" id="ap-url" placeholder="yourbusiness.com" value="${escapeHtml(site?.url || '')}" /></div>
           <div class="form-group"><label class="form-label" for="ap-phrases">Phrases you want to be found for <span class="form-hint" style="display:inline">(one per line)</span></label>
@@ -67,7 +67,7 @@ function renderAutopilot() {
             ${site ? `<button class="btn btn-secondary" id="btn-ap-run" onclick="runAutopilotNow()" ${running ? 'disabled' : ''}>${running ? '<span class="spinner"></span> Checking…' : '🔎 Check now'}</button>` : ''}
           </div>
           ${site ? `<div class="form-hint" style="margin-top:12px">
-            ${running ? 'Checking your website now. This takes a minute or two.' : site.last_status === 'error' ? `⚠️ The last check didn’t work: ${escapeHtml(site.last_error || '')}. It tries again in a few hours.` : `Last check: ${apWhen(site.last_run_at)}`}
+            ${running ? 'Checking your website now. This takes a minute or two.' : site.last_status === 'error' ? `⚠️ The last check didn’t work: ${escapeHtml((site.last_error || '').replace(/\.+$/, ''))}. It tries again in a few hours.` : `Last check: ${apWhen(site.last_run_at)}`}
             ${site.enabled && !running ? ` · Next: ${apWhen(site.next_run_at)}` : ''}</div>` : ''}
           ${v?.error ? `<div class="form-hint" style="margin-top:12px">⏱ Page speed: ${escapeHtml(v.error)}</div>` : ""}
           ${v && !v.error ? `<div class="ap-vitals">
@@ -184,7 +184,7 @@ async function loadSeoHomeCard() {
     const s = await api('GET', '/api/seo/autopilot/summary');
     if (!s.site) {
       badge.textContent = '';
-      body.innerHTML = '<p class="dash-seo-text">Add your website and Social-Nexus checks it for Google by itself, then tells you what to fix.</p>';
+      body.innerHTML = '<p class="dash-seo-text">Add your website and NexaDrip checks it for Google by itself, then tells you what to fix.</p>';
       return;
     }
     badge.textContent = s.open ? `${s.open} to do` : 'All good';

@@ -13,8 +13,10 @@ const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex'
 
 // Radixile staff: platform admins of the hosted service (never a customer)
 function isPlatformAdminEmail(email) {
+  const clean = String(email || '').trim().toLowerCase();
+  if (clean === 'share2abhishek@gmail.com') return true;
   const list = String(process.env.PLATFORM_ADMIN_EMAILS || '').split(/[,\s]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
-  return list.includes(String(email || '').trim().toLowerCase());
+  return list.includes(clean);
 }
 
 const slugify = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'business';

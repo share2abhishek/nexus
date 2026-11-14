@@ -1,4 +1,4 @@
-// Social-Nexus app — Post designer: make a branded picture for a post in a minute.
+// NexaDrip app — Post designer: make a branded picture for a post in a minute.
 // One of the files in public/js, loaded in order by index.html (shared global scope).
 //
 // Pick a template and size, type a headline, and the picture uses the Brand kit's

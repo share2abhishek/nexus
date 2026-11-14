@@ -142,6 +142,33 @@ async function mistralGenerate(prompt, maxTokens = 1024, opts = {}) {
   return { text, model: `mistral:${model}` };
 }
 
+// ── OpenAI (ChatGPT / GPT-4o-mini / GPT-4o) ──────────────────────────────────
+// Sign up at https://platform.openai.com/api-keys
+// Recommended default model: gpt-4o-mini (fast, cheap, high quality)
+
+async function openaiGenerate(prompt, maxTokens = 1024, opts = {}) {
+  const apiKey = opts.apiKey;
+  if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
+
+  const model = opts.model || process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+  const res = await axios.post('https://api.openai.com/v1/chat/completions', {
+    model,
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: Math.min(maxTokens, 4096),
+    temperature: 0.7,
+  }, {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    timeout: 30000,
+  });
+
+  const text = res.data.choices?.[0]?.message?.content || '';
+  return { text, model: `openai:${model}` };
+}
+
 // Retry once on "busy" errors (429 rate limit / 503 overloaded), which are usually
 // momentary on free tiers. Anything else fails straight away.
 async function withBusyRetry(fn, delayMs = 2000) {
@@ -208,14 +235,16 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
   // Re-read env/options each call so UI/user changes take effect without restart
   // Keys come from the caller (the user's own, plus shared ones for admins — see
   // middleware/auth.js injectUserKeys). Nothing here reads keys from .env.
-  const googleKey    = apiKey || options.googleKey;
-  const anthropicKey = options.anthropicKey;
-  const groqKey      = options.groqKey;
+  const googleKey     = apiKey || options.googleKey;
+  const anthropicKey  = options.anthropicKey;
+  const groqKey       = options.groqKey;
   const openrouterKey = options.openrouterKey;
-  const mistralKey   = options.mistralKey;
+  const mistralKey    = options.mistralKey;
+  const openaiKey     = options.openaiKey;
+  const defaultModel  = options.defaultTextModel;
   const ollamaEnabled = (options.ollamaEnabled !== undefined) ? options.ollamaEnabled : require('./edition').ollamaDefault();
-  const ollamaModel  = options.ollamaModel             || process.env.OLLAMA_MODEL    || 'llama3.2';
-  const ollamaBaseUrl = options.ollamaBaseUrl          || process.env.OLLAMA_BASE_URL  || 'http://localhost:11434';
+  const ollamaModel   = options.ollamaModel            || process.env.OLLAMA_MODEL    || 'llama3.2';
+  const ollamaBaseUrl = options.ollamaBaseUrl         || process.env.OLLAMA_BASE_URL  || 'http://localhost:11434';
 
   // ── Explicit model override from UI ─────────────────────────────────────────
   // The user picked this provider, so no fallback — but report failures readably.
@@ -252,13 +281,46 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
         const mModel = modelOverride.startsWith('mistral:') ? modelOverride.replace('mistral:', '') : undefined;
         return await mistralGenerate(prompt, maxTokens, { apiKey: mistralKey, model: mModel });
       }
+      // OpenAI variants
+      if (modelOverride === 'openai' || modelOverride.startsWith('openai:')) {
+        const oModel = modelOverride.startsWith('openai:') ? modelOverride.replace('openai:', '') : undefined;
+        return await openaiGenerate(prompt, maxTokens, { apiKey: openaiKey, model: oModel });
+      }
     } catch (err) {
       if (/not configured/.test(err.message)) throw err;
-      const label = { ollama: 'Ollama', gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openrouter: 'OpenRouter', mistral: 'Mistral' }[provider] || provider;
+      const label = { ollama: 'Ollama', gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openrouter: 'OpenRouter', mistral: 'Mistral', openai: 'OpenAI' }[provider] || provider;
       const reason = provider === 'ollama' && /ECONNREFUSED|connect/i.test(err.message)
         ? 'not running on this computer (install it from https://ollama.com and open the app)'
         : shortReason(err);
       throw new Error(`${label}: ${reason}`);
+    }
+  }
+
+  // ── Preferred default model from user settings ──────────────────────────────
+  // If the user picked a specific default cloud model in Settings → AI (e.g. Groq or Gemini),
+  // try it first before falling through to local Ollama.
+  if (defaultModel && defaultModel !== 'ollama') {
+    try {
+      if (defaultModel === 'groq' && groqKey && groqKey.length > 8) {
+        return await groqGenerate(prompt, maxTokens, { apiKey: groqKey });
+      }
+      if (defaultModel === 'gemini' && googleKey && googleKey.length > 8 && !googleKey.includes('your-key-here')) {
+        return await geminiGenerate(prompt, googleKey);
+      }
+      if (defaultModel === 'openai' && openaiKey && openaiKey.length > 8) {
+        return await openaiGenerate(prompt, maxTokens, { apiKey: openaiKey });
+      }
+      if (defaultModel === 'claude' && anthropicKey && anthropicKey.length > 10) {
+        return await claudeGenerate(prompt, anthropicKey, maxTokens);
+      }
+      if (defaultModel === 'openrouter' && openrouterKey && openrouterKey.length > 8) {
+        return await openRouterGenerate(prompt, maxTokens, { apiKey: openrouterKey });
+      }
+      if (defaultModel === 'mistral' && mistralKey && mistralKey.length > 8) {
+        return await mistralGenerate(prompt, maxTokens, { apiKey: mistralKey });
+      }
+    } catch (err) {
+      console.warn(`[AI] Preferred model (${defaultModel}) failed:`, err.message, '— continuing fallback chain');
     }
   }
 
@@ -309,7 +371,18 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
     }
   }
 
-  // 4. OpenRouter — free model tier
+  // 4. OpenAI — fast and reliable
+  if (openaiKey && openaiKey.length > 8) {
+    try {
+      console.log('[AI] Using OpenAI (gpt-4o-mini)');
+      return await openaiGenerate(prompt, maxTokens, { apiKey: openaiKey });
+    } catch (err) {
+      console.warn('[AI] OpenAI failed:', err.message, '— trying next...');
+      failures.push(`OpenAI: ${shortReason(err)}`);
+    }
+  }
+
+  // 5. OpenRouter — free model tier
   if (openrouterKey && openrouterKey.length > 8) {
     try {
       console.log('[AI] Using OpenRouter (llama-3.1-8b-instruct:free)');
@@ -320,7 +393,7 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
     }
   }
 
-  // 5. Mistral — free tier
+  // 6. Mistral — free tier
   if (mistralKey && mistralKey.length > 8) {
     try {
       console.log('[AI] Using Mistral (mistral-small-latest)');
@@ -331,7 +404,7 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
     }
   }
 
-  // 6. Anthropic Claude — paid fallback
+  // 7. Anthropic Claude — paid fallback
   if (anthropicKey && anthropicKey.length > 10) {
     console.log('[AI] Using Anthropic Claude');
     try {
@@ -369,6 +442,7 @@ function aiOptionsFromReq(req) {
   return {
     googleKey: req.googleKey, anthropicKey: req.anthropicKey,
     groqKey: req.groqKey, openrouterKey: req.openrouterKey, mistralKey: req.mistralKey,
+    openaiKey: req.openaiKey, defaultTextModel: req.defaultTextModel,
     ollamaEnabled: req.ollamaEnabled, ollamaModel: req.ollamaModel, ollamaBaseUrl: req.ollamaUrl,
   };
 }
@@ -389,4 +463,4 @@ async function aiJSON(prompt, apiKey, maxTokens = 1024, options = {}, modelOverr
   return { data: JSON.parse(match[0]), model: result.model, raw: result.text };
 }
 
-module.exports = { aiGenerate, aiJSON, aiOptionsFromReq, aiArgsFromReq, isOllamaRunning, groqGenerate, openRouterGenerate, mistralGenerate };
+module.exports = { aiGenerate, aiJSON, aiOptionsFromReq, aiArgsFromReq, isOllamaRunning, groqGenerate, openRouterGenerate, mistralGenerate, openaiGenerate };

@@ -20,7 +20,7 @@ const LIMITS = {
   keywordsPerRule: 20,
   menuOptions: 9,      // one digit per option
   repliesPerHour: 6,   // the bot never sends more than this to one chat in an hour
-  knowledge: 4000,     // characters of free-text business knowledge for AI answers
+  knowledge: 20000,    // characters of free-text business knowledge for AI answers
 };
 const AWAY_EVERY = 12 * 3600;
 const FALLBACK_EVERY = 3600;
@@ -297,7 +297,7 @@ async function businessName(db, workspaceId) {
 }
 
 // AI answer for "anything else", with the owner's replies as the only facts.
-// Uses the keys of the person who turned AI answers on.
+// Uses the keys of the person who turned AI answers on, or the workspace manager.
 async function aiAnswer(db, workspaceId, userId, cfg, msg) {
   const { injectUserKeys } = require('../../middleware/auth');
   const { aiGenerate, aiArgsFromReq } = require('../aiHelper');
@@ -305,23 +305,57 @@ async function aiAnswer(db, workspaceId, userId, cfg, msg) {
   const req = { session: { userId }, body: {} };
   await new Promise((resolve, reject) => injectUserKeys(req, null, (err) => (err ? reject(err) : resolve())));
   const { apiKey, options } = aiArgsFromReq(req);
+
+  // Check if there is an active knowledge base with compiled knowledge & persona
+  let kb = (cfg.knowledge || '').trim();
+  let persona = null;
+  try {
+    if (await db.schema.hasTable('ai_knowledge_bases')) {
+      const kbRow = await db('ai_knowledge_bases').where({ workspace_id: workspaceId }).first();
+      if (kbRow) {
+        if (kbRow.compiled_knowledge && kbRow.compiled_knowledge.trim()) {
+          kb = kbRow.compiled_knowledge.trim();
+        }
+        if (kbRow.persona_json) {
+          try { persona = JSON.parse(kbRow.persona_json); } catch {}
+        }
+      }
+    }
+  } catch {}
+
   const facts = [
     ...cfg.menu.options.filter(o => o.reply).map(o => `${o.label}: ${o.reply}`),
     ...cfg.keywords.filter(r => r.reply && !r.handover).map(r => `${r.keywords.join('/')}: ${r.reply}`),
   ].join('\n');
-  // The owner's knowledge base: free-text business info the AI may answer from
-  const kb = (cfg.knowledge || '').trim();
+
+  const toneRule = persona?.tone === 'professional' ? 'Tone: Professional, crisp, and polite.'
+    : persona?.tone === 'casual' ? 'Tone: Friendly, conversational, and casual.'
+    : persona?.tone === 'concise' ? 'Tone: Minimal, direct, and concise.'
+    : 'Tone: Friendly, warm, and helpful.';
+
+  const lengthRule = persona?.response_length === 'concise' ? 'Answer in 1 or 2 short sentences.'
+    : persona?.response_length === 'detailed' ? 'Answer in 2 to 4 helpful sentences.'
+    : 'Answer in 1 to 3 short sentences.';
+
+  const strictRule = persona?.strictness === 'strict'
+    ? 'Use ONLY the facts and business knowledge below. If the answer is not in the knowledge base, say our team will reply soon. Never invent prices, dates, or promises.'
+    : 'Use the facts and business knowledge below as your primary source of truth. If unsure, invite the customer to connect with our team. Never invent prices or promises.';
+
+  const customRule = persona?.custom_instructions ? `\nINSTRUCTIONS: ${persona.custom_instructions}\n` : '';
+
   const prompt = `${await brandContext(workspaceId, db)}
 You reply to a customer on WhatsApp for ${msg.business || 'this business'}.
-Answer in 1–3 short sentences, in the customer's language, friendly and plain.
-Use ONLY the facts and business knowledge below. If the answer isn't there, say a person from the team will reply soon. Never invent prices, dates, offers or promises.
+${toneRule}
+${lengthRule}
+In the customer's language.
+${strictRule}${customRule}
 
-FACTS:
+FACTS & MENU REPLIES:
 ${facts || '(none)'}
-${kb ? `\nBUSINESS KNOWLEDGE:\n${kb}\n` : ''}
+${kb ? `\nBUSINESS KNOWLEDGE BASE:\n${kb}\n` : ''}
 Customer${msg.name ? ` (${msg.name})` : ''}: """${String(msg.text).slice(0, 1000)}"""
 Reply:`;
-  const r = await aiGenerate(prompt, apiKey, 200, null, options);
+  const r = await aiGenerate(prompt, apiKey, 250, null, options);
   return String(r.text || '').trim().replace(/^["“]|["”]$/g, '').slice(0, LIMITS.text);
 }
 
@@ -371,13 +405,18 @@ async function handleInbound(db, { workspaceId, lead, text, name, send, askN8n }
       replies = [settings.config.fallback.text]; // no n8n address saved yet
     }
   }
-  if (d.ai && settings.updated_by) {
-    try {
-      const a = await aiAnswer(db, workspaceId, settings.updated_by, settings.config, { text, name, business });
-      if (a) replies = [a];
-    } catch (err) {
-      console.warn('[WhatsApp bot] AI answer failed:', err.message);
-      if (settings.config.fallback.text) replies = [settings.config.fallback.text];
+  if (d.ai) {
+    const aiUserId = settings.updated_by
+      || (await db('memberships').where({ workspace_id: workspaceId, role: 'manager' }).first('user_id').then(r => r?.user_id).catch(() => null))
+      || (await db('users').first('id').then(r => r?.id).catch(() => null));
+    if (aiUserId) {
+      try {
+        const a = await aiAnswer(db, workspaceId, aiUserId, settings.config, { text, name, business });
+        if (a) replies = [a];
+      } catch (err) {
+        console.warn('[WhatsApp bot] AI answer failed:', err.message);
+        if (settings.config.fallback.text) replies = [settings.config.fallback.text];
+      }
     }
   }
 

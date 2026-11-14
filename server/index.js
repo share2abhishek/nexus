@@ -190,6 +190,7 @@ app.use('/api/content', requireAuth, withWorkspace, injectUserKeys, require('../
 app.use('/api/post-extras', requireAuth, withWorkspace, require('../routes/postExtras')(knex, requirePermission)); // signatures, post sets, RSS feeds
 app.use('/api/sellbird', requireAuth, withWorkspace, injectUserKeys, require('../routes/sellbird')(knex, requirePermission));
 app.use('/api/lead-pipeline', requireAuth, withWorkspace, injectUserKeys, require('../routes/leadPipeline')(knex, requirePermission));
+app.use('/api/knowledge-base', requireAuth, withWorkspace, injectUserKeys, require('../routes/knowledgeBase')(knex, requirePermission));
 
 // ── Tenancy Routes ────────────────────────────────────────────────────────────
 
@@ -269,7 +270,7 @@ async function bootstrap() {
 
   app.listen(PORT, HOST, async () => {
     console.log(`\n╔════════════════════════════════════════╗`);
-    console.log(`║   Social-Nexus — Radixile Technology Sol. ║`);
+    console.log(`║   NexaDrip — Radixile Technology Sol.     ║`);
     console.log(`║   http://localhost:${PORT}                ║`);
     console.log(`╚════════════════════════════════════════╝\n`);
 

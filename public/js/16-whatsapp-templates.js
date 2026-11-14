@@ -1,4 +1,4 @@
-// Social-Nexus app — WhatsApp templates: see yours, write new ones, send to Meta.
+// NexaDrip app — WhatsApp templates: see yours, write new ones, send to Meta.
 // One of the files in public/js, loaded in order by index.html (shared global scope).
 //
 // WhatsApp only lets a business message someone first (or send a broadcast) with
@@ -70,7 +70,7 @@ function renderTemplatesPage() {
     </div>
     ${!TplState.connected && !TplState.loading ? `
       <div class="callout callout-warn">
-        <b>Connect WhatsApp first.</b> Templates live in your WhatsApp Business account, so Social-Nexus needs your access token and Business Account ID.
+        <b>Connect WhatsApp first.</b> Templates live in your WhatsApp Business account, so NexaDrip needs your access token and Business Account ID.
         <button class="btn btn-secondary btn-sm" onclick="navigateTo('leads-settings')">Open WhatsApp setup</button>
       </div>` : ''}
     ${TplState.error && TplState.connected ? `<div class="state-error">${escapeHtml(TplState.error)}</div>` : ''}

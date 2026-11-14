@@ -64,14 +64,32 @@ module.exports = (knex) => {
     // ── Meta WhatsApp Cloud API Inbound Ingestion ─────────────────────────────
     if (body.object === 'whatsapp_business_account') {
       for (const entry of body.entry) {
-        const wabaId = String(entry.id);
-        const config =
-          (await knex('meta_lead_configs').where({ whatsapp_business_account_id: wabaId }).first()) ||
-          (await knex('meta_lead_configs').first());
-        if (!config) continue;
+        const wabaId = String(entry.id || '');
 
         for (const change of entry.changes || []) {
           if (change.field !== 'messages' || !change.value) continue;
+          const phoneNumberId = change.value.metadata?.phone_number_id ? String(change.value.metadata.phone_number_id) : null;
+
+          // Multi-tenant resolution: match phone_number_id first (1-to-1 with workspace),
+          // fallback to waba_id. Only fallback to single config if strictly 1 workspace exists.
+          let config = null;
+          if (phoneNumberId) {
+            config = await knex('meta_lead_configs').where({ whatsapp_phone_number_id: phoneNumberId }).first();
+          }
+          if (!config && wabaId) {
+            config = await knex('meta_lead_configs').where({ whatsapp_business_account_id: wabaId }).first();
+          }
+          if (!config) {
+            const totalConfigs = await knex('meta_lead_configs').count('* as c').first().then(r => Number(r?.c || 0)).catch(() => 0);
+            if (totalConfigs === 1) {
+              config = await knex('meta_lead_configs').first();
+            }
+          }
+          if (!config) {
+            console.warn(`[Meta Webhook] No matching workspace found for WhatsApp message (phone_number_id: ${phoneNumberId}, waba_id: ${wabaId}). Discarded to prevent cross-tenant data leakage.`);
+            continue;
+          }
+
           const contacts = change.value.contacts || [];
           for (const msg of change.value.messages || []) {
             const contact = contacts.find((c) => c.wa_id === msg.from) || {};

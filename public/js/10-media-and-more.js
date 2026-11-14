@@ -1,4 +1,4 @@
-// Social-Nexus app — Media library, backups, bulk, recovery, approvals, one-click connect, inbox, link in bio, phone, Canva.
+// NexaDrip app — Media library, backups, bulk, recovery, approvals, one-click connect, inbox, link in bio, phone, Canva.
 // One of the files in public/js, loaded in order by index.html (they share one
 // global scope, like the single app.js they came from).
 
@@ -16,7 +16,7 @@ function mediaSrc(ref) {
 
 async function uploadMediaFile(file) {
   if (!file) return null;
-  if (file.type && !MEDIA_ACCEPT.test(file.type)) throw new Error(`"${file.name}" isn’t a photo or video Social-Nexus can post (JPG, PNG, GIF, WEBP, MP4, MOV).`);
+  if (file.type && !MEDIA_ACCEPT.test(file.type)) throw new Error(`"${file.name}" isn’t a photo or video NexaDrip can post (JPG, PNG, GIF, WEBP, MP4, MOV).`);
   let res;
   try {
     res = await fetch('/api/media-library', {
@@ -24,7 +24,7 @@ async function uploadMediaFile(file) {
       headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name || '') },
       body: file,
     });
-  } catch { throw new Error('Can’t reach the Social-Nexus server. Make sure the app is running, then try again.'); }
+  } catch { throw new Error('Can’t reach the NexaDrip server. Make sure the app is running, then try again.'); }
   const data = await res.json().catch(() => ({}));
   if (res.status === 401) { window.location.href = '/login.html'; return null; }
   if (!res.ok) throw new Error(data.error || `Upload failed (error ${res.status}).`);
@@ -229,9 +229,9 @@ async function loadBackups() {
     const when = (t) => new Date(t * 1000).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
     const label = { daily: 'Daily', manual: 'Made by you', 'before-restore': 'Kept before a restore' };
     el.innerHTML = `
-      ${restore_pending ? `<div class="admin-note" style="border-color:#f59e0b">⏳ A backup is ready to restore. ${can_restart ? 'Restart Social-Nexus to finish.' : '<strong>Close Social-Nexus completely (tray icon → Quit) and open it again</strong> to finish.'} ${can_restart ? '<button class="btn btn-primary btn-sm" onclick="restartForRestore()">Restart now</button>' : ''} <button class="btn btn-secondary btn-sm" onclick="cancelRestore()">Cancel restore</button></div>` : ''}
+      ${restore_pending ? `<div class="admin-note" style="border-color:#f59e0b">⏳ A backup is ready to restore. ${can_restart ? 'Restart NexaDrip to finish.' : '<strong>Close NexaDrip completely (tray icon → Quit) and open it again</strong> to finish.'} ${can_restart ? '<button class="btn btn-primary btn-sm" onclick="restartForRestore()">Restart now</button>' : ''} <button class="btn btn-secondary btn-sm" onclick="cancelRestore()">Cancel restore</button></div>` : ''}
       <p style="color:var(--text-secondary);font-size:13px;margin:0 0 12px">
-        Social-Nexus saves a backup of your posts, settings and logins every day and keeps the last 7.
+        NexaDrip saves a backup of your posts, settings and logins every day and keeps the last 7.
         For safety against a broken PC, also <strong>export</strong> a backup now and then and keep it on a USB stick or cloud drive.
         Backups include saved logins and keys, so keep the file private.
       </p>
@@ -247,7 +247,7 @@ async function loadBackups() {
           <td>${when(b.created_at)}</td><td>${label[b.reason] || b.reason}</td>
           <td>${(b.size / 1024 / 1024).toFixed(1)} MB</td>
           <td style="text-align:right"><button class="btn btn-secondary btn-sm" onclick="restoreBackup('${escapeHtml(b.name)}', '${when(b.created_at)}')">Restore</button></td>
-        </tr>`).join('') : '<tr><td colspan="4" style="color:var(--text-muted);padding:16px">No backups yet. The first daily backup is made a few minutes after Social-Nexus starts.</td></tr>'}</tbody>
+        </tr>`).join('') : '<tr><td colspan="4" style="color:var(--text-muted);padding:16px">No backups yet. The first daily backup is made a few minutes after NexaDrip starts.</td></tr>'}</tbody>
       </table></div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px">Folder: ${escapeHtml(folder)}</div>`;
   } catch (err) {
@@ -280,7 +280,7 @@ async function exportBackupFile(btn) {
     const res = await fetch('/api/backups/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passphrase: p1 }) });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Export failed (error ${res.status}).`);
     const blob = await res.blob();
-    const name = (res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/)?.[1] || 'Social-Nexus-backup.snbackup';
+    const name = (res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/)?.[1] || 'NexaDrip-backup.snbackup';
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob); link.download = name; link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 5000);
@@ -313,7 +313,7 @@ async function cancelRestore() {
 }
 
 async function restartForRestore() {
-  if (!confirm('Restart Social-Nexus now to finish restoring? Everyone will need to sign in again.')) return;
+  if (!confirm('Restart NexaDrip now to finish restoring? Everyone will need to sign in again.')) return;
   try { await api('POST', '/api/backups/restart'); toast('Restarting…', 'info', 10000); }
   catch (err) { toast(err.message, 'error'); }
 }
@@ -680,7 +680,7 @@ async function loadInbox() {
               </div>
             </div>`}
       </div>`).join('')
-      : '<div class="empty-state" style="padding:40px">No comments yet. New comments on posts you publish from Social-Nexus show up here.</div>';
+      : '<div class="empty-state" style="padding:40px">No comments yet. New comments on posts you publish from NexaDrip show up here.</div>';
     updateInboxBadge();
   } catch (err) {
     el.innerHTML = `<div style="color:#ef4444">${escapeHtml(err.message)}</div>`;
@@ -808,6 +808,10 @@ async function unpublishBio() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function openCompanion() {
+  if (window.State && window.State.server) {
+    if (typeof toast === 'function') toast('Phone companion is only for the desktop app.', 'info');
+    return;
+  }
   let wrap = document.getElementById('companion-modal');
   if (!wrap) {
     wrap = document.createElement('div');

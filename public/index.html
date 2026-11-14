@@ -4,11 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex" />
-  <title>Social-Nexus by Radixile Technology Solutions</title>
-  <meta name="description" content="Social-Nexus is an AI-powered one-stop digital marketing platform." />
-  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <title>NexaDrip — Digital Marketing &amp; Bot Platform</title>
+  <meta name="description" content="NexaDrip is an AI-powered one-stop digital marketing and bot platform." />
+  <link rel="icon" type="image/svg+xml" href="icon.svg?v=2.3.0" />
+  <link rel="alternate icon" type="image/png" href="icon.png?v=2.3.0" />
   <link rel="preload" href="fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=2.3.0" />
   <script src="/vendor/chart.umd.js"></script>
 </head>
 <body class="light-mode">
@@ -18,10 +19,10 @@
   <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <img src="icon.svg" alt="" class="logo-img" />
+      <img src="icon.svg?v=2.3.0" alt="NexaDrip" class="logo-img" />
       <div class="logo-words">
-        <div class="logo-text">Social-Nexus</div>
-        <div class="logo-sub">by Radixile Technology Solutions</div>
+        <div class="logo-text">Nexa<span class="logo-brand-accent">Drip</span></div>
+        <div class="logo-sub">Digital Marketing &amp; Bot Platform</div>
       </div>
       <button class="btn btn-ghost btn-sm mobile-sidebar-close" onclick="closeSidebar()" aria-label="Close navigation" style="display:none;margin-left:auto;padding:3px 7px;font-size:16px;color:var(--text-muted);border:none;background:transparent;cursor:pointer">✕</button>
     </div>
@@ -63,6 +64,10 @@
           <a class="nav-sub-item" data-page="leads-bot" id="nav-sub-leads-bot" href="javascript:void(0)" onclick="navigateTo('leads-bot')">
             <span class="nav-label">Auto-replies</span>
             <span class="status-dot-sm" id="nav-bot-dot" style="margin-left:auto"></span>
+          </a>
+          <a class="nav-sub-item" data-page="ai-knowledge-base" id="nav-sub-ai-knowledge-base" href="javascript:void(0)" onclick="navigateTo('ai-knowledge-base')">
+            <span class="nav-label">AI Knowledge Base</span>
+            <span class="nav-badge-ai" style="margin-left:auto;font-size:10px;padding:1px 6px;background:rgba(124,58,237,0.18);color:#a855f7;border-radius:10px;font-weight:700">AI</span>
           </a>
           <a class="nav-sub-item" data-page="leads-broadcast" id="nav-sub-leads-broadcast" href="javascript:void(0)" onclick="navigateTo('leads-broadcast')">
             <span class="nav-label">Broadcasts</span>
@@ -169,7 +174,7 @@
     </nav>
 
     <div class="sidebar-bottom">
-      <a class="nav-item" data-page="admin" id="nav-admin" style="display:none" title="People who use Social-Nexus on this PC">
+      <a class="nav-item" data-page="admin" id="nav-admin" style="display:none" title="People who use NexaDrip on this PC">
         <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-shield-check"/></svg>
         <span class="nav-label">Users &amp; access</span>
         <span class="nav-badge" id="admin-users-badge"></span>
@@ -201,7 +206,7 @@
         <button class="btn btn-secondary btn-sm mobile-nav-toggle" id="btn-mobile-menu" onclick="toggleSidebar()" aria-label="Open navigation menu">☰</button>
         <div style="min-width:0;overflow:hidden">
           <div class="header-title" id="header-title">Dashboard</div>
-          <div class="header-subtitle" id="header-subtitle">Overview of your Social-Nexus platform</div>
+          <div class="header-subtitle" id="header-subtitle">Overview of your NexaDrip platform</div>
         </div>
       </div>
       <div class="header-actions">
@@ -803,7 +808,7 @@
                     </div>
                     <div class="repeat-summary" id="repeat-summary" role="status"></div>
                   </div>
-                  <div class="form-hint">Your computer's time. Keep Social-Nexus running (it can sit in the system tray) so it can post at this time.</div>
+                  <div class="form-hint">Your computer's time. Keep NexaDrip running (it can sit in the system tray) so it can post at this time.</div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1139,7 +1144,7 @@
       <div class="settings-panel" id="settings-panel-ai" style="display:none">
         <div class="panel-intro">
           <h2 class="panel-title">AI</h2>
-          <p class="panel-desc">Social-Nexus writes posts with AI. Pick <b>one</b> of these: a free key from an online AI service, or Local AI that runs on this PC (free, and your text never leaves your computer).</p>
+          <p class="panel-desc">NexaDrip writes posts with AI. Pick <b>one</b> of these: a free key from an online AI service, or Local AI that runs on this PC (free, and your text never leaves your computer).</p>
         </div>
 
         <div class="ai-status-card" id="ai-status-card">
@@ -1197,7 +1202,7 @@
           <div class="settings-row">
             <div class="settings-row-info">
               <div class="settings-row-title">Use this AI first</div>
-              <div class="settings-row-desc">If it isn't ready, Social-Nexus tries the others you have set up.</div>
+              <div class="settings-row-desc">If it isn't ready, NexaDrip tries the others you have set up.</div>
             </div>
             <select class="form-select settings-control" id="u-default-text-model">
               <option value="gemini">Google Gemini (free tier)</option>
@@ -1369,7 +1374,7 @@
       <div class="settings-panel" id="settings-panel-backups" style="display:none">
         <div class="panel-intro">
           <h2 class="panel-title">Backups</h2>
-          <p class="panel-desc">Social-Nexus makes a copy of your data every day. Export one to keep it safe on a USB drive or another PC.</p>
+          <p class="panel-desc">NexaDrip makes a copy of your data every day. Export one to keep it safe on a USB drive or another PC.</p>
         </div>
         <div class="settings-section"><div id="backups-panel" class="card-body"></div></div>
       </div>
@@ -1487,7 +1492,7 @@
         <div class="grid-2">
           <div class="card"><div class="card-header"><div class="card-title">🔎 Check a page</div></div>
             <div class="card-body">
-              <div class="form-hint" style="margin-bottom:12px">Social-Nexus opens the page like Google’s crawler does: can Google read it, may it list it, and are the title, description, headings and pictures set up well.</div>
+              <div class="form-hint" style="margin-bottom:12px">NexaDrip opens the page like Google’s crawler does: can Google read it, may it list it, and are the title, description, headings and pictures set up well.</div>
               <div class="form-group"><label class="form-label">Page address</label><input type="url" class="form-input" id="seo-check-url" placeholder="yourbusiness.com/services" onkeydown="if(event.key==='Enter')checkPageSeo()" /></div>
               <div class="form-group"><label class="form-label">Main search phrase (optional)</label><input type="text" class="form-input" id="seo-check-kw" placeholder="e.g. interior designer in Pune" /></div>
               <button class="btn btn-primary" onclick="checkPageSeo()" id="btn-seo-check" style="width:100%">🔎 Check page</button>
@@ -1960,7 +1965,7 @@
                   <div style="display:flex;gap:8px">
                     <button class="sb-secondary-btn sb-reply-filter" data-filter="needs" onclick="filterRepliesIntent('needs', this)">Needs an answer</button>
                     <button class="sb-secondary-btn sb-reply-filter" data-filter="all" style="background:#0f172a;color:#fff;border-color:#0f172a" onclick="filterRepliesIntent('all', this)">All</button>
-                    <button class="sb-secondary-btn" onclick="openSimulateReplyModal()" title="Social-Nexus doesn’t read your mailbox yet: paste replies you get here">+ Add a reply you received</button>
+                    <button class="sb-secondary-btn" onclick="openSimulateReplyModal()" title="NexaDrip doesn’t read your mailbox yet: paste replies you get here">+ Add a reply you received</button>
                   </div>
                 </div>
 
@@ -1989,7 +1994,7 @@
                       <li>Addresses are checked for a working mail server before sending. Addresses guessed from a name (like firstname@company.com) can still bounce: check them in Contacts.</li>
                       <li><b>Pause sending</b> stops everything at once; paused campaigns are skipped.</li>
                     </ul>
-                    <div class="form-hint" style="margin-top:12px">Social-Nexus doesn’t read your mailbox yet. When someone replies, add it under Replies → “Add a reply you received” so their follow-ups stop and AI drafts an answer.</div>
+                    <div class="form-hint" style="margin-top:12px">NexaDrip doesn’t read your mailbox yet. When someone replies, add it under Replies → “Add a reply you received” so their follow-ups stop and AI drafts an answer.</div>
                   </div>
                 </div>
               </div>
@@ -2175,7 +2180,7 @@
         </div>
         <div class="modal-body">
           <p class="text-sm text-secondary" style="margin-bottom:16px">
-            Social-Nexus reads their website, finds who to email (an address on their site if there is one), and writes 3 emails. Nothing is sent until you approve it in the Outbox.
+            NexaDrip reads their website, finds who to email (an address on their site if there is one), and writes 3 emails. Nothing is sent until you approve it in the Outbox.
           </p>
           <div class="form-group">
             <label class="form-label">Campaign *</label>
@@ -2315,7 +2320,7 @@
         </div>
         <div class="modal-body">
           <p class="text-sm text-secondary" style="margin-bottom:14px">
-            Paste a reply from your email. Social-Nexus stops that person’s follow-ups, sorts the reply (interested, question, not interested…) and drafts an answer for you to check.
+            Paste a reply from your email. NexaDrip stops that person’s follow-ups, sorts the reply (interested, question, not interested…) and drafts an answer for you to check.
           </p>
           <div class="form-group">
             <label class="form-label">Their email address *</label>
@@ -2487,7 +2492,7 @@
       <div class="section-header">
         <div>
           <div class="section-title">🖼 Media library</div>
-          <div class="section-desc">Photos and videos for your posts. They stay on this PC, in the Social-Nexus data folder.</div>
+          <div class="section-desc">Photos and videos for your posts. They stay on this PC, in the NexaDrip data folder.</div>
         </div>
         <button class="btn btn-primary btn-sm" onclick="document.getElementById('library-file').click()">⬆ Upload</button>
         <input type="file" id="library-file" multiple accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime" hidden onchange="uploadLibraryFiles(this.files); this.value=''" />
@@ -2953,7 +2958,7 @@
           <div class="settings-row">
             <div class="settings-row-info">
               <div class="settings-row-title">Registration Mode</div>
-              <div class="settings-row-desc">Control who can create new accounts on this Social-Nexus instance</div>
+              <div class="settings-row-desc">Control who can create new accounts on this NexaDrip instance</div>
             </div>
             <select class="form-select" id="admin-reg-mode" style="width:200px">
               <option value="open">🌐 Open — Anyone can register</option>
@@ -2966,7 +2971,7 @@
               <div class="settings-row-title">App / Platform Name</div>
               <div class="settings-row-desc">Shown on login page and emails</div>
             </div>
-            <input type="text" class="form-input" id="admin-app-name" placeholder="Social-Nexus" style="width:200px" />
+            <input type="text" class="form-input" id="admin-app-name" placeholder="NexaDrip" style="width:200px" />
           </div>
         </div>
         <button class="btn btn-primary" onclick="saveAdminConfig()" style="margin-top:8px">💾 Save Configuration</button>
@@ -3582,6 +3587,11 @@
       <div id="bot-root"><div class="state-loading"><span class="spinner lg"></span><div>Loading auto-replies…</div></div></div>
     </section>
 
+    <!-- ── AI Chat Knowledge Base ────────────────────────────────────────── -->
+    <section class="page" id="page-ai-knowledge-base">
+      <div id="kb-root"><div class="state-loading"><span class="spinner lg"></span><div>Loading AI Chat Knowledge Base…</div></div></div>
+    </section>
+
     <!-- ── Blog & news feeds (RSS) ─────────────────────────────────────── -->
     <section class="page" id="page-feeds">
       <div id="feeds-root" style="max-width:880px"></div>
@@ -3703,7 +3713,7 @@
                 <input type="password" class="form-input" id="pipeline-app-secret" placeholder="Meta app → App settings → Basic → App secret" autocomplete="off" />
                 <button class="btn btn-secondary btn-sm" onclick="savePipelineConfig()">Save</button>
               </div>
-              <div class="form-hint">With it, Social-Nexus only accepts messages that really come from Meta.</div>
+              <div class="form-hint">With it, NexaDrip only accepts messages that really come from Meta.</div>
             </div>
             <ol class="wa-steps-list">
               <li>In your Meta app, open <b>WhatsApp → Configuration</b> and click <b>Edit</b> next to Webhook.</li>
@@ -3768,7 +3778,7 @@
             </div>
             <div id="n8n-test-result" class="form-hint" aria-live="polite"></div>
             <details class="settings-more">
-              <summary>What Social-Nexus sends</summary>
+              <summary>What NexaDrip sends</summary>
               <pre class="wa-code">{
   "event": "whatsapp.message_received",
   "sent_at": "2026-11-10T10:15:00.000Z",
@@ -3905,7 +3915,7 @@
     </div>
     <div class="modal-body" id="recovery-body">
       <p style="margin-top:0;font-size:13px;color:var(--text-secondary)">A recovery code lets you set a new password if you forget it (Social-Nexus can't email you a reset link). Making a new one replaces any old code.</p>
-      <div class="form-group"><label class="form-label" for="recovery-password">Your Social-Nexus sign-in password</label><input type="password" class="form-input" id="recovery-password" autocomplete="current-password" aria-describedby="recovery-error" oninput="document.getElementById('recovery-error').hidden=true;this.removeAttribute('aria-invalid')" onkeydown="if(event.key==='Enter')makeRecoveryCode(document.querySelector('#recovery-footer .btn-primary'))" />
+      <div class="form-group"><label class="form-label" for="recovery-password">Your NexaDrip sign-in password</label><input type="password" class="form-input" id="recovery-password" autocomplete="current-password" aria-describedby="recovery-error" oninput="document.getElementById('recovery-error').hidden=true;this.removeAttribute('aria-invalid')" onkeydown="if(event.key==='Enter')makeRecoveryCode(document.querySelector('#recovery-footer .btn-primary'))" />
         <div class="form-hint">The one you use to sign in here (at least 6 characters).</div>
         <div class="field-error" id="recovery-error" role="alert" hidden></div></div>
     </div>
@@ -4020,7 +4030,7 @@
 <div id="onboarding-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:9999">
   <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:20px;width:560px;max-width:96vw;overflow:hidden;box-shadow:var(--shadow-lg)">
     <div style="background:var(--gradient-primary);padding:24px 28px;position:relative">
-      <div style="font-size:24px;font-weight:800;color:#fff;font-family:'Space Grotesk',sans-serif">Welcome to Social-Nexus 🚀</div>
+      <div style="font-size:24px;font-weight:800;color:#fff;font-family:'Space Grotesk',sans-serif">Welcome to NexaDrip 🚀</div>
       <div style="font-size:13px;color:rgba(255,255,255,0.8);margin-top:4px">India's most powerful AI social media platform — let's get you started!</div>
       <button onclick="closeOnboarding()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px" aria-label="Close">✕</button>
     </div>
@@ -4111,12 +4121,12 @@
           <div style="padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--glass);text-align:center">
             <div style="font-size:24px;margin-bottom:8px">⏰</div>
             <div style="font-size:13px;font-weight:600">Schedule</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Pick a date & time, Social-Nexus posts automatically</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Pick a date & time, NexaDrip posts automatically</div>
           </div>
         </div>
         <button class="btn btn-primary" style="width:100%" onclick="closeOnboarding();navigateTo('compose')">✏️ Open Compose Page</button>
         <div style="text-align:center;margin-top:16px">
-          <button class="btn btn-success" onclick="closeOnboarding()">🎉 You're all set — Start using Social-Nexus!</button>
+          <button class="btn btn-success" onclick="closeOnboarding()">🎉 You're all set — Start using NexaDrip!</button>
         </div>
       </div>
     </div>
@@ -4309,13 +4319,14 @@
 <script src="js/10-media-and-more.js"></script>
 <script src="js/12-sellbird.js"></script>
 
-<script src="js/13-lead-pipeline.js"></script>
-<script src="js/14-whatsapp-bot.js"></script>
-<script src="js/15-post-designer.js"></script>
-<script src="js/16-whatsapp-templates.js"></script>
-<script src="js/17-whatsapp-broadcast.js"></script>
-<script src="js/18-post-extras.js"></script>
-<script src="js/19-seo-autopilot.js"></script>
+<script src="js/13-lead-pipeline.js?v=2.2.0"></script>
+<script src="js/14-whatsapp-bot.js?v=2.2.0"></script>
+<script src="js/15-post-designer.js?v=2.2.0"></script>
+<script src="js/16-whatsapp-templates.js?v=2.2.0"></script>
+<script src="js/17-whatsapp-broadcast.js?v=2.2.0"></script>
+<script src="js/18-post-extras.js?v=2.2.0"></script>
+<script src="js/19-seo-autopilot.js?v=2.2.0"></script>
+<script src="js/20-ai-knowledge-base.js?v=2.2.1"></script>
 
 <!-- ── Modal: 7-Step Meta Business Verification & Official Blue/Green Tick Hub ── -->
 <div class="modal" id="modal-meta-verification" style="display:none">

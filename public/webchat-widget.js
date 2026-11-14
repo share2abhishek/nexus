@@ -1,6 +1,6 @@
 /*!
- * Social-Nexus website chat widget.
- * Drop this on any website to connect its chat to the Social-Nexus bot:
+ * NexaDrip website chat widget.
+ * Drop this on any website to connect its chat to the NexaDrip bot:
  *   <script src="https://YOUR-APP/webchat-widget.js"
  *           data-token="webchat_xxxxxxxx"
  *           data-name="Your Business"

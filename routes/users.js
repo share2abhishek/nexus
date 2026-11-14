@@ -27,7 +27,7 @@ router.get('/registration-info', async (req, res) => {
   try {
     const [mode, appName, [{ c }]] = await Promise.all([
       usersRepo.getConfig('registration_mode', 'open'),
-      usersRepo.getConfig('app_name', 'Social-Nexus'),
+      usersRepo.getConfig('app_name', 'NexaDrip'),
       knexInstance('users').count('id as c'),
     ]);
     const server = require('../services/edition').isServer();

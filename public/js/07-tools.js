@@ -1,4 +1,4 @@
-// Social-Nexus app — More tools: SEO, ASO, email, ads, AI media, hashtags, UTM, templates, Ollama, brand kit.
+// NexaDrip app — More tools: SEO, ASO, email, ads, AI media, hashtags, UTM, templates, Ollama, brand kit.
 // One of the files in public/js, loaded in order by index.html (they share one
 // global scope, like the single app.js they came from).
 

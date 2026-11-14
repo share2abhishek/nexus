@@ -3,15 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Accept Workspace Invitation — Social-Nexus</title>
-  <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="stylesheet" href="styles.css" />
+  <title>Accept Workspace Invitation — NexaDrip</title>
+  <link rel="icon" type="image/svg+xml" href="icon.svg?v=2.3.0" />
+  <link rel="alternate icon" type="image/png" href="icon.png?v=2.3.0" />
+  <link rel="stylesheet" href="styles.css?v=2.3.0" />
 </head>
 <body>
 <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px">
   <div class="card" style="max-width:440px;width:100%;text-align:center">
     <div style="padding:32px 24px 16px">
-      <img src="icon.svg" alt="Social-Nexus" style="width:56px;height:56px;border-radius:14px;margin-bottom:16px" />
+      <img src="icon.svg?v=2.3.0" alt="NexaDrip" style="width:68px;height:68px;border-radius:16px;margin-bottom:16px;object-fit:contain" />
       <div style="font-size:22px;font-weight:700;margin-bottom:8px">Workspace Invitation</div>
       <div id="invite-status" style="font-size:14px;color:var(--text-muted)">Loading invitation…</div>
     </div>
@@ -59,11 +60,11 @@
       <div style="margin-bottom:20px;font-size:14px;color:var(--text-secondary)">
         You are now a member of <strong>${escapeHtml(data.workspace_name || 'the workspace')}</strong> as <strong>${escapeHtml(data.role || '')}</strong>.
       </div>
-      <a href="/" class="btn btn-primary" style="display:inline-flex">🚀 Open Social-Nexus</a>`;
+      <a href="/" class="btn btn-primary" style="display:inline-flex">🚀 Open NexaDrip</a>`;
   } catch (err) {
     statusEl.textContent = err.message;
     statusEl.style.color = '#ef4444';
-    bodyEl.innerHTML = `<a href="/" class="btn btn-secondary" style="display:inline-flex">← Back to Social-Nexus</a>`;
+    bodyEl.innerHTML = `<a href="/" class="btn btn-secondary" style="display:inline-flex">← Back to NexaDrip</a>`;
   }
 })();
 

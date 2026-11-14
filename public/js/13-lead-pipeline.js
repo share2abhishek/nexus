@@ -94,7 +94,7 @@ function renderPipelineConfig() {
     } else if (tunnel.status === 'connected') {
       badgeEl.innerHTML = pill('ok', 'Ready');
       if (subtextEl) subtextEl.textContent = 'Public address is on';
-      if (hintEl) hintEl.textContent = 'This address works while Social-Nexus is running. It changes when the app restarts: paste the new one into Meta then (we show it here).';
+      if (hintEl) hintEl.textContent = 'This address works while NexaDrip is running. It changes when the app restarts: paste the new one into Meta then (we show it here).';
       if (startBtn) startBtn.textContent = 'Renew address';
     } else if (tunnel.status === 'starting' || tunnel.status === 'reconnecting') {
       badgeEl.innerHTML = pill('warn', 'Starting…');
@@ -107,7 +107,7 @@ function renderPipelineConfig() {
     } else {
       badgeEl.innerHTML = pill('off', 'Not receiving yet');
       if (subtextEl) subtextEl.textContent = '';
-      if (hintEl) hintEl.textContent = 'Meta can only reach a public https address. Click “Start public address” to open one for this PC (it stays on while Social-Nexus is running).';
+      if (hintEl) hintEl.textContent = 'Meta can only reach a public https address. Click “Start public address” to open one for this PC (it stays on while NexaDrip is running).';
       if (startBtn) startBtn.textContent = 'Start public address';
     }
   }
@@ -1288,7 +1288,7 @@ async function openN8nStudioModal() {
               <span style="font-size:22px">🎛️</span>
               <div>
                 <h3 class="modal-title" style="margin:0">In-App n8n Workflow Studio</h3>
-                <div style="font-size:12px;color:var(--text-muted)">Visual multi-step automation pipeline executed natively inside Social-Nexus</div>
+                <div style="font-size:12px;color:var(--text-muted)">Visual multi-step automation pipeline executed natively inside NexaDrip</div>
               </div>
             </div>
             <button class="modal-close" onclick="document.querySelector('#modal-n8n-studio').remove()">✕</button>
@@ -2190,6 +2190,8 @@ function crmLeadCardHtml(l) {
   const sourceLabel = isWeb ? '⚡ Webchat' : 'Meta Ad';
   const sourceBg = isWeb ? '#ecfdf5' : '#eff6ff';
   const sourceColor = isWeb ? '#059669' : '#2563eb';
+  const currentStageKey = l.pipeline_stage || (l.status === 'qualified' ? 'qualified' : (l.status === 'contacted' ? 'contacted' : 'new'));
+  const currentStageObj = CRM_STAGES.find(s => s.key === currentStageKey) || CRM_STAGES[0];
 
   return `
     <div class="crm-card" draggable="true" data-lead-id="${l.id}" ondragstart="crmDragStart(event,${l.id})" ondragend="crmDragEnd(event)" style="cursor:grab;margin-bottom:8px">
@@ -2226,9 +2228,24 @@ function crmLeadCardHtml(l) {
             🔍 Details
           </button>
         </div>
-        <select onchange="changeLeadStageDirect(${l.id}, this.value)" onclick="event.stopPropagation()" style="font-size:11px;padding:2px 4px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);cursor:pointer">
-          ${CRM_STAGES.map(st => `<option value="${st.key}" ${(l.pipeline_stage || l.status) === st.key ? 'selected' : ''}>${st.label}</option>`).join('')}
-        </select>
+        <div class="crm-stage-picker" onclick="event.stopPropagation()">
+          <button type="button" class="crm-stage-pill" onclick="toggleCrmStageMenu(${l.id}, this, event)" title="Change pipeline stage">
+            <span class="crm-stage-dot" style="background:${currentStageObj.color}"></span>
+            <span class="crm-stage-name">${currentStageObj.label}</span>
+            <svg class="crm-stage-chevron" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
+            </svg>
+          </button>
+          <div class="crm-stage-menu" id="crm-stage-menu-${l.id}" style="display:none">
+            ${CRM_STAGES.map(st => `
+              <div class="crm-stage-option ${currentStageKey === st.key ? 'active' : ''}" onclick="selectCrmStage(${l.id}, '${st.key}', event)">
+                <span class="crm-stage-dot" style="background:${st.color}"></span>
+                <span class="crm-stage-opt-text">${st.label}</span>
+                ${currentStageKey === st.key ? '<span class="crm-stage-check">✓</span>' : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -2264,12 +2281,93 @@ async function changeLeadStageDirect(id, stage) {
   }
   renderCrmBoard();
   renderCrmKpis();
+  renderCrmTable();
   try {
     await api('PATCH', `/api/lead-pipeline/leads/${id}`, { pipeline_stage: stage, status: stage });
     toast(`Lead updated to ${stage.toUpperCase()}`, 'success');
   } catch (err) {
     toast(err.message || 'Could not update stage', 'error');
   }
+}
+
+function toggleCrmStageMenu(leadId, btnEl, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const picker = btnEl?.closest('.crm-stage-picker');
+  const menu = picker?.querySelector('.crm-stage-menu') || document.getElementById(`crm-stage-menu-${leadId}`);
+  if (!menu) return;
+  const isVisible = menu.classList.contains('active-menu') || menu.style.display === 'flex';
+
+  // Close all other stage menus
+  document.querySelectorAll('.crm-stage-menu').forEach(m => {
+    m.style.display = 'none';
+    m.classList.remove('active-menu');
+  });
+  document.querySelectorAll('.crm-stage-pill').forEach(b => { b.classList.remove('open'); });
+
+  if (!isVisible && btnEl) {
+    const rect = btnEl.getBoundingClientRect();
+    const menuWidth = 145;
+    const menuHeight = 215;
+
+    menu.style.position = 'fixed';
+    menu.style.zIndex = '99999';
+
+    // Check if space below is limited
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceBelow < menuHeight && rect.top > menuHeight) {
+      menu.style.top = (rect.top - menuHeight - 4) + 'px';
+      menu.style.bottom = 'auto';
+    } else {
+      menu.style.top = (rect.bottom + 4) + 'px';
+      menu.style.bottom = 'auto';
+    }
+
+    // Align horizontally with the pill button
+    let left = rect.right - menuWidth;
+    if (left < 10) left = 10;
+    if (left + menuWidth > window.innerWidth - 10) left = window.innerWidth - menuWidth - 10;
+    menu.style.left = left + 'px';
+    menu.style.right = 'auto';
+
+    btnEl.classList.add('open');
+    menu.classList.add('active-menu');
+    menu.style.display = 'flex';
+  }
+}
+
+function selectCrmStage(leadId, stageKey, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  document.querySelectorAll('.crm-stage-menu').forEach(m => {
+    m.style.display = 'none';
+    m.classList.remove('active-menu');
+  });
+  document.querySelectorAll('.crm-stage-pill').forEach(b => { b.classList.remove('open'); });
+  changeLeadStageDirect(leadId, stageKey);
+}
+
+// Global click and scroll listeners to close stage menus
+if (typeof window !== 'undefined' && !window._crmStageMenuListenerBound) {
+  window._crmStageMenuListenerBound = true;
+  window.addEventListener('click', () => {
+    document.querySelectorAll('.crm-stage-menu').forEach(m => {
+      m.style.display = 'none';
+      m.classList.remove('active-menu');
+    });
+    document.querySelectorAll('.crm-stage-pill').forEach(b => { b.classList.remove('open'); });
+  });
+  window.addEventListener('scroll', () => {
+    document.querySelectorAll('.crm-stage-menu.active-menu').forEach(m => {
+      m.style.display = 'none';
+      m.classList.remove('active-menu');
+    });
+    document.querySelectorAll('.crm-stage-pill.open').forEach(b => { b.classList.remove('open'); });
+  }, { passive: true, capture: true });
 }
 
 function renderCrmTable(query) {
@@ -2300,7 +2398,8 @@ function renderCrmTable(query) {
     const cleanPhone = (l.phone_number || '').replace(/[^0-9+]/g, '');
     const isWeb = l.leadgen_id && String(l.leadgen_id).startsWith('web:');
     const source = isWeb ? '⚡ UrbanSociety Webchat' : 'Meta Lead Ad';
-    const currentStage = l.pipeline_stage || (l.status === 'qualified' ? 'qualified' : (l.status === 'contacted' ? 'contacted' : 'new'));
+    const currentStageKey = l.pipeline_stage || (l.status === 'qualified' ? 'qualified' : (l.status === 'contacted' ? 'contacted' : 'new'));
+    const currentStageObj = CRM_STAGES.find(s => s.key === currentStageKey) || CRM_STAGES[0];
 
     return `
       <tr style="border-bottom:1px solid var(--border)">
@@ -2313,9 +2412,24 @@ function renderCrmTable(query) {
           <div style="font-size:11.5px;color:var(--text-muted)">${escapeHtml(l.email || '')}</div>
         </td>
         <td style="padding:12px 16px">
-          <select onchange="changeLeadStageDirect(${l.id}, this.value)" style="font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);font-weight:600;color:var(--text-primary);cursor:pointer">
-            ${CRM_STAGES.map(st => `<option value="${st.key}" ${currentStage === st.key ? 'selected' : ''}>${st.label}</option>`).join('')}
-          </select>
+          <div class="crm-stage-picker" onclick="event.stopPropagation()">
+            <button type="button" class="crm-stage-pill" onclick="toggleCrmStageMenu(${l.id}, this, event)" title="Change pipeline stage">
+              <span class="crm-stage-dot" style="background:${currentStageObj.color}"></span>
+              <span class="crm-stage-name">${currentStageObj.label}</span>
+              <svg class="crm-stage-chevron" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+            <div class="crm-stage-menu" id="crm-stage-menu-tbl-${l.id}" style="display:none">
+              ${CRM_STAGES.map(st => `
+                <div class="crm-stage-option ${currentStageKey === st.key ? 'active' : ''}" onclick="selectCrmStage(${l.id}, '${st.key}', event)">
+                  <span class="crm-stage-dot" style="background:${st.color}"></span>
+                  <span class="crm-stage-opt-text">${st.label}</span>
+                  ${currentStageKey === st.key ? '<span class="crm-stage-check">✓</span>' : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
         </td>
         <td style="padding:12px 16px">${scoreBadge}</td>
         <td style="padding:12px 16px">
@@ -2671,7 +2785,7 @@ function onBroadcastTemplateChange(val) {
   } else if (val === 'committee') {
     textarea.value = 'Hi {{name}}, thanks for getting in touch! Reply here if you have any questions.';
   } else if (val === 'official_test') {
-    textarea.value = 'Hello! This is a test message from Social-Nexus.';
+    textarea.value = 'Hello! This is a test message from NexaDrip.';
   }
 
   updateBroadcastPhoneMockup();
@@ -4357,6 +4471,8 @@ Object.assign(window, {
     crmLeadCardHtml,
     crmDropCrm,
     changeLeadStageDirect,
+    toggleCrmStageMenu,
+    selectCrmStage,
     renderCrmTable,
     onFilterCrm,
     loadCrmReports,
@@ -4440,6 +4556,8 @@ window.deleteLeadContact = deleteLeadContact;
 window.deleteLeadContactFromModal = deleteLeadContactFromModal;
 window.deleteSelectedContacts = deleteSelectedContacts;
 window.openInAppWhatsAppChat = openInAppWhatsAppChat;
+window.toggleCrmStageMenu = toggleCrmStageMenu;
+window.selectCrmStage = selectCrmStage;
 
 // Above the chat: say when auto-replies are paused here (a person replied) or the
 // contact opted out of broadcasts, with a way to let the bot answer again

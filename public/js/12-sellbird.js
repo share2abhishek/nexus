@@ -1,5 +1,5 @@
 // public/js/12-sellbird.js
-// Reactive Controller for Sellbird Autonomous B2B Sales Agent in Social-Nexus.
+// Reactive Controller for Sellbird Autonomous B2B Sales Agent in NexaDrip.
 // Faithfully matches sellbird.ai screenshots (Nordic teal / glass theme, split-card approval queue, signal-driven prospecting, 14-day campaign sparklines, Claude Code conversation triage).
 
 /* ─────────────────────────────────────────────────────────────────────────────
