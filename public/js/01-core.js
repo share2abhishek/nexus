@@ -403,7 +403,11 @@ async function api(method, path, body = null) {
     return;
   }
   if (!res.ok) {
-    if (data.error) throw new Error(data.error);
+    if (data.error) {
+      // A missing setup step (AI key, account, email) gets a pop-up that helps fix it
+      if (typeof SetupGate !== 'undefined') SetupGate.offer(data.error);
+      throw new Error(data.error);
+    }
     // No message from the server: say what it means instead of "HTTP 404"
     if (res.status === 404) throw new Error('The app’s server doesn’t know this action. It was probably started before an update: close NexaDrip completely and start it again.');
     if (res.status >= 500) throw new Error('Something went wrong in the app’s server. Try again; if it keeps happening, restart NexaDrip.');

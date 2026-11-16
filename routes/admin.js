@@ -180,6 +180,66 @@ router.post('/organizations/:id/extend', requireSuperAdmin, async (req, res) => 
 // Radixile's own keys, used as a last-resort fallback for businesses that haven't
 // added their own. Server edition only (the desktop app uses .env / Local AI).
 
+// ── Help chat: knowledge base and enquiries (Super Admin) ─────────────────────
+// What the landing-page chat and the in-app help chat know, and the questions they passed on.
+const helpKb = require('../services/helpKnowledge');
+const kbRow = (b) => {
+  const audience = ['public', 'app', 'both'].includes(b.audience) ? b.audience : null;
+  const question = String(b.question || '').trim().slice(0, 200);
+  const answer = String(b.answer || '').trim().slice(0, 1500);
+  if (!audience) return { error: 'Choose who this is for: website visitors, people in the app, or both.' };
+  if (!question || !answer) return { error: 'Write the question and the answer.' };
+  const go = String(b.go || '').trim();
+  if (go && !/^(settings:[a-z-]+|page:[a-z-]+|action:[a-z-]+|link:\/[\w#?=&./-]*)$/.test(go)) return { error: 'The button target is not valid. Use settings:ai, page:compose or link:/login.html#register.' };
+  return { row: { audience, question, keywords: String(b.keywords || '').trim().slice(0, 400), answer, go: go || null, enabled: b.enabled === false || b.enabled === 0 ? 0 : 1, updated_at: Math.floor(Date.now() / 1000) } };
+};
+
+router.get('/help-kb', requireSuperAdmin, async (req, res) => {
+  try {
+    await helpKb.load(knexInstance); // makes sure the built-in answers are in the table
+    res.json(await knexInstance('help_knowledge').orderBy('audience').orderBy('id'));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/help-kb', requireSuperAdmin, async (req, res) => {
+  const { row, error } = kbRow(req.body || {});
+  if (error) return res.status(400).json({ error });
+  const [id] = await knexInstance('help_knowledge').insert(row).returning('id');
+  helpKb.invalidate();
+  res.json({ success: true, id: id?.id ?? id });
+});
+router.put('/help-kb/:id', requireSuperAdmin, async (req, res) => {
+  const { row, error } = kbRow(req.body || {});
+  if (error) return res.status(400).json({ error });
+  const n = await knexInstance('help_knowledge').where({ id: Number(req.params.id) }).update(row);
+  helpKb.invalidate();
+  res.status(n ? 200 : 404).json(n ? { success: true } : { error: 'Not found' });
+});
+router.delete('/help-kb/:id', requireSuperAdmin, async (req, res) => {
+  await knexInstance('help_knowledge').where({ id: Number(req.params.id) }).del();
+  helpKb.invalidate();
+  res.json({ success: true });
+});
+// Put back any built-in answer that was deleted (edited ones stay as they are)
+router.post('/help-kb/restore', requireSuperAdmin, async (req, res) => {
+  res.json({ success: true, added: await helpKb.seedDefaults(knexInstance) });
+});
+// Try a question the way a visitor would, without using AI: which answers match and what shows
+router.post('/help-kb/test', requireSuperAdmin, async (req, res) => {
+  const audience = req.body?.audience === 'app' ? 'app' : 'public';
+  const entries = await helpKb.load(knexInstance);
+  const out = await require('../services/helpAssistant').answer({ audience, message: req.body?.message, entries });
+  res.json({ ...out, matched: helpKb.find(String(req.body?.message || ''), audience, 3, entries).map((e) => e.q) });
+});
+
+router.get('/help-enquiries', requireSuperAdmin, async (req, res) => {
+  try { res.json(await knexInstance('help_enquiries').orderBy('id', 'desc').limit(200)); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/help-enquiries/:id/done', requireSuperAdmin, async (req, res) => {
+  await knexInstance('help_enquiries').where({ id: Number(req.params.id) }).update({ status: req.body?.status === 'new' ? 'new' : 'done' });
+  res.json({ success: true });
+});
+
 router.get('/platform-ai', requireSuperAdmin, async (req, res) => {
   try {
     res.json({ keys: await require('../services/platformAi').publicView() });

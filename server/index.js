@@ -166,6 +166,8 @@ app.use('/auth',       authRoutes);   // OAuth platform callbacks
 app.use('/users',      usersRoutes);  // register / login / logout / me
 app.use('/admin',      adminRoutes);  // super admin dashboard
 app.use('/ollama',     ollamaSetupGuard, ollamaRoutes); // guided AI setup (status / pull)
+const helpChat = require('../routes/assistant')(knex);
+app.use('/api/assistant/public', helpChat.pub); // landing-page chat: no sign-in
 app.use('/api/webhooks', require('../routes/webhooks')(knex)); // Meta Lead Ads & Messenger Webhooks (HMAC-SHA256 verified)
 // Hosted edition: client approval links are served by this app (no relay or licence server)
 if (isHosted) {
@@ -213,6 +215,7 @@ app.use('/api/companion', requireAuth, (() => {
   return r;
 })());
 app.use('/api/cloud/status', requireAuth, async (req, res) => res.json({ enabled: await require('../services/cloudPosting').enabled() }));
+app.use('/api/assistant', requireAuth, withWorkspace, injectUserKeys, helpChat.app); // in-app help chat
 app.use('/api/inbox', requireAuth, withWorkspace, injectUserKeys, require('../routes/inbox')(knex, requirePermission));
 app.use('/api/media-library', requireAuth, withWorkspace, require('../routes/mediaLibrary')(knex, requirePermission));
 app.use('/api',        requireAuth, withWorkspace, injectUserKeys, apiRoutes);

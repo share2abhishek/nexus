@@ -43,6 +43,10 @@
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-square-pen"/></svg>
           <span class="nav-label">Create post</span>
         </a>
+        <a class="nav-item" data-page="generate" id="nav-generate" title="AI content generator">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-sparkles"/></svg>
+          <span class="nav-label">AI writer</span>
+        </a>
         <a class="nav-item" data-page="calendar" id="nav-calendar" title="Everything planned and published">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-calendar-days"/></svg>
           <span class="nav-label">Calendar</span>
@@ -58,6 +62,10 @@
         <a class="nav-item" data-page="media" id="nav-media" title="Generate AI images and videos">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-image"/></svg>
           <span class="nav-label">AI images &amp; video</span>
+        </a>
+        <a class="nav-item" data-page="tools-directory" id="nav-tools-directory" title="Other AI tools &amp; models">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-blocks"/></svg>
+          <span class="nav-label">Other AI tools</span>
         </a>
         <a class="nav-item" data-page="library" id="nav-library" title="Organize image and video assets">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-folder-open"/></svg>
@@ -199,14 +207,6 @@
           <span class="nav-label">Users &amp; access</span>
           <span class="nav-badge" id="admin-users-badge"></span>
         </a>
-        <a class="nav-item" data-page="generate" id="nav-generate" title="AI content generator">
-          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-sparkles"/></svg>
-          <span class="nav-label">AI writer</span>
-        </a>
-        <a class="nav-item" data-page="tools-directory" id="nav-tools-directory" title="Other AI tools &amp; models">
-          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-blocks"/></svg>
-          <span class="nav-label">Other AI tools</span>
-        </a>
         <a class="nav-item" data-page="files" id="nav-files" title="Manage local files">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-folder-open"/></svg>
           <span class="nav-label">Files on this PC</span>
@@ -290,32 +290,58 @@
     <!-- ── Dashboard ────────────────────────────────────────────────────── -->
     <section class="page active" id="page-dashboard">
 
-      <div class="stats-grid">
-        <div class="stat-card">
-          <span class="stat-icon">📤</span>
-          <div class="stat-value" id="stat-total-posts">0</div>
-          <div class="stat-label">Total Posts</div>
+      <!-- Greeting + what needs attention -->
+      <div class="dash-hello">
+        <div>
+          <h2 class="dash-hello-title" id="dash-greeting">Welcome back</h2>
+          <div class="dash-hello-sub" id="dash-hello-sub">Here’s how your posting is going.</div>
         </div>
-        <div class="stat-card">
-          <span class="stat-icon">⏰</span>
-          <div class="stat-value" id="stat-scheduled">0</div>
-          <div class="stat-label">Scheduled</div>
-          <div class="stat-sub" id="stat-next-post"></div>
+        <div class="dash-hello-actions">
+          <button class="btn btn-primary btn-sm" onclick="navigateTo('compose')">New post</button>
+          <button class="btn btn-secondary btn-sm" onclick="navigateTo('calendar')">Calendar</button>
         </div>
-        <div class="stat-card">
-          <span class="stat-icon">✨</span>
-          <div class="stat-value" id="stat-ai-generated">0</div>
-          <div class="stat-label">AI Generated</div>
+      </div>
+      <div class="dash-setup" id="dash-setup" hidden></div>
+      <div class="dash-attention" id="dash-attention" hidden aria-live="polite"></div>
+
+      <!-- Numbers that matter -->
+      <div class="dash-kpis">
+        <div class="dash-kpi">
+          <div class="dash-kpi-label">Published, last 30 days</div>
+          <div class="dash-kpi-value" id="stat-total-posts">0</div>
+          <div class="dash-kpi-sub" id="stat-posts-trend">&nbsp;</div>
         </div>
-        <div class="stat-card">
-          <span class="stat-icon">🔗</span>
-          <div class="stat-value" id="stat-platforms">0/6</div>
-          <div class="stat-label">Platforms Connected</div>
+        <div class="dash-kpi">
+          <div class="dash-kpi-label">Scheduled</div>
+          <div class="dash-kpi-value" id="stat-scheduled">0</div>
+          <div class="dash-kpi-sub" id="stat-next-post">&nbsp;</div>
+        </div>
+        <div class="dash-kpi">
+          <div class="dash-kpi-label">Accounts connected</div>
+          <div class="dash-kpi-value" id="stat-platforms">0/0</div>
+          <div class="dash-kpi-sub" id="stat-platforms-sub">&nbsp;</div>
+        </div>
+        <div class="dash-kpi">
+          <div class="dash-kpi-label">Written with AI</div>
+          <div class="dash-kpi-value" id="stat-ai-generated">0</div>
+          <div class="dash-kpi-sub" id="stat-ai-sub">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="dash-panels">
+        <div class="card dash-panel">
+          <div class="dash-panel-head"><div class="dash-panel-title">Coming up</div><button class="btn btn-secondary btn-sm" onclick="navigateTo('calendar')">Calendar</button></div>
+          <div id="dash-upcoming"></div>
+        </div>
+        <div class="card dash-panel">
+          <div class="dash-panel-head"><div class="dash-panel-title">Last 14 days</div><span class="dash-legend"><i class="lg-pub"></i>Published <i class="lg-sch"></i>Planned</span></div>
+          <div class="dash-bars" id="dash-bars" role="img" aria-label="Posts per day for the last 14 days"></div>
+          <div class="dash-split" id="dash-split"></div>
         </div>
       </div>
 
       <!-- ── 3-Pillar Operations Hub (B2B, B2C, and Social Suite) ────────────────── -->
-      <div class="dashboard-pillars-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:20px 0 24px">
+      <div class="dashboard-pillars-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:16px;margin:20px 0 24px">
         
         <!-- Pillar 1: Social Media & Multi-Channel Suite -->
         <div class="card" style="padding:18px;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);display:flex;flex-direction:column;justify-content:space-between">
@@ -2641,7 +2667,7 @@
                 <button class="btn btn-secondary btn-sm" onclick="enhanceImagePrompt()" id="btn-enhance-prompt" style="flex:1">✨ Enhance Prompt</button>
               </div>
               <button class="btn btn-primary btn-lg" onclick="generateImage()" id="btn-gen-image" style="width:100%">🖼️ Generate Image</button>
-              <div class="form-hint" style="margin-top:8px">Requires STABILITY_API_KEY or OPENAI_API_KEY in .env</div>
+              <div class="form-hint" style="margin-top:8px">Needs a picture AI key (Stability AI or OpenAI). <a href="javascript:void(0)" onclick="openSettings('ai')">Add it in Settings → AI</a></div>
             </div>
           </div>
           <div class="card"><div class="card-header"><div class="card-title">🖼️ Generated Image</div>
@@ -2680,7 +2706,7 @@
                 </select>
               </div>
               <button class="btn btn-primary btn-lg" onclick="generateVideo()" id="btn-gen-video" style="width:100%">🎬 Generate Video</button>
-              <div class="form-hint" style="margin-top:8px">Requires LUMA_API_KEY or RUNWAY_API_KEY in .env</div>
+              <div class="form-hint" style="margin-top:8px">Needs a video AI key (Luma or Runway). <a href="javascript:void(0)" onclick="openSettings('ai')">Add it in Settings → AI</a></div>
             </div>
           </div>
           <div class="card"><div class="card-header"><div class="card-title">🎬 Video Status</div></div>
@@ -2712,7 +2738,7 @@
                   </select>
                 </div>
                 <button class="btn btn-primary btn-lg" onclick="generateAnimation()" id="btn-gen-anim" style="width:100%;margin-top:8px">✨ Generate Animation</button>
-                <div class="form-hint" style="margin-top:8px">Requires STABILITY_API_KEY in .env</div>
+                <div class="form-hint" style="margin-top:8px">Needs a Stability AI key. <a href="javascript:void(0)" onclick="openSettings('ai')">Add it in Settings → AI</a></div>
               </div>
             </div>
             <div id="animation-output" style="margin-top:16px"></div>
@@ -2959,6 +2985,7 @@
         <button class="btn btn-secondary btn-sm admin-tab-btn" onclick="switchAdminTab('activity',this)">📋 Activity Log</button>
         <button class="btn btn-secondary btn-sm admin-tab-btn" onclick="switchAdminTab('config',this)">⚙️ Platform Config</button>
         <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-platform-ai" onclick="switchAdminTab('platform-ai',this)" hidden>🤖 Platform AI</button>
+        <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-help-chat" onclick="switchAdminTab('help-chat',this)" hidden>💬 Help chat</button>
       </div>
 
       <!-- Overview -->
@@ -3074,6 +3101,42 @@
           </div>
         </div>
         <button class="btn btn-primary" onclick="saveAdminConfig()" style="margin-top:8px">💾 Save Configuration</button>
+      </div>
+
+      <!-- Help chat knowledge base + enquiries (Super Admin only) -->
+      <div class="admin-panel" id="admin-panel-help-chat" style="display:none">
+        <div class="settings-section">
+          <div class="settings-section-header"><div>
+            <div class="settings-section-title">💬 Help chat knowledge base</div>
+            <div class="settings-section-sub">What the chat on the website and the help chat inside the app know. They answer only from these entries, so keep them true and short. Changes apply within seconds. <span id="help-kb-count"></span></div>
+          </div></div>
+          <div class="help-kb-bar">
+            <select class="form-select" id="help-kb-filter" onchange="renderHelpKb()" aria-label="Show"><option value="all">All</option><option value="public">Website visitors</option><option value="app">Inside the app</option></select>
+            <input type="search" class="form-input" id="help-kb-search" placeholder="Search answers" oninput="renderHelpKb()" aria-label="Search answers" />
+            <button class="btn btn-primary btn-sm" onclick="helpKbOpenForm()">+ Add an answer</button>
+            <button class="btn btn-secondary btn-sm" onclick="helpKbRestore(this)" title="Bring back any built-in answer you deleted">Restore built-in answers</button>
+          </div>
+          <div class="help-kb-form" id="help-kb-form" hidden>
+            <div class="settings-section-title" id="hk-title" style="font-size:14px;margin-bottom:8px">Add an answer</div>
+            <div class="form-group"><label class="form-label" for="hk-audience">Who sees it</label><select class="form-select" id="hk-audience"><option value="public">Website visitors (landing page chat)</option><option value="app">People inside the app</option><option value="both">Both</option></select></div>
+            <div class="form-group"><label class="form-label" for="hk-question">A question people ask</label><input class="form-input" id="hk-question" maxlength="200" placeholder="e.g. Do you offer a refund?" /></div>
+            <div class="form-group"><label class="form-label" for="hk-keywords">Words that should match it <small>(comma separated)</small></label><input class="form-input" id="hk-keywords" maxlength="400" placeholder="refund, money back, cancel" /></div>
+            <div class="form-group"><label class="form-label" for="hk-answer">The answer</label><textarea class="form-textarea" id="hk-answer" maxlength="1500" style="min-height:90px" placeholder="Short, in plain words. Only facts you are happy to stand behind."></textarea></div>
+            <div class="form-group"><label class="form-label" for="hk-go">Button under the answer <small>(optional)</small></label><input class="form-input" id="hk-go" placeholder="settings:ai · page:compose · link:/login.html#register" /><div class="form-hint">settings:&lt;ai|platforms|smtp|license|members|account&gt;, page:&lt;compose|calendar|history|brand|seo…&gt; or link:/path. Buttons that open app pages only work inside the app; link: works everywhere.</div></div>
+            <div class="sg-err" id="hk-error" role="alert" hidden></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-secondary" onclick="helpKbCancel()">Cancel</button><button class="btn btn-primary" onclick="helpKbSave(this)">Save</button></div>
+          </div>
+          <div id="help-kb-list"></div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-header"><div><div class="settings-section-title">🧪 Try a question</div><div class="settings-section-sub">See what a visitor would be told, without using any AI.</div></div></div>
+          <div class="help-kb-bar"><select class="form-select" id="hk-test-for" aria-label="As"><option value="public">As a visitor</option><option value="app">As an app user</option></select><input class="form-input" id="hk-test-q" placeholder="Type a question" onkeydown="if(event.key==='Enter')helpKbTest(document.getElementById('hk-test-btn'))" /><button class="btn btn-secondary btn-sm" id="hk-test-btn" onclick="helpKbTest(this)">Try it</button></div>
+          <div class="help-kb-test" id="hk-test-out" aria-live="polite"></div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-header"><div><div class="settings-section-title">📨 Enquiries</div><div class="settings-section-sub">Questions the chat could not answer and “talk to a person” requests. <span id="help-enq-count"></span> To get an email for each one, set SUPPORT_NOTIFY_EMAIL on the server.</div></div></div>
+          <div id="help-enq-list"></div>
+        </div>
       </div>
 
       <!-- Platform-default AI keys (Super Admin only) -->
@@ -4426,6 +4489,8 @@
 <script src="js/18-post-extras.js?v=2.2.0"></script>
 <script src="js/19-seo-autopilot.js?v=2.2.0"></script>
 <script src="js/20-ai-knowledge-base.js?v=2.2.1"></script>
+<script src="js/21-guidance.js?v=2.2.1"></script>
+<script src="js/22-help-chat-admin.js?v=2.2.1"></script>
 
 <!-- ── Modal: 7-Step Meta Business Verification & Official Blue/Green Tick Hub ── -->
 <div class="modal" id="modal-meta-verification" style="display:none">
@@ -4916,5 +4981,6 @@
   </div>
 </div>
 
+<script src="assistant-widget.js" data-mode="app" defer></script>
 </body>
 </html>

@@ -23,6 +23,18 @@ Newest first. Paste the section for a version into the GitHub Release
 - **Platform filter:** hide or show Facebook, Instagram, LinkedIn and so on.
 - The calendar remembers your last view and choices. It always asks for posts by workspace name, so it can't show one workspace's posts under another's name.
 
+### Help chat on the website and inside the app
+
+A chat button on the landing page answers visitors about features, pricing and the free trial, and a Help & support chat inside the app answers how-to questions and can open the right screen for you (for example Settings → AI). Both answer only from a knowledge base the Super Admin edits under Users & access → Help chat: add, change, switch off or delete answers, restore the built-in ones, and try a question before visitors see it. Questions the chat cannot answer, and "talk to a person" requests, are saved as enquiries in the same place (set SUPPORT_NOTIFY_EMAIL to also get each one by email). The website chat is rate limited and shares a daily AI budget (HELP_PUBLIC_DAILY_LIMIT, default 400); without AI it shows the written answers.
+
+### Guided setup, no training needed
+
+Home shows a "Get set up" checklist (connect an account, turn on AI, set up email) until each is done. When something fails because a step is missing (no AI key, account not connected, email not set up), a pop-up explains it and fixes it on the spot: for AI you paste a free Google key right there. A thin bar at the top shows when the app is waiting on the server, with a note after 9 seconds that AI can take a while. AI writer and Other AI tools moved out of Settings into the main menu, and the old "needs a key in .env" notes now point to Settings → AI.
+
+### A more useful Home screen
+
+Home now opens with a greeting and a short list of what needs your attention (posts that did not go out, accounts to sign in again, nothing planned for the week, sales emails to check). Below it are four numbers that compare with the previous 30 days, a Coming up list, a 14-day published/planned chart and a split by platform. On phones the numbers show two per row instead of one very tall card each.
+
 ### Email sending works with any provider
 - **Settings → Email sending** now has a provider list: Gmail, Outlook.com / Hotmail, Microsoft 365, **Amazon SES (AWS)** with a region choice, Google Workspace, Yahoo, Zoho (India and global), SendGrid, Mailgun, Brevo, Postmark, Mailjet, iCloud, GoDaddy, Hostinger / Titan, Namecheap, and **Other** for any mail server. Choosing one fills in the server, port and security, and explains what that provider needs (an app password, an SMTP key, a verified sender…).
 - **Connection security** can be set (STARTTLS or SSL/TLS), and follows the port by default.

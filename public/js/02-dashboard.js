@@ -42,9 +42,12 @@ function renderDashboardPlatforms() {
 }
 
 function updateStatPlatforms() {
-  const all = Object.values(State.platformStatus);
-  const count = all.filter(s => s?.connected).length;
-  setEl('stat-platforms', `${count}/${all.length || Object.values(PLATFORMS).filter(p => !p.hidden).length}`);
+  const visible = Object.entries(PLATFORMS).filter(([, c]) => !c.hidden).map(([k]) => k);
+  const st = State.platformStatus || {};
+  const count = visible.filter(k => st[k]?.connected).length;
+  setEl('stat-platforms', `${count}/${visible.length}`);
+  const fix = visible.filter(k => st[k]?.needs_reconnect || (st[k]?.connected && st[k].reconnect_in_days != null && st[k].reconnect_in_days <= 14)).length;
+  setEl('stat-platforms-sub', fix ? `${fix} need${fix === 1 ? 's' : ''} signing in again` : count ? 'All working' : 'Connect your first one');
 }
 
 // Sidebar: a small count on Settings when an account needs signing in again
@@ -65,35 +68,134 @@ async function loadDashboard() {
   loadActivityFeed();
 }
 
+const DASH_DAY = 86400;
+const dashPlat = (p) => PLATFORMS[p]?.icon || '';
+const dashDay = (ts) => { const d = new Date(ts * 1000); d.setHours(0, 0, 0, 0); return d.getTime(); };
+
+function dashGreeting() {
+  const h = new Date().getHours();
+  const part = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const name = String(State.user?.name || State.user?.email?.split('@')[0] || '').trim().split(/\s+/)[0];
+  setEl('dash-greeting', name ? `${part}, ${name}` : part);
+}
+
+// "Needs your attention" chips: only things the user can act on
+function renderDashAttention(items) {
+  const box = document.getElementById('dash-attention');
+  if (!box) return;
+  if (!items.length) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  box.innerHTML = items.map(i => `<button type="button" class="dash-att ${i.tone || ''}" onclick="${i.go}"><span class="dash-att-ico" aria-hidden="true">${i.icon}</span><span class="dash-att-text"><b>${escapeHtml(i.title)}</b><small>${escapeHtml(i.hint)}</small></span><span class="dash-att-go" aria-hidden="true">›</span></button>`).join('');
+}
+
+function renderDashUpcoming(scheduled) {
+  const box = document.getElementById('dash-upcoming');
+  if (!box) return;
+  const now = Date.now();
+  const list = scheduled.filter(p => p.scheduled_at * 1000 > now - 60000).sort((a, b) => a.scheduled_at - b.scheduled_at).slice(0, 5);
+  if (!list.length) {
+    box.innerHTML = `<div class="dash-empty"><div>Nothing is scheduled yet.</div><button class="btn btn-primary btn-sm" onclick="navigateTo('compose')">Schedule a post</button></div>`;
+    return;
+  }
+  const today = dashDay(now / 1000);
+  box.innerHTML = list.map(p => {
+    const d = new Date(p.scheduled_at * 1000);
+    const day = dashDay(p.scheduled_at);
+    const when = day === today ? 'Today' : day === today + DASH_DAY * 1000 ? 'Tomorrow' : d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+    const text = String(p.content || '').replace(/\s+/g, ' ').trim();
+    return `<button type="button" class="dash-up" onclick="navigateTo('calendar')">
+      <span class="dash-up-when"><b>${escapeHtml(when)}</b><small>${d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}</small></span>
+      <span class="dash-up-body"><span class="dash-up-text">${escapeHtml(text.slice(0, 90)) || 'Picture post'}${text.length > 90 ? '…' : ''}</span>
+      <span class="dash-up-plat">${(Array.isArray(p.platforms) ? p.platforms : []).map(dashPlat).join(' ')}</span></span></button>`;
+  }).join('');
+}
+
+// 14 columns: published (solid) and planned (light) per day, and a per-platform split of the last 30 days
+function renderDashActivity(posts, scheduled) {
+  const bars = document.getElementById('dash-bars');
+  const split = document.getElementById('dash-split');
+  if (!bars) return;
+  const today = dashDay(Date.now() / 1000);
+  const days = Array.from({ length: 14 }, (_, i) => today - (13 - i) * DASH_DAY * 1000);
+  const pub = new Map(days.map(d => [d, 0])), sch = new Map(days.map(d => [d, 0]));
+  posts.filter(p => p.status !== 'failed').forEach(p => { const k = dashDay(p.created_at); if (pub.has(k)) pub.set(k, pub.get(k) + 1); });
+  scheduled.forEach(p => { const k = dashDay(p.scheduled_at); if (sch.has(k)) sch.set(k, sch.get(k) + 1); });
+  const max = Math.max(1, ...days.map(d => pub.get(d) + sch.get(d)));
+  bars.innerHTML = days.map(d => {
+    const a = pub.get(d), b = sch.get(d), dt = new Date(d);
+    const label = `${dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}: ${a} published, ${b} planned`;
+    return `<div class="dash-bar ${d === today ? 'today' : ''}" title="${label}"><div class="dash-bar-stack"><i class="sch" style="height:${(b / max) * 100}%"></i><i class="pub" style="height:${(a / max) * 100}%"></i></div><span>${dt.getDate()}</span></div>`;
+  }).join('');
+
+  const since = Date.now() / 1000 - 30 * DASH_DAY;
+  const per = {};
+  posts.filter(p => p.status !== 'failed' && p.created_at >= since).forEach(p => (Array.isArray(p.platforms) ? p.platforms : []).forEach(k => { per[k] = (per[k] || 0) + 1; }));
+  const rows = Object.entries(per).sort((x, y) => y[1] - x[1]).slice(0, 4);
+  const top = rows[0]?.[1] || 1;
+  split.innerHTML = rows.length ? rows.map(([k, n]) => `<div class="dash-split-row"><span class="dash-split-name">${dashPlat(k)} ${escapeHtml(PLATFORMS[k]?.label || k)}</span><span class="dash-split-track"><i style="width:${Math.max(6, (n / top) * 100)}%"></i></span><b>${n}</b></div>`).join('') : '<div class="dash-empty small">Posts you publish will show here by platform.</div>';
+}
+
 async function loadDashboardStats() {
+  dashGreeting();
+  const att = [];
+  let posts = [], scheduled = [], ai = [], failed = [];
   try {
-    const [posts, scheduled, aiHistory] = await Promise.all([
-      api('GET', '/api/posts/history'),
+    [posts, scheduled, ai, failed] = await Promise.all([
+      api('GET', '/api/posts/history?limit=200'),
       api('GET', '/api/posts/scheduled'),
       api('GET', '/api/history'),
+      api('GET', '/api/posts/scheduled/failed').catch(() => []),
     ]);
-    // Count only posts that actually went out on at least one platform
-    setEl('stat-total-posts', posts.filter(p => p.status !== 'failed').length);
-    setEl('stat-scheduled', scheduled.length);
-    const next = scheduled.map(p => p.scheduled_at).filter(t => t && t * 1000 > Date.now()).sort((a, b) => a - b)[0];
-    setEl('stat-next-post', next ? `Next: ${new Date(next * 1000).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}` : '');
-    setEl('stat-ai-generated', aiHistory.length);
-  } catch {}
+  } catch { return; }
 
-  // Gracefully update B2B Sales Agent badge if active campaigns exist
+  const nowS = Date.now() / 1000;
+  const ok = posts.filter(p => p.status !== 'failed');
+  const last30 = ok.filter(p => p.created_at >= nowS - 30 * DASH_DAY).length;
+  const prev30 = ok.filter(p => p.created_at < nowS - 30 * DASH_DAY && p.created_at >= nowS - 60 * DASH_DAY).length;
+  setEl('stat-total-posts', last30);
+  const trend = document.getElementById('stat-posts-trend');
+  if (trend) {
+    trend.className = 'dash-kpi-sub';
+    if (prev30 > 0 || last30 > 0) {
+      const diff = last30 - prev30;
+      trend.textContent = prev30 ? (diff === 0 ? 'Same as the 30 days before' : `${diff > 0 ? '▲' : '▼'} ${Math.abs(diff)} ${diff > 0 ? 'more' : 'fewer'} than the 30 days before`) : `${ok.length} in total`;
+      if (prev30 && diff !== 0) trend.classList.add(diff > 0 ? 'up' : 'down');
+    } else trend.textContent = 'Nothing published yet';
+  }
+
+  setEl('stat-scheduled', scheduled.length);
+  const next = scheduled.map(p => p.scheduled_at).filter(t => t && t * 1000 > Date.now()).sort((a, b) => a - b)[0];
+  setEl('stat-next-post', next ? `Next: ${new Date(next * 1000).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}` : 'Nothing planned');
+  setEl('stat-ai-generated', ai.length);
+  const aiMonth = ai.filter(h => h.created_at >= nowS - 30 * DASH_DAY).length;
+  setEl('stat-ai-sub', aiMonth ? `${aiMonth} in the last 30 days` : 'None this month');
+
+  renderDashUpcoming(scheduled);
+  renderDashActivity(posts, scheduled);
+
+  // What needs attention, most urgent first
+  if (failed.length) att.push({ tone: 'bad', icon: '⚠️', title: `${failed.length} post${failed.length === 1 ? '' : 's'} didn’t go out`, hint: 'See why and try again', go: "navigateTo('history')" });
+  const st = State.platformStatus || {};
+  const fix = Object.entries(PLATFORMS).filter(([k, c]) => !c.hidden && (st[k]?.needs_reconnect || (st[k]?.connected && st[k].reconnect_in_days != null && st[k].reconnect_in_days <= 7))).map(([, c]) => c.label);
+  if (fix.length) att.push({ tone: 'warn', icon: '🔑', title: `Sign in again: ${fix.slice(0, 2).join(', ')}${fix.length > 2 ? ` +${fix.length - 2}` : ''}`, hint: 'Posting stops when the login expires', go: "openSettings('platforms')" });
+  const connected = Object.entries(PLATFORMS).filter(([k, c]) => !c.hidden && st[k]?.connected).length;
+  // (no account connected is covered by the Get set up checklist above)
+  if (connected && !scheduled.some(p => p.scheduled_at * 1000 > Date.now() && p.scheduled_at * 1000 < Date.now() + 7 * DASH_DAY * 1000)) att.push({ tone: 'info', icon: '📅', title: 'Nothing planned for the next 7 days', hint: 'Plan a few posts so your page stays active', go: "navigateTo('compose')" });
+
   try {
-    const sbStats = await api('GET', '/api/sellbird/stats');
+    const sb = await api('GET', '/api/sellbird/stats');
     const badge = document.getElementById('dash-sellbird-badge');
-    if (badge && sbStats) {
-      if (sbStats.pending_approvals > 0) {
-        badge.textContent = `${sbStats.pending_approvals} to check`;
-        badge.style.background = '#fef3c7';
-        badge.style.color = '#92400e';
-      } else {
-        badge.textContent = sbStats.active_campaigns ? `${sbStats.active_campaigns} campaign${sbStats.active_campaigns === 1 ? "" : "s"}` : "";
+    if (sb) {
+      if (sb.pending_approvals > 0) att.push({ tone: 'info', icon: '💼', title: `${sb.pending_approvals} sales email${sb.pending_approvals === 1 ? '' : 's'} to check`, hint: 'Approve them before they are sent', go: "navigateTo('sellbird')" });
+      if (badge) {
+        if (sb.pending_approvals > 0) { badge.textContent = `${sb.pending_approvals} to check`; badge.style.background = '#fef3c7'; badge.style.color = '#92400e'; }
+        else badge.textContent = sb.active_campaigns ? `${sb.active_campaigns} campaign${sb.active_campaigns === 1 ? '' : 's'}` : '';
       }
     }
   } catch {}
+  renderDashAttention(att);
+  if (typeof renderSetupChecklist === 'function') renderSetupChecklist();
+  setEl('dash-hello-sub', att.length ? `${att.length} thing${att.length === 1 ? '' : 's'} need${att.length === 1 ? 's' : ''} your attention.` : 'You’re all caught up.');
 }
 
 async function loadActivityFeed() {

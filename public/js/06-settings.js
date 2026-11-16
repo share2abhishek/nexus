@@ -854,6 +854,7 @@ function switchAdminTab(tab, btn) {
   if (tab === 'activity') loadAdminActivity();
   if (tab === 'config')   loadAdminConfig();
   if (tab === 'platform-ai') loadPlatformAiKeys();
+  if (tab === 'help-chat') loadHelpAdmin();
 }
 
 async function loadAdminDashboard() {
@@ -869,6 +870,9 @@ async function loadAdminDashboard() {
     const isSuper = State.user?.is_super_admin || State.user?.role === 'superadmin';
     paTab.hidden = !(isSuper && State.server);
   }
+  // Help chat knowledge base: Super Admin only
+  const hcTab = document.getElementById('admin-tab-help-chat');
+  if (hcTab) hcTab.hidden = !(State.user?.is_super_admin || State.user?.role === 'superadmin');
   try {
     const stats = await fetch('/admin/stats').then(r => r.json());
     setEl('adm-total-users', stats.total_users);
