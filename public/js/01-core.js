@@ -150,6 +150,15 @@ function navigateTo(page) {
     else if (typeof window.toggleMoreTools === 'function') window.toggleMoreTools(true);
   }
 
+  // If target nav is inside a collapsed group, auto-expand it
+  if (navEl) {
+    const parentGroup = navEl.closest('.nav-group-items');
+    if (parentGroup && parentGroup.classList.contains('collapsed')) {
+      const groupId = parentGroup.id.replace('nav-group-', '');
+      if (typeof toggleNavGroup === 'function') toggleNavGroup(groupId, true);
+    }
+  }
+
   // Keep Ad Leads & CRM submenu open when on any of its split screens
   const isLeadPage = ['lead-ads', 'leads-contacts', 'leads-inbox', 'leads-bot', 'ai-knowledge-base', 'leads-templates', 'leads-broadcast', 'leads-settings'].includes(page);
   const submenu = document.getElementById('sub-nav-lead-ads');
@@ -266,6 +275,34 @@ document.querySelectorAll('.nav-item[data-page]').forEach(el => {
     navigateTo(el.dataset.page);
   });
 });
+
+// Collapsible Group Navigation
+function toggleNavGroup(groupId, forceOpen) {
+  const group = document.getElementById(`nav-group-${groupId}`);
+  const header = document.getElementById(`nav-toggle-${groupId}`);
+  if (!group) return;
+  const isCurrentlyOpen = !group.classList.contains('collapsed');
+  const open = forceOpen === true ? true : (forceOpen === false ? false : !isCurrentlyOpen);
+  group.classList.toggle('collapsed', !open);
+  if (header) {
+    header.classList.toggle('collapsed', !open);
+    header.setAttribute('aria-expanded', String(open));
+  }
+  try {
+    localStorage.setItem(`nexus_nav_group_${groupId}`, open ? '1' : '0');
+  } catch {}
+}
+window.toggleNavGroup = toggleNavGroup;
+
+function initNavGroups() {
+  ['social', 'seo', 'outreach', 'inbound', 'settings'].forEach(id => {
+    try {
+      const saved = localStorage.getItem(`nexus_nav_group_${id}`);
+      if (saved === '0') toggleNavGroup(id, false);
+    } catch {}
+  });
+}
+try { initNavGroups(); } catch {}
 
 // Ad Leads & CRM Submenu Navigation
 function toggleLeadSubmenu(e) {

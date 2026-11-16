@@ -28,162 +28,197 @@
     </div>
 
     <nav class="sidebar-nav" aria-label="Main menu">
-      <a class="nav-item active" data-page="dashboard" id="nav-dashboard" title="Your posts, schedule and next steps">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-house"/></svg>
-        <span class="nav-label">Home</span>
-      </a>
-      <a class="nav-item" data-page="compose" id="nav-compose" title="Write a post, then publish or schedule it">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-square-pen"/></svg>
-        <span class="nav-label">Create post</span>
-      </a>
-      <a class="nav-item" data-page="calendar" id="nav-calendar" title="Everything planned and published">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-calendar-days"/></svg>
-        <span class="nav-label">Calendar</span>
-      </a>
-      <a class="nav-item nav-action" id="nav-bulk-schedule" href="javascript:void(0)" onclick="openBulkImport()" title="Upload an Excel or CSV file with one post per row">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layers"/></svg>
-        <span class="nav-label">Schedule from Excel</span>
-      </a>
-      <a class="nav-item" data-page="crm-pipeline" id="nav-crm-pipeline" title="Complete CRM: Kanban Pipeline, Salesforce Handover & Reports" href="javascript:void(0)" onclick="navigateTo('crm-pipeline')">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-users"/></svg>
-        <span class="nav-label">Leads &amp; CRM</span>
-      </a>
-      <div class="nav-group-parent" id="group-lead-ads">
-        <a class="nav-item has-subnav" data-page="leads-inbox" id="nav-lead-ads" title="Chat with customers, send broadcasts, manage contacts">
-          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg>
-          <span class="nav-label">WhatsApp</span>
-          <span class="nav-badge" id="wa-unread-badge" style="display:none"></span>
-          <span class="nav-chevron-wrap" onclick="toggleLeadSubmenu(event)" title="Show or hide">
-            <svg class="nav-chevron" id="chevron-lead-ads" aria-hidden="true"><use href="icons/sprite.svg#i-chevron-down"/></svg>
-          </span>
+
+      <!-- ── 1. SOCIAL MEDIA MANAGEMENT ──────────────────────────────────────── -->
+      <button class="nav-group-header" id="nav-toggle-social" onclick="toggleNavGroup('social')" aria-expanded="true">
+        <span>Social Media Management</span>
+        <svg class="nav-group-chevron" aria-hidden="true"><use href="icons/sprite.svg#i-chevron-down"/></svg>
+      </button>
+      <div class="nav-group-items" id="nav-group-social">
+        <a class="nav-item active" data-page="dashboard" id="nav-dashboard" title="Your posts, schedule and next steps">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-house"/></svg>
+          <span class="nav-label">Home</span>
         </a>
-        <div class="nav-sub-menu" id="sub-nav-lead-ads" style="display:none">
-          <a class="nav-sub-item" data-page="leads-inbox" id="nav-sub-leads-inbox" href="javascript:void(0)" onclick="navigateTo('leads-inbox')">
-            <span class="nav-label">Chats</span>
+        <a class="nav-item" data-page="compose" id="nav-compose" title="Write a post, then publish or schedule it">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-square-pen"/></svg>
+          <span class="nav-label">Create post</span>
+        </a>
+        <a class="nav-item" data-page="calendar" id="nav-calendar" title="Everything planned and published">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-calendar-days"/></svg>
+          <span class="nav-label">Calendar</span>
+        </a>
+        <a class="nav-item nav-action" id="nav-bulk-schedule" href="javascript:void(0)" onclick="openBulkImport()" title="Upload an Excel or CSV file with one post per row">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layers"/></svg>
+          <span class="nav-label">Schedule from Excel</span>
+        </a>
+        <a class="nav-item" data-page="history" id="nav-history" title="Published, queued and archived posts">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-history"/></svg>
+          <span class="nav-label">Post history</span>
+        </a>
+        <a class="nav-item" data-page="media" id="nav-media" title="Generate AI images and videos">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-image"/></svg>
+          <span class="nav-label">AI images &amp; video</span>
+        </a>
+        <a class="nav-item" data-page="library" id="nav-library" title="Organize image and video assets">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-folder-open"/></svg>
+          <span class="nav-label">Media library</span>
+        </a>
+        <a class="nav-item" data-page="brand" id="nav-brand" title="Manage business colors, logos and voice">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-palette"/></svg>
+          <span class="nav-label">Brand kit</span>
+        </a>
+        <a class="nav-item" data-page="templates" id="nav-templates" title="Reusable post templates">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layout-template"/></svg>
+          <span class="nav-label">Templates</span>
+        </a>
+        <a class="nav-item" data-page="hashtags" id="nav-hashtags" title="Trending and saved hashtags">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-hash"/></svg>
+          <span class="nav-label">Hashtags</span>
+        </a>
+        <a class="nav-item" data-page="inbox" id="nav-inbox" title="Comments on your social posts">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-mail"/></svg>
+          <span class="nav-label">Comments</span>
+          <span class="nav-badge" id="inbox-badge" style="display:none"></span>
+        </a>
+        <a class="nav-item" data-page="analytics" id="nav-analytics" title="Likes, reach and what works">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-chart-column"/></svg>
+          <span class="nav-label">Results</span>
+        </a>
+        <a class="nav-item agency-only" data-page="clients" id="nav-clients" title="Separate brands for each client">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layers"/></svg>
+          <span class="nav-label">Clients</span>
+        </a>
+      </div>
+
+      <!-- ── 2. WEBSITE & SEO ────────────────────────────────────────────────── -->
+      <button class="nav-group-header" id="nav-toggle-seo" onclick="toggleNavGroup('seo')" aria-expanded="true">
+        <span>Website &amp; SEO</span>
+        <svg class="nav-group-chevron" aria-hidden="true"><use href="icons/sprite.svg#i-chevron-down"/></svg>
+      </button>
+      <div class="nav-group-items" id="nav-group-seo">
+        <a class="nav-item" data-page="seo" id="nav-seo" title="Autopilot SEO, keywords, audits and meta tags">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-search"/></svg>
+          <span class="nav-label">Website SEO</span>
+        </a>
+        <a class="nav-item" data-page="feeds" id="nav-feeds" title="Blog RSS auto-posting and news feeds">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-history"/></svg>
+          <span class="nav-label">Blog &amp; news feeds</span>
+        </a>
+        <a class="nav-item" data-page="bio" id="nav-bio" title="Mobile-optimized multi-link page for bio">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-link"/></svg>
+          <span class="nav-label">Link in bio</span>
+        </a>
+        <a class="nav-item" data-page="utm" id="nav-utm" title="UTM campaign builder and link tracker">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-link"/></svg>
+          <span class="nav-label">Link tracker</span>
+        </a>
+        <a class="nav-item" data-page="aso" id="nav-aso" title="App store optimization and previews">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-smartphone"/></svg>
+          <span class="nav-label">App store listing</span>
+        </a>
+      </div>
+
+      <!-- ── 3. OUTREACH & OUTBOUND ─────────────────────────────────────────── -->
+      <button class="nav-group-header" id="nav-toggle-outreach" onclick="toggleNavGroup('outreach')" aria-expanded="true">
+        <span>Outreach &amp; Outbound</span>
+        <svg class="nav-group-chevron" aria-hidden="true"><use href="icons/sprite.svg#i-chevron-down"/></svg>
+      </button>
+      <div class="nav-group-items" id="nav-group-outreach">
+        <a class="nav-item" data-page="crm-pipeline" id="nav-crm-pipeline" title="Complete CRM: Kanban Pipeline, Salesforce Handover &amp; Reports" href="javascript:void(0)" onclick="navigateTo('crm-pipeline')">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-users"/></svg>
+          <span class="nav-label">Leads &amp; CRM</span>
+        </a>
+        <a class="nav-item" data-page="sellbird" id="nav-sellbird" title="Cold outreach sequences, email marketing campaigns and newsletters">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-mail"/></svg>
+          <span class="nav-label">Email &amp; Outreach</span>
+          <span class="nav-badge sellbird-badge" id="sellbird-nav-badge" style="display:none">0</span>
+        </a>
+        <a class="nav-item" data-page="email" id="nav-email" style="display:none" aria-hidden="true"></a>
+        <a class="nav-item" data-page="adcopy" id="nav-adcopy" title="Ad copy generator and press releases">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-megaphone"/></svg>
+          <span class="nav-label">Ads &amp; press releases</span>
+        </a>
+      </div>
+
+      <!-- ── 4. INBOUND & BOT ────────────────────────────────────────────────── -->
+      <button class="nav-group-header" id="nav-toggle-inbound" onclick="toggleNavGroup('inbound')" aria-expanded="true">
+        <span>Inbound &amp; Bot</span>
+        <svg class="nav-group-chevron" aria-hidden="true"><use href="icons/sprite.svg#i-chevron-down"/></svg>
+      </button>
+      <div class="nav-group-items" id="nav-group-inbound">
+        <div class="nav-group-parent" id="group-lead-ads">
+          <a class="nav-item has-subnav" data-page="leads-inbox" id="nav-lead-ads" title="Chat with customers, send broadcasts, manage contacts">
+            <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg>
+            <span class="nav-label">WhatsApp</span>
+            <span class="nav-badge" id="wa-unread-badge" style="display:none"></span>
+            <span class="nav-chevron-wrap" onclick="toggleLeadSubmenu(event)" title="Show or hide">
+              <svg class="nav-chevron" id="chevron-lead-ads" aria-hidden="true"><use href="icons/sprite.svg#i-chevron-down"/></svg>
+            </span>
           </a>
-          <a class="nav-sub-item" data-page="leads-bot" id="nav-sub-leads-bot" href="javascript:void(0)" onclick="navigateTo('leads-bot')">
-            <span class="nav-label">Auto-replies</span>
-            <span class="status-dot-sm" id="nav-bot-dot" style="margin-left:auto"></span>
-          </a>
-          <a class="nav-sub-item" data-page="ai-knowledge-base" id="nav-sub-ai-knowledge-base" href="javascript:void(0)" onclick="navigateTo('ai-knowledge-base')">
-            <span class="nav-label">AI Knowledge Base</span>
-            <span class="nav-badge-ai" style="margin-left:auto;font-size:10px;padding:1px 6px;background:rgba(124,58,237,0.18);color:#a855f7;border-radius:10px;font-weight:700">AI</span>
-          </a>
-          <a class="nav-sub-item" data-page="leads-broadcast" id="nav-sub-leads-broadcast" href="javascript:void(0)" onclick="navigateTo('leads-broadcast')">
-            <span class="nav-label">Broadcasts</span>
-          </a>
-          <a class="nav-sub-item" data-page="leads-templates" id="nav-sub-leads-templates" href="javascript:void(0)" onclick="navigateTo('leads-templates')">
-            <span class="nav-label">Templates</span>
-          </a>
-          <a class="nav-sub-item" data-page="lead-ads" id="nav-sub-leads-contacts" href="javascript:void(0)" onclick="navigateTo('lead-ads')">
-            <span class="nav-label">Contacts</span>
-          </a>
-          <a class="nav-sub-item" data-page="leads-settings" id="nav-sub-leads-settings" href="javascript:void(0)" onclick="navigateTo('leads-settings')">
-            <span class="nav-label">Setup</span>
-          </a>
+          <div class="nav-sub-menu" id="sub-nav-lead-ads" style="display:none">
+            <a class="nav-sub-item" data-page="leads-inbox" id="nav-sub-leads-inbox" href="javascript:void(0)" onclick="navigateTo('leads-inbox')">
+              <span class="nav-label">Chats</span>
+            </a>
+            <a class="nav-sub-item" data-page="leads-bot" id="nav-sub-leads-bot" href="javascript:void(0)" onclick="navigateTo('leads-bot')">
+              <span class="nav-label">Auto-replies</span>
+              <span class="status-dot-sm" id="nav-bot-dot" style="margin-left:auto"></span>
+            </a>
+            <a class="nav-sub-item" data-page="ai-knowledge-base" id="nav-sub-ai-knowledge-base" href="javascript:void(0)" onclick="navigateTo('ai-knowledge-base')">
+              <span class="nav-label">AI Knowledge Base</span>
+              <span class="nav-badge-ai" style="margin-left:auto;font-size:10px;padding:1px 6px;background:rgba(124,58,237,0.18);color:#a855f7;border-radius:10px;font-weight:700">AI</span>
+            </a>
+            <a class="nav-sub-item" data-page="leads-broadcast" id="nav-sub-leads-broadcast" href="javascript:void(0)" onclick="navigateTo('leads-broadcast')">
+              <span class="nav-label">Broadcasts</span>
+            </a>
+            <a class="nav-sub-item" data-page="leads-templates" id="nav-sub-leads-templates" href="javascript:void(0)" onclick="navigateTo('leads-templates')">
+              <span class="nav-label">Templates</span>
+            </a>
+            <a class="nav-sub-item" data-page="lead-ads" id="nav-sub-leads-contacts" href="javascript:void(0)" onclick="navigateTo('lead-ads')">
+              <span class="nav-label">Contacts</span>
+            </a>
+            <a class="nav-sub-item" data-page="leads-settings" id="nav-sub-leads-settings" href="javascript:void(0)" onclick="navigateTo('leads-settings')">
+              <span class="nav-label">Setup</span>
+            </a>
+          </div>
         </div>
       </div>
-      <a class="nav-item" data-page="inbox" id="nav-inbox" title="Comments on your social posts">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-mail"/></svg>
-        <span class="nav-label">Comments</span>
-        <span class="nav-badge" id="inbox-badge" style="display:none"></span>
-      </a>
-      <a class="nav-item" data-page="analytics" id="nav-analytics" title="Likes, reach and what works">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-chart-column"/></svg>
-        <span class="nav-label">Results</span>
-      </a>
 
-      <div class="nav-section-label">Grow</div>
-      <a class="nav-item" data-page="sellbird" id="nav-sellbird" title="Cold outreach sequences, email marketing campaigns and newsletters">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-mail"/></svg>
-        <span class="nav-label">Email &amp; Outreach</span>
-        <span class="nav-badge sellbird-badge" id="sellbird-nav-badge" style="display:none">0</span>
-      </a>
-      <a class="nav-item" data-page="email" id="nav-email" style="display:none" aria-hidden="true"></a>
-      <a class="nav-item agency-only" data-page="clients" id="nav-clients" title="Separate brands for each client">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layers"/></svg>
-        <span class="nav-label">Clients</span>
-      </a>
-
-      <button class="nav-section-label nav-toggle" id="nav-more-toggle" onclick="toggleMoreTools()" aria-expanded="false" aria-controls="nav-more">
-        <span>More tools</span>
-        <svg class="nav-chevron" aria-hidden="true"><use href="icons/sprite.svg#i-chevron-down"/></svg>
+      <!-- ── 5. SETTINGS ─────────────────────────────────────────────────────── -->
+      <button class="nav-group-header" id="nav-toggle-settings" onclick="toggleNavGroup('settings')" aria-expanded="true">
+        <span>Settings</span>
+        <svg class="nav-group-chevron" aria-hidden="true"><use href="icons/sprite.svg#i-chevron-down"/></svg>
       </button>
-      <div class="nav-more" id="nav-more">
-      <a class="nav-item" data-page="generate" id="nav-generate">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-sparkles"/></svg>
-        <span class="nav-label">AI writer</span>
-      </a>
-      <a class="nav-item" data-page="history" id="nav-history">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-history"/></svg>
-        <span class="nav-label">Post history</span>
-      </a>
-      <a class="nav-item" data-page="templates" id="nav-templates">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layout-template"/></svg>
-        <span class="nav-label">Templates</span>
-      </a>
-      <a class="nav-item" data-page="brand" id="nav-brand">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-palette"/></svg>
-        <span class="nav-label">Brand kit</span>
-      </a>
-      <a class="nav-item" data-page="library" id="nav-library">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-folder-open"/></svg>
-        <span class="nav-label">Media library</span>
-      </a>
-      <a class="nav-item" data-page="media" id="nav-media">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-image"/></svg>
-        <span class="nav-label">AI images &amp; video</span>
-      </a>
-      <a class="nav-item" data-page="hashtags" id="nav-hashtags">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-hash"/></svg>
-        <span class="nav-label">Hashtags</span>
-      </a>
-      <a class="nav-item" data-page="adcopy" id="nav-adcopy">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-megaphone"/></svg>
-        <span class="nav-label">Ads &amp; press releases</span>
-      </a>
-      <a class="nav-item" data-page="seo" id="nav-seo">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-search"/></svg>
-        <span class="nav-label">Website SEO</span>
-      </a>
-      <a class="nav-item" data-page="aso" id="nav-aso">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-smartphone"/></svg>
-        <span class="nav-label">App store listing</span>
-      </a>
-      <a class="nav-item" data-page="bio" id="nav-bio">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-link"/></svg>
-        <span class="nav-label">Link in bio</span>
-      </a>
-      <a class="nav-item" data-page="utm" id="nav-utm">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-link"/></svg>
-        <span class="nav-label">Link tracker</span>
-      </a>
-      <a class="nav-item" data-page="feeds" id="nav-feeds">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-history"/></svg>
-        <span class="nav-label">Blog &amp; news feeds</span>
-      </a>
-      <a class="nav-item" data-page="files" id="nav-files">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-folder-open"/></svg>
-        <span class="nav-label">Files on this PC</span>
-      </a>
-      <a class="nav-item" data-page="tools-directory" id="nav-tools-directory">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-blocks"/></svg>
-        <span class="nav-label">Other AI tools</span>
-      </a>
+      <div class="nav-group-items" id="nav-group-settings">
+        <a class="nav-item" data-page="settings" id="nav-settings" title="Accounts, AI, backups and licence">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-settings"/></svg>
+          <span class="nav-label">Settings</span>
+          <span class="nav-badge nav-badge-warn" id="settings-attention-badge" style="display:none" title="Something in Settings needs your attention"></span>
+        </a>
+        <a class="nav-item" data-page="admin" id="nav-admin" style="display:none" title="People who use NexaDrip on this PC">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-shield-check"/></svg>
+          <span class="nav-label">Users &amp; access</span>
+          <span class="nav-badge" id="admin-users-badge"></span>
+        </a>
+        <a class="nav-item" data-page="generate" id="nav-generate" title="AI content generator">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-sparkles"/></svg>
+          <span class="nav-label">AI writer</span>
+        </a>
+        <a class="nav-item" data-page="tools-directory" id="nav-tools-directory" title="Other AI tools &amp; models">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-blocks"/></svg>
+          <span class="nav-label">Other AI tools</span>
+        </a>
+        <a class="nav-item" data-page="files" id="nav-files" title="Manage local files">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-folder-open"/></svg>
+          <span class="nav-label">Files on this PC</span>
+        </a>
       </div>
+
+      <!-- Legacy fallback markers for existing scripts -->
+      <div id="nav-more" style="display:none"></div>
+      <button id="nav-more-toggle" style="display:none" aria-hidden="true"></button>
     </nav>
 
     <div class="sidebar-bottom">
-      <a class="nav-item" data-page="admin" id="nav-admin" style="display:none" title="People who use NexaDrip on this PC">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-shield-check"/></svg>
-        <span class="nav-label">Users &amp; access</span>
-        <span class="nav-badge" id="admin-users-badge"></span>
-      </a>
-      <a class="nav-item" data-page="settings" id="nav-settings" title="Accounts, AI, backups and licence">
-        <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-settings"/></svg>
-        <span class="nav-label">Settings</span>
-        <span class="nav-badge nav-badge-warn" id="settings-attention-badge" style="display:none" title="Something in Settings needs your attention"></span>
-      </a>
       <label class="mode-switch" title="Agency mode adds clients, team review and the workspace switcher">
         <input type="checkbox" id="mode-switch" onchange="setUiMode(this.checked ? 'agency' : 'simple')" />
         <span class="mode-track" aria-hidden="true"></span>
