@@ -40,13 +40,20 @@ async function injectUserKeys(req, res, next) {
       const edition = require('../services/edition');
       if (edition.isServer() && req.workspaceId) {
         const shared = await require('../services/businessSettings').aiKeysForWorkspace(req.workspaceId);
-        for (const [k, v] of Object.entries(shared)) if (!req[k]) req[k] = v;
+        // "Use Radixile AI" was chosen: Radixile's keys win over any saved ones
+        if (shared.aiSource === 'platform') {
+          const platform = await require('../services/platformAi').keys();
+          for (const [k, v] of Object.entries(platform)) req[k] = v;
+        }
+        for (const [k, v] of Object.entries(shared)) if (k !== 'aiSource' && !req[k]) req[k] = v;
+        req.aiSource = shared.aiSource;
       }
 
       // Server edition: finally Radixile's platform-default keys (a Super Admin sets
       // these in Admin → Platform AI). They fill any gap so a business can use AI on a
-      // trial before adding its own key — on Radixile's key and rate limit.
-      if (edition.isServer()) {
+      // trial before adding its own key — on Radixile's key and rate limit. A business
+      // that chose "my own keys only" never falls back to them.
+      if (edition.isServer() && req.aiSource !== 'own') {
         await require('../services/platformAi').fill(req);
       }
 

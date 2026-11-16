@@ -441,10 +441,22 @@ async function loadBusinessAi() {
       if (!el.dataset.ph) el.dataset.ph = el.placeholder;
       el.placeholder = s[key] ? 'Saved — leave empty to keep it' : (s.can_manage ? el.dataset.ph : 'Not set');
     }
+    const src = document.getElementById('biz-ai-source');
+    if (src) { src.value = s.ai_source || ''; src.disabled = !s.can_manage; }
     const actions = document.getElementById('biz-ai-actions');
     if (actions) actions.hidden = !s.can_manage;
     if (!s.can_manage) setEl('biz-ai-sub', 'Keys your business shares with the team. Only the owner or a manager can change them; you can still add your own below.');
   } catch { sec.hidden = true; }
+}
+
+// Pick where the business's AI comes from: Radixile's (included) or its own keys
+async function saveBusinessAiSource(sel) {
+  const value = sel.value;
+  try {
+    await api('POST', '/api/config/business-ai', value ? { ai_source: value } : { clear: ['ai_source'] });
+    toast(value === 'platform' ? 'Using the AI included with your plan' : value === 'own' ? 'Using only your own keys' : 'Using your own keys first, ours as backup', 'success');
+    refreshAiStatus();
+  } catch (err) { toast(err.message, 'error'); loadBusinessAi(); }
 }
 
 async function saveBusinessAiKeys(btn) {

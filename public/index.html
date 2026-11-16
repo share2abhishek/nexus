@@ -1196,6 +1196,17 @@
           </div>
           <div class="settings-row">
             <div class="settings-row-info">
+              <div class="settings-row-title">Where does your AI come from?</div>
+              <div class="settings-row-desc" id="biz-ai-source-desc">Use the AI included with your plan, or bring your own keys and pay your provider directly.</div>
+            </div>
+            <select class="form-select settings-control" id="biz-ai-source" onchange="saveBusinessAiSource(this)">
+              <option value="">Own keys first, ours as backup</option>
+              <option value="platform">Use the AI included with my plan</option>
+              <option value="own">Only my own keys</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
               <div class="settings-row-title">Google Gemini key <span class="badge badge-green">Recommended · free</span></div>
               <div class="settings-row-desc">Free, about a minute. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Get a free key ↗</a> then paste it here.</div>
             </div>

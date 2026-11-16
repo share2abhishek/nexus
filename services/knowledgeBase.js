@@ -334,7 +334,7 @@ async function simulateChat(knex, workspaceId, userId, { message = '', visitorNa
   }
 
   // Obtain user's AI API keys
-  const req = { session: { userId }, body: { model } };
+  const req = { session: { userId }, workspaceId, body: { model } };
   await new Promise((resolve) => injectUserKeys(req, null, () => resolve()));
   const { apiKey, options } = aiHelper.aiArgsFromReq(req);
 
@@ -406,7 +406,7 @@ ${persona.name || 'Assistant'}:`;
 // AI-powered FAQ generation
 async function aiGenerateFaqs(knex, workspaceId, userId, { topic = '', count = 3, existingText = '' } = {}) {
   const brand = await require('./brand').profile(workspaceId, knex).catch(() => ({}));
-  const req = { session: { userId }, body: {} };
+  const req = { session: { userId }, workspaceId, body: {} };
   await new Promise((resolve) => injectUserKeys(req, null, () => resolve()));
   const { apiKey, options } = aiHelper.aiArgsFromReq(req);
 
@@ -482,7 +482,7 @@ Return ONLY a valid JSON array of objects with no markdown backticks, no comment
 async function aiFormatNotes(knex, workspaceId, userId, { rawText = '' } = {}) {
   if (!rawText || !rawText.trim()) return { facts: {}, faqs: [] };
 
-  const req = { session: { userId }, body: {} };
+  const req = { session: { userId }, workspaceId, body: {} };
   await new Promise((resolve) => injectUserKeys(req, null, () => resolve()));
   const { apiKey, options } = aiHelper.aiArgsFromReq(req);
 

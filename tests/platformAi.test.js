@@ -92,6 +92,37 @@ describe('platform-default AI keys', () => {
     await platformAi.save({}, { clear: ['platform_google_ai_key'] });
   });
 
+  test('"use the AI included with my plan" puts the platform key ahead of the business key', async () => {
+    await platformAi.save({ platform_google_ai_key: 'AIza-PLATFORM' });
+    const owner = await user('owner@src-platform.test');
+    const { orgId, wsId } = await business('Src Platform Co', owner);
+    await bs.save(orgId, { google_ai_key: 'AIza-BUSINESS', ai_source: 'platform' });
+    const res = await request(app()).get('/keys').set('x-user', String(owner)).set('x-ws', String(wsId));
+    expect(res.body.google).toBe('AIza-PLATFORM');
+    expect((await bs.aiOptionsFor(wsId)).googleKey).toBe('AIza-PLATFORM');
+    await platformAi.save({}, { clear: ['platform_google_ai_key'] });
+  });
+
+  test('"only my own keys" never falls back to the platform key', async () => {
+    await platformAi.save({ platform_google_ai_key: 'AIza-PLATFORM' });
+    const owner = await user('owner@src-own.test');
+    const { orgId, wsId } = await business('Src Own Co', owner);
+    await bs.save(orgId, { ai_source: 'own' });
+    const res = await request(app()).get('/keys').set('x-user', String(owner)).set('x-ws', String(wsId));
+    expect(res.body.google).toBeNull();
+    expect((await bs.aiOptionsFor(wsId)).googleKey).toBeUndefined();
+    await bs.save(orgId, { google_ai_key: 'AIza-BUSINESS' });
+    const again = await request(app()).get('/keys').set('x-user', String(owner)).set('x-ws', String(wsId));
+    expect(again.body.google).toBe('AIza-BUSINESS');
+    await platformAi.save({}, { clear: ['platform_google_ai_key'] });
+  });
+
+  test('rejects an unknown AI source', async () => {
+    const owner = await user('owner@src-bad.test');
+    const { orgId } = await business('Src Bad Co', owner);
+    await expect(bs.save(orgId, { ai_source: 'banana' })).rejects.toThrow(/Radixile AI or your own keys/);
+  });
+
   test('background jobs fall back to the platform key after the business key', async () => {
     await platformAi.save({ platform_groq_key: 'gsk-PLATFORM' });
     const owner = await user('owner@bg2.test');

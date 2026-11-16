@@ -302,7 +302,7 @@ async function aiAnswer(db, workspaceId, userId, cfg, msg) {
   const { injectUserKeys } = require('../../middleware/auth');
   const { aiGenerate, aiArgsFromReq } = require('../aiHelper');
   const { brandContext } = require('../brandContext');
-  const req = { session: { userId }, body: {} };
+  const req = { session: { userId }, workspaceId, body: {} };
   await new Promise((resolve, reject) => injectUserKeys(req, null, (err) => (err ? reject(err) : resolve())));
   const { apiKey, options } = aiArgsFromReq(req);
 

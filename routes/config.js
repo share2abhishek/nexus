@@ -394,7 +394,7 @@ router.get('/business-ai', async (req, res) => {
 router.post('/business-ai', serverOr(async (req, res) => {
   const body = req.body || {};
   const values = {};
-  for (const key of [...Object.keys(businessSettings.AI_KEYS), 'default_text_model']) if (body[key] != null) values[key] = body[key];
+  for (const key of [...Object.keys(businessSettings.AI_KEYS), 'default_text_model', 'ai_source']) if (body[key] != null) values[key] = body[key];
   try {
     await businessSettings.save(req.orgId, values, { userId: req.session.userId, clear: Array.isArray(body.clear) ? body.clear : [] });
   } catch (err) { return res.status(err.status || 500).json({ error: err.message }); }

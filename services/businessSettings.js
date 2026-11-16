@@ -15,7 +15,11 @@ const AI_KEYS = {
 };
 const SMTP_KEYS = ['smtp_host', 'smtp_port', 'smtp_secure', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_from_name'];
 const SECRET = new Set([...Object.keys(AI_KEYS), 'smtp_pass']);
-const ALLOWED = new Set([...Object.keys(AI_KEYS), 'default_text_model', ...SMTP_KEYS]);
+const ALLOWED = new Set([...Object.keys(AI_KEYS), 'default_text_model', 'ai_source', ...SMTP_KEYS]);
+// Where a business's AI comes from: 'platform' = Radixile's AI included in the plan,
+// 'own' = only the business's own keys (never Radixile's). Unset = own keys first,
+// Radixile's fill any gap (the trial behaviour).
+const AI_SOURCES = ['platform', 'own'];
 
 const now = () => Math.floor(Date.now() / 1000);
 const isMasked = (v) => typeof v === 'string' && v.includes('••••');
@@ -56,6 +60,7 @@ async function save(orgId, values = {}, { userId = null, clear = [] } = {}) {
     if (!ALLOWED.has(key) || raw == null || isMasked(raw)) continue;
     const v = String(raw).trim();
     if (!v) continue;
+    if (key === 'ai_source' && !AI_SOURCES.includes(v)) throw Object.assign(new Error('Choose Radixile AI or your own keys.'), { status: 400 });
     if (/[\r\n]/.test(v)) throw Object.assign(new Error('A value contains a line break. Check what you pasted and try again.'), { status: 400 });
     const row = { org_id: orgId, key, value: SECRET.has(key) ? null : v, secret_value: SECRET.has(key) ? seal(v) : null, updated_by: userId, updated_at: t };
     await knex('business_settings').insert(row).onConflict(['org_id', 'key']).merge(['value', 'secret_value', 'updated_by', 'updated_at']);
@@ -89,6 +94,7 @@ function aiKeysFrom(s) {
   const out = {};
   for (const [key, name] of Object.entries(AI_KEYS)) if (s[key]) out[name] = s[key];
   if (s.default_text_model) out.defaultTextModel = s.default_text_model;
+  if (AI_SOURCES.includes(s.ai_source)) out.aiSource = s.ai_source;
   return out;
 }
 
@@ -109,10 +115,15 @@ async function aiOptionsFor(workspaceId, given = {}) {
   const fill = (k, v) => { if (!out[k] && v) out[k] = v; };
   if (edition.isServer()) {
     const b = await aiKeysForWorkspace(workspaceId);
-    for (const [k, v] of Object.entries(b)) fill(k, v);
-    // Radixile's platform-default keys (Admin → Platform AI) fill any remaining gap
     const platform = await require('./platformAi').keys();
-    for (const [k, v] of Object.entries(platform)) fill(k, v);
+    if (b.aiSource === 'platform') {
+      // Radixile's AI chosen: its keys win over any the business saved
+      for (const [k, v] of Object.entries(platform)) out[k] = v;
+    }
+    for (const [k, v] of Object.entries(b)) fill(k, v);
+    // Radixile's platform-default keys (Admin → Platform AI) fill any remaining gap,
+    // unless the business chose to use only its own keys
+    if (b.aiSource !== 'own') for (const [k, v] of Object.entries(platform)) fill(k, v);
   } else {
     for (const [k, env] of Object.entries(ENV_AI)) fill(k, process.env[env]);
   }
@@ -127,6 +138,7 @@ function publicView(s) {
   const out = { ai: {}, smtp: {} };
   for (const key of Object.keys(AI_KEYS)) out.ai[key] = !!s[key];
   out.ai.default_text_model = s.default_text_model || '';
+  out.ai.ai_source = AI_SOURCES.includes(s.ai_source) ? s.ai_source : '';
   out.smtp = {
     SMTP_HOST: s.smtp_host || '', SMTP_PORT: s.smtp_port || '587', SMTP_USER: s.smtp_user || '',
     SMTP_FROM: s.smtp_from || '', SMTP_FROM_NAME: s.smtp_from_name || '',

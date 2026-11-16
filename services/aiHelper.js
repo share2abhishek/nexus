@@ -202,12 +202,27 @@ function shortReason(err) {
 // `gemini-flash-latest` is Google's maintained alias, so the app doesn't break each
 // time a pinned version (like gemini-1.5-flash) is retired. Override with GEMINI_MODEL.
 
+// The main model can be overloaded (503) or hang for minutes; the lite alias is
+// almost always available, so it is the automatic backup (each tried for 10s).
 async function geminiGenerate(prompt, apiKey) {
-  const modelId = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+  const primary = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+  const candidates = [...new Set([primary, 'gemini-flash-lite-latest'])];
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: modelId }, { apiVersion: 'v1beta', timeout: 30000 });
-  const result = await withBusyRetry(() => model.generateContent(prompt));
-  return { text: result.response.text(), model: `gemini:${modelId}` };
+  let lastErr;
+  for (const modelId of candidates) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelId }, { apiVersion: 'v1beta', timeout: 10000 });
+      const result = await model.generateContent(prompt);
+      return { text: result.response.text(), model: `gemini:${modelId}` };
+    } catch (err) {
+      lastErr = err;
+      const status = err.status || err.response?.status || (err.message || '').match(/\[(\d{3})/)?.[1];
+      // A rejected key will fail on every model: stop
+      if (String(status) === '401' || String(status) === '403' || /API_KEY_INVALID|API key not valid/.test(err.message || '')) throw err;
+      console.warn(`[AI] Gemini ${modelId} failed (${shortReason(err)}) — ${modelId === candidates[candidates.length - 1] ? 'no more models' : 'trying the next one'}`);
+    }
+  }
+  throw lastErr;
 }
 
 // ── Anthropic Claude ──────────────────────────────────────────────────────────
@@ -329,8 +344,15 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
   // tell the user what actually went wrong instead of "no provider".
   const failures = [];
 
-  // 1. Ollama — local, fully free, private
-  if (ollamaEnabled) {
+  // 1. Ollama — local, fully free, private.
+  // If a cloud key is configured, the person has set up a cloud AI on purpose, so
+  // Ollama only goes first when they explicitly chose it (Settings → AI → default
+  // model = Ollama and Local AI switched on); otherwise it is the last resort.
+  const hasCloudKey = [googleKey, groqKey, openaiKey, openrouterKey, mistralKey, anthropicKey]
+    .some(k => k && k.length > 8 && !k.includes('your-key-here'));
+  const ollamaFirst = !hasCloudKey || (defaultModel === 'ollama' && options.ollamaEnabled === true);
+  const tryOllama = async () => {
+    if (!ollamaEnabled) return null;
     const running = await isOllamaRunning({ base: ollamaBaseUrl, model: ollamaModel });
     const ready = running && await isOllamaRunning({ base: ollamaBaseUrl, model: ollamaModel, requireModel: true });
     if (ready) {
@@ -338,15 +360,20 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
         console.log(`[AI] Using Ollama (${ollamaModel}) [queue: ${_ollamaQueue.length}]`);
         return await withOllamaQueue(() => ollamaGenerate(prompt, maxTokens, { model: ollamaModel, base: ollamaBaseUrl }));
       } catch (err) {
-        console.warn('[AI] Ollama failed:', err.message, '— trying cloud AI');
+        console.warn('[AI] Ollama failed:', err.message);
         failures.push(`Ollama: ${shortReason(err)}`);
       }
     } else if (running) {
       failures.push(`Ollama: the model "${ollamaModel}" is not downloaded yet (Settings → Local AI → Pull model)`);
     } else {
-      console.warn('[AI] Ollama not reachable — falling back to cloud AI');
+      console.warn('[AI] Ollama not reachable');
       failures.push('Ollama: not running on this computer (install it from https://ollama.com and open the app)');
     }
+    return null;
+  };
+  if (ollamaFirst) {
+    const r = await tryOllama();
+    if (r) return r;
   }
 
   // 2. Google Gemini — free tier (1M tokens/month)
@@ -413,6 +440,12 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
       console.warn('[AI] Claude failed:', err.message);
       failures.push(`Claude: ${shortReason(err)}`);
     }
+  }
+
+  // Cloud AI is set up but failed (or has no key): local Ollama is the last resort
+  if (!ollamaFirst) {
+    const r = await tryOllama();
+    if (r) return r;
   }
 
   const cloudFailed = failures.filter(f => !f.startsWith('Ollama'));
