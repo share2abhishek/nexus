@@ -103,7 +103,7 @@ if (Test-Path $unpacked) {
   Step "Smoke test (packaged server, throwaway data folder)"
   $tmp = Join-Path $env:TEMP "social-nexus-smoke-$(Get-Random)"
   New-Item -ItemType Directory -Force $tmp | Out-Null
-  $env:NEXUS_DATA_DIR = $tmp; $env:PORT = "3987"; $env:NEXUS_NO_BROWSER = "true"; $env:NODE_ENV = "production"; $env:SESSION_SECRET = "smoke"
+  $env:NEXUS_DATA_DIR = $tmp; $env:PORT = "3987"; $env:NEXUS_NO_BROWSER = "true"; $env:NODE_ENV = "production"; $env:SESSION_SECRET = "smoke-test-secret-0123456789abcdef"
   $proc = Start-Process -FilePath (Join-Path $unpacked "resources/node/node.exe") -ArgumentList "server/index.js" -WorkingDirectory (Join-Path $unpacked "resources/app") -PassThru -WindowStyle Hidden
   $okSmoke = $false; $licState = $null
   for ($i = 0; $i -lt 90 -and -not $okSmoke; $i++) {

@@ -44,17 +44,36 @@ const scheduler    = require('../services/scheduler');
 const { requireAuth, injectUserKeys } = require('../middleware/auth');
 const { makeWithWorkspace, requirePermission } = require('../middleware/tenancy');
 const membershipsRepo = require('../repos/membershipsRepo')(knex);
-const withWorkspace = makeWithWorkspace(membershipsRepo);
+const platformAdmin = require('../services/platformAdmin');
+// Looks the user up on every request: a suspended or demoted account loses access at once
+const withWorkspace = makeWithWorkspace(membershipsRepo, { loadUser: platformAdmin.loadUser });
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 // Desktop app: listen on loopback only so other machines on the network can't reach it.
 const HOST = process.env.HOST || '127.0.0.1';
 
-if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
-  console.error('[Startup] SESSION_SECRET must be set in production.');
-  process.exit(1);
+// The key that signs login cookies. Anyone who knows it can forge a login as any user,
+// so a hosted install must set its own; the desktop app makes and keeps a random one.
+const sessionSecret = require('./sessionSecret').resolve({ dataDir: DATA_DIR });
+const isHosted = require('../services/edition').isServer();
+// Behind a reverse proxy (nginx, a cloud load balancer) the real client address and
+// https come from X-Forwarded-*: needed for secure cookies and rate limits
+if (isHosted && !process.env.TRUST_PROXY) {
+  console.warn('[Startup] TRUST_PROXY is not set. Behind a reverse proxy or load balancer set TRUST_PROXY=1 (the number of proxies in front), '
+    + 'or every visitor looks like one address and shares one rate limit, and secure cookies can fail.');
 }
+if (process.env.TRUST_PROXY) app.set('trust proxy', /^\d+$/.test(process.env.TRUST_PROXY) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY);
+app.disable('x-powered-by');
+// Basic browser protections on every response (no framing of the app, no sniffing)
+app.use((req, res, next) => {
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // The chat widget is meant to be embedded on customers' sites; the app is not
+  if (!req.path.startsWith('/webchat') && !req.path.startsWith('/api/webhooks/webchat')) res.set('X-Frame-Options', 'SAMEORIGIN');
+  if (isHosted) res.set('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+  next();
+});
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 
@@ -78,10 +97,11 @@ if (process.env.DB_CLIENT === 'pg') {
 }
 app.use(session({
   store: sessionStore,
-  secret: process.env.SESSION_SECRET || 'nexus-dev-secret',
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax' },
+  // secure: only over https (set on hosted installs; the desktop app runs on http://127.0.0.1)
+  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax', secure: isHosted ? 'auto' : false },
 }));
 
 // Identity check used by the desktop shell before it connects to this port
@@ -128,6 +148,8 @@ app.get('/vendor/chart.umd.js', (req, res) => res.sendFile(path.join(__dirname, 
 // changes (select model, pull model — which also write .env) need a logged-in user,
 // except on a brand-new install before the first account exists.
 async function ollamaSetupGuard(req, res, next) {
+  // Local AI runs on a person's own PC: it does not exist on the hosted edition
+  if (isHosted) return res.status(404).json({ error: 'Not available on the hosted edition.' });
   if (req.method === 'GET') return next();
   const [{ c }] = await knex('users').count('id as c');
   if (parseInt(c, 10) === 0) return next();
@@ -145,6 +167,16 @@ app.use('/users',      usersRoutes);  // register / login / logout / me
 app.use('/admin',      adminRoutes);  // super admin dashboard
 app.use('/ollama',     ollamaSetupGuard, ollamaRoutes); // guided AI setup (status / pull)
 app.use('/api/webhooks', require('../routes/webhooks')(knex)); // Meta Lead Ads & Messenger Webhooks (HMAC-SHA256 verified)
+
+// ── Rate limits ──────────────────────────────────────────────────────────────
+// A general ceiling on the API per person, and a tighter one on actions that use AI
+// or fetch other websites (they cost money or reach out from this server).
+const { rateLimit, byUserOrIp } = require('../middleware/rateLimit');
+const apiLimit = rateLimit({ name: 'api', windowMs: 60_000, max: 600, key: byUserOrIp });
+const aiLimitCore = rateLimit({ name: 'ai', windowMs: 60_000, max: 40, key: byUserOrIp, message: 'You’re going very fast. Please wait a minute and try again.' });
+const aiLimit = (req, res, next) => (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS' ? next() : aiLimitCore(req, res, next));
+app.use('/api', apiLimit);
+app.use(['/api/knowledge-base', '/api/tools', '/api/media', '/api/seo', '/api/sellbird', '/api/lead-pipeline/bot', '/api/lead-pipeline/n8n', '/api/email/generate', '/api/generate', '/api/assist'], aiLimit);
 
 // ── Protected Routes (require login) ─────────────────────────────────────────
 
@@ -203,7 +235,7 @@ app.post('/session/active-workspace', async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'Not authenticated' });
   const workspaceId = Number(req.body.workspaceId);
   const user = await knex('users').where({ id: req.session.userId }).first();
-  const isSuperAdmin = user?.role === 'superadmin' || String(user?.email || '').toLowerCase().trim() === 'share2abhishek@gmail.com';
+  const isSuperAdmin = platformAdmin.isPlatformAdmin(user);
 
   let role = workspaceId ? await membershipsRepo.roleFor(req.session.userId, workspaceId) : null;
   if (!role && isSuperAdmin && workspaceId) {
@@ -222,7 +254,7 @@ app.get('/me/workspaces', async (req, res) => {
   try {
     await require('../services/workspaceHelper').ensureDefaultWorkspace(req.session.userId);
     const user = await knex('users').where({ id: req.session.userId }).first();
-    const isSuperAdmin = user?.role === 'superadmin' || String(user?.email || '').toLowerCase().trim() === 'share2abhishek@gmail.com';
+    const isSuperAdmin = platformAdmin.isPlatformAdmin(user);
     if (isSuperAdmin) {
       const allWorkspaces = await knex('workspaces')
         .leftJoin('organizations', 'workspaces.org_id', 'organizations.id')

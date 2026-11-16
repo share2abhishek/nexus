@@ -102,14 +102,7 @@ async function remove(db, workspaceId, id) {
 
 // Addresses on this PC or the local network: never fetched from a web link
 function isPrivateIp(ip) {
-  if (net.isIPv4(ip)) {
-    const [a, b] = ip.split('.').map(Number);
-    return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31)
-      || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
-  }
-  const v = ip.toLowerCase();
-  if (v.startsWith('::ffff:')) return isPrivateIp(v.slice(7));
-  return v === '::1' || v === '::' || v.startsWith('fc') || v.startsWith('fd') || v.startsWith('fe80');
+  return require('./safeNet').isPrivateIp(ip);
 }
 
 async function assertPublicUrl(url) {
@@ -131,6 +124,7 @@ async function download(url) {
     await assertPublicUrl(current);
     try {
       res = await axios.get(current, {
+        httpAgent: require('./safeNet').httpAgent, httpsAgent: require('./safeNet').httpsAgent, proxy: false, // refuse private addresses at connect time
         responseType: 'arraybuffer', timeout: 60000, maxContentLength: LIMITS.video, maxRedirects: 0,
         validateStatus: (s) => s >= 200 && s < 400,
       });

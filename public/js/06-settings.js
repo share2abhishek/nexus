@@ -724,7 +724,7 @@ async function loadAdminUsers() {
   tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px"><span class="spinner"></span></td></tr>';
   try {
     const users = await fetch('/admin/users').then(r => r.json());
-    const viewerIsSuper = !!(State.user?.is_super_admin || State.user?.role === 'superadmin' || String(State.user?.email || '').toLowerCase() === 'share2abhishek@gmail.com');
+    const viewerIsSuper = !!(State.user?.is_super_admin || State.user?.role === 'superadmin');
     const myId = State.user?.id;
 
     tbody.innerHTML = users.map(u => {

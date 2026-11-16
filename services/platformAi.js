@@ -49,7 +49,9 @@ async function keys() {
 // Fill any missing AI keys on an options/req-shaped object from the platform defaults
 async function fill(target = {}) {
   const k = await keys();
-  for (const [name, v] of Object.entries(k)) if (!target[name] && v) target[name] = v;
+  for (const [name, v] of Object.entries(k)) {
+    if (!target[name] && v) { target[name] = v; target.platformAiUsed = true; }
+  }
   return target;
 }
 

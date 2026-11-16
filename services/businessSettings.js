@@ -109,13 +109,26 @@ const ENV_AI = {
   googleKey: 'GOOGLE_AI_KEY', anthropicKey: 'ANTHROPIC_API_KEY', groqKey: 'GROQ_API_KEY',
   openrouterKey: 'OPENROUTER_API_KEY', mistralKey: 'MISTRAL_API_KEY',
 };
+// Has the business's owner confirmed their email address?
+async function ownerVerified(workspaceId) {
+  try {
+    const orgId = await orgForWorkspace(workspaceId);
+    if (!orgId) return false;
+    const org = await knex('organizations').where({ id: orgId }).first('owner_user_id');
+    const owner = org && await require('./platformAdmin').loadUser(org.owner_user_id);
+    return !!owner?.email_verified_at;
+  } catch { return false; }
+}
+
 async function aiOptionsFor(workspaceId, given = {}) {
   const edition = require('./edition');
   const out = { ...(given || {}) };
   const fill = (k, v) => { if (!out[k] && v) out[k] = v; };
   if (edition.isServer()) {
     const b = await aiKeysForWorkspace(workspaceId);
-    const platform = await require('./platformAi').keys();
+    // Radixile's keys only for a business whose owner confirmed their email address
+    const platform = (await ownerVerified(workspaceId)) ? await require('./platformAi').keys() : {};
+    const hadKeys = { ...out };
     if (b.aiSource === 'platform') {
       // Radixile's AI chosen: its keys win over any the business saved
       for (const [k, v] of Object.entries(platform)) out[k] = v;
@@ -124,6 +137,11 @@ async function aiOptionsFor(workspaceId, given = {}) {
     // Radixile's platform-default keys (Admin → Platform AI) fill any remaining gap,
     // unless the business chose to use only its own keys
     if (b.aiSource !== 'own') for (const [k, v] of Object.entries(platform)) fill(k, v);
+    // Count every call that runs on Radixile's keys (services/aiQuota.js)
+    if (Object.entries(platform).some(([k, v]) => out[k] === v && hadKeys[k] !== v)) {
+      const quota = require('./aiQuota');
+      out.beforeCall = () => quota.consumePlatform(workspaceId);
+    }
   } else {
     for (const [k, env] of Object.entries(ENV_AI)) fill(k, process.env[env]);
   }

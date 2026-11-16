@@ -259,7 +259,11 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
   const defaultModel  = options.defaultTextModel;
   const ollamaEnabled = (options.ollamaEnabled !== undefined) ? options.ollamaEnabled : require('./edition').ollamaDefault();
   const ollamaModel   = options.ollamaModel            || process.env.OLLAMA_MODEL    || 'llama3.2';
-  const ollamaBaseUrl = options.ollamaBaseUrl         || process.env.OLLAMA_BASE_URL  || 'http://localhost:11434';
+  // Hosted edition: only the operator's own Ollama (OLLAMA_BASE_URL), never an address a customer typed
+  const ollamaBaseUrl = (require('./edition').isServer() ? null : options.ollamaBaseUrl) || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+
+  // Calls on Radixile's shared keys are counted: over the limit, this throws a readable error
+  if (typeof options.beforeCall === 'function') await options.beforeCall();
 
   // ── Explicit model override from UI ─────────────────────────────────────────
   // The user picked this provider, so no fallback — but report failures readably.
@@ -477,6 +481,7 @@ function aiOptionsFromReq(req) {
     groqKey: req.groqKey, openrouterKey: req.openrouterKey, mistralKey: req.mistralKey,
     openaiKey: req.openaiKey, defaultTextModel: req.defaultTextModel,
     ollamaEnabled: req.ollamaEnabled, ollamaModel: req.ollamaModel, ollamaBaseUrl: req.ollamaUrl,
+    beforeCall: req.aiGuard,
   };
 }
 

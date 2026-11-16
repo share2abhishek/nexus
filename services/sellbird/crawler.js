@@ -2,6 +2,7 @@
 // Website crawler and buying signals extractor for Sellbird autonomous sales agent.
 
 const axios = require('axios');
+const safeNet = require('../safeNet');
 
 function cleanText(s) {
   if (!s) return '';
@@ -41,29 +42,9 @@ function extractEmails(text) {
   return clean;
 }
 
+// Public websites only (see services/safeNet.js: also checked when connecting and on redirects)
 function isPrivateOrLocalHost(hostname) {
-  if (!hostname) return true;
-  const h = hostname.toLowerCase().trim();
-  if (
-    h === 'localhost' ||
-    h === '127.0.0.1' ||
-    h === '::1' ||
-    h === '0.0.0.0' ||
-    h.endsWith('.local') ||
-    h.endsWith('.internal')
-  ) {
-    return true;
-  }
-  // Check private IPv4 ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16
-  const parts = h.split('.').map(Number);
-  if (parts.length === 4 && parts.every((p) => !isNaN(p) && p >= 0 && p <= 255)) {
-    if (parts[0] === 10) return true;
-    if (parts[0] === 127) return true;
-    if (parts[0] === 169 && parts[1] === 254) return true;
-    if (parts[0] === 192 && parts[1] === 168) return true;
-    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-  }
-  return false;
+  return safeNet.isPrivateName(hostname);
 }
 
 function extractSignals(html, text) {
@@ -144,9 +125,8 @@ async function crawlWebsite(targetUrl) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Sellbird/2.0',
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
-      maxRedirects: 5,
-      // A website must not send us on to a private or local address
-      beforeRedirect: (opts) => { if (isPrivateOrLocalHost(opts.hostname)) throw new Error('Redirect to a private address was blocked'); },
+      // Connections to private addresses are refused, whatever the name resolves to
+      ...safeNet.safeOptions({ maxRedirects: 5 }),
     });
 
     const html = typeof res.data === 'string' ? res.data : JSON.stringify(res.data || '');

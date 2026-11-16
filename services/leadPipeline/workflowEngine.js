@@ -250,7 +250,9 @@ async function executeWorkflowPipeline(lead, customConfig = {}, aiOpts = {}) {
     const webhookUrl = slackNode.config?.slack_webhook_url || customConfig.n8n_webhook_url;
     if (webhookUrl && typeof webhookUrl === 'string' && webhookUrl.startsWith('http')) {
       try {
-        await axios.post(webhookUrl, slackPayload, { timeout: 5000 });
+        const hosted = require('../edition').isServer();
+        if (hosted) require('../safeNet').assertPublicUrl(webhookUrl, 'The webhook address');
+        await axios.post(webhookUrl, slackPayload, { ...(hosted ? require('../safeNet').safeOptions({ maxRedirects: 0 }) : {}), timeout: 5000 });
         webhookSent = true;
       } catch (sErr) {
         console.warn('[Workflow Engine] Webhook forwarding notice:', sErr.message);

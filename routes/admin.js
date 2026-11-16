@@ -6,18 +6,14 @@ const usersRepo    = require('../repos/usersRepo')(knexInstance);
 
 // ── Admin guard & Superadmin Helpers ──────────────────────────────────────────
 
-function isSuperAdminUser(user) {
-  if (!user) return false;
-  if (user.role === 'superadmin') return true;
-  if (String(user.email || '').trim().toLowerCase() === 'share2abhishek@gmail.com') return true;
-  const platformEmails = String(process.env.PLATFORM_ADMIN_EMAILS || '').split(/[,\s]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
-  if (platformEmails.includes(String(user.email || '').trim().toLowerCase())) return true;
-  if (user.role === 'admin' && (String(user.email).endsWith('@radixile.test') || String(user.email).endsWith('@radixile.com'))) return true;
-  return false;
-}
+const platformAdmin = require('../services/platformAdmin');
+// role 'superadmin', or an address listed in PLATFORM_ADMIN_EMAILS (verified, on the
+// server edition). No address or e-mail domain is trusted by its text alone.
+const isSuperAdminUser = platformAdmin.isPlatformAdmin;
 
 async function requireAdmin(req, res, next) {
-  const user = await usersRepo.findById(req.userId);
+  const user = await platformAdmin.loadUser(req.userId);
+  if (user?.status === 'suspended') return res.status(403).json({ error: 'Your account has been suspended. Contact the admin.' });
   if (!user || (!['admin', 'superadmin'].includes(user.role) && !isSuperAdminUser(user))) {
     return res.status(403).json({ error: 'Admin access required' });
   }

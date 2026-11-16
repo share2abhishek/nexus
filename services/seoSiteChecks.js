@@ -26,6 +26,7 @@ async function statusOf(url) {
       'Accept-Language': 'en-US,en;q=0.9',
     },
     beforeRedirect: (o) => { if (seoCheck.isPrivateName(o.hostname)) throw new Error('redirects to a local address'); },
+    httpAgent: require('./safeNet').httpAgent, httpsAgent: require('./safeNet').httpsAgent, proxy: false,
   };
   try {
     let r = await axios.head(url, opts);

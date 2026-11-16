@@ -3,7 +3,11 @@
 // Enables WhatsApp Web / Baileys multi-device pairing, QR-code connect, 0-ban risk direct messaging,
 // and automated webhook ingestion alongside Meta Official Cloud API.
 
-const axios = require('axios');
+const axiosBase = require('axios');
+// Hosted edition: a customer's Evolution server must be a public address, never
+// something inside our network. (On a desktop it is usually http://localhost:8080.)
+const hosted = () => require('../edition').isServer();
+const axios = require('../safeNet').wrapAxios(axiosBase, hosted() ? require('../safeNet').safeOptions({ maxRedirects: 0 }) : {});
 
 const DEFAULT_TIMEOUT_MS = 10000;
 
@@ -29,8 +33,13 @@ function getHeaders(apiKey) {
  * Normalize Evolution API URL (remove trailing slashes)
  */
 function cleanUrl(url) {
-  if (!url) return 'http://localhost:8080';
-  return url.replace(/\/+$/, '');
+  if (!url) {
+    if (hosted()) throw new Error('Type the address of your Evolution server first.');
+    return 'http://localhost:8080';
+  }
+  const clean = String(url).replace(/\/+$/, '');
+  if (hosted()) require('../safeNet').assertPublicUrl(clean, 'The Evolution server address');
+  return clean;
 }
 
 /**

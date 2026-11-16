@@ -75,7 +75,7 @@ module.exports = (knex, requirePermission) => {
         step_number: step.step,
         subject: step.subject,
         body: step.body,
-        status: campaign.auto_approve ? 'approved' : 'pending_approval',
+        status: campaign.auto_approve && !sequence.flagged ? 'approved' : 'pending_approval', // drafts the safety screen touched always wait for a person
         scheduled_at: now + (Number(step.delay_days) || 0) * 86400,
       }));
     }
@@ -301,7 +301,7 @@ module.exports = (knex, requirePermission) => {
             for (const step of sequence) {
               await repo.addOutboxItem(req.workspaceId, {
                 campaign_id: campaign.id, contact_id: contact.id, step_number: step.step, subject: step.subject, body: step.body,
-                status: campaign.auto_approve ? 'approved' : 'pending_approval', scheduled_at: now + (Number(step.delay_days) || 0) * 86400,
+                status: campaign.auto_approve && !sequence.flagged ? 'approved' : 'pending_approval', scheduled_at: now + (Number(step.delay_days) || 0) * 86400,
               });
             }
           } catch (err) { console.warn('[Sales outreach] Could not write emails for an imported contact:', err.message); }

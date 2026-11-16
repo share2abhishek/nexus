@@ -50,10 +50,7 @@ function parseFeed(xml) {
 // Feeds live on the public internet; never fetch this PC or the local network
 // (on a hosted server that could reach internal services)
 function isPrivateHost(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
-  return h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h === '::1' || h === '0.0.0.0'
-    || /^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h)
-    || /^172\.(1[6-9]|2\d|3[01])\./.test(h) || /^f[cd][0-9a-f]{2}:/.test(h) || /^fe80:/.test(h);
+  return require('./safeNet').isPrivateName(hostname);
 }
 
 async function fetchFeed(url) {
@@ -62,6 +59,7 @@ async function fetchFeed(url) {
   try { host = new URL(url).hostname; } catch { throw new Error('That doesn’t look like a web address.'); }
   if (isPrivateHost(host)) throw new Error('Use the feed’s public web address (not one on this PC or your local network).');
   const r = await axios.get(url, {
+    httpAgent: require('./safeNet').httpAgent, httpsAgent: require('./safeNet').httpsAgent, proxy: false, // refuse private addresses at connect time
     maxRedirects: 3,
     beforeRedirect: (opts) => { if (isPrivateHost(opts.hostname)) throw new Error('The feed redirected to a local address.'); },
     timeout: 15000, maxContentLength: 3 * 1024 * 1024, responseType: 'text',

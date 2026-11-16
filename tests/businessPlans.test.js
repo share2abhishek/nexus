@@ -163,7 +163,7 @@ describe('a Radixile admin sets a business’s plan (until online payment)', () 
   test('only admins; the change applies straight away; bad values are refused', async () => {
     const session = require('express-session');
     const { orgId, wsId } = await business('Upgrade Co', { plan: 'trial', trial_ends_at: now() - DAY });
-    const [admin] = await knex('users').insert({ email: 'ops@radixile.test', password_hash: 'x', role: 'admin' }).returning('id');
+    const [admin] = await knex('users').insert({ email: 'ops@radixile.test', password_hash: 'x', role: 'superadmin' }).returning('id');
     const [customer] = await knex('users').insert({ email: 'owner@upgrade.test', password_hash: 'x', role: 'user' }).returning('id');
     const app = express();
     app.use(express.json());

@@ -16,8 +16,17 @@ async function forwardToN8n(n8nWebhookUrl, payload) {
     return { success: false, error: 'Invalid n8n webhook URL scheme' };
   }
 
+  // Hosted edition: a customer's webhook must be a public address, never something
+  // inside our network. (On a desktop, n8n on localhost is normal.)
+  const hosted = require('../edition').isServer();
+  if (hosted) {
+    try { require('../safeNet').assertPublicUrl(cleanUrl, 'The n8n address'); }
+    catch (err) { return { success: false, error: err.message }; }
+  }
+
   try {
     const response = await axios.post(cleanUrl, payload, {
+      ...(hosted ? require('../safeNet').safeOptions({ maxRedirects: 0 }) : {}),
       timeout: 8000,
       headers: {
         'Content-Type': 'application/json',

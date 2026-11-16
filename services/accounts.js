@@ -12,11 +12,9 @@ const now = () => Math.floor(Date.now() / 1000);
 const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 
 // Radixile staff: platform admins of the hosted service (never a customer)
+// Only addresses listed in PLATFORM_ADMIN_EMAILS (no address is built in)
 function isPlatformAdminEmail(email) {
-  const clean = String(email || '').trim().toLowerCase();
-  if (clean === 'share2abhishek@gmail.com') return true;
-  const list = String(process.env.PLATFORM_ADMIN_EMAILS || '').split(/[,\s]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
-  return list.includes(clean);
+  return require('./platformAdmin').isListedEmail(email);
 }
 
 const slugify = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'business';

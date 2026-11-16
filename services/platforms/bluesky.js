@@ -2,7 +2,9 @@
 // and hashtags made clickable. Connects with the account's handle and an app
 // password (Settings → Privacy and security → App passwords on Bluesky) — no
 // developer app, nothing passes through Radixile.
-const axios = require('axios');
+const axiosBase = require('axios');
+// The account can name its own Bluesky server: never one inside our network
+const axios = require('../safeNet').wrapAxios(axiosBase, require('../safeNet').safeOptions({ maxRedirects: 3 }));
 const { mediaList } = require('./media');
 
 const DEFAULT_SERVICE = 'https://bsky.social';

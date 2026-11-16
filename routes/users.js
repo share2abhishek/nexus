@@ -40,7 +40,25 @@ router.get('/registration-info', async (req, res) => {
 
 // ── Register ──────────────────────────────────────────────────────────────────
 
-router.post('/register', async (req, res) => {
+// Per network address (the per-email guard below stops one account being guessed;
+// this stops one machine trying many accounts, or creating many)
+const { rateLimit } = require('../middleware/rateLimit');
+const signupLimit = rateLimit({ name: 'signup', windowMs: 60 * 60_000, max: 10, message: 'Too many sign-ups from this network. Please try again later.' });
+const loginLimit = rateLimit({ name: 'login', windowMs: 10 * 60_000, max: 40, message: 'Too many sign-in attempts. Please wait a few minutes.' });
+const resetLimit = rateLimit({ name: 'reset', windowMs: 60 * 60_000, max: 10, message: 'Too many requests. Please try again later.' });
+
+// A new session id at every sign-in, so a session id planted beforehand is useless
+function startSession(req, fields) {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((err) => {
+      if (err) return reject(err);
+      Object.assign(req.session, fields);
+      resolve();
+    });
+  });
+}
+
+router.post('/register', signupLimit, async (req, res) => {
   if (require('../services/edition').isServer()) return registerOnServer(req, res);
   const { email, password, name, invite_code } = req.body;
 
@@ -83,10 +101,7 @@ router.post('/register', async (req, res) => {
 
     if (req._validInvite) await usersRepo.useInviteCode(req._validInvite, id);
 
-    req.session.userId    = id;
-    req.session.userEmail = email.toLowerCase().trim();
-    req.session.userName  = name?.trim() || email.split('@')[0];
-    req.session.userRole  = role;
+    await startSession(req, { userId: id, userEmail: email.toLowerCase().trim(), userName: name?.trim() || email.split('@')[0], userRole: role });
 
     const recovery_code = await setRecoveryCode(id);
     res.json({ success: true, user: { id, email, name: req.session.userName, role }, recovery_code });
@@ -146,10 +161,7 @@ async function registerOnServer(req, res) {
   }
   if (invite) await require('../repos/invitationsRepo')(knexInstance).accept(inviteToken, created.id);
 
-  req.session.userId = created.id;
-  req.session.userEmail = email;
-  req.session.userName = name || email.split('@')[0];
-  req.session.userRole = 'user';
+  await startSession(req, { userId: created.id, userEmail: email, userName: name || email.split('@')[0], userRole: 'user' });
 
   let emailSent = false;
   try { emailSent = await accounts.sendVerification(knexInstance, req, created); } catch (err) { console.warn('[Accounts] Verification email failed:', err.message); }
@@ -182,7 +194,7 @@ router.post('/resend-verification', requireAuth, async (req, res) => {
 });
 
 // Forgotten password: the same answer whether or not the address has an account
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', resetLimit, async (req, res) => {
   if (!require('../services/edition').isServer()) return res.status(404).json({ error: 'Not available' });
   const email = String(req.body?.email || '').toLowerCase().trim();
   const wait = loginGuard.check(`forgot:${email}`);
@@ -210,7 +222,7 @@ router.post('/reset-password', async (req, res) => {
 
 // ── Login ─────────────────────────────────────────────────────────────────────
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimit, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
   const wait = loginGuard.check(email);
@@ -226,10 +238,7 @@ router.post('/login', async (req, res) => {
 
     if (user.status === 'suspended') return res.status(403).json({ error: 'Your account has been suspended. Contact the admin.' });
 
-    req.session.userId    = user.id;
-    req.session.userEmail = user.email;
-    req.session.userName  = user.name || user.email.split('@')[0];
-    req.session.userRole  = user.role;
+    await startSession(req, { userId: user.id, userEmail: user.email, userName: user.name || user.email.split('@')[0], userRole: user.role });
 
     usersRepo.updateLastActive(user.id).catch(() => {});
     res.json({ success: true, user: { id: user.id, email: user.email, name: req.session.userName, role: user.role } });
@@ -239,7 +248,7 @@ router.post('/login', async (req, res) => {
 });
 
 // ── Forgotten password: reset with the recovery code ─────────────────────────
-router.post('/recover', async (req, res) => {
+router.post('/recover', loginLimit, async (req, res) => {
   const { email, code, password } = req.body || {};
   if (!email || !code || !password) return res.status(400).json({ error: 'Email, recovery code and a new password are needed.' });
   if (String(password).length < 6) return res.status(400).json({ error: 'The new password needs at least 6 characters.' });
@@ -291,8 +300,7 @@ router.get('/me', async (req, res) => {
     if (user.status === 'suspended') { req.session.destroy(); return res.json({ authenticated: false, error: 'suspended' }); }
     const extra = await knexInstance('users').where({ id: user.id }).first('recovery_hash', 'email_verified_at');
     const server = require('../services/edition').isServer();
-    const isSuperAdmin = user.role === 'superadmin' ||
-      require('../services/accounts').isPlatformAdminEmail(user.email);
+    const isSuperAdmin = require('../services/platformAdmin').isPlatformAdmin({ ...user, email_verified_at: extra?.email_verified_at || null });
     const business = server ? await accounts.businessFor(knexInstance, user.id) : null;
     res.json({
       authenticated: true,

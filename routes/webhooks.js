@@ -309,9 +309,16 @@ module.exports = (knex) => {
     res.set('Access-Control-Max-Age', '86400');
     res.set('Vary', 'Origin');
   };
+  // Public and unauthenticated, so it is limited: per network address, per chat widget
+  // (a customer's whole site), and per visitor. Each answer can cost an AI call.
+  const { rateLimit, byIp } = require('../middleware/rateLimit');
+  const chatCors = (req, res, next) => { webchatCors(res); next(); }; // so a 429 is readable by the widget
+  const chatIpLimit = rateLimit({ name: 'chat-ip', windowMs: 60_000, max: 30, key: byIp, message: 'You are sending messages very quickly. Please wait a moment.' });
+  const chatTokenLimit = rateLimit({ name: 'chat-token', windowMs: 10 * 60_000, max: 300, key: (req) => String(req.params.token || ''), message: 'This chat is very busy right now. Please try again in a few minutes.' });
+  const chatVisitorLimit = rateLimit({ name: 'chat-visitor', windowMs: 60_000, max: 8, key: (req) => `${req.params.token}:${String(req.body?.visitor_id || '').slice(0, 90)}`, message: 'Please wait a moment before sending another message.' });
   router.options('/webchat/:token', (req, res) => { webchatCors(res); res.status(204).end(); });
   router.options('/webchat/:token/history', (req, res) => { webchatCors(res); res.status(204).end(); });
-  router.get('/webchat/:token/history', async (req, res) => {
+  router.get('/webchat/:token/history', chatCors, chatIpLimit, async (req, res) => {
     webchatCors(res);
     const config = await repo.getConfigByWebchatToken(String(req.params.token || '')).catch(() => null);
     if (!config) return res.status(404).json({ error: 'Unknown chat address' });
@@ -335,7 +342,7 @@ module.exports = (knex) => {
       res.status(500).json({ error: 'Could not load messages' });
     }
   });
-  router.post('/webchat/:token', express.json({ limit: '32kb' }), async (req, res) => {
+  router.post('/webchat/:token', chatCors, chatIpLimit, chatTokenLimit, express.json({ limit: '32kb' }), chatVisitorLimit, async (req, res) => {
     webchatCors(res);
     const config = await repo.getConfigByWebchatToken(String(req.params.token || '')).catch(() => null);
     if (!config) return res.status(404).json({ error: 'Unknown chat address' });

@@ -13,8 +13,8 @@ const platformAi = require('../services/platformAi');
 const bs = require('../services/businessSettings');
 const env = { ...process.env };
 
-async function user(email, role = 'user') {
-  const [u] = await knex('users').insert({ email, password_hash: 'x', role }).returning('id');
+async function user(email, role = 'user', verified = true) {
+  const [u] = await knex('users').insert({ email, password_hash: 'x', role, email_verified_at: verified ? 1700000000 : null }).returning('id');
   return u?.id ?? u;
 }
 async function business(name, ownerId) {
@@ -121,6 +121,36 @@ describe('platform-default AI keys', () => {
     const owner = await user('owner@src-bad.test');
     const { orgId } = await business('Src Bad Co', owner);
     await expect(bs.save(orgId, { ai_source: 'banana' })).rejects.toThrow(/Radixile AI or your own keys/);
+  });
+
+  test('an account that never confirmed its email gets no platform AI (foreground and background)', async () => {
+    await platformAi.save({ platform_google_ai_key: 'AIza-PLATFORM' });
+    const owner = await user('owner@unverified.test', 'user', false);
+    const { wsId } = await business('Unverified Co', owner);
+    const res = await request(app()).get('/keys').set('x-user', String(owner)).set('x-ws', String(wsId));
+    expect(res.body.google).toBeNull();
+    expect((await bs.aiOptionsFor(wsId)).googleKey).toBeUndefined();
+    await platformAi.save({}, { clear: ['platform_google_ai_key'] });
+  });
+
+  test('calls on the platform key are counted and stop at the daily limit', async () => {
+    const quota = require('../services/aiQuota');
+    quota._reset();
+    process.env.PLATFORM_AI_DAILY_LIMIT = '3';
+    process.env.PLATFORM_AI_PER_MINUTE = '50';
+    await platformAi.save({ platform_google_ai_key: 'AIza-PLATFORM' });
+    const owner = await user('owner@quota.test');
+    const { wsId } = await business('Quota Co', owner);
+    const opts = await bs.aiOptionsFor(wsId);
+    expect(typeof opts.beforeCall).toBe('function');
+    await opts.beforeCall(); await opts.beforeCall(); await opts.beforeCall();
+    expect(() => opts.beforeCall()).toThrow(/today’s included AI/);
+    // a business on its own key is not counted
+    await bs.save((await knex('workspaces').where({ id: wsId }).first()).org_id, { google_ai_key: 'AIza-OWN', ai_source: 'own' });
+    bs.forget();
+    expect((await bs.aiOptionsFor(wsId)).beforeCall).toBeUndefined();
+    delete process.env.PLATFORM_AI_DAILY_LIMIT; delete process.env.PLATFORM_AI_PER_MINUTE;
+    await platformAi.save({}, { clear: ['platform_google_ai_key'] });
   });
 
   test('background jobs fall back to the platform key after the business key', async () => {

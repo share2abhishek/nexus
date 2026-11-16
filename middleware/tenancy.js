@@ -1,10 +1,24 @@
 const { can } = require('../services/rbac');
+const platformAdmin = require('../services/platformAdmin');
 
 // Factory takes a memberships repo so it's testable without a DB.
-function makeWithWorkspace(membershipsRepo) {
+// options.loadUser: look the user up on every request (the server does), so a
+// suspended or demoted account loses access at once instead of keeping a 7-day
+// session. Without it (unit tests) the session's own fields are used.
+function makeWithWorkspace(membershipsRepo, { loadUser } = {}) {
   return async function withWorkspace(req, res, next) {
     const userId = req.session?.userId;
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    let isPlatform = req.session?.userRole === 'superadmin';
+    if (loadUser) {
+      const user = await loadUser(userId).catch(() => null);
+      if (!user) { req.session?.destroy?.(() => {}); return res.status(401).json({ error: 'Not authenticated' }); }
+      if (user.status === 'suspended') { req.session?.destroy?.(() => {}); return res.status(403).json({ error: 'Your account has been suspended. Contact the admin.' }); }
+      req.currentUser = user;
+      isPlatform = platformAdmin.isPlatformAdmin(user);
+    }
+    req.isPlatformAdmin = isPlatform;
 
     let workspaceId = Number(req.headers?.['x-workspace-id'])
       || Number(req.params?.workspaceId)
@@ -27,13 +41,9 @@ function makeWithWorkspace(membershipsRepo) {
     if (!workspaceId) return res.status(400).json({ error: 'No active workspace' });
     let role = await membershipsRepo.roleFor(userId, workspaceId);
     if (!role) {
-      const userRole = req.session?.userRole || req.currentUser?.role || req.user?.role;
-      const userEmail = String(req.session?.userEmail || req.currentUser?.email || req.user?.email || '').toLowerCase().trim();
-      if (userRole === 'superadmin' || userEmail === 'share2abhishek@gmail.com') {
-        role = 'manager';
-      } else {
-        return res.status(403).json({ error: 'Not a member of this workspace' });
-      }
+      // Radixile platform admins may step into any business, as a manager
+      if (isPlatform) role = 'manager';
+      else return res.status(403).json({ error: 'Not a member of this workspace' });
     }
     req.workspaceId = workspaceId;
     req.role = role;
@@ -43,11 +53,8 @@ function makeWithWorkspace(membershipsRepo) {
 
 function requirePermission(action) {
   return function (req, res, next) {
-    const userRole = req.session?.userRole || req.currentUser?.role || req.user?.role;
-    const userEmail = String(req.session?.userEmail || req.currentUser?.email || req.user?.email || '').toLowerCase().trim();
-    if (userRole === 'superadmin' || userEmail === 'share2abhishek@gmail.com') {
-      return next();
-    }
+    // Set by withWorkspace from the live user record
+    if (req.isPlatformAdmin) return next();
     if (!can(req.role, action)) {
       return res.status(403).json({ error: 'Forbidden', requiredPermission: action });
     }

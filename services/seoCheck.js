@@ -20,21 +20,10 @@ const BROWSER_HEADERS = {
   'Upgrade-Insecure-Requests': '1',
 };
 
-function isPrivateIp(ip) {
-  const h = String(ip || '').toLowerCase();
-  if (net.isIPv4(h)) {
-    const [a, b] = h.split('.').map(Number);
-    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31)
-      || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
-  }
-  if (net.isIPv6(h)) return h === '::1' || h === '::' || /^f[cd]/.test(h) || /^fe80:/.test(h) || /^::ffff:/.test(h) && isPrivateIp(h.replace(/^::ffff:/, ''));
-  return false;
-}
-
-function isPrivateName(hostname) {
-  const h = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
-  return !h || h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal') || isPrivateIp(h);
-}
+// Classification lives in services/safeNet.js (one rule for the whole app)
+const safeNet = require('./safeNet');
+const isPrivateIp = safeNet.isPrivateIp;
+const isPrivateName = safeNet.isPrivateName;
 
 // A public web address only: not this PC or the local network (also after DNS)
 async function assertPublic(url) {
@@ -70,6 +59,7 @@ async function fetchText(url, { accept = 'text/html,application/xhtml+xml,*/*;q=
         transformResponse: [(d) => d],
         validateStatus: () => true,
         headers: { ...BROWSER_HEADERS, Accept: accept },
+        httpAgent: safeNet.httpAgent, httpsAgent: safeNet.httpsAgent, proxy: false, // refuse private addresses at connect time
         beforeRedirect: (opts) => {
           if (isPrivateName(opts.hostname)) throw new Error('The page redirected to a local address.');
           redirects.push(`${opts.protocol}//${opts.hostname}${opts.path || ''}`);

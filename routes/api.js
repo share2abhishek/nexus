@@ -62,6 +62,7 @@ router.post('/assist', async (req, res) => {
         googleKey: req.googleKey, anthropicKey: req.anthropicKey,
         groqKey: req.groqKey, openrouterKey: req.openrouterKey, mistralKey: req.mistralKey,
         ollamaEnabled: req.ollamaEnabled, ollamaModel: req.ollamaModel, ollamaBaseUrl: req.ollamaUrl,
+        beforeCall: req.aiGuard,
       },
     });
     res.json({ ...result, text: stripMarkdown(result.text) });
@@ -127,6 +128,7 @@ router.post('/generate', async (req, res) => {
         ollamaEnabled: req.ollamaEnabled,
         ollamaModel:  req.ollamaModel,
         ollamaBaseUrl: req.ollamaUrl,
+        beforeCall: req.aiGuard,
       }
     );
 
@@ -471,7 +473,27 @@ router.get('/reports/monthly', async (req, res) => {
 
 // ── Local Folder ──────────────────────────────────────────────────────────────
 
-router.get('/local/files', (req, res) => {
+// This reads a folder on the computer the app runs on, which only makes sense for the
+// desktop app. A hosted server's own disk is never offered to customers. A file name
+// from the request must stay inside that folder (no ../ tricks) and be a plain content file.
+const LOCAL_EXTS = ['.txt', '.md', '.jpg', '.jpeg', '.png', '.gif', '.csv', '.json'];
+function desktopOnly(req, res, next) {
+  if (require('../services/edition').isServer()) return res.status(404).json({ error: 'Not available on the hosted edition.' });
+  next();
+}
+function inContentFolder(name) {
+  const folder = process.env.CONTENT_FOLDER;
+  if (!folder || typeof name !== 'string' || !name || name.includes('\0')) return null;
+  const root = path.resolve(folder);
+  const full = path.resolve(root, name);
+  if (full !== root && !full.startsWith(root + path.sep)) return null;
+  if (!LOCAL_EXTS.includes(path.extname(full).toLowerCase())) return null;
+  // A link inside the folder must not lead outside it either
+  try { const real = fs.realpathSync(full); if (real !== fs.realpathSync(root) && !real.startsWith(fs.realpathSync(root) + path.sep)) return null; } catch { /* missing file: handled by the caller */ }
+  return full;
+}
+
+router.get('/local/files', desktopOnly, (req, res) => {
   const folder = process.env.CONTENT_FOLDER;
   if (!folder || !fs.existsSync(folder)) {
     return res.status(404).json({ error: 'CONTENT_FOLDER not found: ' + folder });
@@ -502,11 +524,11 @@ router.get('/local/files', (req, res) => {
   }
 });
 
-router.get('/local/read', (req, res) => {
-  const folder = process.env.CONTENT_FOLDER;
-  const filePath = path.join(folder, req.query.file);
-
+router.get('/local/read', desktopOnly, (req, res) => {
+  const filePath = inContentFolder(String(req.query.file || ''));
+  if (!filePath) return res.status(400).json({ error: 'That file is not in your content folder.' });
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+  if (fs.statSync(filePath).size > 2 * 1024 * 1024) return res.status(413).json({ error: 'That file is too large to open here.' });
 
   const ext = path.extname(filePath).toLowerCase();
   if (['.jpg', '.jpeg', '.png', '.gif'].includes(ext)) {
@@ -519,11 +541,13 @@ router.get('/local/read', (req, res) => {
 
 // ── CSV Bulk Import ───────────────────────────────────────────────────────────
 
-router.post('/local/import-csv', canPublish, async (req, res) => {
-  const csvPath = path.join(process.env.CONTENT_FOLDER || '.', req.query.file || 'schedule.csv');
-
+router.post('/local/import-csv', desktopOnly, canPublish, async (req, res) => {
+  const csvPath = inContentFolder(String(req.query.file || 'schedule.csv'));
+  if (!csvPath || path.extname(csvPath).toLowerCase() !== '.csv') {
+    return res.status(400).json({ error: 'Choose a .csv file from your content folder.' });
+  }
   if (!fs.existsSync(csvPath)) {
-    return res.status(404).json({ error: `CSV not found: ${csvPath}` });
+    return res.status(404).json({ error: 'CSV not found in your content folder.' });
   }
 
   const lines = fs.readFileSync(csvPath, 'utf8').split('\n').slice(1); // skip header
@@ -579,3 +603,4 @@ function parseCSVLine(line) {
 }
 
 module.exports = router;
+module.exports._inContentFolder = inContentFolder; // for tests
