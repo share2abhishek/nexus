@@ -2,8 +2,10 @@
 // open the link on any phone, see the post with its pictures, and press Approve
 // or Ask for changes. The answer comes back to the Calendar automatically.
 //
-// The post goes through Radixile's relay (the client can't reach this PC), but
+// Desktop: the post goes through Radixile's relay (the client can't reach this PC), but
 // encrypted: the key is only in the link after "#", so the relay can't read it.
+// Hosted edition: this app is on the internet itself and is the relay (services/localRelay.js),
+// so no other service, and no licence server, is involved.
 const crypto = require('crypto');
 const axios = require('axios');
 const fs = require('fs');
@@ -31,6 +33,7 @@ function decrypt(key, data) {
 }
 
 function relayUrl() { return require('./license').serverUrl(); }
+const hosted = () => require('./edition').isServer();
 function proofHeader() {
   const proof = require('./license').licenseProof();
   if (!proof) throw Object.assign(new Error('Approval links need an active licence (Settings → Licence).'), { status: 402 });
@@ -69,7 +72,7 @@ async function postFor(db, workspaceId, item, budget) {
 }
 
 // Share one post, or several (a "review set": one link, the client answers each)
-async function share(db, { workspaceId, userId, itemId, itemIds, days = 14 }) {
+async function share(db, { workspaceId, userId, itemId, itemIds, days = 14, baseUrl }) {
   const ids = (itemIds?.length ? itemIds : [itemId]).map(Number).filter(Boolean);
   if (!ids.length) throw Object.assign(new Error('No posts chosen.'), { status: 400 });
   if (ids.length > MAX_SET) throw Object.assign(new Error(`At most ${MAX_SET} posts in one link.`), { status: 400 });
@@ -92,12 +95,21 @@ async function share(db, { workspaceId, userId, itemId, itemIds, days = 14 }) {
   };
 
   const key = crypto.randomBytes(32);
-  const res = await axios.post(`${relayUrl()}/v1/approvals`, { ciphertext: encrypt(key, payload), days }, {
-    headers: proofHeader(), timeout: 60000, maxBodyLength: Infinity,
-  }).catch((err) => {
-    throw Object.assign(new Error(err.response?.data?.error || 'Couldn’t reach Radixile’s service to make the link. Check the internet and try again.'), { status: err.response?.status === 402 ? 402 : 502 });
-  });
-  const url = `${res.data.url}#${b64url(key)}`;
+  let created;
+  if (hosted()) {
+    const publicBase = process.env.APP_URL || baseUrl;
+    if (!publicBase) throw Object.assign(new Error('The service address (APP_URL) is not set, so a link can’t be made.'), { status: 500 });
+    created = await require('./localRelay').create(db, { workspaceId, ciphertext: encrypt(key, payload), days, publicBase });
+  } else {
+    const res = await axios.post(`${relayUrl()}/v1/approvals`, { ciphertext: encrypt(key, payload), days }, {
+      headers: proofHeader(), timeout: 60000, maxBodyLength: Infinity,
+    }).catch((err) => {
+      throw Object.assign(new Error(err.response?.data?.error || 'Couldn’t reach Radixile’s service to make the link. Check the internet and try again.'), { status: err.response?.status === 402 ? 402 : 502 });
+    });
+    created = res.data;
+  }
+  const res = { data: created };
+  const url = `${created.url}#${b64url(key)}`;
 
   // Only one open link per post: older ones are closed
   const older = await db('approval_links').where({ workspace_id: workspaceId, status: 'open' }).whereIn('content_item_id', ids);
@@ -126,6 +138,7 @@ async function closeLink(db, link, status = 'withdrawn') {
   await db('approval_links').where({ id: link.id }).update({ status });
   const others = await db('approval_links').where({ relay_id: link.relay_id, status: 'open' }).count('id as c').first();
   if (!Number(others?.c)) {
+    if (hosted()) return void await require('./localRelay').remove(db, link.relay_id, link.owner_token).catch(() => {});
     await axios.delete(`${relayUrl()}/v1/approvals/${encodeURIComponent(link.relay_id)}`, { headers: { 'X-Owner': link.owner_token }, timeout: 15000 }).catch(() => {});
   }
 }
@@ -190,8 +203,9 @@ async function apply(db, link, answer) {
 }
 
 // The answers waiting at the relay, for many links in one request
-async function fetchAnswers(links) {
+async function fetchAnswers(db, links) {
   const items = links.map(l => ({ id: l.relay_id, owner: l.owner_token }));
+  if (hosted()) return require('./localRelay').collect(db, items);
   const out = {};
   for (let i = 0; i < items.length; i += 100) {
     try {
@@ -223,7 +237,7 @@ async function poll(db) {
   }
   const byRelay = new Map();
   for (const l of live) byRelay.set(l.relay_id, [...(byRelay.get(l.relay_id) || []), l]);
-  const answers = await fetchAnswers([...byRelay.values()].map(ls => ls[0]));
+  const answers = await fetchAnswers(db, [...byRelay.values()].map(ls => ls[0]));
 
   let applied = 0;
   for (const [relayId, links] of byRelay) {

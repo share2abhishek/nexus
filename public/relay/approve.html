@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Please review this post</title>
+  <link rel="stylesheet" href="/relay/styles.css">
+  <style>
+    main { max-width: 640px; margin: 0 auto; padding: 16px; }
+    .post { background: #fff; color: #111827; border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px; margin: 16px 0; }
+    .post-text { white-space: pre-wrap; font-size: 15px; line-height: 1.5; }
+    .pics { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 12px; }
+    .pics img, .pics video { width: 100%; border-radius: 8px; display: block; }
+    .meta { color: #6b7280; font-size: 13px; margin-top: 10px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .actions button { flex: 1; min-width: 140px; padding: 14px; font-size: 16px; border-radius: 10px; border: 0; cursor: pointer; }
+    .ok { background: #16a34a; color: #fff; } .change { background: #f59e0b; color: #111; }
+    textarea, input { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; border: 1px solid #d1d5db; font: inherit; }
+    .done { text-align: center; padding: 32px 16px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 id="title" style="font-size:20px">Please review this post</h1>
+    <p class="muted" id="intro">Loading…</p>
+    <div id="post" class="post hidden"></div>
+    <div id="answer" class="hidden">
+      <label for="name">Your name</label>
+      <input id="name" autocomplete="name" placeholder="So they know who answered">
+      <div class="actions">
+        <button class="ok" id="approve">✓ Approve</button>
+        <button class="change" id="ask">✎ Ask for changes</button>
+      </div>
+      <div id="change-box" class="hidden" style="margin-top:12px">
+        <label for="comment">What should change?</label>
+        <textarea id="comment" rows="4" maxlength="2000"></textarea>
+        <div class="actions"><button class="change" id="send-change">Send</button></div>
+      </div>
+    </div>
+    <div id="done" class="done hidden"></div>
+    <p class="muted" style="font-size:12px;margin-top:32px">Shared privately through NexaDrip. Only people with this link can see the post, and it expires on its own.</p>
+  </main>
+  <script src="/relay/approve.js"></script>
+</body>
+</html>

@@ -167,6 +167,11 @@ app.use('/users',      usersRoutes);  // register / login / logout / me
 app.use('/admin',      adminRoutes);  // super admin dashboard
 app.use('/ollama',     ollamaSetupGuard, ollamaRoutes); // guided AI setup (status / pull)
 app.use('/api/webhooks', require('../routes/webhooks')(knex)); // Meta Lead Ads & Messenger Webhooks (HMAC-SHA256 verified)
+// Hosted edition: client approval links are served by this app (no relay or licence server)
+if (isHosted) {
+  app.use(require('../routes/relayPublic')(knex));
+  require('../services/localRelay').startPurge(knex);
+}
 
 // ── Rate limits ──────────────────────────────────────────────────────────────
 // A general ceiling on the API per person, and a tighter one on actions that use AI

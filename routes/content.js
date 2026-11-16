@@ -442,7 +442,7 @@ module.exports = (knex, requirePermission) => {
   // Client approval by link (or WhatsApp): needs the right to send for review
   router.post('/:id/approval-link', requirePermission('content.submit'), async (req, res) => {
     try {
-      const r = await require('../services/approvals').share(knex, { workspaceId: req.workspaceId, userId: req.session.userId, itemId: Number(req.params.id) });
+      const r = await require('../services/approvals').share(knex, { workspaceId: req.workspaceId, userId: req.session.userId, itemId: Number(req.params.id), baseUrl: `${req.protocol}://${req.get('host')}` });
       const text = `Please review this post before it goes out: ${r.url}`;
       res.json({ ...r, whatsapp_url: `https://wa.me/?text=${encodeURIComponent(text)}` });
     } catch (err) {
@@ -454,7 +454,7 @@ module.exports = (knex, requirePermission) => {
   router.post('/approval-set', requirePermission('content.submit'), async (req, res) => {
     try {
       const ids = Array.isArray(req.body?.item_ids) ? req.body.item_ids : [];
-      const r = await require('../services/approvals').share(knex, { workspaceId: req.workspaceId, userId: req.session.userId, itemIds: ids });
+      const r = await require('../services/approvals').share(knex, { workspaceId: req.workspaceId, userId: req.session.userId, itemIds: ids, baseUrl: `${req.protocol}://${req.get('host')}` });
       const text = `Please review these ${r.count} posts before they go out: ${r.url}`;
       res.json({ ...r, whatsapp_url: `https://wa.me/?text=${encodeURIComponent(text)}` });
     } catch (err) {
