@@ -225,6 +225,99 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
+  // ── Import contacts from a spreadsheet (CSV or Excel) ──────────────────────
+  // Same checks for the preview (?dry_run=1) and the real import: valid address,
+  // not already in your contacts, never someone who opted out, and a domain that
+  // can receive mail. Emails are written afterwards in the background and wait
+  // for your OK in Outbox like any other.
+  async function checkImportRows(workspaceId, parsed) {
+    const { verifyMxRecord } = require('../services/sellbird/contacts');
+    const good = parsed.rows.filter((r) => r.ok);
+    const emails = good.map((r) => r.contact.email);
+    const have = new Set();
+    const optedOut = new Set();
+    if (emails.length) {
+      for (const r of await knex('sellbird_contacts').where({ workspace_id: workspaceId }).whereIn(knex.raw('lower(email)'), emails).select('email')) have.add(String(r.email).toLowerCase());
+      for (const r of await knex('sellbird_replies').where({ workspace_id: workspaceId }).whereIn('intent_category', ['unsubscribe', 'not_interested']).whereIn(knex.raw('lower(sender_email)'), emails).select('sender_email')) optedOut.add(String(r.sender_email).toLowerCase());
+    }
+    // Does each domain take email? Checked once per domain, a few at a time
+    const domains = [...new Set(good.map((r) => r.contact.email.split('@')[1]))];
+    const mx = new Map();
+    for (let i = 0; i < domains.length; i += 8) {
+      await Promise.all(domains.slice(i, i + 8).map(async (d) => mx.set(d, await verifyMxRecord(d))));
+    }
+    for (const r of good) {
+      const e = r.contact.email;
+      if (have.has(e)) { r.ok = false; r.error = 'Already in your contacts.'; r.reason = 'duplicate'; }
+      else if (optedOut.has(e)) { r.ok = false; r.error = 'Asked not to be contacted before.'; r.reason = 'opted_out'; }
+      else if (!mx.get(e.split('@')[1])) { r.ok = false; r.error = `${e.split('@')[1]} can’t receive email.`; r.reason = 'bad_domain'; }
+    }
+    const ok = parsed.rows.filter((r) => r.ok).length;
+    parsed.counts = { ok, failed: parsed.rows.length - ok, total: parsed.rows.length };
+    return parsed;
+  }
+
+  router.post('/contacts/import', requirePermission('content.create'), express.raw({ type: () => true, limit: '5mb' }), async (req, res) => {
+    try {
+      if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'No file was sent.' });
+      let name = String(req.get('X-File-Name') || ''); try { name = decodeURIComponent(name); } catch {}
+      const campaign = await repo.getCampaign(req.workspaceId, Number(req.query.campaign_id));
+      if (!campaign) return res.status(400).json({ error: 'Pick a campaign for these contacts first.' });
+
+      let parsed;
+      try { parsed = require('../services/sellbird/contactImport').parseContacts(req.body, name); }
+      catch (err) { return res.status(400).json({ error: err.message }); }
+      await checkImportRows(req.workspaceId, parsed);
+
+      if (req.query.dry_run) return res.json({ rows: parsed.rows, counts: parsed.counts, truncated: parsed.truncated, max_rows: require('../services/sellbird/contactImport').MAX_ROWS });
+      if (!parsed.counts.ok) return res.status(400).json({ error: 'No contact in this file can be imported.', rows: parsed.rows, counts: parsed.counts });
+
+      // Companies: reuse one already in this campaign, otherwise add it
+      const existing = await knex('sellbird_companies').where({ workspace_id: req.workspaceId, campaign_id: campaign.id }).select('id', 'name', 'domain');
+      const byKey = new Map(existing.map((c) => [c.domain ? c.domain.toLowerCase() : `name:${String(c.name).toLowerCase()}`, c.id]));
+      const created = [];
+      for (const r of parsed.rows.filter((x) => x.ok)) {
+        const c = r.contact;
+        const key = c.domain || `name:${c.company.toLowerCase()}`;
+        let companyId = byKey.get(key);
+        if (!companyId) {
+          const company = await repo.addCompany(req.workspaceId, campaign.id, { name: c.company, domain: c.domain || '', location: c.location || null, industry: c.industry || null, score: 60, status: 'discovered' });
+          companyId = company.id; byKey.set(key, companyId);
+        }
+        const contact = await repo.addContact(req.workspaceId, companyId, { full_name: c.full_name, role: c.role || null, email: c.email, email_status: 'verified' });
+        created.push({ companyId, contact });
+      }
+      const skipped = parsed.counts.failed;
+      res.status(201).json({ success: true, imported: created.length, skipped, drafting: created.length });
+
+      // Write the emails after answering: one at a time, so a big file never freezes the app
+      (async () => {
+        const product = await productFor(req.workspaceId, campaign);
+        for (const { companyId, contact } of created) {
+          try {
+            const company = await repo.getCompany(req.workspaceId, companyId);
+            const sequence = await generateOutreachSequence({ product, company: { ...company, buying_signals: {} }, contact }, aiOptionsFromReq(req));
+            const now = Math.floor(Date.now() / 1000);
+            for (const step of sequence) {
+              await repo.addOutboxItem(req.workspaceId, {
+                campaign_id: campaign.id, contact_id: contact.id, step_number: step.step, subject: step.subject, body: step.body,
+                status: campaign.auto_approve ? 'approved' : 'pending_approval', scheduled_at: now + (Number(step.delay_days) || 0) * 86400,
+              });
+            }
+          } catch (err) { console.warn('[Sales outreach] Could not write emails for an imported contact:', err.message); }
+        }
+      })().catch((err) => console.error('[Sales outreach] Import drafting failed:', err.message));
+    } catch (err) {
+      console.error('[Sales outreach] Import error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.get('/contacts/import/template', requirePermission('content.view'), (req, res) => {
+    res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="contacts-template.csv"' });
+    res.send('﻿' + require('../services/sellbird/contactImport').TEMPLATE_CSV);
+  });
+
   // ── Companies / Target Prospecting ─────────────────────────────────────────
   router.get('/companies', requirePermission('content.view'), async (req, res) => {
     const { campaignId, status, limit, offset } = req.query;

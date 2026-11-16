@@ -270,6 +270,7 @@ function populateSellbirdCampaignDropdowns(campaigns) {
     document.getElementById('sellbird-active-campaign-select'),
     document.getElementById('add-company-campaign-id'),
     document.getElementById('bulk-discover-campaign-id'),
+    document.getElementById('import-contacts-campaign-id'),
   ];
 
   selects.forEach((sel) => {
@@ -1693,10 +1694,105 @@ function openBulkDiscoverModal() {
   if (modal) modal.style.display = 'flex';
 }
 
+// ── Import contacts from a spreadsheet ───────────────────────────────────────
+let importContactsFile = null;
+
+function openImportContactsModal() {
+  populateSellbirdCampaignDropdowns(SellbirdState.campaigns);
+  // Start with the campaign being looked at, if any
+  const active = document.getElementById('sellbird-active-campaign-select')?.value;
+  const sel = document.getElementById('import-contacts-campaign-id');
+  if (active && sel) sel.value = active;
+  importContactsFile = null;
+  document.getElementById('import-contacts-file-name').textContent = 'No file chosen';
+  document.getElementById('import-contacts-preview').innerHTML = '';
+  document.getElementById('btn-run-import-contacts').disabled = true;
+  document.getElementById('btn-run-import-contacts').textContent = 'Import';
+  const modal = document.getElementById('modal-sellbird-import-contacts');
+  if (modal) modal.style.display = 'flex';
+}
+
+async function sendContactsFile(file, campaignId, dryRun) {
+  const res = await fetch(`/api/sellbird/contacts/import?campaign_id=${encodeURIComponent(campaignId)}${dryRun ? '&dry_run=1' : ''}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
+    body: file,
+  });
+  if (res.status === 401) { window.location.href = '/login.html'; return null; }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok && !data.rows) throw new Error(data.error || `The import failed (error ${res.status}).`);
+  return { ...data, httpOk: res.ok };
+}
+
+async function previewContactsImport(file) {
+  if (!file) return;
+  const campaignId = document.getElementById('import-contacts-campaign-id')?.value;
+  const out = document.getElementById('import-contacts-preview');
+  const btn = document.getElementById('btn-run-import-contacts');
+  document.getElementById('import-contacts-file-name').textContent = file.name;
+  btn.disabled = true;
+  importContactsFile = null;
+  if (!campaignId) { out.innerHTML = '<div style="color:#ef4444">Pick a campaign first, then choose the file again.</div>'; return; }
+  out.innerHTML = '<span class="spinner"></span> Checking the people in your file…';
+  try {
+    const r = await sendContactsFile(file, campaignId, true);
+    if (!r) return;
+    importContactsFile = file;
+    const e = escapeHtml;
+    const shown = r.rows.slice(0, 200);
+    out.innerHTML = `
+      <div style="margin-bottom:8px;font-size:13px">
+        <b>${r.counts.ok}</b> ${r.counts.ok === 1 ? 'person' : 'people'} ready${r.counts.failed ? `, <span style="color:#ef4444">${r.counts.failed} will be skipped</span>` : ''}.
+        ${r.truncated ? `<span style="color:#b45309">Only the first ${r.max_rows} rows are read.</span>` : ''}
+        ${r.counts.ok ? 'Emails are written for each one and wait for your OK in Outbox.' : ''}
+      </div>
+      <div style="max-height:300px;overflow:auto"><table class="analytics-table">
+        <thead><tr><th>Row</th><th>Person</th><th>Email</th><th>Company</th></tr></thead>
+        <tbody>${shown.map((x) => x.ok
+          ? `<tr><td>${x.line}</td><td>${e(x.contact.full_name)}${x.contact.role ? `<br><span style="color:var(--text-muted);font-size:12px">${e(x.contact.role)}</span>` : ''}</td><td>${e(x.contact.email)}</td><td>${e(x.contact.company)}</td></tr>`
+          : `<tr style="color:#ef4444"><td>${x.line}</td><td colspan="3">⚠️ ${e(x.error)}${x.contact ? ` <span style="color:var(--text-muted)">(${e(x.contact.email)})</span>` : ''}</td></tr>`).join('')}</tbody>
+      </table></div>`;
+    btn.textContent = r.counts.ok ? `Import ${r.counts.ok} ${r.counts.ok === 1 ? 'person' : 'people'}` : 'Import';
+    btn.disabled = !r.counts.ok;
+  } catch (err) {
+    out.innerHTML = `<div style="color:#ef4444">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function runContactsImport() {
+  const campaignId = document.getElementById('import-contacts-campaign-id')?.value;
+  if (!importContactsFile || !campaignId) return;
+  const btn = document.getElementById('btn-run-import-contacts');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;margin-right:6px"></span> Importing…';
+  try {
+    const r = await sendContactsFile(importContactsFile, campaignId, false);
+    if (!r) return;
+    if (!r.httpOk) throw new Error(r.error || 'The import failed.');
+    toast(`Imported ${r.imported} ${r.imported === 1 ? 'person' : 'people'}${r.skipped ? `; ${r.skipped} skipped` : ''}. Their emails are being written and will wait for your OK in Outbox.`, 'success', 8000);
+    importContactsFile = null;
+    closeSellbirdModals();
+    await loadSellbird();
+  } catch (err) {
+    toast(err.message, 'error', 8000);
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+function downloadContactsTemplate() {
+  const a = document.createElement('a');
+  a.href = '/api/sellbird/contacts/import/template';
+  a.download = 'contacts-template.csv';
+  a.click();
+}
+
 function closeSellbirdModals() {
   const modals = [
     document.getElementById('modal-sellbird-add-company'),
     document.getElementById('modal-sellbird-bulk-discover'),
+    document.getElementById('modal-sellbird-import-contacts'),
     document.getElementById('modal-sellbird-pull-real'),
     document.getElementById('modal-sellbird-simulate-reply'),
     document.getElementById('modal-sellbird-create-campaign'),
@@ -2014,6 +2110,10 @@ if (typeof window !== 'undefined') {
     viewContactInReplies,
     openAddCompanyModal,
     openBulkDiscoverModal,
+    openImportContactsModal,
+    previewContactsImport,
+    runContactsImport,
+    downloadContactsTemplate,
     openPullRealProspectsModal,
     toggleRealTargetMode,
     toggleSellbirdDiscoveryMode,

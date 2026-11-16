@@ -1846,6 +1846,7 @@
                   </div>
                   <div style="display:flex;gap:8px">
                     <button class="sb-secondary-btn" onclick="exportSellbirdContactsCsv()">Export CSV</button>
+                    <button class="sb-secondary-btn" onclick="openImportContactsModal()" title="Upload a CSV or Excel file of people">Import contacts</button>
                     <button class="sb-secondary-btn" onclick="openBulkDiscoverModal()">Add many companies</button>
                     <button class="sb-primary-btn" onclick="openAddCompanyModal()">+ Add a company</button>
                   </div>
@@ -2352,6 +2353,38 @@
           <button class="btn btn-sellbird-primary" onclick="submitBulkDiscover()" id="btn-submit-bulk-discover">
             Add them and write emails
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Import contacts from a spreadsheet -->
+    <div class="modal" id="modal-sellbird-import-contacts" style="display:none">
+      <div class="modal-backdrop" onclick="closeSellbirdModals()"></div>
+      <div class="modal-content sellbird-modal-content" style="max-width:720px">
+        <div class="modal-header">
+          <div class="modal-title">Import contacts</div>
+          <button class="modal-close" onclick="closeSellbirdModals()" aria-label="Close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Campaign *</label>
+            <select class="form-select sellbird-select" id="import-contacts-campaign-id"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Your file (CSV or Excel)</label>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <button class="btn btn-secondary btn-sm" type="button" onclick="document.getElementById('import-contacts-file').click()">Choose file…</button>
+              <span id="import-contacts-file-name" style="font-size:13px;color:var(--text-muted)">No file chosen</span>
+              <a href="#" onclick="downloadContactsTemplate();return false" style="font-size:13px">Download a template</a>
+              <input type="file" id="import-contacts-file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onchange="previewContactsImport(this.files[0]); this.value=''" />
+            </div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:6px">Columns: Name, Email (needed), Role, Company, Website, Location, Industry. Up to 300 people at a time.</div>
+          </div>
+          <div id="import-contacts-preview"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeSellbirdModals()">Cancel</button>
+          <button class="btn btn-sellbird-primary" id="btn-run-import-contacts" disabled onclick="runContactsImport()">Import</button>
         </div>
       </div>
     </div>
