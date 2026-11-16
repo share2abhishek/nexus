@@ -6,40 +6,118 @@
 // Content Calendar & Unified Content Model (Phase 1b)
 // ─────────────────────────────────────────────────────────────────────────────
 
-State.calendarView = 'week';
+// ── Views: Day · Week · Month · Year · Agenda ────────────────────────────────
+// The date arithmetic is kept in small pure functions (no page access) so it can be tested.
+// <calendar-helpers>
+const CAL_VIEWS = ['day', 'week', 'month', 'year', 'agenda'];
+
+// Same day-of-month where possible, clamped (Jan 31 + 1 month = Feb 28/29, not Mar 3)
+function addCalendarMonths(date, n) {
+  const d = new Date(date);
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + n);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, last));
+  return d;
+}
+
+// What a view shows: first and last moment, and the heading
+function calendarRange(view, date) {
+  const y = date.getFullYear(), m = date.getMonth(), day = date.getDate();
+  const short = { month: 'short', day: 'numeric' };
+  let start, end, label;
+  if (view === 'day') {
+    start = new Date(y, m, day);
+    end = new Date(y, m, day, 23, 59, 59, 999);
+    label = start.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  } else if (view === 'week') {
+    start = new Date(y, m, day - date.getDay());
+    end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6, 23, 59, 59, 999);
+    label = start.getFullYear() === end.getFullYear()
+      ? `${start.toLocaleDateString('en', short)} – ${end.toLocaleDateString('en', short)}, ${start.getFullYear()}`
+      : `${start.toLocaleDateString('en', { ...short, year: 'numeric' })} – ${end.toLocaleDateString('en', { ...short, year: 'numeric' })}`;
+  } else if (view === 'month') {
+    // six weeks, including the days around the month
+    start = new Date(y, m, 1 - new Date(y, m, 1).getDay());
+    end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 41, 23, 59, 59, 999);
+    label = date.toLocaleDateString('en', { month: 'long', year: 'numeric' });
+  } else if (view === 'year') {
+    start = new Date(y, 0, 1);
+    end = new Date(y, 11, 31, 23, 59, 59, 999);
+    label = String(y);
+  } else { // agenda: the whole month, as a list
+    start = new Date(y, m, 1);
+    end = new Date(y, m + 1, 0, 23, 59, 59, 999);
+    label = `Agenda: ${date.toLocaleDateString('en', { month: 'long', year: 'numeric' })}`;
+  }
+  return { start, end, label };
+}
+
+// The date after pressing Prev (-1) or Next (+1)
+function shiftCalendarDate(view, date, dir) {
+  if (view === 'day') { const d = new Date(date); d.setDate(d.getDate() + dir); return d; }
+  if (view === 'week') { const d = new Date(date); d.setDate(d.getDate() + 7 * dir); return d; }
+  if (view === 'year') return addCalendarMonths(date, 12 * dir);
+  return addCalendarMonths(date, dir); // month, agenda
+}
+
+// When a post sits on the calendar: its time if scheduled, else the day it was made
+const calEventDate = (e) => new Date((e.scheduled_at || e.created_at) * 1000);
+// </calendar-helpers>
+
+// A few colours to tell calendars (workspaces) apart when several are shown together
+const CAL_COLORS = ['#7c3aed', '#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#ec4899', '#14b8a6', '#8b5cf6'];
+
+// What the person chose last time (a convenience only: the page works without it)
+function calPref(key, fallback) {
+  try { const v = localStorage.getItem(`nx.calendar.${key}`); return v == null ? fallback : JSON.parse(v); } catch { return fallback; }
+}
+function calSavePref(key, value) {
+  try { localStorage.setItem(`nx.calendar.${key}`, JSON.stringify(value)); } catch { /* private mode */ }
+}
+
+State.calendarView = CAL_VIEWS.includes(calPref('view', 'week')) ? calPref('view', 'week') : 'week';
 State.calendarEvents = [];
+State.calendarExtraWs = calPref('workspaces', []);   // other calendars shown with this one
+State.calendarHiddenPlatforms = new Set(calPref('hiddenPlatforms', []));
 State.selectedContentItem = null;
 State.userWorkspaces = [];
 
-function changeCalendarView(view) {
-  State.calendarView = view;
-  ['week', 'month', 'agenda'].forEach(v => {
-    const btn = document.getElementById(`view-btn-${v}`);
-    if (btn) {
-      if (v === view) btn.classList.add('active');
-      else btn.classList.remove('active');
-    }
-  });
-
-  // Adjust calendar-grid layout class
+// Active view button, grid class and the "Today" button
+function syncCalendarChrome() {
+  CAL_VIEWS.forEach(v => document.getElementById(`view-btn-${v}`)?.classList.toggle('active', v === State.calendarView));
   const grid = document.getElementById('calendar-grid');
-  if (grid) {
-    grid.className = `calendar-grid ${view}-view`;
-  }
+  if (grid) grid.className = `calendar-grid ${State.calendarView}-view`;
+}
 
+function changeCalendarView(view) {
+  if (!CAL_VIEWS.includes(view)) return;
+  State.calendarView = view;
+  calSavePref('view', view);
+  syncCalendarChrome();
   renderCalendar(State.calendarDate);
 }
 
 function navigateCalendar(dir) {
-  const date = State.calendarDate;
-  if (State.calendarView === 'week') {
-    date.setDate(date.getDate() + dir * 7);
-  } else {
-    // Month or Agenda: navigate by month
-    date.setMonth(date.getMonth() + dir);
-  }
-  State.calendarDate = date;
-  renderCalendar(date);
+  State.calendarDate = shiftCalendarDate(State.calendarView, State.calendarDate, dir);
+  renderCalendar(State.calendarDate);
+}
+
+function calendarToday() {
+  State.calendarDate = new Date();
+  renderCalendar(State.calendarDate);
+}
+
+// Jump from the year overview (or a heading) to a closer look
+function openCalendarDay(ymd) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  State.calendarDate = new Date(y, m - 1, d);
+  changeCalendarView('day');
+}
+function openCalendarMonth(year, month) {
+  State.calendarDate = new Date(year, month, 1);
+  changeCalendarView('month');
 }
 
 // Backward compatibility helper
@@ -47,57 +125,128 @@ function changeMonth(dir) {
   navigateCalendar(dir);
 }
 
+// ── Several calendars at once ────────────────────────────────────────────────
+// The current workspace is always shown; others the person belongs to can be added.
+function calendarWorkspaceIds() {
+  const mine = new Set((State.userWorkspaces || []).map(w => String(w.workspace_id)));
+  const extra = (State.calendarExtraWs || []).map(String).filter(id => mine.has(id) && id !== String(currentWorkspaceId));
+  return [currentWorkspaceId, ...extra];
+}
+function calendarColor(wsId) {
+  const i = (State.userWorkspaces || []).findIndex(w => String(w.workspace_id) === String(wsId));
+  return CAL_COLORS[(i < 0 ? 0 : i) % CAL_COLORS.length];
+}
+const calendarMulti = () => calendarWorkspaceIds().length > 1;
+
+function toggleCalendarWorkspace(wsId, on) {
+  const set = new Set((State.calendarExtraWs || []).map(String));
+  if (on) set.add(String(wsId)); else set.delete(String(wsId));
+  State.calendarExtraWs = [...set];
+  calSavePref('workspaces', State.calendarExtraWs);
+  renderCalendar(State.calendarDate);
+}
+
+function toggleCalendarPlatform(platform, on) {
+  if (on) State.calendarHiddenPlatforms.delete(platform); else State.calendarHiddenPlatforms.add(platform);
+  calSavePref('hiddenPlatforms', [...State.calendarHiddenPlatforms]);
+  renderCalendarData();
+}
+
+// Posts from every selected calendar, each tagged with where it came from
+async function fetchCalendarEvents(from, to) {
+  const url = `/api/content/calendar?from=${from}&to=${to}`;
+  const ids = calendarWorkspaceIds();
+  const failed = [];
+  const lists = await Promise.all(ids.map(async (id) => {
+    try {
+      // Always name the workspace: the page and the server's remembered "active" one can differ
+      // (for example right after a reload), and a calendar must never mix them up
+      const r = await fetch(url, { headers: { 'x-workspace-id': String(id) } });
+      if (r.status === 401) { window.location.href = '/login.html'; return []; }
+      if (!r.ok) throw new Error(r.status);
+      const items = await r.json();
+      const name = (State.userWorkspaces || []).find(w => String(w.workspace_id) === String(id))?.workspace_name || 'Calendar';
+      return (items || []).map(e => ({ ...e, _ws: Number(id), _wsName: name }));
+    } catch {
+      failed.push(id);
+      return [];
+    }
+  }));
+  if (failed.length) {
+    const names = failed.map(id => (State.userWorkspaces || []).find(w => String(w.workspace_id) === String(id))?.workspace_name || id);
+    toast(`Couldn’t load ${names.join(', ')}. You may not have access to it any more.`, 'warning', 6000);
+  }
+  return lists.flat();
+}
+
+// Little coloured dot that says which calendar a post belongs to (only when several are shown)
+function calWsDot(e) {
+  if (!calendarMulti()) return '';
+  return `<span class="cal-ws-dot" style="background:${calendarColor(e._ws)}" title="${escapeHtml(e._wsName || '')}"></span>`;
+}
+
+// Opening a post from another calendar switches to that workspace first
+async function openCalendarEvent(id, wsId) {
+  if (wsId && String(wsId) !== String(currentWorkspaceId)) {
+    const w = (State.userWorkspaces || []).find(x => String(x.workspace_id) === String(wsId));
+    await switchWorkspace(Number(wsId), w?.workspace_name || '', false);
+  }
+  openContentDetail(id);
+}
+
+// "Calendars" and "Platforms" toggles under the status filter
+function renderCalendarChips() {
+  const box = document.getElementById('calendar-multi-filters');
+  if (!box) return;
+  const chip = (checked, onchange, html, { disabled = false, title = '' } = {}) => `
+    <label class="cal-chip ${disabled ? 'is-locked' : ''}" ${title ? `title="${escapeHtml(title)}"` : ''}><input type="checkbox" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''} onchange="${onchange}" />${html}</label>`;
+  let html = '';
+  const spaces = State.userWorkspaces || [];
+  if (spaces.length > 1) {
+    html += `<div class="cal-chip-group"><span class="cal-filter-label">Calendars:</span>`;
+    for (const w of spaces) {
+      const isCurrent = String(w.workspace_id) === String(currentWorkspaceId);
+      const on = isCurrent || (State.calendarExtraWs || []).map(String).includes(String(w.workspace_id));
+      html += chip(on, `toggleCalendarWorkspace(${w.workspace_id}, this.checked)`,
+        `<span class="cal-ws-dot" style="background:${calendarColor(w.workspace_id)}"></span>${escapeHtml(w.workspace_name)}${isCurrent ? ' <em>(this one)</em>' : ''}`,
+        { disabled: isCurrent, title: isCurrent ? 'The workspace you are in is always shown' : '' });
+    }
+    html += `</div>`;
+  }
+  const present = new Set(State.calendarHiddenPlatforms);
+  for (const e of State.calendarEvents || []) for (const p of e.platforms || []) present.add(p);
+  if (present.size) {
+    html += `<div class="cal-chip-group"><span class="cal-filter-label">Platforms:</span>`;
+    for (const p of [...present].sort()) {
+      html += chip(!State.calendarHiddenPlatforms.has(p), `toggleCalendarPlatform(${jsAttr(p)}, this.checked)`,
+        `${PLATFORMS[p]?.icon || ''} ${escapeHtml(PLATFORMS[p]?.label || p)}`);
+    }
+    html += `</div>`;
+  }
+  box.innerHTML = html;
+  box.style.display = html ? '' : 'none';
+}
+
 async function renderCalendar(date) {
+  syncCalendarChrome();
   if (!currentWorkspaceId) {
     const grid = document.getElementById('calendar-grid');
     if (grid) grid.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px">Please select a workspace context first.</div>';
     return;
   }
 
-  // Calculate start/end of view
-  let start, end;
-  const year = date.getFullYear();
-  const month = date.getMonth();
-
-  if (State.calendarView === 'week') {
-    start = new Date(date);
-    start.setDate(date.getDate() - date.getDay());
-    start.setHours(0, 0, 0, 0);
-
-    end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    end.setHours(23, 59, 59, 999);
-
-    const formatOptions = { month: 'short', day: 'numeric' };
-    document.getElementById('calendar-date-label').textContent = 
-      `${start.toLocaleDateString('en', formatOptions)} – ${end.toLocaleDateString('en', formatOptions)}, ${start.getFullYear()}`;
-  } else if (State.calendarView === 'month') {
-    // Month view shows surrounding filler days (up to 42 cells)
-    const firstOfMonth = new Date(year, month, 1);
-    const startDay = firstOfMonth.getDay();
-    start = new Date(year, month, 1 - startDay);
-    start.setHours(0, 0, 0, 0);
-
-    end = new Date(start);
-    end.setDate(start.getDate() + 41);
-    end.setHours(23, 59, 59, 999);
-
-    document.getElementById('calendar-date-label').textContent = 
-      date.toLocaleDateString('en', { month: 'long', year: 'numeric' });
-  } else {
-    // Agenda: whole current month
-    start = new Date(year, month, 1, 0, 0, 0);
-    end = new Date(year, month + 1, 0, 23, 59, 59, 999);
-    document.getElementById('calendar-date-label').textContent = 
-      `Agenda: ${date.toLocaleDateString('en', { month: 'long', year: 'numeric' })}`;
-  }
+  const { start, end, label } = calendarRange(State.calendarView, date);
+  document.getElementById('calendar-date-label').textContent = label;
 
   const from = Math.floor(start.getTime() / 1000);
   const to = Math.floor(end.getTime() / 1000);
+  const ticket = State.calendarTicket = (State.calendarTicket || 0) + 1; // a slow answer must not overwrite a newer one
 
   try {
-    const events = await api('GET', `/api/content/calendar?from=${from}&to=${to}`);
+    const events = await fetchCalendarEvents(from, to);
+    if (ticket !== State.calendarTicket) return;
     State.calendarEvents = events;
+    renderCalendarChips();
     renderCalendarData();
   } catch (err) {
     console.error('Error fetching calendar data:', err);
@@ -111,17 +260,19 @@ function renderCalendarData() {
 
   const activeStatuses = Array.from(document.querySelectorAll('#calendar-filters input[type="checkbox"]:checked'))
     .map(el => el.value);
+  const hidden = State.calendarHiddenPlatforms;
 
-  const filteredEvents = State.calendarEvents.filter(e => activeStatuses.includes(e.status));
+  // A post shows if its status is ticked and at least one of its platforms is (posts with none always show)
+  const filteredEvents = State.calendarEvents.filter(e => activeStatuses.includes(e.status)
+    && (!(e.platforms || []).length || e.platforms.some(p => !hidden.has(p))));
 
-  if (State.calendarView === 'week') {
-    renderWeekView(State.calendarDate, filteredEvents);
-  } else if (State.calendarView === 'month') {
-    renderMonthView(State.calendarDate, filteredEvents);
-  } else {
-    renderAgendaView(State.calendarDate, filteredEvents);
-  }
-  markCalendarFestivals();
+  const view = State.calendarView;
+  if (view === 'day') renderDayView(State.calendarDate, filteredEvents);
+  else if (view === 'week') renderWeekView(State.calendarDate, filteredEvents);
+  else if (view === 'month') renderMonthView(State.calendarDate, filteredEvents);
+  else if (view === 'year') renderYearView(State.calendarDate, filteredEvents);
+  else renderAgendaView(State.calendarDate, filteredEvents);
+  if (view !== 'year') markCalendarFestivals();
 }
 
 const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -155,54 +306,53 @@ function writeFestivalPost(h) {
   toast(`Write your ${h.name} post. Press "Write" to let AI draft it.`, 'info', 6000);
 }
 
+// One small post on a calendar day (week and month views)
+function calEventChip(e, { compact = false } = {}) {
+  const open = `openCalendarEvent(${e.id},${e._ws || 0})`;
+  const platformIcons = (e.platforms || []).map(p => PLATFORMS[p]?.icon || '').join('');
+  if (compact) {
+    const snippet = escapeHtml(e.title || String(e.body || '').substring(0, 15) + (String(e.body || '').length > 15 ? '…' : ''));
+    const timeLabel = e.scheduled_at ? new Date(e.scheduled_at * 1000).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false }) : 'D';
+    return `
+      <div class="calendar-event-card event-status-${e.status}" onclick="${open}" style="padding:3px 6px;margin-bottom:2px;border-radius:4px;font-size:10px">
+        <span style="font-weight:700;opacity:0.8">${calWsDot(e)}${timeLabel}: ${snippet}</span>
+      </div>`;
+  }
+  const timeLabel = e.scheduled_at ? new Date(e.scheduled_at * 1000).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' }) : 'Draft';
+  const body = String(e.body || '');
+  const snippet = escapeHtml(e.title || body.substring(0, 35) + (body.length > 35 ? '…' : ''));
+  return `
+    <div class="calendar-event-card event-status-${e.status}" onclick="${open}">
+      <div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between">
+        <span>${calWsDot(e)}${timeLabel}</span>
+        <span>${platformIcons}</span>
+      </div>
+      <div style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${snippet}</div>
+    </div>`;
+}
+
+const sameCalDay = (a, b) => a.toDateString() === b.toDateString();
+const bySchedule = (a, b) => (a.scheduled_at || a.created_at) - (b.scheduled_at || b.created_at);
+
 function renderWeekView(date, events) {
   const grid = document.getElementById('calendar-grid');
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const today = new Date();
-
-  // Find start of week
-  const startOfWeek = new Date(date);
-  startOfWeek.setDate(date.getDate() - date.getDay());
+  const { start: startOfWeek } = calendarRange('week', date);
 
   let html = days.map(d => `<div class="calendar-day-label">${d}</div>`).join('');
 
   for (let i = 0; i < 7; i++) {
-    const currentDay = new Date(startOfWeek);
-    currentDay.setDate(startOfWeek.getDate() + i);
-    const isToday = currentDay.toDateString() === today.toDateString();
-    
-    // Filter events for this specific date
-    const dayEvents = events.filter(e => {
-      const ed = e.scheduled_at ? new Date(e.scheduled_at * 1000) : new Date(e.created_at * 1000);
-      return ed.toDateString() === currentDay.toDateString();
-    });
-
-    // Sort by scheduled time, then created time
-    dayEvents.sort((a, b) => (a.scheduled_at || a.created_at) - (b.scheduled_at || b.created_at));
+    const currentDay = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + i);
+    const dayEvents = events.filter(e => sameCalDay(calEventDate(e), currentDay)).sort(bySchedule);
 
     html += `
-      <div class="calendar-day ${isToday ? 'today' : ''}" data-date="${ymdLocal(currentDay)}" style="min-height: 250px">
+      <div class="calendar-day ${sameCalDay(currentDay, today) ? 'today' : ''}" data-date="${ymdLocal(currentDay)}" style="min-height: 250px">
         <div class="calendar-day-num" style="display:flex;justify-content:space-between;align-items:center">
           <span>${currentDay.getDate()}</span>
-          <span style="font-size:10px;opacity:0.6">${currentDay.toLocaleDateString('en', {month:'short'})}</span>
+          <span style="font-size:10px;opacity:0.6">${currentDay.toLocaleDateString('en', { month: 'short' })}</span>
         </div>
-        <div style="margin-top:8px">
-          ${dayEvents.map(e => {
-            const timeLabel = e.scheduled_at 
-              ? new Date(e.scheduled_at * 1000).toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit'}) 
-              : 'Draft';
-            const titleSnippet = escapeHtml(e.title || e.body.substring(0, 35) + (e.body.length > 35 ? '…' : ''));
-            const platformIcons = e.platforms.map(p => PLATFORMS[p]?.icon || '').join('');
-            return `
-              <div class="calendar-event-card event-status-${e.status}" onclick="openContentDetail(${e.id})">
-                <div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between">
-                  <span>${timeLabel}</span>
-                  <span>${platformIcons}</span>
-                </div>
-                <div style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${titleSnippet}</div>
-              </div>`;
-          }).join('')}
-        </div>
+        <div style="margin-top:8px">${dayEvents.map(e => calEventChip(e)).join('')}</div>
       </div>`;
   }
 
@@ -213,50 +363,123 @@ function renderMonthView(date, events) {
   const grid = document.getElementById('calendar-grid');
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const today = new Date();
-
-  const year = date.getFullYear();
   const month = date.getMonth();
-
-  const firstOfMonth = new Date(year, month, 1);
-  const startDay = firstOfMonth.getDay();
+  const { start: cellStart } = calendarRange('month', date);
 
   let html = days.map(d => `<div class="calendar-day-label">${d}</div>`).join('');
 
-  // 42 cells total (6 weeks)
-  const cellStartDate = new Date(year, month, 1 - startDay);
-
   for (let i = 0; i < 42; i++) {
-    const currentDay = new Date(cellStartDate);
-    currentDay.setDate(cellStartDate.getDate() + i);
-    
-    const isToday = currentDay.toDateString() === today.toDateString();
-    const isOtherMonth = currentDay.getMonth() !== month;
-
-    const dayEvents = events.filter(e => {
-      const ed = e.scheduled_at ? new Date(e.scheduled_at * 1000) : new Date(e.created_at * 1000);
-      return ed.toDateString() === currentDay.toDateString();
-    });
-
-    dayEvents.sort((a, b) => (a.scheduled_at || a.created_at) - (b.scheduled_at || b.created_at));
+    const currentDay = new Date(cellStart.getFullYear(), cellStart.getMonth(), cellStart.getDate() + i);
+    const dayEvents = events.filter(e => sameCalDay(calEventDate(e), currentDay)).sort(bySchedule);
 
     html += `
-      <div class="calendar-day ${isToday ? 'today' : ''} ${isOtherMonth ? 'other-month' : ''}" data-date="${ymdLocal(currentDay)}" style="min-height: 100px">
+      <div class="calendar-day ${sameCalDay(currentDay, today) ? 'today' : ''} ${currentDay.getMonth() !== month ? 'other-month' : ''}" data-date="${ymdLocal(currentDay)}" style="min-height: 100px">
         <div class="calendar-day-num">${currentDay.getDate()}</div>
-        <div style="margin-top:4px">
-          ${dayEvents.map(e => {
-            const titleSnippet = escapeHtml(e.title || e.body.substring(0, 15) + (e.body.length > 15 ? '…' : ''));
-            const timeLabel = e.scheduled_at 
-              ? new Date(e.scheduled_at * 1000).toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit', hour12:false}) 
-              : 'D';
-            return `
-              <div class="calendar-event-card event-status-${e.status}" onclick="openContentDetail(${e.id})" style="padding:3px 6px;margin-bottom:2px;border-radius:4px;font-size:10px">
-                <span style="font-weight:700;opacity:0.8">${timeLabel}: ${titleSnippet}</span>
-              </div>`;
-          }).join('')}
-        </div>
+        <div style="margin-top:4px">${dayEvents.map(e => calEventChip(e, { compact: true })).join('')}</div>
       </div>`;
   }
 
+  grid.innerHTML = html;
+}
+
+// One day, hour by hour. Posts without a time ("drafts") sit in a row of their own.
+function renderDayView(date, events) {
+  const grid = document.getElementById('calendar-grid');
+  const today = new Date();
+  const dayEvents = events.filter(e => sameCalDay(calEventDate(e), date)).sort(bySchedule);
+  const unscheduled = dayEvents.filter(e => !e.scheduled_at);
+  const timed = dayEvents.filter(e => e.scheduled_at);
+  const isToday = sameCalDay(date, today);
+
+  const card = (e) => {
+    const body = String(e.body || '');
+    const platformsText = (e.platforms || []).map(p => `${PLATFORMS[p]?.icon || ''} ${escapeHtml(PLATFORMS[p]?.label || p)}`).join(', ');
+    const time = e.scheduled_at ? new Date(e.scheduled_at * 1000).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' }) : 'No time set';
+    return `
+      <div class="calendar-event-card event-status-${e.status}" onclick="openCalendarEvent(${e.id},${e._ws || 0})">
+        <div style="display:flex;justify-content:space-between;gap:8px;font-size:10.5px;font-weight:700">
+          <span>${calWsDot(e)}${time}${calendarMulti() ? ` · ${escapeHtml(e._wsName || '')}` : ''}</span>
+          <span>${statusLabel(e.status)}</span>
+        </div>
+        <div style="font-size:12.5px;font-weight:600;color:var(--text-primary)">${escapeHtml(postTitle(e))}</div>
+        ${body && !e.title ? '' : `<div style="font-size:11.5px;opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(body)}</div>`}
+        ${platformsText ? `<div style="font-size:10.5px;opacity:.85">${platformsText}</div>` : ''}
+      </div>`;
+  };
+
+  // 6 am – 10 pm always; any other hour only when it has a post
+  const hours = new Set();
+  for (let h = 6; h <= 22; h++) hours.add(h);
+  timed.forEach(e => hours.add(new Date(e.scheduled_at * 1000).getHours()));
+
+  let html = `
+    <div class="calendar-day cal-day-head ${isToday ? 'today' : ''}" data-date="${ymdLocal(date)}">
+      <div class="calendar-day-num" style="margin:0;font-size:13px">${dayEvents.length ? `${dayEvents.length} post${dayEvents.length === 1 ? '' : 's'} on this day` : 'Nothing planned for this day'}</div>
+    </div>`;
+
+  if (unscheduled.length) {
+    html += `
+      <div class="cal-hour">
+        <div class="cal-hour-label">No time</div>
+        <div class="cal-hour-slot">${unscheduled.map(card).join('')}</div>
+      </div>`;
+  }
+
+  for (const h of [...hours].sort((a, b) => a - b)) {
+    const label = new Date(2000, 0, 1, h).toLocaleTimeString('en', { hour: 'numeric', hour12: true });
+    const inHour = timed.filter(e => new Date(e.scheduled_at * 1000).getHours() === h);
+    html += `
+      <div class="cal-hour ${isToday && today.getHours() === h ? 'now' : ''}">
+        <div class="cal-hour-label">${label}</div>
+        <div class="cal-hour-slot">${inHour.map(card).join('')}</div>
+      </div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+// The whole year at a glance: twelve small months. A day with posts is shaded (darker = more);
+// red underline = something failed there. Click a day for that day, a month name for the month.
+function renderYearView(date, events) {
+  const grid = document.getElementById('calendar-grid');
+  const year = date.getFullYear();
+  const today = new Date();
+
+  const byDay = new Map();
+  for (const e of events) {
+    const d = calEventDate(e);
+    if (d.getFullYear() !== year) continue;
+    const key = ymdLocal(d);
+    const rec = byDay.get(key) || { n: 0, failed: 0 };
+    rec.n++; if (e.status === 'failed') rec.failed++;
+    byDay.set(key, rec);
+  }
+  const monthTotals = new Array(12).fill(0);
+  for (const [key, rec] of byDay) monthTotals[Number(key.slice(5, 7)) - 1] += rec.n;
+
+  let html = '';
+  for (let m = 0; m < 12; m++) {
+    const first = new Date(year, m, 1);
+    const daysIn = new Date(year, m + 1, 0).getDate();
+    let cells = ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => `<span class="cal-mini-dow">${d}</span>`).join('');
+    cells += '<span></span>'.repeat(first.getDay());
+    for (let d = 1; d <= daysIn; d++) {
+      const day = new Date(year, m, d);
+      const key = ymdLocal(day);
+      const rec = byDay.get(key);
+      const cls = ['cal-mini-day', sameCalDay(day, today) ? 'today' : '', rec ? `has-${Math.min(rec.n, 3)}` : '', rec?.failed ? 'has-failed' : ''].filter(Boolean).join(' ');
+      const title = rec ? `${rec.n} post${rec.n === 1 ? '' : 's'}${rec.failed ? `, ${rec.failed} failed` : ''}` : '';
+      cells += `<button type="button" class="${cls}" ${title ? `title="${title}"` : ''} onclick="openCalendarDay('${key}')">${d}</button>`;
+    }
+    html += `
+      <div class="cal-mini">
+        <button type="button" class="cal-mini-title" onclick="openCalendarMonth(${year}, ${m})">
+          ${first.toLocaleDateString('en', { month: 'long' })}
+          <span>${monthTotals[m] ? `${monthTotals[m]} post${monthTotals[m] === 1 ? '' : 's'}` : ''}</span>
+        </button>
+        <div class="cal-mini-grid">${cells}</div>
+      </div>`;
+  }
   grid.innerHTML = html;
 }
 
@@ -273,13 +496,12 @@ function renderAgendaView(date, events) {
   }
 
   // Sort events chronologically
-  const sorted = [...events].sort((a, b) => (a.scheduled_at || a.created_at) - (b.scheduled_at || b.created_at));
+  const sorted = [...events].sort(bySchedule);
 
   // Group events by date string
   const groups = {};
   sorted.forEach(e => {
-    const d = e.scheduled_at ? new Date(e.scheduled_at * 1000) : new Date(e.created_at * 1000);
-    const dateStr = d.toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const dateStr = calEventDate(e).toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     if (!groups[dateStr]) groups[dateStr] = [];
     groups[dateStr].push(e);
   });
@@ -291,24 +513,26 @@ function renderAgendaView(date, events) {
         <div style="font-size:13px;font-weight:700;color:#a78bfa;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:4px">${dateLabel}</div>
         <div style="display:flex;flex-direction:column;gap:8px">
           ${dayEvents.map(e => {
-            const timeLabel = e.scheduled_at 
-              ? new Date(e.scheduled_at * 1000).toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit'}) 
+            const timeLabel = e.scheduled_at
+              ? new Date(e.scheduled_at * 1000).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })
               : 'Not scheduled (Draft)';
-            const platformsText = e.platforms.map(p => (PLATFORMS[p]?.icon || '') + ' ' + (PLATFORMS[p]?.label || p)).join(', ');
+            const platformsText = (e.platforms || []).map(p => (PLATFORMS[p]?.icon || '') + ' ' + (PLATFORMS[p]?.label || p)).join(', ');
+            const open = `openCalendarEvent(${e.id},${e._ws || 0})`;
             return `
-              <div class="scheduled-item" style="cursor:pointer" onclick="openContentDetail(${e.id})">
+              <div class="scheduled-item" style="cursor:pointer" onclick="${open}">
                 <div class="scheduled-time" style="min-width: 100px">
                   <div style="font-size:12px;font-weight:700;color:#a78bfa">${timeLabel}</div>
                 </div>
                 <div class="scheduled-content">
-                  <div style="font-weight:600;font-size:14px;color:var(--text-primary);margin-bottom:4px">${escapeHtml(postTitle(e))}</div>
+                  <div style="font-weight:600;font-size:14px;color:var(--text-primary);margin-bottom:4px">${calWsDot(e)}${escapeHtml(postTitle(e))}</div>
                   <div class="scheduled-text" style="-webkit-line-clamp: 2; line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden">${escapeHtml(e.body)}</div>
-                  <div style="display:flex;gap:12px;align-items:center;margin-top:6px">
+                  <div style="display:flex;gap:12px;align-items:center;margin-top:6px;flex-wrap:wrap">
+                    ${calendarMulti() ? `<span style="font-size:11px;color:var(--text-muted)">Calendar: ${escapeHtml(e._wsName || '')}</span>` : ''}
                     <span style="font-size:11px;color:var(--text-muted)">Channels: ${platformsText}</span>
                     <span class="badge event-status-${e.status}" style="font-size:9.5px;padding:2px 8px">${statusLabel(e.status)}</span>
                   </div>
                 </div>
-                <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openContentDetail(${e.id})">View Details</button>
+                <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();${open}">View Details</button>
               </div>`;
           }).join('')}
         </div>

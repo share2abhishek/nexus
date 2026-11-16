@@ -905,13 +905,16 @@
               <button class="btn btn-secondary btn-sm" onclick="navigateCalendar(-1)">← Prev</button>
               <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;min-width:180px;text-align:center" id="calendar-date-label">Week View</div>
               <button class="btn btn-secondary btn-sm" onclick="navigateCalendar(1)">Next →</button>
+              <button class="btn btn-secondary btn-sm" onclick="calendarToday()" title="Go to today">Today</button>
             </div>
-            
+
             <!-- View toggles -->
-            <div style="display:flex;gap:4px;background:var(--glass);padding:4px;border-radius:8px;border:1px solid var(--border)">
+            <div class="cal-view-toggle" role="group" aria-label="Calendar view">
+              <button class="btn btn-secondary btn-sm" id="view-btn-day" onclick="changeCalendarView('day')" style="padding:6px 12px;border:none;background:transparent" title="One day, hour by hour">Day</button>
               <button class="btn btn-secondary btn-sm active" id="view-btn-week" onclick="changeCalendarView('week')" style="padding:6px 12px;border:none;background:transparent">Week</button>
               <button class="btn btn-secondary btn-sm" id="view-btn-month" onclick="changeCalendarView('month')" style="padding:6px 12px;border:none;background:transparent">Month</button>
-              <button class="btn btn-secondary btn-sm" id="view-btn-agenda" onclick="changeCalendarView('agenda')" style="padding:6px 12px;border:none;background:transparent">Agenda</button>
+              <button class="btn btn-secondary btn-sm" id="view-btn-year" onclick="changeCalendarView('year')" style="padding:6px 12px;border:none;background:transparent" title="The whole year at a glance">Year</button>
+              <button class="btn btn-secondary btn-sm" id="view-btn-agenda" onclick="changeCalendarView('agenda')" style="padding:6px 12px;border:none;background:transparent" title="A list">Agenda</button>
             </div>
           </div>
 
@@ -939,6 +942,9 @@
               </label>
             </div>
           </div>
+
+          <!-- Several calendars and platforms (filled in by 04-calendar.js) -->
+          <div id="calendar-multi-filters" class="cal-multi-filters" style="display:none"></div>
         </div>
       </div>
 
