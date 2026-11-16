@@ -5,7 +5,48 @@ Newest first. Paste the section for a version into the GitHub Release
 
 ---
 
-## Next version (after 2.1.0) — not released yet
+## 2.2.0 — 16 November 2026
+
+### Upgrading a hosted (server edition) install — read first
+- **`SESSION_SECRET` is now required.** The hosted app refuses to start without a long random value (24+ characters; placeholders such as the old `.env.example` value are rejected). Make one: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. The desktop app makes and keeps its own.
+- **Set `APP_URL`** to the public address: client approval links are built from it.
+- **Set `TRUST_PROXY=1`** (the number of proxies in front) when the app is behind nginx or a load balancer, or every visitor shares one rate limit.
+- **Platform admins:** no e-mail address or domain is trusted by its text any more. Make your user's `role` `superadmin` in the database, or list the address in `PLATFORM_ADMIN_EMAILS` (it must be verified). Check this before you upgrade or you may lose admin access.
+- Run `npm ci` (dependencies changed) and start the app: the new `relay_approvals` table is created automatically.
+- **One command does the `.env` part:** on the server run `./scripts/ec2-prepare-env.sh --app-url https://app.example.com --admin-email you@example.com`. It sets `SESSION_SECRET` (generated on the server, never printed), `NEXUS_MODE`, `APP_URL`, `TRUST_PROXY` and `PLATFORM_ADMIN_EMAILS`, keeps a backup of the old file, and can be run again safely.
+- See `docs/support/security-hardening.md` for everything the app now enforces.
+
+### Calendar
+- **Day and Year views** next to Week, Month and Agenda. Day is hour by hour, with a row for posts that have no time yet. Year shows twelve small months: shaded days have posts (darker = more), a red underline means something failed, and clicking a day or a month name opens it.
+- **Today** button, and Prev / Next no longer skip a month (Jan 31 + 1 month is now February).
+- **Several calendars at once:** tick other workspaces under "Calendars" to see their posts together, each with a coloured dot. Opening a post from another calendar switches to that workspace.
+- **Platform filter:** hide or show Facebook, Instagram, LinkedIn and so on.
+- The calendar remembers your last view and choices. It always asks for posts by workspace name, so it can't show one workspace's posts under another's name.
+
+### Client approval on the hosted edition
+- The hosted app now serves client approval links itself: it keeps the post encrypted (the key stays in the link after `#`), shows the client their page, and collects the answer. No licence or relay server is involved. Links expire after 14 days (30 at most). The desktop app still uses Radixile's relay.
+
+### AI
+- **Choose where your AI comes from** (hosted edition, Settings → AI): the AI included with your plan, only your own keys, or your own keys first with ours as backup.
+- A saved cloud key (Gemini, Groq, OpenAI…) is now used before local Ollama. Ollama goes first only when you choose it.
+- Gemini switches to a lighter model automatically when the main one is busy or not answering.
+- The shared team keys are now used in the Live Chat Simulator, the FAQ and notes writers, and the website-chat bot.
+- The assistant is named **Nexa AI Assistant**.
+- **Auto-reply "Try it"** now shows the real AI answer for "anything else" messages, and goes quiet after a hand-over, like the live bot.
+
+### Sales outreach
+- **Import contacts** (Contacts → Import contacts): upload a CSV or Excel file of people, check the preview, then import. It skips invalid, repeated, already-known and opted-out people and domains that can't receive email; emails are written in the background and wait for your OK in Outbox.
+
+### Security
+- **Admin access:** removed the built-in admin e-mail address and the e-mail-domain rule. Accounts are checked on every request, so a suspended, demoted or deleted person loses access within seconds. A new session is made at every sign-in. Added browser security headers and secure cookies.
+- **Outbound requests:** anything the server fetches from an address a user typed (websites, feeds, pictures, SEO checks, webhooks, Evolution and Bluesky servers) can no longer reach private or local addresses, including through redirects and DNS tricks. Customers can't point the hosted server at their own Ollama address.
+- **Abuse limits:** rate limits on sign-up, sign-in, password reset, the API, AI actions and the public website chat. Radixile's own AI keys are used only for accounts with a verified email and are limited per business per day. The auto-reply bot has a daily cap on AI answers.
+- **AI replies:** text from outside (website visitors, prospects' replies, web pages, imported files) is cleaned and kept apart from instructions; attempts to take over the bot are not sent to the AI; replies can't reveal the bot's notes or contain links, emails or phone numbers the business didn't write. Outreach emails link only to your own or the company's site, and any draft that needed cleaning waits for your approval.
+- The local-folder routes stay inside your content folder and are off on the hosted edition.
+- Updated dependencies: removed the unused `passport-twitter`; upgraded `nodemailer` and `csv-parse`.
+
+### Also in 2.2.0
+Everything below was finished since 2.1.0.
 
 ### Easier to find your way around
 - A shorter menu in plain words: Home, Create post, Calendar, Schedule from Excel, WhatsApp, Comments, Results, then **Grow** (Sales outreach, Email, Clients) and **More tools**.
