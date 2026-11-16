@@ -1404,20 +1404,34 @@
         </div>
         <div class="settings-section">
           <div class="card-body">
-            <div class="callout callout-info">
-              <b>Using Gmail?</b> Server <code>smtp.gmail.com</code>, port <code>587</code>, and an <b>app password</b> (not your normal password): <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">create one here ↗</a>
+            <div class="form-group">
+              <label class="form-label" for="smtp-provider">Email provider</label>
+              <select class="form-select" id="smtp-provider" onchange="smtpPickProvider(this.value)">
+                <option value="">Choose your provider…</option>
+              </select>
             </div>
+            <div class="callout callout-info" id="smtp-tip">Choose your email provider and the mail server and port are filled in for you. Not listed? Pick <b>Other</b> and ask your provider for the SMTP details.</div>
             <div class="grid-2">
-              <div class="form-group"><label class="form-label" for="smtp-user">Your email address</label><input type="email" class="form-input" id="smtp-user" placeholder="you@yourbusiness.com" autocomplete="off" /></div>
-              <div class="form-group"><label class="form-label" for="smtp-pass">Password or app password</label><input type="password" class="form-input" id="smtp-pass" placeholder="Leave empty to keep the saved one" autocomplete="new-password" /></div>
-              <div class="form-group"><label class="form-label" for="smtp-host">Mail server</label><input type="text" class="form-input" id="smtp-host" placeholder="smtp.gmail.com" /></div>
-              <div class="form-group"><label class="form-label" for="smtp-port">Port</label><input type="number" class="form-input" id="smtp-port" placeholder="587" value="587" /></div>
+              <div class="form-group"><label class="form-label" for="smtp-user" id="smtp-user-label">Your email address</label><input type="text" class="form-input" id="smtp-user" placeholder="you@yourbusiness.com" autocomplete="off" autocapitalize="off" spellcheck="false" /></div>
+              <div class="form-group"><label class="form-label" for="smtp-pass" id="smtp-pass-label">Password or app password</label><input type="password" class="form-input" id="smtp-pass" placeholder="Leave empty to keep the saved one" autocomplete="new-password" /></div>
+              <div class="form-group" id="smtp-region-group" hidden><label class="form-label" for="smtp-region">AWS region</label><select class="form-select" id="smtp-region" onchange="smtpRegionChanged()"></select></div>
+              <div class="form-group"><label class="form-label" for="smtp-host">Mail server</label><input type="text" class="form-input" id="smtp-host" placeholder="smtp.example.com" autocomplete="off" autocapitalize="off" spellcheck="false" oninput="smtpMarkCustom()" /></div>
+              <div class="form-group"><label class="form-label" for="smtp-port">Port</label><input type="number" class="form-input" id="smtp-port" placeholder="587" value="587" oninput="smtpPortChanged()" /></div>
+              <div class="form-group"><label class="form-label" for="smtp-security">Connection security</label>
+                <select class="form-select" id="smtp-security">
+                  <option value="starttls">STARTTLS (most servers, port 587)</option>
+                  <option value="ssl">SSL/TLS (port 465)</option>
+                </select>
+              </div>
               <div class="form-group"><label class="form-label" for="smtp-from-name">Name people see</label><input type="text" class="form-input" id="smtp-from-name" placeholder="Your Business" /></div>
-              <div class="form-group"><label class="form-label" for="smtp-from">Send as (optional)</label><input type="email" class="form-input" id="smtp-from" placeholder="Same as your email address" /></div>
+              <div class="form-group"><label class="form-label" for="smtp-from" id="smtp-from-label">Send as (optional)</label><input type="email" class="form-input" id="smtp-from" placeholder="Same as your email address" /></div>
             </div>
-            <div class="settings-actions">
+            <div class="settings-actions" style="gap:8px;flex-wrap:wrap">
+              <button class="btn btn-secondary" onclick="testSMTPSettings(this, false)" title="Checks the server, port and login. Nothing is sent.">Test settings</button>
+              <button class="btn btn-secondary" onclick="testSMTPSettings(this, true)" title="Also sends one short email to your own address">Send me a test email</button>
               <button class="btn btn-primary" onclick="saveSMTPSettings(this)">Save email settings</button>
             </div>
+            <div id="smtp-test-result" role="status" aria-live="polite" style="margin-top:12px;font-size:13px"></div>
           </div>
         </div>
       </div>

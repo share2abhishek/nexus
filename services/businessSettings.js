@@ -159,7 +159,7 @@ function publicView(s) {
   out.ai.ai_source = AI_SOURCES.includes(s.ai_source) ? s.ai_source : '';
   out.smtp = {
     SMTP_HOST: s.smtp_host || '', SMTP_PORT: s.smtp_port || '587', SMTP_USER: s.smtp_user || '',
-    SMTP_FROM: s.smtp_from || '', SMTP_FROM_NAME: s.smtp_from_name || '',
+    SMTP_FROM: s.smtp_from || '', SMTP_FROM_NAME: s.smtp_from_name || '', SMTP_SECURE: s.smtp_secure || '',
     pass_set: !!s.smtp_pass, configured: !!smtpFrom(s),
   };
   return out;

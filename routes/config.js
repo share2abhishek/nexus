@@ -30,6 +30,8 @@ async function requireAdmin(req, res, next) {
 // team), not to the server's .env. The owner or a manager may change them.
 const edition = require('../services/edition');
 const businessSettings = require('../services/businessSettings');
+const smtpSettings = require('../services/smtpSettings');
+const { rateLimit, byUserOrIp } = require('../middleware/rateLimit');
 async function businessFor(req, res) {
   const orgId = await businessSettings.orgForWorkspace(req.workspaceId);
   if (!orgId) { res.status(400).json({ error: 'Open a workspace of your business first.' }); return null; }
@@ -438,13 +440,26 @@ router.get('/smtp', serverOr(async (req, res) => {
   res.json({
     SMTP_HOST: env.SMTP_HOST || '', SMTP_PORT: env.SMTP_PORT || '587', SMTP_USER: env.SMTP_USER || '',
     SMTP_FROM: env.SMTP_FROM || '', SMTP_FROM_NAME: env.SMTP_FROM_NAME || '',
+    SMTP_SECURE: env.SMTP_SECURE || '',
     pass_set: !!env.SMTP_PASS,
     configured: !!(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS),
   });
 });
 
+// The form sends the connection security as 'ssl' or 'starttls'
+const secureFlag = (v) => (v === 'ssl' || v === true || v === 'true' ? 'true' : (v === 'starttls' || v === false || v === 'false' ? 'false' : null));
+// Checks the mail server name and port; on the hosted edition also that it is a public address
+async function checkSmtpTarget(b) {
+  if (!b.SMTP_HOST && !b.SMTP_PORT) return;
+  const n = smtpSettings.normalize({ host: b.SMTP_HOST, port: b.SMTP_PORT, secure: secureFlag(b.SMTP_SECURE) });
+  smtpSettings.assertAllowedHost(n.host);
+  return n;
+}
+
 router.post('/smtp', serverOr(async (req, res) => {
-  const b = req.body || {};
+  const b = { ...(req.body || {}) };
+  try { await checkSmtpTarget(b); } catch (err) { return res.status(err.status || 400).json({ error: err.message }); }
+  if (b.SMTP_SECURE != null) b.SMTP_SECURE = secureFlag(b.SMTP_SECURE);
   const map = { SMTP_HOST: 'smtp_host', SMTP_PORT: 'smtp_port', SMTP_SECURE: 'smtp_secure', SMTP_USER: 'smtp_user', SMTP_PASS: 'smtp_pass', SMTP_FROM: 'smtp_from', SMTP_FROM_NAME: 'smtp_from_name' };
   const values = {};
   for (const [f, key] of Object.entries(map)) if (b[f] != null && b[f] !== '') values[key] = f === 'SMTP_PASS' ? String(b[f]) : String(b[f]).trim();
@@ -453,8 +468,10 @@ router.post('/smtp', serverOr(async (req, res) => {
   try { await businessSettings.save(req.orgId, values, { userId: req.session.userId }); }
   catch (err) { return res.status(err.status || 500).json({ error: err.message }); }
   res.json({ success: true });
-}), requireAdmin, (req, res) => {
+}), requireAdmin, async (req, res) => {
   const fields = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM', 'SMTP_FROM_NAME'];
+  try { await checkSmtpTarget(req.body || {}); } catch (err) { return res.status(err.status || 400).json({ error: err.message }); }
+  if (req.body && req.body.SMTP_SECURE != null) req.body.SMTP_SECURE = secureFlag(req.body.SMTP_SECURE);
   try {
     for (const f of fields) {
       const val = req.body[f] == null ? '' : String(req.body[f]);
@@ -470,6 +487,41 @@ router.post('/smtp', serverOr(async (req, res) => {
   }
   res.json({ success: true });
 });
+
+// Try the settings in the form (without saving them): checks the connection and login, and
+// with send_to_me also sends one short test email to the signed-in person's own address.
+// A blank password means "the saved one".
+const smtpTestLimit = rateLimit({ name: 'smtp-test', windowMs: 5 * 60_000, max: 10, key: byUserOrIp, message: 'Too many tests. Wait a few minutes and try again.' });
+async function runSmtpTest(req, res) {
+  try {
+    const b = req.body || {};
+    let saved;
+    if (edition.isServer()) {
+      saved = businessSettings.smtpFrom(await businessSettings.getAll(req.orgId));
+    } else {
+      const env = readEnv();
+      saved = env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS ? { auth: { user: env.SMTP_USER, pass: env.SMTP_PASS } } : null;
+    }
+    const user = String(b.SMTP_USER || '').trim();
+    const typed = typeof b.SMTP_PASS === 'string' && b.SMTP_PASS !== '' && !b.SMTP_PASS.includes('••••') ? b.SMTP_PASS : '';
+    const pass = typed || (saved && saved.auth?.user === user ? saved.auth.pass : '');
+    if (!user) return res.json({ ok: false, error: 'Type your email address or username first.' });
+    if (!pass) return res.json({ ok: false, error: 'Type the password (or app password) first: it isn’t shown once saved, so it has to be typed to test.' });
+    let to = null;
+    if (b.send_to_me) {
+      to = String(req.session?.userEmail || req.currentUser?.email || '').trim();
+      if (!to) return res.json({ ok: false, error: 'Couldn’t tell which address to send the test to.' });
+    }
+    const result = await smtpSettings.test(
+      { host: b.SMTP_HOST, port: b.SMTP_PORT, secure: secureFlag(b.SMTP_SECURE), auth: { user, pass }, from: String(b.SMTP_FROM || '').trim() || user },
+      { to, fromName: String(b.SMTP_FROM_NAME || '').trim() || undefined },
+    );
+    res.json(result.ok ? { ...result, to } : result);
+  } catch (err) {
+    res.status(err.status || 500).json({ ok: false, error: err.message });
+  }
+}
+router.post('/smtp/test', smtpTestLimit, serverOr(runSmtpTest), requireAdmin, runSmtpTest);
 
 // ── GET /api/config/env-status ────────────────────────────────────────────────
 // Returns which keys are configured (no values, just boolean)

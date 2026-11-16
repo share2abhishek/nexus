@@ -35,15 +35,7 @@ async function sendOutreachEmail({ to, subject, body, fromName, fromEmail, works
     throw new Error('SMTP mailer not configured. Please enter your mail server details in Settings → Email.');
   }
 
-  const transporter = nodemailer.createTransport({
-    host: config.host,
-    port: config.port,
-    secure: config.secure,
-    auth: config.auth,
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-  });
+  const transporter = nodemailer.createTransport(await require('../smtpSettings').connectionOptions(config));
 
   const sender = `${fromName || config.fromName} <${fromEmail || config.from}>`;
   const footerText = `\n\n---\nTo opt out of future emails, reply with "unsubscribe".`;

@@ -109,12 +109,9 @@ router.post('/campaigns/:id/send', canPublish, requirePublishLicense, async (req
   try { nodemailer = require('nodemailer'); }
   catch { return res.status(500).json({ error: 'nodemailer not installed. Run: npm install nodemailer' }); }
 
-  const transporter = nodemailer.createTransport({
-    host: smtp.host,
-    port: smtp.port,
-    secure: smtp.secure,
-    auth: smtp.auth,
-  });
+  let transporter;
+  try { transporter = nodemailer.createTransport(await require('../services/smtpSettings').connectionOptions(smtp)); }
+  catch (err) { return res.status(400).json({ error: err.message }); }
 
   const allSubs = await emailRepo.listSubscribers(req.workspaceId);
   const subscribers = allSubs.filter(s => s.status === 'active');

@@ -23,6 +23,12 @@ Newest first. Paste the section for a version into the GitHub Release
 - **Platform filter:** hide or show Facebook, Instagram, LinkedIn and so on.
 - The calendar remembers your last view and choices. It always asks for posts by workspace name, so it can't show one workspace's posts under another's name.
 
+### Email sending works with any provider
+- **Settings → Email sending** now has a provider list: Gmail, Outlook.com / Hotmail, Microsoft 365, **Amazon SES (AWS)** with a region choice, Google Workspace, Yahoo, Zoho (India and global), SendGrid, Mailgun, Brevo, Postmark, Mailjet, iCloud, GoDaddy, Hostinger / Titan, Namecheap, and **Other** for any mail server. Choosing one fills in the server, port and security, and explains what that provider needs (an app password, an SMTP key, a verified sender…).
+- **Connection security** can be set (STARTTLS or SSL/TLS), and follows the port by default.
+- **Test settings** checks the server, port and login without sending anything; **Send me a test email** sends one short message to your own address. Failures are explained in plain words (wrong password, wrong port or security, unknown server, sender not verified).
+- On the hosted edition the mail server must be a public address, so a customer can't point the server at its own network.
+
 ### Client approval on the hosted edition
 - The hosted app now serves client approval links itself: it keeps the post encrypted (the key stays in the link after `#`), shows the client their page, and collects the answer. No licence or relay server is involved. Links expire after 14 days (30 at most). The desktop app still uses Radixile's relay.
 

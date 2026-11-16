@@ -505,16 +505,149 @@ async function loadContentFolderSetting() {
 }
 
 // ── Email sending (SMTP) ─────────────────────────────────────────────────────
+// Presets fill in the mail server, port and security for common providers, and say what
+// each one needs (many want an app password or their own SMTP key, not your login password).
+// `host` may contain {region} (Amazon SES).
+const SMTP_PRESETS = [
+  { id: 'gmail', label: 'Gmail', host: 'smtp.gmail.com', port: 587, security: 'starttls', userLabel: 'Your Gmail address', passLabel: 'App password',
+    tip: 'Turn on 2-step verification, then create an <b>app password</b> (not your normal password).', link: ['https://myaccount.google.com/apppasswords', 'Create an app password'] },
+  { id: 'outlook', label: 'Outlook.com / Hotmail / Live', host: 'smtp-mail.outlook.com', port: 587, security: 'starttls', userLabel: 'Your Outlook address', passLabel: 'App password',
+    tip: 'Use your full Outlook address. Turn on 2-step verification and create an <b>app password</b>.', link: ['https://account.live.com/proofs/AppPassword', 'Create an app password'] },
+  { id: 'm365', label: 'Microsoft 365 (Office 365)', host: 'smtp.office365.com', port: 587, security: 'starttls', userLabel: 'Mailbox address', passLabel: 'Mailbox password',
+    tip: 'Use the mailbox address. Your Microsoft 365 admin must allow <b>Authenticated SMTP</b> for this mailbox, and “security defaults” can block it. If sign-in keeps failing, ask your admin or use an app password.', link: ['https://learn.microsoft.com/exchange/clients-and-mobile-in-exchange-online/authenticated-client-smtp-submission', 'How to allow it'] },
+  { id: 'ses', label: 'Amazon SES (AWS)', host: 'email-smtp.{region}.amazonaws.com', port: 587, security: 'starttls', region: 'ap-south-1', needsFrom: true, userLabel: 'SMTP username', passLabel: 'SMTP password',
+    tip: 'Create <b>SMTP credentials</b> in the SES console (SMTP settings): they are not your AWS access keys. The “Send as” address or its domain must be <b>verified</b> in SES, and a new SES account is in the “sandbox” (it can only email verified addresses until you ask AWS for production access). Pick the same region you verified in.', link: ['https://console.aws.amazon.com/ses/home#/smtp', 'Open SES SMTP settings'] },
+  { id: 'workspace', label: 'Google Workspace', host: 'smtp.gmail.com', port: 587, security: 'starttls', userLabel: 'Your work email address', passLabel: 'App password',
+    tip: 'Same as Gmail: use an <b>app password</b>. Your Workspace admin may need to allow app passwords.', link: ['https://support.google.com/a/answer/176600', 'Google’s guide'] },
+  { id: 'yahoo', label: 'Yahoo Mail', host: 'smtp.mail.yahoo.com', port: 587, security: 'starttls', userLabel: 'Your Yahoo address', passLabel: 'App password',
+    tip: 'Create an <b>app password</b> in Yahoo Account Security.', link: ['https://login.yahoo.com/account/security', 'Open Account Security'] },
+  { id: 'zoho-in', label: 'Zoho Mail (India)', host: 'smtp.zoho.in', port: 587, security: 'starttls', userLabel: 'Your Zoho address', passLabel: 'Application-specific password',
+    tip: 'Create an <b>application-specific password</b> in Zoho Account → Security. For Zoho accounts outside India, pick “Zoho Mail (global)”.', link: ['https://accounts.zoho.in/home#security/app_password', 'Create one'] },
+  { id: 'zoho', label: 'Zoho Mail (global)', host: 'smtp.zoho.com', port: 587, security: 'starttls', userLabel: 'Your Zoho address', passLabel: 'Application-specific password',
+    tip: 'Create an <b>application-specific password</b> in Zoho Account → Security. EU accounts use smtp.zoho.eu.', link: ['https://accounts.zoho.com/home#security/app_password', 'Create one'] },
+  { id: 'sendgrid', label: 'SendGrid', host: 'smtp.sendgrid.net', port: 587, security: 'starttls', user: 'apikey', needsFrom: true, userLabel: 'Username', passLabel: 'API key',
+    tip: 'The username is the word <code>apikey</code>, and the password is an <b>API key</b> with “Mail Send” permission. Verify your sender address first.', link: ['https://app.sendgrid.com/settings/api_keys', 'Create an API key'] },
+  { id: 'mailgun', label: 'Mailgun', host: 'smtp.mailgun.org', port: 587, security: 'starttls', needsFrom: true, userLabel: 'SMTP username', passLabel: 'SMTP password',
+    tip: 'Use the SMTP login of your sending domain (like <code>postmaster@mg.yourdomain.com</code>) and its SMTP password. EU accounts use smtp.eu.mailgun.org.', link: ['https://app.mailgun.com/mg/sending/domains', 'Open your domains'] },
+  { id: 'brevo', label: 'Brevo (Sendinblue)', host: 'smtp-relay.brevo.com', port: 587, security: 'starttls', needsFrom: true, userLabel: 'Brevo login email', passLabel: 'SMTP key',
+    tip: 'The password is an <b>SMTP key</b>, not your Brevo account password. Verify your sender first.', link: ['https://app.brevo.com/settings/keys/smtp', 'Create an SMTP key'] },
+  { id: 'postmark', label: 'Postmark', host: 'smtp.postmarkapp.com', port: 587, security: 'starttls', needsFrom: true, userLabel: 'Server API token', passLabel: 'Server API token',
+    tip: 'Use your <b>Server API token</b> as both username and password. The “Send as” address must be a verified sender signature.', link: ['https://account.postmarkapp.com/servers', 'Open your servers'] },
+  { id: 'mailjet', label: 'Mailjet', host: 'in-v3.mailjet.com', port: 587, security: 'starttls', needsFrom: true, userLabel: 'API key', passLabel: 'Secret key',
+    tip: 'The username is your <b>API key</b> and the password is your <b>Secret key</b>. Verify your sender first.', link: ['https://app.mailjet.com/account/apikeys', 'Open API keys'] },
+  { id: 'icloud', label: 'iCloud Mail', host: 'smtp.mail.me.com', port: 587, security: 'starttls', userLabel: 'Your iCloud address', passLabel: 'App-specific password',
+    tip: 'Create an <b>app-specific password</b> in your Apple ID settings.', link: ['https://appleid.apple.com/account/manage', 'Open Apple ID'] },
+  { id: 'godaddy', label: 'GoDaddy Workspace Email', host: 'smtpout.secureserver.net', port: 465, security: 'ssl', userLabel: 'Your email address', passLabel: 'Mailbox password',
+    tip: 'Use the full email address and its password. Port 587 with STARTTLS also works.' },
+  { id: 'hostinger', label: 'Hostinger / Titan email', host: 'smtp.hostinger.com', port: 465, security: 'ssl', userLabel: 'Your email address', passLabel: 'Mailbox password',
+    tip: 'Use the full email address and its password. Titan-powered mailboxes use <code>smtp.titan.email</code> instead.' },
+  { id: 'namecheap', label: 'Namecheap Private Email', host: 'mail.privateemail.com', port: 587, security: 'starttls', userLabel: 'Your email address', passLabel: 'Mailbox password',
+    tip: 'Use the full email address and its password. Port 465 with SSL/TLS also works.' },
+  { id: 'other', label: 'Other / my own mail server', host: '', port: 587, security: 'starttls', custom: true,
+    tip: 'Ask your provider (or your website host) for the <b>SMTP server</b>, <b>port</b> and <b>security</b>. Most use port 587 with STARTTLS, or port 465 with SSL/TLS.' },
+];
+const SES_REGIONS = [['ap-south-1', 'Mumbai'], ['ap-southeast-1', 'Singapore'], ['ap-southeast-2', 'Sydney'], ['ap-northeast-1', 'Tokyo'], ['eu-west-1', 'Ireland'], ['eu-west-2', 'London'], ['eu-central-1', 'Frankfurt'], ['us-east-1', 'N. Virginia'], ['us-east-2', 'Ohio'], ['us-west-2', 'Oregon'], ['ca-central-1', 'Canada'], ['sa-east-1', 'São Paulo']];
+const smtpPresetById = (id) => SMTP_PRESETS.find(p => p.id === id);
+const smtpHostFor = (p, region) => p.host.replace('{region}', region || p.region || 'us-east-1');
+
+// Which preset matches a saved mail server (or "other")
+function smtpDetectProvider(host) {
+  const h = String(host || '').toLowerCase();
+  if (!h) return '';
+  if (/^email-smtp\.[a-z0-9-]+\.amazonaws\.com$/.test(h)) return 'ses';
+  const hit = SMTP_PRESETS.find(p => !p.custom && !p.host.includes('{region}') && p.host === h && p.id !== 'workspace');
+  return hit ? hit.id : 'other';
+}
+
+function smtpBuildProviderList() {
+  const sel = document.getElementById('smtp-provider');
+  if (sel && sel.options.length <= 1) {
+    sel.innerHTML = '<option value="">Choose your provider…</option>' + SMTP_PRESETS.map(p => `<option value="${p.id}">${escapeHtml(p.label)}</option>`).join('');
+  }
+  const reg = document.getElementById('smtp-region');
+  if (reg && !reg.options.length) reg.innerHTML = SES_REGIONS.map(([id, name]) => `<option value="${id}">${name} (${id})</option>`).join('');
+}
+
+function smtpShowTip(p) {
+  const tip = document.getElementById('smtp-tip');
+  if (!tip) return;
+  tip.innerHTML = '';
+  const span = document.createElement('span');
+  span.innerHTML = p.tip; // fixed text from the list above, never user input
+  tip.appendChild(span);
+  if (p.link) {
+    tip.appendChild(document.createTextNode(' '));
+    const a = document.createElement('a');
+    a.href = p.link[0]; a.target = '_blank'; a.rel = 'noopener'; a.textContent = `${p.link[1]} ↗`;
+    tip.appendChild(a);
+  }
+}
+
+// Choosing a provider fills in the server, port and security, and the wording of the fields
+function smtpPickProvider(id, { keepValues = false } = {}) {
+  const p = smtpPresetById(id);
+  const set = (el, v) => { const e = document.getElementById(el); if (e) e.value = v; };
+  const text = (el, v) => { const e = document.getElementById(el); if (e) e.textContent = v; };
+  const regionGroup = document.getElementById('smtp-region-group');
+  if (!p) { if (regionGroup) regionGroup.hidden = true; return; }
+  const sel = document.getElementById('smtp-provider');
+  if (sel) sel.value = id;
+  smtpShowTip(p);
+  if (regionGroup) regionGroup.hidden = !p.region;
+  text('smtp-user-label', p.userLabel || 'Your email address');
+  text('smtp-pass-label', p.passLabel || 'Password or app password');
+  text('smtp-from-label', p.needsFrom ? 'Send as (required: a verified address)' : 'Send as (optional)');
+  const user = document.getElementById('smtp-user');
+  if (user) user.placeholder = p.user || (p.userLabel && /email|address/i.test(p.userLabel) ? 'you@yourbusiness.com' : (p.userLabel || ''));
+  if (!keepValues && !p.custom) {
+    if (p.region) set('smtp-region', document.getElementById('smtp-region').value || p.region);
+    set('smtp-host', smtpHostFor(p, document.getElementById('smtp-region')?.value));
+    set('smtp-port', p.port);
+    set('smtp-security', p.security);
+    if (p.user && !document.getElementById('smtp-user').value.trim()) set('smtp-user', p.user);
+  } else if (!keepValues && p.custom) {
+    set('smtp-port', p.port); set('smtp-security', p.security);
+  }
+  document.getElementById('smtp-test-result').textContent = '';
+}
+
+// Typing a different mail server by hand switches the provider to match (or "other")
+function smtpMarkCustom() {
+  const host = document.getElementById('smtp-host').value;
+  const detected = smtpDetectProvider(host);
+  const sel = document.getElementById('smtp-provider');
+  if (sel && detected && sel.value !== detected && !(sel.value === 'workspace' && detected === 'gmail')) sel.value = detected;
+}
+function smtpRegionChanged() {
+  const p = smtpPresetById('ses');
+  document.getElementById('smtp-host').value = smtpHostFor(p, document.getElementById('smtp-region').value);
+}
+// The usual security for the usual ports
+function smtpPortChanged() {
+  const port = Number(document.getElementById('smtp-port').value);
+  const sec = document.getElementById('smtp-security');
+  if (port === 465) sec.value = 'ssl';
+  else if (port === 587 || port === 25 || port === 2587) sec.value = 'starttls';
+}
 
 async function loadSMTPSettings() {
+  smtpBuildProviderList();
   if (State.server) setEl('smtp-panel-desc', 'Needed only for the Email and Sales outreach screens. These settings are for your whole business: emails go from this address for everyone on your team.');
   try {
     const s = await api('GET', '/api/config/smtp');
     const set = (id, v) => { const el = document.getElementById(id); if (el && v != null && v !== '') el.value = v; };
     set('smtp-host', s.SMTP_HOST); set('smtp-port', s.SMTP_PORT); set('smtp-user', s.SMTP_USER);
     set('smtp-from', s.SMTP_FROM); set('smtp-from-name', s.SMTP_FROM_NAME);
+    set('smtp-security', s.SMTP_SECURE === 'true' ? 'ssl' : (s.SMTP_SECURE === 'false' ? 'starttls' : (Number(s.SMTP_PORT) === 465 ? 'ssl' : 'starttls')));
     const pass = document.getElementById('smtp-pass');
     if (pass) { pass.value = ''; pass.placeholder = s.pass_set ? 'Saved — leave empty to keep it' : 'App password'; }
+    // Show the provider the saved server belongs to (and keep what was saved)
+    const detected = smtpDetectProvider(s.SMTP_HOST);
+    if (detected) {
+      const m = String(s.SMTP_HOST || '').match(/^email-smtp\.([a-z0-9-]+)\.amazonaws\.com$/);
+      if (m) { const r = document.getElementById('smtp-region'); if (r) r.value = m[1]; }
+      smtpPickProvider(detected, { keepValues: true });
+    }
     State.smtpReady = !!s.configured;
     updateSettingsNavStatus();
   } catch (err) {
@@ -522,22 +655,52 @@ async function loadSMTPSettings() {
     if (State.server) {
       const note = document.getElementById('smtp-manager-note');
       if (note) note.hidden = false;
-      document.querySelectorAll('#settings-panel-smtp input, #settings-panel-smtp .settings-actions button').forEach(el => { el.disabled = true; });
+      document.querySelectorAll('#settings-panel-smtp input, #settings-panel-smtp select, #settings-panel-smtp .settings-actions button').forEach(el => { el.disabled = true; });
     }
   }
 }
 
-async function saveSMTPSettings(btn) {
+// What the form says now, in the shape the server wants
+function smtpFormValues() {
   const val = id => document.getElementById(id).value.trim();
   const user = val('smtp-user');
-  if (!user || !val('smtp-host')) return toast('Fill in your email address and the mail server', 'warning');
+  return {
+    SMTP_HOST: val('smtp-host'), SMTP_PORT: val('smtp-port') || '587', SMTP_SECURE: val('smtp-security') || 'starttls', SMTP_USER: user,
+    SMTP_PASS: document.getElementById('smtp-pass').value, // spaces can be part of an app password
+    SMTP_FROM: val('smtp-from') || (user.includes('@') ? user : ''), SMTP_FROM_NAME: val('smtp-from-name'),
+  };
+}
+
+function smtpProblem(v) {
+  if (!v.SMTP_USER || !v.SMTP_HOST) return 'Fill in your email address (or username) and the mail server.';
+  if (!v.SMTP_FROM) return 'This provider’s username isn’t an email address, so fill in “Send as” with the address emails should come from.';
+  return '';
+}
+
+async function testSMTPSettings(btn, sendToMe) {
+  const out = document.getElementById('smtp-test-result');
+  const v = smtpFormValues();
+  const problem = smtpProblem(v);
+  const show = (ok, html) => { out.innerHTML = `<div class="callout ${ok ? 'callout-success' : 'callout-danger'}" style="margin:0">${html}</div>`; };
+  if (problem) return show(false, escapeHtml(problem));
+  if (btn) btn.disabled = true;
+  out.innerHTML = '<span class="spinner"></span> Checking the mail server…';
+  try {
+    const r = await api('POST', '/api/config/smtp/test', { ...v, send_to_me: !!sendToMe });
+    if (!r) return;
+    if (r.ok) show(true, sendToMe ? `✓ It works. A test email was sent to <b>${escapeHtml(r.to || 'you')}</b>: check the inbox (and spam folder).` : '✓ Connected and signed in. Press <b>Save email settings</b> to keep them.');
+    else show(false, escapeHtml(r.error || 'The test did not work.'));
+  } catch (err) { show(false, escapeHtml(err.message)); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+async function saveSMTPSettings(btn) {
+  const v = smtpFormValues();
+  const problem = smtpProblem(v);
+  if (problem) return toast(problem, 'warning');
   if (btn) btn.disabled = true;
   try {
-    await api('POST', '/api/config/smtp', {
-      SMTP_HOST: val('smtp-host'), SMTP_PORT: val('smtp-port') || '587', SMTP_USER: user,
-      SMTP_PASS: document.getElementById('smtp-pass').value, // spaces can be part of an app password
-      SMTP_FROM: val('smtp-from') || user, SMTP_FROM_NAME: val('smtp-from-name'),
-    });
+    await api('POST', '/api/config/smtp', v);
     toast('Email settings saved', 'success');
     loadSMTPSettings();
   } catch (err) { toast(err.message, 'error'); }
