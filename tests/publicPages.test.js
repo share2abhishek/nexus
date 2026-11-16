@@ -97,3 +97,56 @@ test('legal pages name Kajal Aher as Grievance Officer and Pune courts by defaul
   const terms = await request(app()).get('/legal/terms');
   expect(terms.text).toContain('courts at Pune, Maharashtra, India');
 });
+
+describe('search engine rules', () => {
+  const full = () => {
+    const a = express();
+    a.use(publicPages.noindexMiddleware);
+    a.use(publicPages.router);
+    a.get('/', publicPages.sendLanding);
+    a.get('/login.html', (req, res) => res.send('login'));
+    a.get('*', publicPages.sendNotFound);
+    return a;
+  };
+
+  test('the landing page has a keyword title, a short description and prices in its structured data', async () => {
+    process.env.APP_URL = 'https://app.example.in';
+    const res = await request(full()).get('/');
+    const title = res.text.match(/<title>([\s\S]*?)<\/title>/)[1].replace(/&amp;/g, '&');
+    expect(title).toMatch(/Social Media, WhatsApp & SEO/);
+    expect(title.length).toBeLessThanOrEqual(70);
+    expect(res.text.match(/<meta name="description" content="([^"]*)"/)[1].length).toBeLessThanOrEqual(165);
+    const blocks = [...res.text.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+    const app = blocks.flatMap((b) => b['@graph'] || [b]).find((n) => n['@type'] === 'SoftwareApplication');
+    expect(app.offers.map((o) => [o.name, o.price, o.priceCurrency])).toEqual([['Individual', '1275', 'INR'], ['Agency Pro', '10200', 'INR']]);
+    // the prices in the data are the prices on the page
+    expect(res.text).toContain('₹1,275');
+    expect(res.text).toContain('₹10,200');
+  });
+
+  test('robots.txt allows the public pages and keeps the app, sign-in and one-time links out', async () => {
+    const robots = (await request(full()).get('/robots.txt')).text;
+    for (const p of ['/api/', '/app', '/login.html', '/a/', '/relay/', '/admin']) expect(robots).toContain(`Disallow: ${p}`);
+    expect(robots).toContain('Allow: /help.html');
+  });
+
+  test('the sign-in page and one-time links carry a noindex header; the landing page does not', async () => {
+    expect((await request(full()).get('/login.html')).headers['x-robots-tag']).toBe('noindex, nofollow');
+    expect((await request(full()).get('/a/abc123')).headers['x-robots-tag']).toBe('noindex');
+    expect((await request(full()).get('/')).headers['x-robots-tag']).toBeUndefined();
+  });
+
+  test('the help guides get the site address as canonical', async () => {
+    process.env.APP_URL = 'https://app.example.in';
+    const res = await request(full()).get('/help.html');
+    expect(res.text).toContain('<link rel="canonical" href="https://app.example.in/help.html" />');
+    expect(res.text).not.toMatch(/%SITE_URL%/);
+  });
+
+  test('a page that does not exist is a real 404 and not for search', async () => {
+    const res = await request(full()).get('/no-such-page');
+    expect(res.status).toBe(404);
+    expect(res.headers['x-robots-tag']).toBe('noindex');
+    expect(res.text).toContain('We can’t find that page');
+  });
+});

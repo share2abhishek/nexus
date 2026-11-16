@@ -65,6 +65,8 @@ if (isHosted && !process.env.TRUST_PROXY) {
 }
 if (process.env.TRUST_PROXY) app.set('trust proxy', /^\d+$/.test(process.env.TRUST_PROXY) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY);
 app.disable('x-powered-by');
+// Smaller pages and scripts: faster loads, which search engines reward
+app.use(require('compression')());
 // Basic browser protections on every response (no framing of the app, no sniffing)
 app.use((req, res, next) => {
   res.set('X-Content-Type-Options', 'nosniff');
@@ -138,9 +140,18 @@ app.get('/__schedule', async (req, res) => {
 
 // Landing page address, robots.txt and sitemap.xml for search engines
 const publicPages = require('./publicPages');
+app.use(publicPages.noindexMiddleware); // app, sign-in and one-time links stay out of search results
 app.use(publicPages.router);
 // index: false, so "/" goes to the route below (app or landing page), not straight to index.html
-app.use(express.static(path.join(__dirname, '..', 'public'), { index: false }));
+// Hosted: fonts and images are cached for a long time, scripts and styles are re-checked often
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  index: false,
+  setHeaders: (res, file) => {
+    if (!isHosted) return;
+    if (/\.(woff2|png|jpe?g|webp|svg|ico)$/i.test(file)) res.set('Cache-Control', 'public, max-age=604800');
+    else if (/\.(js|css)$/i.test(file)) res.set('Cache-Control', 'public, max-age=300, must-revalidate');
+  },
+}));
 // Chart library shipped with the app (works offline; no CDN)
 app.get('/vendor/chart.umd.js', (req, res) => res.sendFile(path.join(__dirname, '..', 'node_modules', 'chart.js', 'dist', 'chart.umd.js')));
 
@@ -284,6 +295,7 @@ app.get('/me/workspaces', async (req, res) => {
 
 app.get('/', (req, res) => {
   if (req.session?.userId) {
+    res.set('X-Robots-Tag', 'noindex, nofollow'); // the app itself is not for search results
     res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
   } else if (/Electron/i.test(req.get('user-agent') || '') && !require('../services/edition').isServer()) {
     // The desktop app's own window: straight to sign-in
@@ -304,6 +316,12 @@ app.get('/app', (req, res) => {
 app.get('*', (req, res) => {
   // Unknown data addresses get a clear 404, not the app's page
   if (/^\/(api|auth|users|v1)\//.test(req.path)) return res.status(404).json({ error: 'Not found' });
+  // Visitors who aren't signed in get a real 404 page, not the app's page (search engines would index it)
+  if (!req.session?.userId) {
+    if (/^\/(login|register|signin|signup)\/?$/i.test(req.path)) return res.redirect(302, '/login.html');
+    return publicPages.sendNotFound(req, res);
+  }
+  res.set('X-Robots-Tag', 'noindex, nofollow');
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 

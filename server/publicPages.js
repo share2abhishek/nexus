@@ -7,6 +7,23 @@ const path = require('path');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
 
+// Addresses that must never appear in search results (the app, sign-in, one-time links, data routes)
+const NOT_FOR_SEARCH = ['/api/', '/users/', '/auth/', '/admin', '/app', '/login.html', '/invite.html', '/setup.html', '/a/', '/relay/', '/v1/', '/ollama/'];
+const noindexPath = (p) => NOT_FOR_SEARCH.some((x) => (x.endsWith('/') ? p.startsWith(x) : p === x || p.startsWith(`${x}/`))) || p === '/index.html';
+function noindexMiddleware(req, res, next) {
+  if (noindexPath(req.path)) res.set('X-Robots-Tag', 'noindex, nofollow');
+  next();
+}
+
+// A page that doesn't exist: a real 404 (not the app's page with a 200), and not for search
+function sendNotFound(req, res) {
+  res.status(404).set('X-Robots-Tag', 'noindex').type('html').send(`<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Page not found | NexaDrip</title><meta name="robots" content="noindex" /><link rel="icon" type="image/svg+xml" href="/icon.svg" />
+<style>body{font-family:system-ui,sans-serif;background:#f6f9fc;color:#334155;display:grid;place-items:center;min-height:100vh;margin:0;text-align:center;padding:24px}h1{color:#0f2338}a{color:#2563eb}</style></head>
+<body><main><img src="/icon.svg" alt="NexaDrip" width="56" height="56" /><h1>We can’t find that page</h1><p>The address may have changed. <a href="/">Go to the NexaDrip home page</a> or <a href="/help.html">open the help guides</a>.</p></main></body></html>`);
+}
+
 // The site's own address: APP_URL when set (the hosted service), else the
 // address the page was opened on.
 function siteUrl(req) {
@@ -45,11 +62,19 @@ const router = express.Router();
 // One address for the landing page (search engines shouldn't see two copies)
 router.get('/landing.html', (req, res) => res.redirect(301, '/'));
 
+// The help guides, with the site's own address filled in (canonical and share tags)
+router.get('/help.html', (req, res) => {
+  res.type('html').send(fs.readFileSync(path.join(PUBLIC, 'help.html'), 'utf8').split('%SITE_URL%').join(siteUrl(req)));
+});
+
 router.get('/robots.txt', (req, res) => {
   res.type('text/plain').send([
     'User-agent: *',
-    'Disallow: /api/',
-    'Disallow: /users/',
+    'Allow: /$',
+    'Allow: /help.html',
+    'Allow: /legal',
+    // The app, sign-in and the private links are not for search results
+    ...NOT_FOR_SEARCH.map((p) => `Disallow: ${p}`),
     '',
     `Sitemap: ${siteUrl(req)}/sitemap.xml`,
     '',
@@ -149,4 +174,4 @@ router.get('/legal/:page', (req, res, next) => {
   res.type('html').send(html);
 });
 
-module.exports = { router, sendLanding, siteUrl, faqJsonLd, LEGAL_PAGES };
+module.exports = { router, sendLanding, sendNotFound, noindexMiddleware, noindexPath, siteUrl, faqJsonLd, LEGAL_PAGES, NOT_FOR_SEARCH };

@@ -23,6 +23,10 @@ Newest first. Paste the section for a version into the GitHub Release
 - **Platform filter:** hide or show Facebook, Instagram, LinkedIn and so on.
 - The calendar remembers your last view and choices. It always asks for posts by workspace name, so it can't show one workspace's posts under another's name.
 
+### Better ranking on Google
+
+The website now has a keyword title and shorter description, prices in its structured data (Individual and Agency Pro), and its own title, description and address for the Help guides. robots.txt and a noindex header keep the app, sign-in and one-time links out of search results, and pages that do not exist now return a real 404 instead of the app's page. Pages and scripts are compressed (the landing page is about a quarter of its size), and fonts and images are cached on the hosted edition.
+
 ### Help chat on the website and inside the app
 
 A chat button on the landing page answers visitors about features, pricing and the free trial, and a Help & support chat inside the app answers how-to questions and can open the right screen for you (for example Settings → AI). Both answer only from a knowledge base the Super Admin edits under Users & access → Help chat: add, change, switch off or delete answers, restore the built-in ones, and try a question before visitors see it. Questions the chat cannot answer, and "talk to a person" requests, are saved as enquiries in the same place (set SUPPORT_NOTIFY_EMAIL to also get each one by email). The website chat is rate limited and shares a daily AI budget (HELP_PUBLIC_DAILY_LIMIT, default 400); without AI it shows the written answers.
