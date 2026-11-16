@@ -10,7 +10,7 @@ const chatbot = require('./leadPipeline/chatbot');
 const now = () => Math.floor(Date.now() / 1000);
 
 const DEFAULT_PERSONA = {
-  name: 'Nexus AI Assistant',
+  name: 'Nexa AI Assistant',
   tone: 'friendly',             // 'friendly', 'professional', 'casual', 'concise'
   response_length: 'balanced',   // 'concise' (1-2 sentences), 'balanced' (2-3 sentences), 'detailed'
   strictness: 'grounded',       // 'grounded' (fact-grounded), 'strict' (refuse outside facts)

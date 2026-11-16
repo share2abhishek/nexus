@@ -9,7 +9,7 @@ const KbState = {
   selectedCategory: 'all',
   searchQuery: '',
   simChat: [
-    { role: 'bot', text: 'Hello! I am your AI Chat Assistant, trained on your business knowledge base. Ask me anything to test how I answer customers on WhatsApp or your website!', model: 'Nexus AI', latency_ms: 0, sources: [] }
+    { role: 'bot', text: 'Hello! I am your AI Chat Assistant, trained on your business knowledge base. Ask me anything to test how I answer customers on WhatsApp or your website!', model: 'Nexa AI', latency_ms: 0, sources: [] }
   ],
   isSimulating: false,
   editingFaq: null,
@@ -398,7 +398,7 @@ function renderPersonaTab() {
     <div class="kb-persona-grid">
       <div class="form-group">
         <label class="form-label">🤖 AI Assistant Display Name</label>
-        <input type="text" class="form-input" id="kb-persona-name" value="${escapeHtml(p.name || 'Nexus AI Assistant')}" maxlength="80" onchange="markKbDirty()" />
+        <input type="text" class="form-input" id="kb-persona-name" value="${escapeHtml(p.name || 'Nexa AI Assistant')}" maxlength="80" onchange="markKbDirty()" />
         <span class="form-hint">How the AI introduces itself to visitors.</span>
       </div>
 
