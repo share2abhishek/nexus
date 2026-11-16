@@ -266,7 +266,7 @@ function wireWhatsAppBot() {
   };
   document.getElementById('bot-save').onclick = saveWhatsAppBot;
   document.getElementById('bot-try-form').onsubmit = (e) => { e.preventDefault(); tryWhatsAppBot(); };
-  document.getElementById('bot-try-clear').onclick = () => { BotState.tryLog = []; renderBotTryLog(); };
+  document.getElementById('bot-try-clear').onclick = () => { BotState.tryLog = []; BotState.tryPaused = false; renderBotTryLog(); };
 }
 
 // Read the form into the same shape the server saves
@@ -355,7 +355,9 @@ async function tryWhatsAppBot() {
   try {
     const r = await api('POST', '/api/lead-pipeline/bot/preview', {
       text, config: collectBotConfig(), first_time: document.getElementById('bot-try-first').checked,
+      paused: !!BotState.tryPaused,
     });
+    if (r.action === 'handover') BotState.tryPaused = true;
     document.getElementById('bot-try-first').checked = false;
     const note = {
       paused: 'The bot is quiet in this chat because a person replied.',
@@ -365,8 +367,11 @@ async function tryWhatsAppBot() {
       n8n: 'Your n8n workflow would answer this one.',
     }[r.reason];
     if (r.replies.length) r.replies.forEach(t => BotState.tryLog.push({ from: 'bot', text: t }));
-    else if (r.ai || r.reason === 'n8n') BotState.tryLog.push({ from: 'note', text: note });
-    else BotState.tryLog.push({ from: 'note', text: note || (r.reason === 'fallback' ? 'No reply: the holding message was already sent in the last hour.' : 'No reply.') });
+    if (r.ai_answered) BotState.tryLog.push({ from: 'note', text: 'Answered by AI from your answers and knowledge base.' });
+    else if (r.ai_error) BotState.tryLog.push({ from: 'note', text: `AI could not answer: ${r.ai_error}` });
+    else if (!r.replies.length) {
+      BotState.tryLog.push({ from: 'note', text: note || (r.reason === 'fallback' ? 'No reply: the holding message was already sent in the last hour.' : 'No reply.') });
+    }
     if (r.action === 'handover') BotState.tryLog.push({ from: 'note', text: 'Handed over: the bot now goes quiet in this chat so you can answer in Chats.' });
     if (r.action === 'opt_out') BotState.tryLog.push({ from: 'note', text: 'Opted out: this person won’t get broadcasts any more.' });
   } catch (err) {

@@ -147,6 +147,12 @@ describe('Auto-replies end to end', () => {
     expect(sent).toHaveLength(0);
   });
 
+  test('the tester stays quiet after a handover, and says why', async () => {
+    const p = await request(appApi).post('/api/lead-pipeline/bot/preview').send({ text: 'price', paused: true });
+    expect(p.body.replies).toEqual([]);
+    expect(p.body.reason).toBe('paused');
+  });
+
   test('when on, a keyword is answered and saved in the chat as an auto-reply', async () => {
     await inbound('price?'); await settle();
     expect(sent).toEqual([{ to: '919876543210', text: 'Haircut ₹300.' }]);

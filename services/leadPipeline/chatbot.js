@@ -477,5 +477,5 @@ async function handleInbound(db, { workspaceId, lead, text, name, send, askN8n }
 module.exports = {
   DEFAULT_CONFIG, LIMITS,
   normalizeConfig, normalizeText, decide, isOpen, nextOpening,
-  getSettings, saveSettings, getState, pauseForHuman, resume, optedOutLeadIds, handleInbound,
+  getSettings, saveSettings, getState, pauseForHuman, resume, optedOutLeadIds, handleInbound, aiAnswer,
 };

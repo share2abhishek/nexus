@@ -1842,8 +1842,19 @@ module.exports = (knex, requirePermission) => {
         || (await knex('workspaces').where({ id: req.workspaceId }).first('name'))?.name || '';
       const when = Number(at) || Math.floor(Date.now() / 1000);
       const state = first_time ? {} : { welcomed_at: when - 60 };
-      const d = chatbot.decide(cfg, { text: String(text || ''), name: req.body?.name || 'Priya', business }, state, when);
-      res.json({ replies: d.replies, reason: d.reason, action: d.action, ai: d.ai, open_now: chatbot.isOpen(cfg, when) });
+      // The tester remembers a handover, like the live bot stays quiet after one
+      if (req.body?.paused) state.paused_until = when + 3600;
+      const msg = { text: String(text || ''), name: req.body?.name || 'Priya', business };
+      const d = chatbot.decide(cfg, msg, state, when);
+      const out = { replies: d.replies, reason: d.reason, action: d.action, ai: d.ai, open_now: chatbot.isOpen(cfg, when) };
+      // "Anything else → AI": show the real answer (same call and keys as the live bot)
+      if (d.ai) {
+        try {
+          const a = await chatbot.aiAnswer(knex, req.workspaceId, req.session?.userId, cfg, msg);
+          if (a) { out.replies = [a]; out.ai_answered = true; }
+        } catch (err) { out.ai_error = err.message; }
+      }
+      res.json(out);
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
