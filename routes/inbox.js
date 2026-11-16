@@ -40,6 +40,12 @@ module.exports = (knex, requirePermission) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
+  // A new comment on one of our own published posts (speaks for the business: same right as publishing)
+  router.post('/post-comment', requirePermission('content.publish'), express.json(), async (req, res) => {
+    try { res.json(await inbox.commentOnPost(knex, req.workspaceId, Number(req.body?.post_id), String(req.body?.platform || ''), req.body?.text)); }
+    catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+  });
+
   // Replying speaks for the business in public: same right as publishing
   router.post('/:id/reply', requirePermission('content.publish'), express.json(), async (req, res) => {
     try { res.json(await inbox.reply(knex, req.workspaceId, req.session.userId, Number(req.params.id), req.body?.text)); }

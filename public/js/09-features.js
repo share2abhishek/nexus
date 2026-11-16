@@ -92,6 +92,76 @@ function openRepostModal(postId) {
   window._repostPostId = postId;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 💬 Add a comment to a post that is already published
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Platforms of this post where a comment can be added (published from NexaDrip with a post id)
+function commentablePlatforms(post) {
+  const res = Array.isArray(post?.results) ? post.results : [];
+  return [...new Set(res.filter(r => r && r.success && r.id && ['facebook', 'instagram', 'threads'].includes(r.platform)).map(r => r.platform))];
+}
+
+function openPostComment(postId) {
+  const post = State.postsHistoryMap?.[postId];
+  const plats = commentablePlatforms(post);
+  if (!post || !plats.length) return;
+  let m = document.getElementById('post-comment-modal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'post-comment-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:9998;display:none;align-items:center;justify-content:center;padding:12px';
+    m.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="pc-title" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:16px;width:520px;max-width:100%;overflow:hidden;box-shadow:var(--shadow-lg)">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between"><div id="pc-title" style="font-size:16px;font-weight:700">💬 Add a comment</div><button type="button" onclick="closePostComment()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer" aria-label="Close">✕</button></div>
+      <div style="padding:18px 20px">
+        <div id="pc-post" style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;max-height:48px;overflow:hidden"></div>
+        <div class="form-group" id="pc-plat-row"><label class="form-label">Comment on</label><div class="platform-selector" id="pc-platforms"></div></div>
+        <div class="form-group"><label class="form-label" for="pc-text">Your comment</label><textarea class="form-textarea" id="pc-text" style="min-height:100px" maxlength="2000" placeholder="For example: a link, hashtags, an update or an answer for your followers"></textarea></div>
+        <div style="font-size:12px;color:var(--text-muted)">It appears publicly on the post, from your connected account.</div>
+      </div>
+      <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end"><button type="button" class="btn btn-secondary" onclick="closePostComment()">Cancel</button><button type="button" class="btn btn-primary" id="pc-send" onclick="sendPostComment()">Post comment</button></div>
+    </div>`;
+    m.addEventListener('click', (e) => { if (e.target === m) closePostComment(); });
+    document.body.appendChild(m);
+  }
+  window._commentPostId = postId;
+  document.getElementById('pc-post').textContent = String(post.content || '').slice(0, 140);
+  document.getElementById('pc-text').value = '';
+  const box = document.getElementById('pc-platforms');
+  box.innerHTML = plats.map((p, i) => `<label class="platform-toggle ${PLATFORMS[p]?.class || ''} ${i === 0 ? 'selected' : ''}" data-platform="${p}">${PLATFORMS[p]?.icon || ''} ${escapeHtml(PLATFORMS[p]?.label || p)}</label>`).join('');
+  box.querySelectorAll('.platform-toggle').forEach(el => { el.onclick = () => el.classList.toggle('selected'); });
+  document.getElementById('pc-plat-row').style.display = plats.length > 1 ? '' : 'none';
+  m.style.display = 'flex';
+  setTimeout(() => document.getElementById('pc-text').focus(), 50);
+}
+
+function closePostComment() {
+  const m = document.getElementById('post-comment-modal');
+  if (m) m.style.display = 'none';
+}
+
+async function sendPostComment() {
+  const text = document.getElementById('pc-text').value.trim();
+  if (!text) return toast('Write your comment first', 'warning');
+  const chosen = [...document.querySelectorAll('#pc-platforms .platform-toggle.selected')].map(e => e.dataset.platform);
+  if (!chosen.length) return toast('Choose where to comment', 'warning');
+  const btn = document.getElementById('pc-send');
+  btn.disabled = true; btn.textContent = 'Posting…';
+  const done = [], failed = [];
+  for (const platform of chosen) {
+    try {
+      await api('POST', '/api/inbox/post-comment', { post_id: window._commentPostId, platform, text });
+      done.push(PLATFORMS[platform]?.label || platform);
+      document.querySelector(`#pc-platforms [data-platform="${platform}"]`)?.classList.remove('selected'); // so a retry doesn't comment twice
+    }
+    catch (err) { failed.push(`${PLATFORMS[platform]?.label || platform}: ${err.message}`); }
+  }
+  btn.disabled = false; btn.textContent = 'Post comment';
+  if (done.length) toast(`Comment added on ${done.join(' and ')}`, 'success');
+  if (failed.length) toast(failed.join(' '), 'error', 9000);
+  if (!failed.length) closePostComment();
+}
+
 function closeRepostModal() {
   const modal = document.getElementById('repost-modal');
   if (modal) modal.style.display = 'none';

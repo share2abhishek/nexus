@@ -109,6 +109,35 @@ async function reply(db, workspaceId, userId, itemId, message) {
   return { success: true };
 }
 
+// Platforms where a published post can get a new comment from here
+const COMMENTABLE = ['facebook', 'instagram', 'threads'];
+
+// Which platforms of a published post can take a comment (used by Post history)
+function commentTargets(results) {
+  return (parse(results) || []).filter(r => r?.success && r.id && COMMENTABLE.includes(r.platform)).map(r => r.platform);
+}
+
+// Add a comment (as the business) to a post that is already published
+async function commentOnPost(db, workspaceId, postId, platform, message) {
+  const text = String(message || '').trim();
+  if (!text) throw Object.assign(new Error('Write your comment first.'), { status: 400 });
+  if (!COMMENTABLE.includes(platform)) throw Object.assign(new Error('Comments can be added to Facebook, Instagram and Threads posts.'), { status: 400 });
+  const post = await db('posts').where({ id: postId, workspace_id: workspaceId }).first();
+  const hit = (parse(post?.results) || []).find(r => r?.success && r.id && r.platform === platform);
+  if (!hit) throw Object.assign(new Error(`This post wasn’t published on ${platform} from NexaDrip, so a comment can’t be added here.`), { status: 404 });
+  const acc = await accountFor(db, workspaceId, platform);
+  if (!acc) throw Object.assign(new Error('This account needs connecting again (Settings → Connected accounts).'), { status: 400 });
+  const body = text.slice(0, platform === 'threads' ? 500 : 2000);
+  if (platform === 'threads') {
+    try { await REPLY.threads(acc, { external_id: String(hit.id) }, body); }
+    catch (err) { throw Object.assign(new Error(`The comment could not be posted: ${err.response?.data?.error?.message || err.message}`), { status: 502 }); }
+    return { success: true };
+  }
+  const r = await require('./firstComment').postNow(platform, String(hit.id), body, acc.page_token || acc.access_token, { waits: [] });
+  if (!r.ok) throw Object.assign(new Error(r.error), { status: 502 });
+  return { success: true, id: r.id };
+}
+
 let timer = null;
 function start(db) {
   const run = () => refresh(db).catch(err => console.warn('[Inbox] Check failed:', err.message));
@@ -117,4 +146,4 @@ function start(db) {
   timer.unref?.();
 }
 
-module.exports = { refresh, reply, start, FETCH, REPLY };
+module.exports = { refresh, reply, commentOnPost, commentTargets, start, FETCH, REPLY };

@@ -893,7 +893,8 @@ async function loadPostHistory() {
             ${platforms.map(p => `<span class="tag purple">${PLATFORMS[p]?.icon || ''} ${p}</span>`).join('')}
             <span class="tag">${date.toLocaleDateString()}</span>
             <span class="badge badge-${post.status === 'published' ? 'green' : 'orange'}">${post.status}</span>
-            <div style="margin-left:auto;display:flex;gap:6px">
+            <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+              ${commentablePlatforms(post).length ? `<button class="btn btn-secondary btn-sm" onclick="openPostComment(${post.id})">💬 Comment</button>` : ''}
               <button class="btn btn-secondary btn-sm" onclick="copyPostHistory(${post.id})">📋 Copy</button>
               <a class="btn btn-sm" style="background:rgba(37,211,102,0.15);color:#25d366;border:1px solid rgba(37,211,102,0.3);text-decoration:none;display:inline-flex;align-items:center;gap:4px" href="https://api.whatsapp.com/send?text=${waText}" target="_blank"><svg style="width:13px;height:13px" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg> WhatsApp</a>
               <button class="btn btn-primary btn-sm" onclick="openRepostModal(${post.id})">✏️ Edit & Repost</button>

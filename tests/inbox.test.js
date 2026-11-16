@@ -39,3 +39,33 @@ test('a reply is posted under the comment with the Page login', async () => {
   const after = await knex('inbox_items').where({ id: item.id }).first();
   expect(after).toMatchObject({ is_read: 1, reply_text: 'Yes, 8am to 10pm!' });
 });
+
+describe('adding a comment to an already published post', () => {
+  let postId;
+  beforeAll(async () => { postId = (await knex('posts').where({ workspace_id: ws }).first()).id; });
+  beforeEach(() => axios.post.mockReset());
+
+  test('goes to the post with the Page login', async () => {
+    axios.post.mockResolvedValue({ data: { id: 'new1' } });
+    const r = await inbox.commentOnPost(knex, ws, postId, 'facebook', '  Link in bio!  ');
+    expect(r).toMatchObject({ success: true, id: 'new1' });
+    expect(axios.post.mock.calls[0]).toEqual([`${GRAPH}/PAGE_1/comments`, { message: 'Link in bio!', access_token: 'PT' }]);
+  });
+
+  test('says what is wrong: empty text, platform the post was not on, other workspace', async () => {
+    await expect(inbox.commentOnPost(knex, ws, postId, 'facebook', '  ')).rejects.toMatchObject({ status: 400 });
+    await expect(inbox.commentOnPost(knex, ws, postId, 'instagram', 'hi')).rejects.toMatchObject({ status: 404 });
+    await expect(inbox.commentOnPost(knex, ws, postId, 'linkedin', 'hi')).rejects.toMatchObject({ status: 400 });
+    await expect(inbox.commentOnPost(knex, ws + 999, postId, 'facebook', 'hi')).rejects.toMatchObject({ status: 404 });
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  test('Meta refusing the comment comes back as plain advice', async () => {
+    axios.post.mockRejectedValue(Object.assign(new Error('x'), { response: { status: 400, data: { error: { code: 200, message: 'Permissions error' } } } }));
+    await expect(inbox.commentOnPost(knex, ws, postId, 'facebook', 'hi')).rejects.toMatchObject({ status: 502, message: expect.stringMatching(/Connect on the Facebook card/) });
+  });
+
+  test('lists the platforms a post can be commented on', () => {
+    expect(inbox.commentTargets(JSON.stringify([{ platform: 'facebook', success: true, id: 'a' }, { platform: 'linkedin', success: true, id: 'b' }, { platform: 'instagram', success: false }]))).toEqual(['facebook']);
+  });
+});
