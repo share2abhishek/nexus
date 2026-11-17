@@ -183,10 +183,10 @@ function renderSellbirdMetrics(stats) {
 
   // Top header quota pill
   const topQuota = document.getElementById('sb-top-quota-text');
-  if (topQuota) topQuota.textContent = `${stats.sent_today || 0} / ${stats.daily_cap || 0}`;
+  if (topQuota) nxSetText(topQuota, `Sent today: ${stats.sent_today || 0} of ${stats.daily_cap || 0}`);
 
   const quotaSentMetric = document.getElementById('sb-quota-sent-metric');
-  if (quotaSentMetric) quotaSentMetric.textContent = stats.sent_today || 0;
+  if (quotaSentMetric) nxSetText(quotaSentMetric, stats.sent_today || 0);
   const quotaCap = document.getElementById('sb-quota-cap');
   if (quotaCap) quotaCap.textContent = stats.daily_cap || 0;
   const activeCamps = document.getElementById('sb-sending-queued');
@@ -206,8 +206,19 @@ function renderSellbirdMetrics(stats) {
   SellbirdState.stats = stats;
   const stateText = document.getElementById('sb-sending-state-text');
   if (stateText) {
-    stateText.textContent = !stats.sender ? 'Email not set up' : !stats.licensed ? 'Needs licence' : stats.paused ? 'Paused' : 'Sending on';
-    document.getElementById('sb-sending-state')?.classList.toggle('sb-state-off', !stats.sender || !stats.licensed || stats.paused);
+    // Say what is happening, not just that auto-send is switched on
+    const nextAt = stats.next_send_at ? new Date(stats.next_send_at * 1000).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    stateText.textContent = !stats.sender ? 'Email not set up'
+      : !stats.licensed ? 'Needs licence'
+      : stats.paused ? 'Paused'
+      : (stats.sending_now || stats.due_now) ? 'Sending…'
+      : nextAt ? `Next send ${nextAt}`
+      : 'Nothing waiting to send';
+    const pill = document.getElementById('sb-sending-state');
+    if (pill) {
+      pill.classList.toggle('sb-state-off', !stats.sender || !stats.licensed || stats.paused);
+      pill.title = stats.paused ? 'Sending is paused. Approved emails wait until you resume.' : 'Auto-send is on: approved emails go out by themselves at their planned time.';
+    }
   }
   setText('sb-rules-sender', stats.sender ? `${stats.sender.name ? stats.sender.name + ' ' : ''}<${stats.sender.email}>` : 'the address in Settings → Email sending (not set up yet)');
   document.querySelectorAll('[data-sb-pause-label]').forEach(el => { el.textContent = stats.paused ? '▶ Resume sending' : '⏸ Pause sending'; });
@@ -746,6 +757,26 @@ function watchSellbirdSending(seconds = 90) {
   }, 3000);
 }
 
+// The files that go with an email (shown in its detail): first email = every file of the campaign,
+// a follow-up = only the files marked "every email"
+async function loadOutboxFiles() {
+  SellbirdState.campaignFiles = SellbirdState.campaignFiles || {};
+  const ids = [...new Set((SellbirdState.outboxItems || []).map((i) => i.campaign_id).filter(Boolean))];
+  await Promise.all(ids.map(async (cid) => {
+    try { SellbirdState.campaignFiles[cid] = (await api('GET', `/api/sellbird/campaigns/${cid}/attachments`)).attachments || []; }
+    catch { SellbirdState.campaignFiles[cid] = []; }
+  }));
+}
+function renderEmailFilesRow(item) {
+  const all = (SellbirdState.campaignFiles || {})[item.campaign_id] || [];
+  const files = (item.step_number || 1) > 1 ? all.filter((a) => a.send_with === 'all') : all;
+  if (!files.length) return '';
+  return `<div class="sb-meta-row">
+    <span style="font-size:10.5px;font-weight:800;color:#94a3b8;width:55px">FILES</span>
+    <span>${files.map((a) => `📎 ${escapeHtml(a.filename)} <span style="color:#64748b;font-size:12px">(${fileSizeText(a.size)})</span>`).join(' &nbsp; ')}</span>
+  </div>`;
+}
+
 async function loadOutbox() {
   const container = document.getElementById('sellbird-outbox-list');
   if (container) {
@@ -764,6 +795,7 @@ async function loadOutbox() {
 
     const items = await api('GET', url);
     SellbirdState.outboxItems = Array.isArray(items) ? items : [];
+    await loadOutboxFiles();
 
     // Automatically select the first pending item, or the first available item
     if (!SellbirdState.selectedOutboxId || !SellbirdState.outboxItems.some((i) => i.id === SellbirdState.selectedOutboxId)) {
@@ -1166,6 +1198,7 @@ function renderOutbox() {
               : (activeItem.scheduled_at ? escapeHtml(new Date(activeItem.scheduled_at * 1000).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) : '—')
                 + ((activeItem.step_number || 1) > 1 ? ' · only after email ' + ((activeItem.step_number || 1) - 1) + ' has gone out, and only if they haven’t replied' : ' · after you approve it')}</span>
           </div>
+          ${renderEmailFilesRow(activeItem)}
         </div>
 
         <!-- Subject Line -->
@@ -1346,6 +1379,9 @@ function renderCampaigns() {
             : `<span class="sb-stage-pill contacted" onclick="toggleCampaignStatus(${camp.id}, event)">✈ SENDING</span>`
           }
         </td>
+        <td style="white-space:nowrap">
+          <button type="button" class="sb-secondary-btn" onclick="openCampaignFilesModal(${camp.id}, event)" title="Files sent with this campaign’s emails" style="padding:3px 8px;font-size:12px">📎 Files</button>
+        </td>
         <td style="font-weight:600;color:#334155">${sent}</td>
         <td style="font-weight:600;color:#334155">${replies}</td>
         <td style="font-weight:600;color:#0f172a">${meetings}</td>
@@ -1366,6 +1402,7 @@ function renderCampaigns() {
         <tr>
           <th>CAMPAIGN</th>
           <th>STATUS</th>
+          <th>FILES</th>
           <th>SENT</th>
           <th>REPLIES</th>
           <th>MEETINGS</th>
@@ -1517,7 +1554,7 @@ async function createCampaign() {
 }
 
 async function deleteCampaign(id) {
-  if (!confirm('Are you sure you want to delete this campaign?')) return;
+  if (!confirm('Delete this campaign?\n\nIts companies, contacts and the emails waiting in the outbox are deleted too, and so are its attached files. Emails already sent stay in your records. This can not be undone.')) return;
 
   try {
     await api('DELETE', `/api/sellbird/campaigns/${id}`);
@@ -1868,6 +1905,84 @@ function openImportContactsModal() {
   if (modal) modal.style.display = 'flex';
 }
 
+/* ─── Files sent with a campaign's emails ──────────────────────────────────── */
+const CampaignFilesState = { campaignId: null, list: [], limits: null };
+const fileSizeText = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+
+function closeCampaignFilesModal() { document.getElementById('sb-files-modal')?.remove(); }
+
+async function openCampaignFilesModal(campaignId, ev) {
+  if (ev) ev.stopPropagation();
+  CampaignFilesState.campaignId = campaignId;
+  closeCampaignFilesModal();
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="sb-files-modal" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)closeCampaignFilesModal()">
+      <div style="background:#fff;border-radius:12px;width:100%;max-width:560px;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.3);color:#0f172a" onclick="event.stopPropagation()">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:16px">📎 Files sent with this campaign’s emails</b>
+          <button type="button" onclick="closeCampaignFilesModal()" aria-label="Close" style="background:none;border:0;font-size:18px;cursor:pointer;color:#64748b">✕</button></div>
+        <div style="font-size:12.5px;color:#475569;margin-bottom:12px">For example a brochure or price list. Each person gets the files with their first email; you can also send a file with every follow-up. Cold emails with attachments can land in spam more often than plain emails: a link is often safer.</div>
+        <div id="sb-files-list" style="margin-bottom:12px"><span class="spinner"></span></div>
+        <label class="sb-secondary-btn" style="cursor:pointer;display:inline-block">＋ Add a file
+          <input id="sb-files-input" type="file" style="display:none" onchange="uploadCampaignFile(this)" /></label>
+        <div id="sb-files-limits" style="font-size:11.5px;color:#64748b;margin-top:8px"></div>
+      </div>
+    </div>`);
+  await refreshCampaignFiles();
+}
+
+async function refreshCampaignFiles() {
+  const box = document.getElementById('sb-files-list');
+  if (!box) return;
+  try {
+    const r = await api('GET', `/api/sellbird/campaigns/${CampaignFilesState.campaignId}/attachments`);
+    CampaignFilesState.list = r.attachments || [];
+    CampaignFilesState.limits = r.limits || null;
+    const lim = document.getElementById('sb-files-limits');
+    if (lim && r.limits) lim.textContent = `Up to ${r.limits.max_files} files, ${fileSizeText(r.limits.max_file_bytes)} each and ${fileSizeText(r.limits.max_total_bytes)} in all. Allowed: ${r.limits.allowed}.`;
+    box.innerHTML = CampaignFilesState.list.length
+      ? CampaignFilesState.list.map((a) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9">
+          <span style="flex:1;min-width:0;overflow-wrap:anywhere"><b>${escapeHtml(a.filename)}</b> <span style="color:#64748b;font-size:12px">${fileSizeText(a.size)}</span></span>
+          <select onchange="setCampaignFileSendWith(${a.id}, this.value)" style="font-size:12px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px" aria-label="When to send this file">
+            <option value="first" ${a.send_with === 'first' ? 'selected' : ''}>First email only</option>
+            <option value="all" ${a.send_with === 'all' ? 'selected' : ''}>Every email</option>
+          </select>
+          <button type="button" onclick="deleteCampaignFile(${a.id})" title="Remove this file" aria-label="Remove this file" style="background:none;border:0;cursor:pointer;color:#ef4444;font-size:15px">🗑</button>
+        </div>`).join('')
+      : '<div style="color:#64748b;font-size:13px">No files yet.</div>';
+  } catch (err) { box.innerHTML = `<div style="color:#ef4444">${escapeHtml(err.message)}</div>`; }
+}
+
+async function uploadCampaignFile(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  try {
+    const res = await fetch(`/api/sellbird/campaigns/${CampaignFilesState.campaignId}/attachments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
+      body: file,
+    });
+    if (res.status === 401) { window.location.href = '/login.html'; return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `The upload failed (error ${res.status}).`);
+    toast(`${data.filename} added.`, 'success');
+    await refreshCampaignFiles();
+  } catch (err) { toast(err.message || 'Could not add the file', 'error', 7000); }
+}
+
+async function setCampaignFileSendWith(id, value) {
+  try { await api('PATCH', `/api/sellbird/attachments/${id}`, { send_with: value }); toast('Saved.', 'success', 2000); }
+  catch (err) { toast(err.message || 'Could not save', 'error'); await refreshCampaignFiles(); }
+}
+
+async function deleteCampaignFile(id) {
+  const a = CampaignFilesState.list.find((x) => x.id === id);
+  if (!confirm(`Remove ${a ? a.filename : 'this file'} from the campaign?\n\nEmails already sent keep it. Emails not yet sent will go without it.`)) return;
+  try { await api('DELETE', `/api/sellbird/attachments/${id}`); await refreshCampaignFiles(); }
+  catch (err) { toast(err.message || 'Could not remove the file', 'error'); }
+}
+
 async function sendContactsFile(file, campaignId, dryRun) {
   const res = await fetch(`/api/sellbird/contacts/import?campaign_id=${encodeURIComponent(campaignId)}${dryRun ? '&dry_run=1' : ''}`, {
     method: 'POST',
@@ -2145,7 +2260,10 @@ async function submitDiscoverByType() {
       campaign_id: campaign_id ? Number(campaign_id) : undefined,
     });
 
-    toast(`Discovered & crawled ${res.added_count || 0} companies! 3 outreach emails queued in Outbox.`, 'success', 7000);
+    const added = res.added_count || 0;
+    toast(added
+      ? `Added ${added} ${added === 1 ? 'company' : 'companies'}. Their emails are waiting for your OK in Outbox.`
+      : 'No new company was added.', added ? 'success' : 'info', 7000);
     closeSellbirdModals();
 
     await loadSellbird();

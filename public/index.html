@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg?v=2.3.0" />
   <link rel="alternate icon" type="image/png" href="icon.png?v=2.3.0" />
   <link rel="preload" href="fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="styles.css?v=2.3.0" />
+  <link rel="stylesheet" href="styles.css?v=2.3.2" />
   <script src="/vendor/chart.umd.js"></script>
 </head>
 <body class="light-mode">
@@ -1800,8 +1800,9 @@
               <button class="btn btn-sm btn-primary" id="btn-pull-real-prospects" onclick="openPullRealProspectsModal()" style="background:#0284c7;color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:12px;border-radius:6px;border:0" title="Live Crawl Real Housing Societies & Organizations">
                 <span>🔎 Find companies</span>
               </button>
-              <div class="sb-quota-pill" onclick="setSellbirdDailyLimit()" style="cursor:pointer" title="Emails sent today / daily limit. Click to change the daily limit.">
-                <span id="sb-top-quota-text" title="Sent today / daily limit">0 / 0</span>
+              <div class="sb-quota-pill" role="button" tabindex="0" aria-label="Emails sent today of your daily limit. Press to change the limit." onclick="setSellbirdDailyLimit()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setSellbirdDailyLimit();}" style="cursor:pointer" title="Emails sent today of your daily limit (per active campaign). Click to change the limit.">
+                <span id="sb-top-quota-text">Sent today: 0 of 0</span>
+                <span aria-hidden="true" style="font-size:11px;color:#64748b">✎</span>
                 <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="#0284c7" stroke-width="2.5"><circle cx="10" cy="10" r="7" stroke="#e2e8f0"/><path d="M10 3 A7 7 0 0 1 17 10"/></svg>
               </div>
               <div class="sb-live-pill" id="sb-sending-state" title="Sending status"><span class="sb-live-dot"></span> <span id="sb-sending-state-text">…</span></div>
@@ -4498,20 +4499,20 @@
 <script src="js/08-account.js"></script>
 <script src="js/09-features.js"></script>
 <script src="js/10-media-and-more.js"></script>
-<script src="js/12-sellbird.js?v=2.2.2"></script>
+<script src="js/12-sellbird.js?v=2.2.3"></script>
 
-<script src="js/13-lead-pipeline.js?v=2.2.2"></script>
+<script src="js/13-lead-pipeline.js?v=2.2.3"></script>
 <script src="js/14-whatsapp-bot.js?v=2.2.0"></script>
 <script src="js/15-post-designer.js?v=2.2.0"></script>
 <script src="js/16-whatsapp-templates.js?v=2.2.0"></script>
 <script src="js/17-whatsapp-broadcast.js?v=2.2.0"></script>
 <script src="js/18-post-extras.js?v=2.2.0"></script>
 <script src="js/19-seo-autopilot.js?v=2.2.0"></script>
-<script src="js/20-ai-knowledge-base.js?v=2.2.2"></script>
+<script src="js/20-ai-knowledge-base.js?v=2.2.3"></script>
 <script src="js/21-guidance.js?v=2.2.1"></script>
 <script src="js/22-help-chat-admin.js?v=2.2.1"></script>
-<script src="js/23-meta-reports.js?v=2.2.2"></script>
-<script src="js/24-contact-sync.js?v=2.2.2"></script>
+<script src="js/23-meta-reports.js?v=2.2.3"></script>
+<script src="js/24-contact-sync.js?v=2.2.3"></script>
 
 <!-- ── Modal: 7-Step Meta Business Verification & Official Blue/Green Tick Hub ── -->
 <div class="modal" id="modal-meta-verification" style="display:none">

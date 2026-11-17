@@ -177,6 +177,41 @@ module.exports = (knex) => ({
     return out;
   },
 
+  // ── Attachments of a campaign (files sent with its emails) ────────────────────
+  async listAttachments(workspaceId, campaignId) {
+    return knex('sellbird_attachments').where({ workspace_id: workspaceId, campaign_id: Number(campaignId) })
+      .orderBy('id', 'asc').select('id', 'campaign_id', 'filename', 'content_type', 'size', 'send_with', 'created_at');
+  },
+  async attachmentUsage(workspaceId, campaignId) {
+    const r = await knex('sellbird_attachments').where({ workspace_id: workspaceId, campaign_id: Number(campaignId) })
+      .count({ n: '*' }).sum({ bytes: 'size' }).first();
+    return { count: Number(r.n) || 0, bytes: Number(r.bytes) || 0 };
+  },
+  async addAttachment(workspaceId, campaignId, { filename, content_type, size, data, send_with = 'first' }) {
+    const [row] = await knex('sellbird_attachments').insert({
+      workspace_id: workspaceId, campaign_id: Number(campaignId), filename, content_type, size, data,
+      send_with: send_with === 'all' ? 'all' : 'first', created_at: nowEpoch(),
+    }).returning('id');
+    return knex('sellbird_attachments').where({ id: row?.id ?? row, workspace_id: workspaceId })
+      .first('id', 'campaign_id', 'filename', 'content_type', 'size', 'send_with', 'created_at');
+  },
+  async setAttachmentSendWith(workspaceId, id, sendWith) {
+    const n = await knex('sellbird_attachments').where({ id: Number(id), workspace_id: workspaceId }).update({ send_with: sendWith === 'all' ? 'all' : 'first' });
+    if (!n) return null;
+    return knex('sellbird_attachments').where({ id: Number(id), workspace_id: workspaceId })
+      .first('id', 'campaign_id', 'filename', 'content_type', 'size', 'send_with', 'created_at');
+  },
+  deleteAttachment(workspaceId, id) {
+    return knex('sellbird_attachments').where({ id: Number(id), workspace_id: workspaceId }).del();
+  },
+  // The files to send with one email: the first email of a person gets every file, later ones only
+  // the files marked "all emails"
+  async attachmentsFor(workspaceId, campaignId, stepNumber) {
+    const q = knex('sellbird_attachments').where({ workspace_id: workspaceId, campaign_id: Number(campaignId) }).orderBy('id', 'asc');
+    if ((Number(stepNumber) || 1) > 1) q.where({ send_with: 'all' });
+    return (await q).map((a) => ({ filename: a.filename, content: Buffer.from(a.data), contentType: a.content_type }));
+  },
+
   // Change a contact's name, role or address (only this business's own contact)
   async updateContact(workspaceId, id, patch = {}) {
     const set = { updated_at: nowEpoch() };

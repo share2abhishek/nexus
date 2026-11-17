@@ -112,6 +112,18 @@ describe('SES keys: sending', () => {
     expect(raw).toMatch(/Body text/);
   });
 
+  test('attachments go out through the SES API too', async () => {
+    const transport = await smtp.createTransport(cfg);
+    await transport.sendMail({
+      from: 'Urban Society <info@urbansociety.in>', to: 'client@x.test', subject: 'With a file', text: 'See the brochure.',
+      attachments: [{ filename: 'Brochure.pdf', content: Buffer.from('%PDF-1.4 hello'), contentType: 'application/pdf' }],
+    });
+    const raw = Buffer.from(sendSpy.mock.calls[0][0].input.Content.Raw.Data).toString('utf8');
+    expect(raw).toMatch(/Content-Type: application\/pdf; name=Brochure\.pdf/);
+    expect(raw).toMatch(/Content-Disposition: attachment; filename=Brochure\.pdf/);
+    expect(raw).toContain(Buffer.from('%PDF-1.4 hello').toString('base64'));
+  });
+
   test('a normal mail server still uses SMTP (nothing changed for it)', async () => {
     const t = await smtp.createTransport({ host: '8.8.8.8', port: 587, secure: false, auth: { user: 'a', pass: 'b' } });
     expect(t.options.host).toBe('8.8.8.8');

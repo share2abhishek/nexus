@@ -506,7 +506,7 @@ function renderDocumentsTab() {
             <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0">📎 Upload file
               <input type="file" accept=".txt,.md,.csv,.text,text/plain,text/markdown,text/csv" style="display:none" onchange="handleKbNotesFile(event)" />
             </label>
-            <button class="btn btn-primary btn-sm" onclick="organiseKbNotes()">📑 Organise into sections</button>
+            <button class="btn btn-primary btn-sm" id="btn-organise-kb" onclick="organiseKbNotes()">📑 Organise into sections</button>
             <button class="btn btn-secondary btn-sm" onclick="runAiFormatNotes()" ${KbState.isFormattingNotes ? 'disabled' : ''}>
               ${KbState.isFormattingNotes ? '<span class="spinner sm"></span> Structuring…' : '✨ Clean &amp; Structure with AI'}
             </button>
@@ -688,9 +688,11 @@ async function saveActiveKnowledgeBase() {
     KbState.dirty = false;
     toast('Knowledge Base saved & synchronized with WhatsApp & Webchat!', 'success');
     renderAiKnowledgeBase();
+    return true;
   } catch (err) {
     toast(`Failed to save Knowledge Base: ${err.message}`, 'error');
     if (btn) btn.innerHTML = '<span>💾 Save Knowledge Base</span>';
+    return false;
   }
 }
 
@@ -923,21 +925,37 @@ async function saveRawKnowledge() {
 }
 
 async function organiseKbNotes() {
+  if (KbState.isOrganising) return; // a second click while it works would add every section twice
   const text = (document.getElementById('kb-raw-text')?.value ?? KbState.data.raw_text ?? '').trim();
   if (!text) { toast('Paste or upload some notes first.', 'error'); return; }
+  KbState.isOrganising = true;
+  const busyBtn = document.getElementById('btn-organise-kb');
+  if (busyBtn) { busyBtn.disabled = true; busyBtn.innerHTML = '<span class="spinner sm"></span> Organising…'; }
+  const before = { documents: KbState.data.documents, raw_text: KbState.data.raw_text };
   try {
     const res = await api('POST', '/api/knowledge-base/split-notes', { text });
     const sections = Array.isArray(res?.sections) ? res.sections : [];
     if (!sections.length) { toast('Nothing to organise in that text.', 'error'); return; }
     const stamp = Date.now();
     const added = sections.map((s, i) => ({ id: `doc_${stamp}_${i}`, title: s.title, content: s.content }));
-    KbState.data.documents = [...(KbState.data.documents || []), ...added].slice(0, 50);
+    const all = [...(KbState.data.documents || []), ...added];
+    KbState.data.documents = all.slice(0, 50);
     KbState.data.raw_text = ''; // the text now lives in the sections: no second copy
     renderAiKnowledgeBase();
-    await saveActiveKnowledgeBase();
+    const saved = await saveActiveKnowledgeBase();
+    if (!saved) { // keep the person's notes if saving failed
+      KbState.data.documents = before.documents; KbState.data.raw_text = text;
+      renderAiKnowledgeBase();
+      return;
+    }
     toast(`Organised into ${added.length} section${added.length === 1 ? '' : 's'}. Edit or delete any of them below.`, 'success');
+    if (all.length > 50) toast(`Only the first 50 sections are kept (${all.length - 50} were left out). Delete some sections to make room.`, 'warning', 9000);
   } catch (err) {
     toast(`Could not organise the notes: ${err.message}`, 'error');
+  } finally {
+    KbState.isOrganising = false;
+    const b = document.getElementById('btn-organise-kb');
+    if (b) { b.disabled = false; b.innerHTML = '📑 Organise into sections'; }
   }
 }
 

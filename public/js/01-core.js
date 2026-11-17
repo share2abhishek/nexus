@@ -458,3 +458,19 @@ function getSelectedPlatforms(containerId) {
   return Array.from(document.querySelectorAll(`#${containerId} .platform-toggle.selected`))
     .map(el => el.dataset.platform);
 }
+
+// A value that just changed gets a brief highlight (see .nx-flash in styles.css; off for reduced motion)
+function nxFlash(el) {
+  if (!el) return;
+  el.classList.remove('nx-flash');
+  void el.offsetWidth; // restart the animation if it was already running
+  el.classList.add('nx-flash');
+}
+// Set text, highlighting only when it really changed
+function nxSetText(el, text) {
+  if (!el) return;
+  const t = String(text);
+  if (el.textContent !== t) { el.textContent = t; nxFlash(el); }
+}
+window.nxFlash = nxFlash;
+window.nxSetText = nxSetText;

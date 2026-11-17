@@ -496,7 +496,7 @@ function renderLeadsTable(searchFilter = '') {
     const tagText = l.tag || 'CTWA Lead';
 
     return `
-      <tr class="lead-row" style="border-bottom:1px solid var(--border);transition:background 0.15s ease">
+      <tr class="lead-row" data-lead-id="${l.id}" style="border-bottom:1px solid var(--border);transition:background 0.15s ease">
         <td style="padding:12px 14px;text-align:center">
           <input type="checkbox" class="contact-row-check" value="${l.id}" onchange="onContactSelectChange()" style="width:16px;height:16px;accent-color:#0f2338;cursor:pointer" />
         </td>
@@ -522,7 +522,7 @@ function renderLeadsTable(searchFilter = '') {
           <div style="font-size:12.5px;font-weight:600">${escapeHtml(crmDate(l.created_at))}</div>
           <div style="font-size:11px;color:var(--text-muted)">${escapeHtml(crmTime(l.created_at))}</div>
         </td>
-        <td style="padding:12px 16px;min-width:170px">${renderLastAction(l)}</td>
+        <td class="last-action-cell" style="padding:12px 16px;min-width:170px">${renderLastAction(l)}</td>
         <td style="padding:12px 16px;text-align:right">
           <div style="display:inline-flex;gap:6px;align-items:center">
             ${l.phone_number ? `
@@ -1148,8 +1148,8 @@ function actFromLocal(v) { const ms = v ? new Date(v).getTime() : Date.now(); re
 // The "Last action" cell in the Contacts table
 function renderLastAction(l) {
   const a = l.last_action;
-  const btn = `<button type="button" class="btn btn-secondary btn-sm qa-open" onclick="openQuickAction(${l.id}, this)" title="Log an action" style="font-size:11px;padding:1px 8px;margin-top:4px">＋ Log</button>`;
-  if (!a) return '<span style="color:var(--text-muted);font-size:12px">No action yet</span><br>' + btn;
+  const btn = `<button type="button" class="btn btn-secondary btn-sm qa-open" onclick="openQuickAction(${l.id}, this)" title="Log a call, message, meeting or note for this contact" style="font-size:11px;padding:1px 8px;margin-top:4px">＋ Add action</button>`;
+  if (!a) return '<span style="color:var(--text-muted);font-size:12px">No action yet. Add the first.</span><br>' + btn;
   const [icon, label] = ACT_KINDS[a.kind] || ACT_KINDS.other;
   return `<div style="font-size:12.5px;font-weight:600">${icon} ${escapeHtml(label.replace(' (to do)', ''))}${a.by ? ` · ${escapeHtml(a.by)}` : ''}</div>
     <div style="font-size:11px;color:var(--text-muted)">${escapeHtml(crmDateTime(a.at))}</div>${btn}`;
@@ -1215,8 +1215,8 @@ function renderLeadActivities(leadId, items) {
         <div class="crm-act-body">${escapeHtml(a.body || '')}</div>
         <div class="crm-act-meta">${icon} ${escapeHtml(label)} · ${who}${escapeHtml(crmDateTime(a.acted_at || a.created_at))}${edited} ${due}</div>
       </div>
-      <button class="crm-act-del" title="Edit" onclick="startInlineActivityEdit(${leadId},${a.id})">✎</button>
-      <button class="crm-act-del" title="Delete" onclick="deleteLeadActivity(${leadId},${a.id})">✕</button>
+      <button class="crm-act-del" title="Edit this entry" aria-label="Edit this entry" onclick="startInlineActivityEdit(${leadId},${a.id})">✎</button>
+      <button class="crm-act-del" title="Delete this entry" aria-label="Delete this entry" onclick="deleteLeadActivity(${leadId},${a.id})">✕</button>
     </div>`;
   }).join('');
 }
@@ -1252,6 +1252,7 @@ async function refreshLeadLastAction(leadId) {
     if (lead) {
       lead.last_action = a ? { kind: a.kind, body: String(a.body || '').slice(0, 80), by: a.actor_name || null, at: Number(a.acted_at || a.created_at) } : null;
       renderLeadsTable();
+      if (typeof nxFlash === 'function') nxFlash(document.querySelector(`tr[data-lead-id="${leadId}"] .last-action-cell`));
     }
   } catch { /* the table refreshes on the next load */ }
 }
@@ -1312,12 +1313,15 @@ async function openQuickAction(leadId, btn) {
       <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:13px">Log an action</b>
         <button class="crm-act-del" onclick="closeQuickAction()" aria-label="Close">✕</button></div>
       <div style="display:flex;gap:6px">
-        <select id="qa-kind" class="form-select" style="flex:1" onchange="document.getElementById('qa-who-label').textContent=this.value==='task'?'Assign to':'Done by'">${actKindOptions('call')}</select>
-        <select id="qa-who" class="form-select" style="flex:1" title="Done by"></select>
+        <label style="flex:1"><span class="form-hint" style="display:block;margin:0 0 2px">Type</span>
+          <select id="qa-kind" class="form-select" style="width:100%" onchange="document.getElementById('qa-who-label').textContent=this.value==='task'?'Assign to':'Done by'">${actKindOptions('note')}</select></label>
+        <label style="flex:1"><span class="form-hint" id="qa-who-label" style="display:block;margin:0 0 2px">Done by</span>
+          <select id="qa-who" class="form-select" style="width:100%"></select></label>
       </div>
-      <span class="form-hint" id="qa-who-label" style="margin:0">Done by</span>
-      <input type="text" id="qa-body" class="form-input" maxlength="2000" placeholder="What was done…" onkeydown="if(event.key==='Enter')saveQuickAction(${leadId});if(event.key==='Escape')closeQuickAction()" />
-      <input type="datetime-local" id="qa-when" class="form-input" value="${actNowLocal()}" />
+      <label><span class="form-hint" style="display:block;margin:0 0 2px">What happened</span>
+      <input type="text" id="qa-body" class="form-input" style="width:100%" maxlength="2000" placeholder="e.g. Called, will decide on Friday" onkeydown="if(event.key==='Enter')saveQuickAction(${leadId});if(event.key==='Escape')closeQuickAction()" />
+      <label><span class="form-hint" style="display:block;margin:0 0 2px">When</span>
+      <input type="datetime-local" id="qa-when" class="form-input" style="width:100%" value="${actNowLocal()}" /></label>
       <div style="display:flex;justify-content:flex-end;gap:6px"><button class="btn btn-secondary btn-sm" onclick="closeQuickAction()">Cancel</button>
         <button class="btn btn-primary btn-sm" onclick="saveQuickAction(${leadId})">Save</button></div>
     </div>`);
@@ -1350,6 +1354,7 @@ async function toggleLeadTask(leadId, actId, done) {
 }
 
 async function deleteLeadActivity(leadId, actId) {
+  if (!confirm('Delete this entry from the timeline?')) return;
   try { await api('DELETE', `/api/lead-pipeline/activities/${actId}`); loadLeadActivities(leadId); refreshLeadLastAction(leadId); }
   catch (err) { toast(err.message || 'Could not delete', 'error'); }
 }

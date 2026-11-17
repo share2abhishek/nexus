@@ -147,6 +147,44 @@ module.exports = (knex, requirePermission) => {
     return deleteContacts(req, res, ids.slice(0, 500));
   });
 
+  // ── Files sent with a campaign's emails ─────────────────────────────────────
+  const attachmentsLib = require('../services/sellbird/attachments');
+  router.get('/campaigns/:id/attachments', requirePermission('content.view'), async (req, res) => {
+    try {
+      const camp = await repo.getCampaign(req.workspaceId, Number(req.params.id));
+      if (!camp) return res.status(404).json({ error: 'Campaign not found' });
+      res.json({
+        attachments: await repo.listAttachments(req.workspaceId, camp.id),
+        limits: { max_files: attachmentsLib.MAX_FILES, max_file_bytes: attachmentsLib.MAX_FILE, max_total_bytes: attachmentsLib.MAX_TOTAL, allowed: attachmentsLib.ALLOWED_LIST },
+      });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+  // The file is the request body (like the contact import); its name is in X-File-Name
+  router.post('/campaigns/:id/attachments', requirePermission('content.edit'), express.raw({ type: () => true, limit: '8mb' }), async (req, res) => {
+    try {
+      const camp = await repo.getCampaign(req.workspaceId, Number(req.params.id));
+      if (!camp) return res.status(404).json({ error: 'Campaign not found' });
+      const usage = await repo.attachmentUsage(req.workspaceId, camp.id);
+      const ok = attachmentsLib.check({ name: req.get('X-File-Name'), buffer: req.body, existingCount: usage.count, existingBytes: usage.bytes });
+      const saved = await repo.addAttachment(req.workspaceId, camp.id, { filename: ok.filename, content_type: ok.contentType, size: ok.size, data: req.body, send_with: req.query.send_with });
+      res.status(201).json(saved);
+    } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+  });
+  router.patch('/attachments/:id', requirePermission('content.edit'), async (req, res) => {
+    try {
+      const updated = await repo.setAttachmentSendWith(req.workspaceId, Number(req.params.id), (req.body || {}).send_with);
+      if (!updated) return res.status(404).json({ error: 'Attachment not found' });
+      res.json(updated);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+  router.delete('/attachments/:id', requirePermission('content.edit'), async (req, res) => {
+    try {
+      const n = await repo.deleteAttachment(req.workspaceId, Number(req.params.id));
+      if (!n) return res.status(404).json({ error: 'Attachment not found' });
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
   // Remove repeated addresses already in this business's list (and cancel their unsent emails)
   router.post('/contacts/dedupe', requirePermission('content.edit'), async (req, res) => {
     try { res.json({ success: true, ...(await repo.removeDuplicateContacts(req.workspaceId)) }); }
@@ -166,12 +204,19 @@ module.exports = (knex, requirePermission) => {
       const count = async (q) => Number((await q.count('id as c').first())?.c || 0);
       const sentToday = await count(knex('sellbird_outbox').where({ workspace_id: req.workspaceId, status: 'sent' }).where('sent_at', '>=', todayStart));
       const failed = await count(knex('sellbird_outbox').where({ workspace_id: req.workspaceId, status: 'failed' }));
+      // What the status pill says: going out now, due right now, or when the next one goes out
+      const sendingNow = await count(knex('sellbird_outbox').where({ workspace_id: req.workspaceId, status: 'sending' }));
+      const dueNow = await count(knex('sellbird_outbox').where({ workspace_id: req.workspaceId, status: 'approved' }).where('scheduled_at', '<=', now));
+      const nextRow = await knex('sellbird_outbox').where({ workspace_id: req.workspaceId, status: 'approved' }).where('scheduled_at', '>', now).min({ t: 'scheduled_at' }).first();
       res.json({
         ...stats,
         active_campaigns: active.length,
         sent_today: sentToday,
         daily_cap: active.reduce((n, c) => n + (Number(c.max_emails_per_day) || 25), 0),
         failed,
+        sending_now: sendingNow,
+        due_now: dueNow,
+        next_send_at: nextRow && nextRow.t ? Number(nextRow.t) : null,
         reply_rate: stats.sent_outreach ? Math.round((stats.total_replies / stats.sent_outreach) * 1000) / 10 : 0,
         paused: await isPaused(knex, req.workspaceId),
         licensed: await require('../services/entitlements').canPublish(req.workspaceId),

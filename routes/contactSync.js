@@ -2,6 +2,7 @@
 // Everything is scoped to req.workspaceId; secrets are never sent back to the browser.
 const express = require('express');
 const contactSync = require('../services/contactSync');
+const { callbackUrl } = require('../services/platforms/callback');
 
 const GUIDE = {
   google: {
@@ -12,10 +13,26 @@ const GUIDE = {
       'Turn on "Auto-sync". New and changed contacts are added or updated in the sheet within a few seconds.',
       'Do not rename the first column ("Lead ID"). NEXUS uses it to find the right row when a contact changes. You can add your own columns after the last one.',
     ],
+    // What people actually hit when connecting Google, and what to do
+    troubleshooting: [
+      {
+        problem: 'Google says "Access blocked: … has not completed the Google verification process" (Error 403: access_denied)',
+        fix: 'Your Google Cloud app is still in Testing mode, so only people you list can sign in. In Google Cloud Console open Google Auth Platform → Audience and either add the Google account you are signing in with under "Test users", or click "Publish app". Sheet access uses only the permission "drive.file" (files NexaDrip creates itself), so Google needs no review. Then press Connect Google again.',
+      },
+      {
+        problem: 'Google shows "400. That’s an error. The server cannot process the request because it is malformed"',
+        fix: 'Check three things in Google Cloud Console → Google Auth Platform → Clients: the client type is "Web application"; the "Authorized redirect URIs" list contains the address shown above, exactly as written (no extra slash or space); and the Client ID and secret in your NexaDrip settings are the ones of that client. Then start again with the Connect Google button here, not from an old tab or bookmark.',
+      },
+      {
+        problem: 'Google says the Google Sheets API has not been used or is disabled',
+        fix: 'In Google Cloud Console open APIs & Services → Library, search for "Google Sheets API" and click Enable. Then press "Sync now".',
+      },
+    ],
     server_note: 'If "Connect Google" says Google is not set up, the owner of this NEXUS server must add GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET and turn on the Google Sheets API in Google Cloud Console (APIs & Services → Library → Google Sheets API → Enable).',
   },
   salesforce: {
     title: 'Send contacts to Salesforce as Leads',
+    intro: 'You need a Salesforce administrator for steps 1 to 5 (about 10 minutes). If that is not you, send them this page.',
     steps: [
       'In Salesforce go to Setup → App Manager → New Connected App.',
       'Tick "Enable OAuth Settings". For the callback URL enter https://localhost. Add the OAuth scope "Manage user data via APIs (api)". Tick "Enable Client Credentials Flow" and save.',
@@ -44,10 +61,11 @@ module.exports = (knex, requirePermission) => {
       enabled: !!c.google_enabled, auto: !!c.google_auto,
       last_sync_at: c.last_google_sync_at || null, last_error: c.last_google_error || null,
       available: !!(process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET),
+      callback_url: callbackUrl('google'), // must be listed under "Authorized redirect URIs" in Google Cloud Console
     },
     salesforce: {
       enabled: !!c.sf_enabled, auto: !!c.sf_auto,
-      domain: c.sf_domain || '', client_id: c.sf_client_id || '', has_secret: !!c.sf_client_secret,
+      domain: c.sf_domain || '', has_client_id: !!c.sf_client_id, client_id_hint: c.sf_client_id ? String(c.sf_client_id).slice(-4) : '', has_secret: !!c.sf_client_secret,
       api_version: c.sf_api_version || 'v60.0', external_id_field: c.sf_external_id_field || '',
       lead_source: c.sf_lead_source || 'NEXUS', default_company: c.sf_default_company || '[Not provided]',
       last_sync_at: c.last_sf_sync_at || null, last_error: c.last_sf_error || null,

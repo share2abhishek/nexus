@@ -611,6 +611,7 @@ describe('Sellbird Autonomous Sales Agent — Test Suite', () => {
         'sb-ec-',
         'sb-contact-modal',
         'sb-delete-selected-contacts',
+        'sb-files-', // the "Files sent with this campaign" pop-up
       ];
 
       for (const id of uniqueIds) {

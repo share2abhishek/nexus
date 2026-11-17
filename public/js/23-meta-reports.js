@@ -15,7 +15,7 @@ const mrNum = n => (n == null ? '—' : Number(n).toLocaleString());
 async function loadMetaReports(refresh = false) {
   const root = document.getElementById('mr-root');
   if (!root) return;
-  if (!MrState.status) root.innerHTML = '<div class="state-loading"><span class="spinner lg"></span><div>Checking your Meta connection…</div></div>';
+  if (!MrState.status) root.innerHTML = '<div style="max-width:980px" aria-busy="true" aria-label="Checking your Meta connection"><div class="nx-skel w-30"></div><div class="nx-skel w-90"></div><div class="nx-skel w-60"></div></div>';
   try {
     MrState.status = await api('GET', '/api/meta-reports/status');
   } catch (err) {
@@ -41,7 +41,7 @@ function mrSetRange(v) { MrState.range = v; MrState.ads = null; MrState.wa = nul
 // ── Permission checklist with the how-to guide ───────────────────────────────
 function mrChip(kind, text) {
   const c = { ok: '#16a34a', warn: '#d97706', bad: '#dc2626', off: '#64748b' }[kind];
-  return `<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:700;color:${c};background:${c}1f">${text}</span>`;
+  return `<span class="nx-chip" style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:700;color:${c};background:${c}1f">${text}</span>`;
 }
 
 function mrGuideBlock(g, extraButtons) {
@@ -74,7 +74,7 @@ function renderMrPermissions() {
     adsChip = mrChip('bad', 'Connection expired');
     adsBody = mrGuideBlock(g.ads, '<a class="btn btn-primary btn-sm" href="/auth/facebook?ads=1">Reconnect Facebook with ads access</a>');
   } else {
-    adsChip = mrChip('warn', 'Permission missing: ads_read');
+    adsChip = mrChip('warn', 'One more step: ads access');
     adsBody = mrGuideBlock(g.ads, '<a class="btn btn-primary btn-sm" href="/auth/facebook?ads=1">Reconnect Facebook with ads access</a>');
   }
 
@@ -87,7 +87,7 @@ function renderMrPermissions() {
   } else if (w.granted) {
     waChip = mrChip('ok', '✓ Ready');
   } else if (w.granted === false) {
-    waChip = mrChip('warn', w.error && w.error.code === 'token_expired' ? 'Token expired' : 'Permission missing: whatsapp_business_management');
+    waChip = mrChip('warn', w.error && w.error.code === 'token_expired' ? 'Token expired' : 'One more step: WhatsApp reports access');
     waBody = `<div class="form-hint" style="margin-top:6px">${mrEsc(w.error?.message || '')}</div>` + mrGuideBlock(g.whatsapp, '<button class="btn btn-primary btn-sm" onclick="navigateTo(\'leads-settings\')">Open WhatsApp · Setup</button>');
   } else {
     waChip = mrChip('warn', 'Could not check');
@@ -98,11 +98,11 @@ function renderMrPermissions() {
     <div class="card" style="margin-bottom:16px"><div class="card-body">
       <div style="font-weight:700;font-size:15px;margin-bottom:12px">🔐 Permissions Meta needs to share these reports</div>
       <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
-        <div><b>${mrEsc(g.ads.title)}</b><div class="form-hint">Permission: <code>ads_read</code></div></div>${adsChip}
+        <div><b>${mrEsc(g.ads.title)}</b><div class="form-hint">Needs the Meta permission <code>ads_read</code></div></div>${adsChip}
       </div>${adsBody}
       <hr style="border:0;border-top:1px solid var(--border);margin:16px 0" />
       <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
-        <div><b>${mrEsc(g.whatsapp.title)}</b><div class="form-hint">Permission: <code>whatsapp_business_management</code></div></div>${waChip}
+        <div><b>${mrEsc(g.whatsapp.title)}</b><div class="form-hint">Needs the Meta permission <code>whatsapp_business_management</code></div></div>${waChip}
       </div>${waBody}
     </div></div>`;
 }

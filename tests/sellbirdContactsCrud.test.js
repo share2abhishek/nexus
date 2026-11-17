@@ -149,4 +149,26 @@ describe('contacts, outbox and daily limit', () => {
     const created = await request(app).post('/api/sellbird/campaigns').send({ name: 'Default limit' });
     expect(created.body.max_emails_per_day).toBe(25);
   });
+
+  test('the status pill numbers: sending now, due now, and when the next email goes out', async () => {
+    const ws = await (async () => { const [w] = await knex('workspaces').insert({ org_id: (await knex('workspaces').where({ id: wsId }).first()).org_id, name: 'pill', slug: 'pill-ws' }).returning('id'); return w?.id ?? w; })();
+    const camp = (await repo.createCampaign(ws, { name: 'Pill' })).id;
+    const stats = () => request(app).get('/api/sellbird/stats').set(as(ws)).then((r) => r.body);
+
+    expect(await stats()).toMatchObject({ sending_now: 0, due_now: 0, next_send_at: null }); // nothing at all
+
+    const a = await seed(ws, camp, 'Pia', 'pia@pia.test', ['approved', 'approved']);
+    const later = Math.floor(Date.now() / 1000) + 3 * 86400;
+    await knex('sellbird_outbox').where({ id: a.items[1].id }).update({ scheduled_at: later });
+    expect(await stats()).toMatchObject({ sending_now: 0, due_now: 1, next_send_at: later }); // one due, a follow-up later
+
+    await knex('sellbird_outbox').where({ id: a.items[0].id }).update({ status: 'sending' });
+    expect(await stats()).toMatchObject({ sending_now: 1, due_now: 0, next_send_at: later });
+
+    await knex('sellbird_outbox').where({ id: a.items[0].id }).update({ status: 'sent' });
+    expect(await stats()).toMatchObject({ sending_now: 0, due_now: 0, next_send_at: later }); // all sent: only the follow-up is waiting
+
+    const other = await request(app).get('/api/sellbird/stats').set(as(otherWs));
+    expect(other.body.next_send_at).toBeNull(); // another business's emails do not show here
+  });
 });

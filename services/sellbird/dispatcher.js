@@ -35,7 +35,7 @@ async function smtpConfigFor(workspaceId) {
   return require('../businessSettings').smtpForWorkspace(workspaceId);
 }
 
-async function sendOutreachEmail({ to, subject, body, fromName, fromEmail, workspaceId }) {
+async function sendOutreachEmail({ to, subject, body, fromName, fromEmail, workspaceId, attachments }) {
   const config = await smtpConfigFor(workspaceId);
   if (!config) {
     throw new Error('SMTP mailer not configured. Please enter your mail server details in Settings → Email.');
@@ -60,6 +60,7 @@ async function sendOutreachEmail({ to, subject, body, fromName, fromEmail, works
     headers: {
       'X-Mailer': 'Social-Nexus',
     },
+    ...(Array.isArray(attachments) && attachments.length ? { attachments } : {}),
   });
 
   return { success: true, messageId: info.messageId };
@@ -244,8 +245,10 @@ async function processDueOutbox(knex, repo, options = {}) {
     if (!claimed) continue;
 
     try {
+      // The files of this campaign: all of them with the first email, the "all emails" ones with follow-ups
+      const attachments = await repo.attachmentsFor(item.workspace_id, item.campaign_id, item.step_number);
       await withTimeout(
-        sendOutreachEmail({ to: item.contact_email, subject: item.subject, body: item.body, workspaceId: item.workspace_id }),
+        sendOutreachEmail({ to: item.contact_email, subject: item.subject, body: item.body, workspaceId: item.workspace_id, attachments }),
         SEND_TIMEOUT_MS,
         'The mail service did not answer in time. Check Settings → Email sending, then approve this email again.',
       );

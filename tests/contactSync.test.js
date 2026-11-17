@@ -225,6 +225,7 @@ describe('contactSync', () => {
     expect(st.error).toMatch(/Required fields/);
     const c = await cs.counts(knex, ws1, 'salesforce');
     expect(c).toMatchObject({ failing: 1, synced: 0 });
+    expect(c.last_error).toMatchObject({ name: 'Fail Me' }); // the screen says who failed, not an internal number
   });
 
   test('two businesses: Salesforce credentials and contacts never mix', async () => {
@@ -250,7 +251,7 @@ describe('contactSync', () => {
   // ── Settings API ───────────────────────────────────────────────────────────
   test('settings: secrets are never returned; a blank secret keeps the saved one; bad values are refused', async () => {
     const save = (body, ws = ws1) => request(app).post('/api/contact-sync/config').set('x-ws', String(ws)).send(body);
-    let r = await save({ sf_domain: 'https://acme.my.salesforce.com', sf_client_id: 'KEY', sf_client_secret: 'TOPSECRET', sf_external_id_field: 'NEXUS_Lead_Id__c' });
+    let r = await save({ sf_domain: 'https://acme.my.salesforce.com', sf_client_id: 'CONSUMERKEY-ABCD1234', sf_client_secret: 'TOPSECRET', sf_external_id_field: 'NEXUS_Lead_Id__c' });
     expect(r.status).toBe(200);
     expect(JSON.stringify(r.body)).not.toContain('TOPSECRET');
     expect(r.body.salesforce).toMatchObject({ has_secret: true, domain: 'https://acme.my.salesforce.com', external_id_field: 'NEXUS_Lead_Id__c' });
@@ -258,6 +259,12 @@ describe('contactSync', () => {
     expect((await cs.getConfig(knex, ws1)).sf_client_secret).toBe('TOPSECRET'); // test db is plain; kept
     const st = await request(app).get('/api/contact-sync/status').set('x-ws', String(ws1));
     expect(JSON.stringify(st.body)).not.toContain('TOPSECRET');
+    // the Consumer Key is not shown again either: only that one is saved, and its last characters
+    expect(JSON.stringify(r.body)).not.toContain('CONSUMERKEY');
+    expect(JSON.stringify(st.body)).not.toContain('CONSUMERKEY');
+    expect(st.body.salesforce).toMatchObject({ has_client_id: true, client_id_hint: '1234' });
+    await save({ sf_lead_source: 'Web again' }); // key left out of the form: the saved key stays
+    expect((await cs.getConfig(knex, ws1)).sf_client_id).toBe('CONSUMERKEY-ABCD1234');
 
     expect((await save({ sf_domain: 'https://localhost:8080' })).status).toBe(400);
     expect((await save({ sf_external_id_field: 'bad name' })).status).toBe(400);
@@ -268,6 +275,18 @@ describe('contactSync', () => {
     expect(empty.body.code).toBe('sf_not_configured');
     const other = await request(app).get('/api/contact-sync/status').set('x-ws', String(ws2));
     expect(other.body.salesforce.domain).toBe(''); // business one's settings are not business two's
+  });
+
+  test('the screen shows the Google redirect address to copy, and what to do for the Google errors people hit', async () => {
+    const st = await request(app).get('/api/contact-sync/status').set('x-ws', String(ws1));
+    expect(st.body.google.callback_url).toMatch(/^https?:\/\/[^/]+\/auth\/google\/callback$/);
+    const problems = st.body.guide.google.troubleshooting.map((t) => t.problem).join(' | ');
+    expect(problems).toMatch(/access_denied/);
+    expect(problems).toMatch(/400/);
+    expect(problems).toMatch(/Sheets API/);
+    const fix = st.body.guide.google.troubleshooting.find((t) => /access_denied/.test(t.problem)).fix;
+    expect(fix).toMatch(/Test users/);
+    expect(fix).toMatch(/Publish app/);
   });
 
   test('"Sync now" gives failed contacts another go; the test button checks the External ID field', async () => {

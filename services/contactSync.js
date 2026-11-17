@@ -360,7 +360,11 @@ async function counts(db, workspaceId, target) {
   const total = Number((await db('meta_lead_events').where({ workspace_id: workspaceId }).count({ c: '*' }).first()).c) || 0;
   const synced = Number((await db('contact_sync_state').where({ workspace_id: workspaceId, target }).whereNull('error').whereNotNull('synced_at').count({ c: '*' }).first()).c) || 0;
   const failing = Number((await db('contact_sync_state').where({ workspace_id: workspaceId, target }).whereNotNull('error').count({ c: '*' }).first()).c) || 0;
-  const lastError = await db('contact_sync_state').where({ workspace_id: workspaceId, target }).whereNotNull('error').orderBy('id', 'desc').first('lead_id', 'error');
+  // the contact's name, so the screen can say who failed instead of an internal number
+  const lastError = await db('contact_sync_state as s')
+    .leftJoin('meta_lead_events as l', function () { this.on('l.id', '=', 's.lead_id').andOn('l.workspace_id', '=', 's.workspace_id'); })
+    .where({ 's.workspace_id': workspaceId, 's.target': target }).whereNotNull('s.error')
+    .orderBy('s.id', 'desc').first('s.lead_id', 's.error', 'l.full_name as name');
   return { total, synced, pending: Math.max(0, total - synced - failing), failing, last_error: lastError || null };
 }
 
