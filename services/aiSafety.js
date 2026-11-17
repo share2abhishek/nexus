@@ -93,10 +93,14 @@ function screenReply(reply, { allowed = '', max = 900 } = {}) {
 
 // An AI-written outreach email: links only to the sender's own site (or the prospect's),
 // nothing that looks like an instruction to the recipient's mail software.
-function screenEmail({ subject = '', body = '' }, { allowedUrls = [] } = {}) {
+// Email addresses: only the ones in allowedEmails (the recipient's own) stay. Any other address
+// in the text was made up by the AI or copied from somewhere, so it is removed.
+function screenEmail({ subject = '', body = '' }, { allowedUrls = [], allowedEmails = [] } = {}) {
   const hosts = new Set(allowedUrls.map(hostOf).filter(Boolean));
+  const emails = new Set(allowedEmails.map((e) => String(e || '').trim().toLowerCase()).filter(Boolean));
   let changed = false;
   const strip = (s) => neutralize(s, 5000).replace(URL_RE, (u) => { const h = hostOf(u); if (h && [...hosts].some((a) => h === a || h.endsWith('.' + a))) return u; changed = true; return ''; })
+    .replace(EMAIL_RE, (e) => { if (emails.has(e.toLowerCase())) return e; changed = true; return ''; })
     .replace(/[ \t]{2,}/g, ' ').replace(/\s+([.,!?])/g, '$1');
   return { subject: strip(subject).replace(/\s+/g, ' ').trim(), body: strip(body).trim(), changed };
 }

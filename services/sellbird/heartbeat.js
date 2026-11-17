@@ -13,12 +13,13 @@ async function runHeartbeat(knex, options = {}) {
   lastRunAt = Math.floor(Date.now() / 1000);
 
   const repo = sellbirdRepoFactory(knex);
-  console.log('[Sellbird Heartbeat] Starting autonomous loop cycle...');
-
   try {
     // 1. Process and dispatch approved due outreach emails
     const dispatchResult = await processDueOutbox(knex, repo, { maxBatch: 15, ...options });
-    console.log(`[Sellbird Heartbeat] Dispatch completed: ${dispatchResult.sent} emails sent.`);
+    // Runs every minute: only speak when there was something to do, or something is wrong
+    if (dispatchResult.total_due || dispatchResult.error) {
+      console.log(`[Sellbird Heartbeat] ${dispatchResult.total_due || 0} due, ${dispatchResult.sent || 0} sent${dispatchResult.error ? ` — ${dispatchResult.error}` : ''}${dispatchResult.not_set_up ? ` (${dispatchResult.not_set_up} waiting: email sending is not set up)` : ''}.`);
+    }
 
     return {
       success: true,

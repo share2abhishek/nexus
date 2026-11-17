@@ -198,6 +198,29 @@ function shortReason(err) {
     .split('\n')[0].slice(0, 160);
 }
 
+// ── Cool-down for an AI that is not answering ────────────────────────────────
+// When a cloud AI times out or is overloaded, asking it again straight away just waits
+// through the same timeout. For a while it is skipped, so the next provider (or the plain
+// template, for outreach emails) is used at once. A rejected key is not "not answering": it
+// is reported as before. Only the last characters of the key are used to tell keys apart.
+const COOL_MS = Number(process.env.AI_COOLDOWN_MS) || 90_000;
+const cooling = new Map(); // "provider:key-tail" -> time (ms) it may be tried again
+const coolId = (provider, key) => `${provider}:${String(key || '').slice(-6)}`;
+function isCooling(provider, key) {
+  const until = cooling.get(coolId(provider, key));
+  if (!until) return false;
+  if (until <= Date.now()) { cooling.delete(coolId(provider, key)); return false; }
+  return true;
+}
+function coolDown(provider, key, ms = COOL_MS) { cooling.set(coolId(provider, key), Date.now() + ms); }
+// Timeouts, aborts, overload and server errors cool a provider down; bad requests and keys do not
+function isNotAnswering(err) {
+  const status = Number(err?.status || err?.response?.status || (err?.message || '').match(/\[(\d{3})/)?.[1]) || 0;
+  if ([400, 401, 403, 404].includes(status)) return false;
+  return true;
+}
+function _resetCooldowns() { cooling.clear(); }
+
 // ── Google Gemini ─────────────────────────────────────────────────────────────
 // `gemini-flash-latest` is Google's maintained alias, so the app doesn't break each
 // time a pinned version (like gemini-1.5-flash) is retired. Override with GEMINI_MODEL.
@@ -382,12 +405,17 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
 
   // 2. Google Gemini — free tier (1M tokens/month)
   if (googleKey && !googleKey.includes('your-key-here') && googleKey.length > 8) {
-    try {
-      console.log('[AI] Using Google Gemini');
-      return await geminiGenerate(prompt, googleKey);
-    } catch (err) {
-      console.warn('[AI] Gemini failed:', err.message, '— trying next...');
-      failures.push(`Gemini: ${shortReason(err)}`);
+    if (isCooling('gemini', googleKey)) {
+      failures.push('Gemini: skipped for a minute because it was not answering');
+    } else {
+      try {
+        console.log('[AI] Using Google Gemini');
+        return await geminiGenerate(prompt, googleKey);
+      } catch (err) {
+        console.warn('[AI] Gemini failed:', err.message, '— trying next...');
+        failures.push(`Gemini: ${shortReason(err)}`);
+        if (isNotAnswering(err)) coolDown('gemini', googleKey);
+      }
     }
   }
 
@@ -501,4 +529,32 @@ async function aiJSON(prompt, apiKey, maxTokens = 1024, options = {}, modelOverr
   return { data: JSON.parse(match[0]), model: result.model, raw: result.text };
 }
 
-module.exports = { aiGenerate, aiJSON, aiOptionsFromReq, aiArgsFromReq, isOllamaRunning, groqGenerate, openRouterGenerate, mistralGenerate, openaiGenerate };
+// The list an AI answered with, whichever way it wrapped it: a bare JSON array, an array inside
+// a code fence or commentary, an object holding an array ({"companies":[…]}), or a list cut off
+// part-way (its complete entries are kept). Returns an array, or null if there is none.
+function extractJsonList(text) {
+  const t = String(text || '').trim();
+  if (!t) return null;
+  const tryParse = (s) => { try { return JSON.parse(s); } catch { return undefined; } };
+  let v = tryParse(t);
+  if (v === undefined) { const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i); if (fence) v = tryParse(fence[1].trim()); }
+  if (v === undefined) { const a = t.indexOf('['); const b = t.lastIndexOf(']'); if (a >= 0 && b > a) v = tryParse(t.slice(a, b + 1)); }
+  if (v === undefined) { const a = t.indexOf('{'); const b = t.lastIndexOf('}'); if (a >= 0 && b > a) v = tryParse(t.slice(a, b + 1)); }
+  if (Array.isArray(v)) return v;
+  if (v && typeof v === 'object') {
+    const arr = Object.values(v).find(Array.isArray);
+    if (arr) return arr;
+    return [v]; // a single company on its own
+  }
+  // cut off before the closing bracket: keep every complete {…} entry
+  const items = (t.match(/\{[^{}]*\}/g) || []).map(tryParse).filter((x) => x && typeof x === 'object');
+  return items.length ? items : null;
+}
+
+// Like aiJSON, for an answer that is a list
+async function aiList(prompt, apiKey, maxTokens = 1024, options = {}, modelOverride = null) {
+  const result = await aiGenerate(prompt, apiKey, maxTokens, modelOverride, options);
+  return { data: extractJsonList(result.text) || [], model: result.model, raw: result.text };
+}
+
+module.exports = { aiGenerate, aiJSON, aiList, extractJsonList, isCooling, coolDown, _resetCooldowns, aiOptionsFromReq, aiArgsFromReq, isOllamaRunning, groqGenerate, openRouterGenerate, mistralGenerate, openaiGenerate };

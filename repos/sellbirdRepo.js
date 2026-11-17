@@ -70,7 +70,7 @@ module.exports = (knex) => ({
     if (data.icp_definition !== undefined) patch.icp_definition = JSON.stringify(data.icp_definition);
     if (data.sequence_template_json !== undefined) patch.sequence_template_json = JSON.stringify(data.sequence_template_json);
     if (data.sending_account_id !== undefined) patch.sending_account_id = data.sending_account_id;
-    if (data.max_emails_per_day !== undefined) patch.max_emails_per_day = Number(data.max_emails_per_day);
+    if (data.max_emails_per_day !== undefined) patch.max_emails_per_day = Math.min(500, Math.max(1, Math.round(Number(data.max_emails_per_day)) || 25));
     if (data.auto_approve !== undefined) patch.auto_approve = !!data.auto_approve;
     if (data.status !== undefined) patch.status = data.status;
 
@@ -152,6 +152,115 @@ module.exports = (knex) => ({
     }).returning('id');
     const id = rows[0]?.id ?? rows[0];
     return knex('sellbird_contacts').where({ id, workspace_id: workspaceId }).first();
+  },
+
+  // Delete emails from the outbox. Emails that already went out (or are going out) are never deleted:
+  // they are the record of what was sent, and the daily limit counts them. Follow-ups of a deleted
+  // email that are still unsent go with it: a follow-up must never be sent without the email before it.
+  async deleteOutboxItems(workspaceId, ids = []) {
+    const want = [...new Set((Array.isArray(ids) ? ids : []).map(Number).filter(Number.isInteger))];
+    const out = { deleted: 0, follow_ups_deleted: 0, kept_sent: 0 };
+    if (!want.length) return out;
+    const items = await knex('sellbird_outbox').where({ workspace_id: workspaceId }).whereIn('id', want);
+    const doomed = new Set();
+    for (const it of items) {
+      if (['sent', 'sending'].includes(it.status)) { out.kept_sent++; continue; }
+      doomed.add(it.id);
+      const later = await knex('sellbird_outbox')
+        .where({ workspace_id: workspaceId, campaign_id: it.campaign_id, contact_id: it.contact_id })
+        .where('step_number', '>', it.step_number || 1)
+        .whereNotIn('status', ['sent', 'sending'])
+        .select('id');
+      for (const l of later) if (!want.includes(l.id)) { doomed.add(l.id); out.follow_ups_deleted++; }
+    }
+    if (doomed.size) out.deleted = (await knex('sellbird_outbox').where({ workspace_id: workspaceId }).whereIn('id', [...doomed]).del()) - out.follow_ups_deleted;
+    return out;
+  },
+
+  // Change a contact's name, role or address (only this business's own contact)
+  async updateContact(workspaceId, id, patch = {}) {
+    const set = { updated_at: nowEpoch() };
+    for (const k of ['full_name', 'role', 'email', 'email_status']) if (patch[k] !== undefined) set[k] = patch[k];
+    const n = await knex('sellbird_contacts').where({ id: Number(id), workspace_id: workspaceId }).update(set);
+    if (!n) return null;
+    return knex('sellbird_contacts').where({ id: Number(id), workspace_id: workspaceId }).first();
+  },
+
+  // Delete contacts and their emails (sent ones too). A company left with no contacts goes as well.
+  async deleteContacts(workspaceId, ids = []) {
+    const want = [...new Set((Array.isArray(ids) ? ids : []).map(Number).filter(Number.isInteger))];
+    if (!want.length) return { deleted: 0, removed_companies: 0, removed_emails: 0 };
+    const rows = await knex('sellbird_contacts').where({ workspace_id: workspaceId }).whereIn('id', want).select('id', 'company_id');
+    if (!rows.length) return { deleted: 0, removed_companies: 0, removed_emails: 0 };
+    const cids = rows.map((r) => r.id);
+    const removed_emails = await knex('sellbird_outbox').where({ workspace_id: workspaceId }).whereIn('contact_id', cids).del();
+    await knex('sellbird_contacts').where({ workspace_id: workspaceId }).whereIn('id', cids).del();
+    let removed_companies = 0;
+    for (const companyId of new Set(rows.map((r) => r.company_id).filter(Boolean))) {
+      const left = Number((await knex('sellbird_contacts').where({ workspace_id: workspaceId, company_id: companyId }).count({ n: '*' }).first()).n) || 0;
+      if (!left) removed_companies += await knex('sellbird_companies').where({ id: companyId, workspace_id: workspaceId }).del();
+    }
+    return { deleted: rows.length, removed_companies, removed_emails };
+  },
+
+  // Is this address already one of this business's contacts (in any campaign)?
+  async findContactByEmail(workspaceId, email) {
+    const e = String(email || '').trim().toLowerCase();
+    if (!e) return null;
+    return knex('sellbird_contacts as c')
+      .leftJoin('sellbird_companies as co', 'c.company_id', 'co.id')
+      .where('c.workspace_id', workspaceId)
+      .whereRaw('LOWER(TRIM(c.email)) = ?', [e])
+      .orderBy('c.id', 'asc')
+      .first('c.id', 'c.email', 'co.name as company_name', 'co.campaign_id');
+  },
+
+  // Is this website already a company of this campaign?
+  async findCompanyByDomain(workspaceId, campaignId, domain) {
+    const d = String(domain || '').trim().toLowerCase().replace(/^www\./, '');
+    if (!d) return null;
+    return knex('sellbird_companies')
+      .where({ workspace_id: workspaceId, campaign_id: campaignId })
+      .whereRaw("LOWER(REPLACE(domain, 'www.', '')) = ?", [d])
+      .first('id', 'name', 'domain');
+  },
+
+  // Remove repeated addresses of this business. For each address the contact that already emailed
+  // (or else the oldest) stays. A repeat that never emailed is removed with its unsent emails; a repeat that
+  // did email stays (its history is kept) but its unsent emails are cancelled so nobody gets two.
+  async removeDuplicateContacts(workspaceId) {
+    const all = await knex('sellbird_contacts').where({ workspace_id: workspaceId }).whereNotNull('email').orderBy('id', 'asc');
+    const groups = new Map();
+    for (const c of all) {
+      const k = String(c.email).trim().toLowerCase();
+      if (!k) continue;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(c);
+    }
+    const out = { addresses: 0, removed_contacts: 0, cancelled_emails: 0, kept_with_history: 0, removed_companies: 0 };
+    for (const list of groups.values()) {
+      if (list.length < 2) continue;
+      out.addresses++;
+      const ids = list.map((c) => c.id);
+      const sent = new Set((await knex('sellbird_outbox').where({ workspace_id: workspaceId }).whereIn('contact_id', ids).whereIn('status', ['sent', 'sending']).select('contact_id')).map((r) => r.contact_id));
+      const keeper = list.find((c) => sent.has(c.id)) || list[0];
+      for (const c of list) {
+        if (c.id === keeper.id) continue;
+        const unsent = knex('sellbird_outbox').where({ workspace_id: workspaceId, contact_id: c.id }).whereNotIn('status', ['sent', 'sending']);
+        if (sent.has(c.id)) {
+          out.cancelled_emails += await unsent.clone().whereIn('status', ['pending_approval', 'approved']).update({ status: 'rejected', error_message: 'Not sent: the same address is already in your contacts.', updated_at: nowEpoch() });
+          out.kept_with_history++;
+          continue;
+        }
+        out.cancelled_emails += (await unsent.clone().count({ n: '*' }).first()).n | 0;
+        await unsent.clone().del();
+        await knex('sellbird_contacts').where({ id: c.id, workspace_id: workspaceId }).del();
+        out.removed_contacts++;
+        const left = (await knex('sellbird_contacts').where({ workspace_id: workspaceId, company_id: c.company_id }).count({ n: '*' }).first()).n | 0;
+        if (!left) { out.removed_companies += await knex('sellbird_companies').where({ id: c.company_id, workspace_id: workspaceId }).del(); }
+      }
+    }
+    return out;
   },
 
   listContacts(workspaceId, { companyId, limit = 200 } = {}) {

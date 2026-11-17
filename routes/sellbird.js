@@ -8,7 +8,7 @@ const { extractProspectNames, predictEmailPatterns, verifyContactEmail } = requi
 const { generateOutreachSequence, classifyReplyIntent, draftReplyResponse } = require('../services/sellbird/aiEngine');
 const { runHeartbeat } = require('../services/sellbird/heartbeat');
 const { sendOutreachEmail } = require('../services/sellbird/dispatcher');
-const { aiOptionsFromReq, aiArgsFromReq, aiJSON } = require('../services/aiHelper');
+const { aiOptionsFromReq, aiArgsFromReq, aiJSON, aiList } = require('../services/aiHelper');
 
 module.exports = (knex, requirePermission) => {
   const router = express.Router();
@@ -33,7 +33,7 @@ module.exports = (knex, requirePermission) => {
       role = p.role;
     }
     const sameDomain = (crawl.emails || []).filter((e) => e.endsWith('@' + crawl.domain) || e.endsWith('.' + crawl.domain));
-    let email = hint.executive_email || sameDomain[0] || (crawl.emails || [])[0];
+    let email = String(hint.executive_email || sameDomain[0] || (crawl.emails || [])[0] || '').trim().toLowerCase() || undefined;
     let guessed = false;
     if (!email) {
       guessed = true;
@@ -48,6 +48,10 @@ module.exports = (knex, requirePermission) => {
 
   // Add one company: open its website, pick who to email, write the emails.
   async function addCompanyWithEmails(req, campaign, target) {
+    const repeat = (message) => Object.assign(new Error(message), { status: 409, duplicate: true });
+    const bare = String(target.domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+    // The same website already in this campaign: nothing to add (checked before opening it)
+    if (bare && await repo.findCompanyByDomain(req.workspaceId, campaign.id, bare)) throw repeat(`${bare} is already in this campaign, so it was not added again.`);
     const crawl = await crawlWebsite(target.domain);
     if (!crawl.success) {
       const why = /private|local/i.test(crawl.description || '') ? 'it’s a private or local address' : 'the website didn’t open';
@@ -55,6 +59,12 @@ module.exports = (knex, requirePermission) => {
       err.status = 400;
       throw err;
     }
+    if (crawl.domain && crawl.domain !== bare && await repo.findCompanyByDomain(req.workspaceId, campaign.id, crawl.domain)) throw repeat(`${crawl.domain} is already in this campaign, so it was not added again.`);
+    // The address to write to: found on their website, or a labelled guess. If it is already one of
+    // this business's contacts (any campaign) nobody is added or emailed a second time.
+    const picked = await pickContact(crawl, target);
+    const have = await repo.findContactByEmail(req.workspaceId, picked.email);
+    if (have) throw repeat(`${picked.email} is already in your contacts${have.company_name ? ` (${have.company_name})` : ''}, so it was not added again.`);
     const company = await repo.addCompany(req.workspaceId, campaign.id, {
       // 'Acme Interiors — office fit-outs in Pune' → 'Acme Interiors'
       name: target.name || (String(crawl.title || '').split(/\s+[|–—:-]\s+/).find((p) => p.trim() && !/^(home|welcome|homepage)$/i.test(p.trim())) || '').trim().slice(0, 120) || crawl.domain,
@@ -64,7 +74,7 @@ module.exports = (knex, requirePermission) => {
       buying_signals: crawl.buying_signals,
       score: crawl.buying_signals?.signals?.length >= 2 ? 80 : crawl.buying_signals?.signals?.length ? 65 : 50,
     });
-    const contact = await repo.addContact(req.workspaceId, company.id, await pickContact(crawl, target));
+    const contact = await repo.addContact(req.workspaceId, company.id, picked);
     const sequence = await generateOutreachSequence({ product: await productFor(req.workspaceId, campaign), company, contact }, aiOptionsFromReq(req));
     const now = Math.floor(Date.now() / 1000);
     const outbox = [];
@@ -82,6 +92,66 @@ module.exports = (knex, requirePermission) => {
     return { company, contact, outbox };
   }
 
+
+  // After approving, send what is due right away (in the background) instead of waiting for the
+  // next minute's check. Only this business's emails, and only if it may send.
+  function sendSoon(workspaceId) {
+    setImmediate(async () => {
+      try {
+        if (!(await require('../services/entitlements').canPublish(workspaceId))) return;
+        await runHeartbeat(knex, { workspaceId, maxBatch: 20 });
+      } catch (err) { console.warn('[Sellbird] Send after approval:', err.message); }
+    });
+  }
+
+  // ── Change or delete a contact ─────────────────────────────────────────────
+  const EMAIL_OK = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]{2,}$/;
+  router.patch('/contacts/:id', requirePermission('content.edit'), async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const current = await knex('sellbird_contacts').where({ id, workspace_id: req.workspaceId }).first();
+      if (!current) return res.status(404).json({ error: 'Contact not found.' });
+      const b = req.body || {};
+      const patch = {};
+      if (b.full_name !== undefined) {
+        const n = String(b.full_name).replace(/\s+/g, ' ').trim().slice(0, 120);
+        if (!n) return res.status(400).json({ error: 'The name can not be empty.' });
+        patch.full_name = n;
+      }
+      if (b.role !== undefined) patch.role = String(b.role).replace(/\s+/g, ' ').trim().slice(0, 120) || null;
+      if (b.email !== undefined) {
+        const email = String(b.email).trim().toLowerCase();
+        if (!EMAIL_OK.test(email)) return res.status(400).json({ error: 'That does not look like an email address.' });
+        if (email !== String(current.email || '').trim().toLowerCase()) {
+          const have = await repo.findContactByEmail(req.workspaceId, email);
+          if (have && have.id !== id) return res.status(409).json({ error: `${email} is already in your contacts${have.company_name ? ` (${have.company_name})` : ''}.` });
+          const check = await verifyContactEmail(email);
+          if (check.status === 'invalid') return res.status(400).json({ error: 'That address can not receive email (its domain has no mail server). Check the spelling.' });
+          patch.email = email;
+          patch.email_status = 'verified'; // typed by a person and its domain takes mail
+        }
+      }
+      res.json(await repo.updateContact(req.workspaceId, id, patch));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // Delete one or several contacts (with their emails). Only this business's own.
+  const deleteContacts = async (req, res, ids) => {
+    try { res.json({ success: true, ...(await repo.deleteContacts(req.workspaceId, ids)) }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+  };
+  router.delete('/contacts/:id', requirePermission('content.delete'), (req, res) => deleteContacts(req, res, [req.params.id]));
+  router.post('/contacts/delete', requirePermission('content.delete'), (req, res) => {
+    const ids = (req.body || {}).ids;
+    if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'Choose at least one contact.' });
+    return deleteContacts(req, res, ids.slice(0, 500));
+  });
+
+  // Remove repeated addresses already in this business's list (and cancel their unsent emails)
+  router.post('/contacts/dedupe', requirePermission('content.edit'), async (req, res) => {
+    try { res.json({ success: true, ...(await repo.removeDuplicateContacts(req.workspaceId)) }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+  });
 
   // ── Metrics & Stats ────────────────────────────────────────────────────────
   router.get('/stats', requirePermission('content.view'), async (req, res) => {
@@ -509,22 +579,28 @@ Return ONLY a valid JSON array of objects with the following structure:
 ]
 Important rules:
 1. Provide only real, legitimate companies with valid, public domain names (e.g. 'company.com' or 'clinic.in', without 'http://' or 'www.').
-2. Do not invent fake or placeholder domains like 'example.com'.
+2. Do not invent fake or placeholder domains like 'example.com'. If you are not sure a company exists, leave it out: fewer correct results are better than guesses.
 3. Output strictly valid JSON with no markdown formatting or commentary.`;
 
       let discovered = [];
+      let aiError = null;
       try {
         const { apiKey, options, model } = aiArgsFromReq(req);
-        const resAi = await aiJSON(prompt, apiKey, 2048, options, model);
-        if (Array.isArray(resAi?.data)) {
-          discovered = resAi.data;
-        } else if (Array.isArray(resAi?.data?.businesses)) {
-          discovered = resAi.data.businesses;
-        } else if (Array.isArray(resAi?.data?.companies)) {
-          discovered = resAi.data.companies;
-        }
+        // The prompt asks for a list, so read a list (aiJSON only reads a single object)
+        const resAi = await aiList(prompt, apiKey, 2048, options, model);
+        discovered = (resAi.data || [])
+          .filter((x) => x && typeof x === 'object' && x.domain)
+          .map((x) => ({ name: x.name, domain: x.domain, city: x.city, industry: x.industry })); // never an email or a person from the AI
       } catch (aiErr) {
+        aiError = aiErr;
         console.warn('[Sellbird] AI discovery error:', aiErr.message);
+      }
+
+      // The AI itself failed (no key, not running, rate limit): say so, instead of blaming the category
+      if (aiError) {
+        return res.status(502).json({
+          error: `The AI could not answer just now: ${String(aiError.message || 'unknown error').split('\n')[0].slice(0, 160)}. Check Settings → AI (a saved key, or Ollama running), then try again. You can also use “Specific Websites (Direct)” without AI.`
+        });
       }
 
       if (!discovered || !discovered.length) {
@@ -613,6 +689,7 @@ Important rules:
         error_message: null,
       });
       res.json(updated);
+      sendSoon(req.workspaceId);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -646,6 +723,21 @@ Important rules:
     }
   });
 
+  // Delete emails from the outbox (not ones already sent). Their unsent follow-ups go with them.
+  const deleteOutbox = async (req, res, ids) => {
+    try {
+      const r = await repo.deleteOutboxItems(req.workspaceId, ids);
+      if (!r.deleted && r.kept_sent) return res.status(400).json({ error: 'This email has already gone out, so it can not be deleted.', ...r });
+      res.json({ success: true, ...r });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  };
+  router.delete('/outbox/:id', requirePermission('content.delete'), (req, res) => deleteOutbox(req, res, [req.params.id]));
+  router.post('/outbox/delete', requirePermission('content.delete'), (req, res) => {
+    const ids = (req.body || {}).ids;
+    if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'Choose at least one email.' });
+    return deleteOutbox(req, res, ids.slice(0, 500));
+  });
+
   router.post('/outbox/batch-approve', requirePermission('content.approve'), async (req, res) => {
     const { ids } = req.body || {};
     if (!Array.isArray(ids) || !ids.length) {
@@ -655,6 +747,7 @@ Important rules:
     try {
       const count = await repo.batchApprove(req.workspaceId, ids);
       res.json({ success: true, approved: count });
+      if (count) sendSoon(req.workspaceId);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

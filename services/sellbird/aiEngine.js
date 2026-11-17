@@ -81,6 +81,7 @@ async function generateOutreachSequence({ product, company, contact }, aiOpts = 
     `3. ${first ? `Greet them as ${first}.` : 'Start with "Hello,".'} Sign off as ${sender ? `"${sender}"` : 'the sender, without a made-up name'}.`,
     '4. 50-120 words each, plain and friendly, one simple question at the end.',
     '5. Email 2 is a short follow-up 3 days later, email 3 a polite last note 7 days later.',
+    '6. Never write an email address, phone number or link that is not given above. Do not invent contact details.',
     '',
     'Reply with JSON only: {"steps":[{"step":1,"delay_days":0,"subject":"...","body":"..."},{"step":2,"delay_days":3,"subject":"...","body":"..."},{"step":3,"delay_days":7,"subject":"...","body":"..."}]}');
   const prompt = lines.join('\n');
@@ -92,8 +93,10 @@ async function generateOutreachSequence({ product, company, contact }, aiOpts = 
       // Links only to the sender's own site or the prospect's: anything else is removed
       // and the drafts are flagged for a person to read first
       const allowedUrls = [product.url, company.domain && `https://${company.domain}`].filter(Boolean);
+      // ...and no email address but the recipient's: the AI never makes up contact details
+      const allowedEmails = [contact.email];
       for (const st of steps) {
-        const c = safety.screenEmail(st, { allowedUrls });
+        const c = safety.screenEmail(st, { allowedUrls, allowedEmails });
         if (c.changed) flagged = true;
         st.subject = c.subject || st.subject;
         st.body = c.body || st.body;

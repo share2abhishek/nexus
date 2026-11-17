@@ -30,11 +30,13 @@ function extractEmails(text) {
   const clean = [];
   const seen = new Set();
   const ignore = ['example.com', 'sentry.io', 'wixpress.com', 'schema.org', 'domain.com'];
+  // "logo@2x.png" is an image file name, not an address
+  const assetEnd = /\.(png|jpe?g|gif|webp|avif|heic|svg|ico|bmp|tiff?|css|js|json|woff2?|ttf|eot|map)$/i;
 
   for (const email of matches) {
     const lower = email.toLowerCase().replace(/^[0-9]+/, '');
     const domain = lower.split('@')[1];
-    if (domain && !ignore.some((ig) => domain.includes(ig)) && !seen.has(lower)) {
+    if (domain && !assetEnd.test(domain) && !ignore.some((ig) => domain.includes(ig)) && !seen.has(lower)) {
       seen.add(lower);
       clean.push(lower);
     }

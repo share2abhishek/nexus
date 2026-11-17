@@ -607,6 +607,10 @@ describe('Sellbird Autonomous Sales Agent — Test Suite', () => {
         'outbox-subj-',
         'reply-card-',
         'reply-text-',
+        // created by the screen itself: the "Edit contact" pop-up and the bulk delete button
+        'sb-ec-',
+        'sb-contact-modal',
+        'sb-delete-selected-contacts',
       ];
 
       for (const id of uniqueIds) {

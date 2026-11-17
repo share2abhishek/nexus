@@ -99,12 +99,13 @@ describe('Sales outreach life cycle', () => {
 
   test('4. approving all three: the first goes out now, follow-ups wait their turn', async () => {
     const ids = acme.outbox.map((o) => o.id);
-    const r = await request(app).post('/api/sellbird/outbox/batch-approve').send({ ids });
-    expect(r.body.approved).toBe(3);
     // approved 5 days after the drafts were written: by the plan step 2 is already due
     await knex('sellbird_outbox').whereIn('id', ids).update({ scheduled_at: knex.raw('scheduled_at - ?', [5 * DAY]) });
+    const r = await request(app).post('/api/sellbird/outbox/batch-approve').send({ ids });
+    expect(r.body.approved).toBe(3);
 
-    expect((await send()).sent).toBe(1);
+    // approving sends what is due right away (in the background), without waiting for the next check
+    for (let i = 0; i < 60 && mockMails.length < 1; i++) await new Promise((x) => setTimeout(x, 50));
     expect(mockMails).toHaveLength(1);
     expect(mockMails[0]).toMatchObject({ to: 'hello@acme.example', from: 'Asha <me@mybiz.example>' });
     const [s1, s2, s3] = await outboxFor(acme.contact.id);

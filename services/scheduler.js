@@ -202,6 +202,8 @@ async function recoverInterrupted(db) {
   if (await db.schema.hasTable('content_items')) {
     await db('content_items').where({ status: 'publishing' }).update({ status: 'failed', error_message: note });
   }
+  // Outreach emails cut off mid-send by a restart: no longer "Sending…" (see dispatcher.js)
+  await require('./sellbird/dispatcher').recoverInterruptedSending(db, 0).catch(() => {});
   // An email campaign interrupted mid-send: mark it failed so it can be checked and sent again
   if (await db.schema.hasTable('email_campaigns')) {
     await db('email_campaigns').where({ status: 'sending' }).update({ status: 'failed' });
@@ -232,10 +234,9 @@ function start() {
         require('./seoAutopilot').processDue(knex).catch(err => console.error('[Scheduler] SEO autopilot:', err.message));
       }
 
-      // Sellbird autonomous loop (runs every 15 minutes)
-      if (new Date().getMinutes() % 15 === 0) {
-        runHeartbeat(knex).catch(err => console.error('[Scheduler] Sellbird error:', err.message));
-      }
+      // Sellbird: send outreach emails that are due. Every minute: when nothing is due it is
+      // one quick query, and an email that is due goes out within a minute, not up to 15.
+      runHeartbeat(knex).catch(err => console.error('[Scheduler] Sellbird error:', err.message));
     } catch (err) {
       console.error('[Scheduler] Unexpected error:', err.message);
     } finally {

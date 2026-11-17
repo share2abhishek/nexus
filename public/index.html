@@ -1800,11 +1800,12 @@
               <button class="btn btn-sm btn-primary" id="btn-pull-real-prospects" onclick="openPullRealProspectsModal()" style="background:#0284c7;color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:12px;border-radius:6px;border:0" title="Live Crawl Real Housing Societies & Organizations">
                 <span>🔎 Find companies</span>
               </button>
-              <div class="sb-quota-pill">
+              <div class="sb-quota-pill" onclick="setSellbirdDailyLimit()" style="cursor:pointer" title="Emails sent today / daily limit. Click to change the daily limit.">
                 <span id="sb-top-quota-text" title="Sent today / daily limit">0 / 0</span>
                 <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="#0284c7" stroke-width="2.5"><circle cx="10" cy="10" r="7" stroke="#e2e8f0"/><path d="M10 3 A7 7 0 0 1 17 10"/></svg>
               </div>
               <div class="sb-live-pill" id="sb-sending-state" title="Sending status"><span class="sb-live-dot"></span> <span id="sb-sending-state-text">…</span></div>
+              <button class="sb-icon-btn" title="Remove repeated email addresses" aria-label="Remove repeated email addresses" onclick="dedupeSellbirdContacts()" style="font-size:14px">🧹</button>
               <button class="sb-icon-btn" title="Refresh Sellbird" onclick="loadSellbird()">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
               </button>
@@ -4497,7 +4498,7 @@
 <script src="js/08-account.js"></script>
 <script src="js/09-features.js"></script>
 <script src="js/10-media-and-more.js"></script>
-<script src="js/12-sellbird.js"></script>
+<script src="js/12-sellbird.js?v=2.2.2"></script>
 
 <script src="js/13-lead-pipeline.js?v=2.2.2"></script>
 <script src="js/14-whatsapp-bot.js?v=2.2.0"></script>

@@ -65,6 +65,25 @@ async function sendOutreachEmail({ to, subject, body, fromName, fromEmail, works
   return { success: true, messageId: info.messageId };
 }
 
+// An email stays "sending" only while it is being handed to the mail service. If the app was closed
+// or the connection hung part-way, it would stay "Sending…" forever: it is marked failed instead. It
+// may or may not have been delivered, so it is not sent again by itself (that could email someone
+// twice): the person checks their sent mail and approves it again.
+const INTERRUPTED = 'Sending was interrupted. It may or may not have been delivered: check your sent mail, then approve it to try again.';
+async function recoverInterruptedSending(knex, olderThanSeconds = 600) {
+  const cutoff = nowEpoch() - olderThanSeconds;
+  return knex('sellbird_outbox').where({ status: 'sending' }).where('updated_at', '<=', cutoff)
+    .update({ status: 'failed', error_message: INTERRUPTED, updated_at: nowEpoch() });
+}
+
+// Give up waiting for the mail service after a while, so one slow send can't block everything
+const SEND_TIMEOUT_MS = Number(process.env.SELLBIRD_SEND_TIMEOUT_MS) || 60_000;
+function withTimeout(promise, ms, message) {
+  let timer;
+  const limit = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); });
+  return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
+}
+
 // "Pause sending" for a whole workspace (Sales outreach → Pause sending)
 const pauseKey = (workspaceId) => `sellbird_paused_${workspaceId}`;
 async function isPaused(knex, workspaceId) {
@@ -95,6 +114,7 @@ async function processDueOutbox(knex, repo, options = {}) {
   const now = nowEpoch();
   const todayStart = now - (now % 86400);
 
+  await recoverInterruptedSending(knex).catch(() => {}); // anything stuck on "sending" for 10 minutes
   const maxBatch = typeof options === 'number' ? options : options.maxBatch || 10;
   const workspaceId = typeof options === 'object' ? options.workspaceId : null;
   const enableJitter = typeof options === 'object' && options.enableJitter !== undefined ? options.enableJitter : true;
@@ -224,7 +244,11 @@ async function processDueOutbox(knex, repo, options = {}) {
     if (!claimed) continue;
 
     try {
-      await sendOutreachEmail({ to: item.contact_email, subject: item.subject, body: item.body, workspaceId: item.workspace_id });
+      await withTimeout(
+        sendOutreachEmail({ to: item.contact_email, subject: item.subject, body: item.body, workspaceId: item.workspace_id }),
+        SEND_TIMEOUT_MS,
+        'The mail service did not answer in time. Check Settings → Email sending, then approve this email again.',
+      );
 
       await repo.updateOutboxItem(item.workspace_id, item.id, {
         status: 'sent',
@@ -268,6 +292,8 @@ async function processDueOutbox(knex, repo, options = {}) {
 }
 
 module.exports = {
+  recoverInterruptedSending,
+  withTimeout,
   findPlaceholder,
   isPaused,
   setPaused,

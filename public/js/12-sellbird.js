@@ -335,6 +335,17 @@ async function triggerSellbirdHeartbeat() {
   }
 }
 
+// Remove repeated email addresses already in the list (each address stays once; unsent repeats are cancelled)
+async function dedupeSellbirdContacts() {
+  if (!confirm('Remove repeated email addresses?\n\nEach address stays once. A repeat that was never emailed is removed together with its unsent emails. Nothing that has already been sent is deleted.')) return;
+  try {
+    const r = await api('POST', '/api/sellbird/contacts/dedupe');
+    if (!r.addresses) toast('No repeated email addresses found.', 'success');
+    else toast(`${r.addresses} repeated address${r.addresses === 1 ? '' : 'es'} cleaned: ${r.removed_contacts} contact${r.removed_contacts === 1 ? '' : 's'} removed, ${r.cancelled_emails} unsent email${r.cancelled_emails === 1 ? '' : 's'} cancelled.`, 'success', 7000);
+    await loadSellbird();
+  } catch (err) { toast(err.message || 'Could not clean the list', 'error'); }
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    Screen 1: Find People (Contacts Table — Screenshot 1)
    ───────────────────────────────────────────────────────────────────────────── */
@@ -386,9 +397,91 @@ function filterContactsBySignal(signal) {
 function toggleContactSelection(id, checked) {
   if (checked) SellbirdState.selectedContactIds.add(id);
   else SellbirdState.selectedContactIds.delete(id);
+  updateContactBulkBar();
 }
 
-function toggleSelectAllContacts(checked) {
+function updateContactBulkBar() {
+  const n = SellbirdState.selectedContactIds.size;
+  const btn = document.getElementById('sb-delete-selected-contacts');
+  if (btn) { btn.disabled = !n; btn.textContent = n ? `🗑 Delete selected (${n})` : '🗑 Delete selected'; }
+}
+
+// Change a contact's name, role or email address
+function closeContactModal() { document.getElementById('sb-contact-modal')?.remove(); }
+function openEditContactModal(id) {
+  const c = (SellbirdState.contacts || []).find((x) => x.id === id);
+  if (!c) return;
+  closeContactModal();
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="sb-contact-modal" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)closeContactModal()">
+      <div style="background:#fff;border-radius:12px;width:100%;max-width:440px;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.3)" onclick="event.stopPropagation()">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><b style="font-size:16px;color:#0f172a">Edit contact</b>
+          <button type="button" onclick="closeContactModal()" aria-label="Close" style="background:none;border:0;font-size:18px;cursor:pointer;color:#64748b">✕</button></div>
+        <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:10px">Name
+          <input id="sb-ec-name" type="text" maxlength="120" value="${escapeHtml(c.full_name || '')}" style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px" /></label>
+        <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:10px">Role
+          <input id="sb-ec-role" type="text" maxlength="120" value="${escapeHtml(c.role || '')}" style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px" /></label>
+        <label style="display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px">Email address
+          <input id="sb-ec-email" type="email" maxlength="200" value="${escapeHtml(c.email || '')}" style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px" /></label>
+        <div style="font-size:11.5px;color:#64748b;margin-bottom:14px">Emails already written keep their text (for example the greeting). Edit them in Outbox if the name changed.</div>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button type="button" class="sb-secondary-btn" onclick="closeContactModal()">Cancel</button>
+          <button type="button" class="sb-primary-btn" onclick="saveContactEdit(${id})">Save</button></div>
+      </div>
+    </div>`);
+  document.getElementById('sb-ec-name')?.focus();
+}
+
+async function saveContactEdit(id) {
+  const v = (x) => (document.getElementById(x)?.value || '').trim();
+  try {
+    await api('PATCH', `/api/sellbird/contacts/${id}`, { full_name: v('sb-ec-name'), role: v('sb-ec-role'), email: v('sb-ec-email') });
+    closeContactModal();
+    toast('Contact updated.', 'success');
+    await loadSellbird();
+  } catch (err) { toast(err.message || 'Could not update the contact', 'error', 7000); }
+}
+
+async function deleteSellbirdContact(id) {
+  const c = (SellbirdState.contacts || []).find((x) => x.id === id);
+  if (!confirm(`Delete ${c ? c.full_name : 'this contact'}?\n\nTheir emails in the outbox are deleted too. This can not be undone.`)) return;
+  try {
+    await api('DELETE', `/api/sellbird/contacts/${id}`);
+    SellbirdState.selectedContactIds.delete(id);
+    toast('Contact deleted.', 'success');
+    await loadSellbird();
+  } catch (err) { toast(err.message || 'Could not delete the contact', 'error'); }
+}
+
+async function deleteSelectedSellbirdContacts() {
+  const ids = Array.from(SellbirdState.selectedContactIds);
+  if (!ids.length) { toast('Tick the contacts you want to delete first.', 'info'); return; }
+  if (!confirm(`Delete ${ids.length} contact${ids.length === 1 ? '' : 's'}?\n\nTheir emails in the outbox are deleted too. This can not be undone.`)) return;
+  try {
+    const r = await api('POST', '/api/sellbird/contacts/delete', { ids });
+    SellbirdState.selectedContactIds.clear();
+    toast(`${r.deleted} contact${r.deleted === 1 ? '' : 's'} deleted.`, 'success');
+    await loadSellbird();
+  } catch (err) { toast(err.message || 'Could not delete the contacts', 'error'); }
+}
+
+// The daily limit ("0 / 25"): how many emails each active campaign may send per day
+async function setSellbirdDailyLimit() {
+  try {
+    const camps = (await api('GET', '/api/sellbird/campaigns')).filter((c) => c.status !== 'paused');
+    if (!camps.length) { toast('There is no active campaign.', 'info'); return; }
+    const now = camps[0].max_emails_per_day || 25;
+    const answer = prompt('Emails per day for each active campaign (1 to 500).\n\nA new sending address should start low (20 to 50) and grow slowly: sending too many at once can get mail marked as spam. Amazon SES also has its own daily limit (200 a day until AWS grants production access).', String(now));
+    if (answer === null) return;
+    const n = Math.round(Number(answer));
+    if (!Number.isFinite(n) || n < 1 || n > 500) { toast('Enter a number from 1 to 500.', 'warning'); return; }
+    for (const c of camps) await api('PATCH', `/api/sellbird/campaigns/${c.id}`, { max_emails_per_day: n });
+    toast(`Daily limit is now ${n} per campaign.`, 'success');
+    await loadSellbird();
+  } catch (err) { toast(err.message || 'Could not change the limit', 'error'); }
+}
+
+function toggleSelectAllSellbirdContacts(checked) {
   const checkboxes = document.querySelectorAll('.sb-contact-chk');
   checkboxes.forEach((cb) => {
     cb.checked = checked;
@@ -396,6 +489,7 @@ function toggleSelectAllContacts(checked) {
     if (checked) SellbirdState.selectedContactIds.add(id);
     else SellbirdState.selectedContactIds.delete(id);
   });
+  updateContactBulkBar();
 }
 
 function renderCompanies() {
@@ -522,21 +616,29 @@ function renderCompanies() {
         <td style="color:#94a3b8;font-size:12px;font-weight:600">
           ${c.last_sent_at ? escapeHtml(new Date(c.last_sent_at * 1000).toLocaleDateString()) : '—'}
         </td>
+        <td style="white-space:nowrap;text-align:right">
+          <button type="button" class="sb-secondary-btn" onclick="openEditContactModal(${c.id})" title="Edit contact" aria-label="Edit contact" style="padding:3px 8px;font-size:12px">✏️ Edit</button>
+          <button type="button" class="sb-secondary-btn" onclick="deleteSellbirdContact(${c.id})" title="Delete contact" aria-label="Delete contact" style="padding:3px 8px;font-size:12px;color:#ef4444;border-color:#fecaca">🗑</button>
+        </td>
       </tr>
     `;
   }).join('');
 
   container.innerHTML = `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+      <button type="button" id="sb-delete-selected-contacts" class="sb-secondary-btn" onclick="deleteSelectedSellbirdContacts()" style="color:#ef4444;border-color:#fecaca" ${SellbirdState.selectedContactIds.size ? '' : 'disabled'}>${SellbirdState.selectedContactIds.size ? `🗑 Delete selected (${SellbirdState.selectedContactIds.size})` : '🗑 Delete selected'}</button>
+    </div>
     <table class="sb-contacts-table">
       <thead>
         <tr>
-          <th style="width:36px"><input type="checkbox" onchange="toggleSelectAllContacts(this.checked)" /></th>
+          <th style="width:36px"><input type="checkbox" onchange="toggleSelectAllSellbirdContacts(this.checked)" /></th>
           <th>CONTACT</th>
           <th>BUYING SIGNAL</th>
           <th>EMAIL</th>
           <th>FIT</th>
           <th>STAGE</th>
           <th>LAST TOUCH</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -613,6 +715,37 @@ function viewContactInReplies(contactId) {
    Screen 2: Approve Outreach (Outbox Master-Detail Split — Screenshot 2)
    ───────────────────────────────────────────────────────────────────────────── */
 
+// Follow an email that is going out: refresh the numbers and the outbox every few seconds until
+// nothing is sending or due any more (so "Sending…" turns into "Sent" without pressing refresh).
+// It refreshes quietly: no spinner, your ticked emails stay ticked, and an email being edited is left alone.
+let sbWatchTimer = null;
+async function refreshSellbirdQuietly() {
+  if (SellbirdState.isEditingOutbox || SellbirdState.isEditingReply) return;
+  let url = '/api/sellbird/outbox?limit=100';
+  if (SellbirdState.selectedCampaignId) url += `&campaignId=${encodeURIComponent(SellbirdState.selectedCampaignId)}`;
+  const [stats, items] = await Promise.all([
+    api('GET', '/api/sellbird/stats').catch(() => null),
+    api('GET', url).catch(() => null),
+  ]);
+  if (stats) { SellbirdState.stats = stats; renderSellbirdMetrics(stats); }
+  if (Array.isArray(items)) {
+    SellbirdState.outboxItems = items;
+    if (SellbirdState.activeTab === 'outbox') renderOutbox();
+  }
+}
+function sbSendingBusy() {
+  const nowSec = Date.now() / 1000;
+  return (SellbirdState.outboxItems || []).some((i) => i.status === 'sending' || (i.status === 'approved' && Number(i.scheduled_at) <= nowSec));
+}
+function watchSellbirdSending(seconds = 90) {
+  if (sbWatchTimer) clearInterval(sbWatchTimer);
+  const until = Date.now() + seconds * 1000;
+  sbWatchTimer = setInterval(async () => {
+    try { await refreshSellbirdQuietly(); } catch { /* the next round tries again */ }
+    if (!sbSendingBusy() || Date.now() > until) { clearInterval(sbWatchTimer); sbWatchTimer = null; }
+  }, 3000);
+}
+
 async function loadOutbox() {
   const container = document.getElementById('sellbird-outbox-list');
   if (container) {
@@ -641,6 +774,8 @@ async function loadOutbox() {
     SellbirdState.selectedOutboxIds.clear();
     updateBatchApproveButton();
     renderOutbox();
+    // an email is going out right now: follow it until it is sent
+    if (!sbWatchTimer && SellbirdState.outboxItems.some((i) => i.status === 'sending')) watchSellbirdSending(60);
   } catch (err) {
     console.error('[Sellbird] Error loading outbox:', err);
     if (container) {
@@ -749,6 +884,7 @@ async function approveOutboxItem(id) {
     SellbirdState.selectedOutboxIds.delete(id);
     updateBatchApproveButton();
     await loadSellbird();
+    watchSellbirdSending(); // it is sent in the background: show it going out
   } catch (err) {
     console.error('[Sellbird] Error approving item:', err);
     toast(err.message || 'Error approving outbox item', 'error');
@@ -771,6 +907,21 @@ async function rejectOutboxItem(id) {
     console.error('[Sellbird] Error rejecting item:', err);
     toast(err.message || 'Error rejecting outbox item', 'error');
   }
+}
+
+// Delete an email from the outbox (and its unsent follow-ups). Emails already sent can not be deleted.
+async function deleteOutboxItem(id, ev) {
+  if (ev) ev.stopPropagation();
+  const item = SellbirdState.outboxItems.find((i) => i.id === id);
+  if (item && ['sent', 'sending'].includes(item.status)) { toast('This email has already gone out, so it can not be deleted.', 'info'); return; }
+  if (!confirm('Delete this email from the outbox?\n\nIts follow-up emails that have not been sent are deleted too. This can not be undone.')) return;
+  try {
+    const r = await api('DELETE', `/api/sellbird/outbox/${id}`);
+    toast(r.follow_ups_deleted ? `Email deleted, with ${r.follow_ups_deleted} follow-up${r.follow_ups_deleted === 1 ? '' : 's'}.` : 'Email deleted.', 'success');
+    SellbirdState.selectedOutboxIds.delete(id);
+    if (SellbirdState.selectedOutboxId === id) SellbirdState.selectedOutboxId = null;
+    await loadSellbird();
+  } catch (err) { toast(err.message || 'Could not delete the email', 'error'); }
 }
 
 async function batchApproveOutbox() {
@@ -803,6 +954,7 @@ async function batchApproveOutbox() {
 
     SellbirdState.selectedOutboxIds.clear();
     await loadSellbird();
+    watchSellbirdSending();
   } catch (err) {
     console.error('[Sellbird] Batch approve error:', err);
     toast(err.message || 'Error batch approving items', 'error');
@@ -924,6 +1076,7 @@ function renderOutbox() {
 
     return `
       <div class="sb-queue-card ${isSelected ? 'selected' : ''}" onclick="selectOutboxItem(${item.id})">
+        ${['sent', 'sending'].includes(item.status) ? '' : `<button type="button" title="Delete this email" aria-label="Delete this email" onclick="deleteOutboxItem(${item.id}, event)" style="float:right;background:none;border:0;cursor:pointer;color:#94a3b8;font-size:13px;line-height:1;padding:2px 4px">🗑</button>`}
         <div class="sb-queue-top">
           <div style="display:flex;align-items:center;gap:7px">
             <div class="sb-avatar-box" style="width:24px;height:24px;font-size:10px">${initials}</div>
@@ -1049,6 +1202,9 @@ function renderOutbox() {
           </div>
 
           <div style="display:flex;gap:8px">
+            <button class="sb-secondary-btn" onclick="deleteOutboxItem(${activeItem.id})" style="color:#ef4444;border-color:#fecaca" title="Remove this email (and its unsent follow-ups) from the outbox">
+              🗑 Delete
+            </button>
             <button class="sb-secondary-btn" onclick="rejectOutboxItem(${activeItem.id})" style="color:#ef4444;border-color:#fecaca">
               ✕ Reject
             </button>
@@ -1929,6 +2085,14 @@ function openPullRealProspectsModal() {
   }
 }
 
+// Show or hide a button. The modal's button style forces display with !important, which beats a
+// plain style.display = 'none', so hiding has to be !important too (both buttons used to show).
+function sbShowOnly(el, visible) {
+  if (!el) return;
+  if (visible) el.style.removeProperty('display');
+  else el.style.setProperty('display', 'none', 'important');
+}
+
 function toggleSellbirdDiscoveryMode(mode) {
   const boxType = document.getElementById('box-discover-by-type');
   const boxCustom = document.getElementById('box-custom-domains');
@@ -1942,15 +2106,15 @@ function toggleSellbirdDiscoveryMode(mode) {
     if (boxCustom) boxCustom.style.display = 'block';
     if (btnType) { btnType.className = 'btn btn-sm btn-secondary'; }
     if (btnDomain) { btnDomain.className = 'btn btn-sm btn-primary'; }
-    if (btnSubmitType) btnSubmitType.style.display = 'none';
-    if (btnSubmitDomain) btnSubmitDomain.style.display = 'inline-block';
+    sbShowOnly(btnSubmitType, false);
+    sbShowOnly(btnSubmitDomain, true);
   } else {
     if (boxType) boxType.style.display = 'flex';
     if (boxCustom) boxCustom.style.display = 'none';
     if (btnType) { btnType.className = 'btn btn-sm btn-primary'; }
     if (btnDomain) { btnDomain.className = 'btn btn-sm btn-secondary'; }
-    if (btnSubmitType) btnSubmitType.style.display = 'inline-block';
-    if (btnSubmitDomain) btnSubmitDomain.style.display = 'none';
+    sbShowOnly(btnSubmitType, true);
+    sbShowOnly(btnSubmitDomain, false);
   }
 }
 window.toggleSellbirdDiscoveryMode = toggleSellbirdDiscoveryMode;
@@ -2007,17 +2171,15 @@ function toggleRealTargetMode() {
 async function triggerRealWorldDiscovery() {
   const btn = document.getElementById('btn-start-real-discovery');
   const originalText = btn ? btn.innerHTML : '';
-  const isCustom = document.querySelector('input[name="real_target_mode"]:checked')?.value === 'custom';
-
-  let targets = null;
-  if (isCustom) {
-    const raw = document.getElementById('input-custom-real-domains')?.value || '';
-    targets = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
-    if (!targets.length) {
-      toast('Please enter at least one real target domain', 'warning');
-      return;
-    }
+  // The websites typed in the box (one per line, or separated by commas)
+  const raw = document.getElementById('input-custom-real-domains')?.value || '';
+  const targets = [...new Set(raw.split(/[\n,;\s]+/).map((x) => x.trim()).filter(Boolean))];
+  if (!targets.length) {
+    toast('Type at least one company website, one per line.', 'warning');
+    return;
   }
+  // Added to the campaign chosen in the other tab (the first one if none)
+  const campaign_id = document.getElementById('discover-type-campaign-id')?.value || undefined;
 
   try {
     if (btn) {
@@ -2025,8 +2187,10 @@ async function triggerRealWorldDiscovery() {
       btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;margin-right:8px"></span> Reading websites and checking email addresses…';
     }
 
-    const res = await api('POST', '/api/sellbird/discover-real', { targets });
-    toast(`${res.message || ''}${res.skipped?.length ? ` Not added: ${res.skipped.map(x => x.domain).join(', ')}.` : ''}`, res.skipped?.length ? 'warning' : 'success', 8000);
+    const res = await api('POST', '/api/sellbird/discover-real', { targets, campaign_id });
+    // Say why a website was not added (already in the campaign, would not open, ...)
+    const why = (res.skipped || []).map((x) => `${x.domain}${x.reason ? ': ' + String(x.reason).replace(/^Couldn’t add [^:]+: /, '') : ''}`).join(' · ');
+    toast(`${res.message || ''}${why ? ` Not added: ${why}` : ''}`, res.skipped?.length ? 'warning' : 'success', 9000);
 
     closeSellbirdModals();
 
@@ -2090,6 +2254,13 @@ if (typeof window !== 'undefined') {
     saveEditedOutbox,
     approveOutboxItem,
     rejectOutboxItem,
+    deleteOutboxItem,
+    openEditContactModal,
+    closeContactModal,
+    saveContactEdit,
+    deleteSellbirdContact,
+    deleteSelectedSellbirdContacts,
+    setSellbirdDailyLimit,
     editOutboxItem,
     batchApproveOutbox,
     toggleSendingPause,
@@ -2101,7 +2272,7 @@ if (typeof window !== 'undefined') {
     onExplorerStatusChange,
     filterContactsBySignal,
     toggleContactSelection,
-    toggleSelectAllContacts,
+    toggleSelectAllSellbirdContacts,
     exportContactsCSV,
     renderCompanies,
     renderContacts,
