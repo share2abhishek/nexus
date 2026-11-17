@@ -80,7 +80,12 @@
     '.snchat-me{align-self:flex-end;background:' + color + ';color:#ffffff;border-bottom-right-radius:3px;box-shadow:0 2px 6px rgba(13,148,136,.3)}' +
     '.snchat-meta{font-size:10px;color:#94a3b8;margin-top:2px;padding:0 4px}' +
     '.snchat-meta.me{text-align:right}' +
-    '.snchat-typing{align-self:flex-start;color:#64748b;font-size:12px;padding:6px 10px;background:#e2e8f0;border-radius:10px}' +
+    '.snchat-typing{align-self:flex-start;display:flex;align-items:center;gap:5px;padding:12px 14px;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;border-bottom-left-radius:3px}' +
+    '.snchat-typing span{width:7px;height:7px;border-radius:50%;background:#94a3b8;display:inline-block;animation:snchat-dot 1.2s infinite ease-in-out}' +
+    '.snchat-typing span:nth-child(2){animation-delay:.2s}' +
+    '.snchat-typing span:nth-child(3){animation-delay:.4s}' +
+    '@keyframes snchat-dot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}' +
+    '@media (prefers-reduced-motion:reduce){.snchat-typing span{animation:none;opacity:.7}}' +
     '.snchat-foot{display:flex;gap:8px;padding:12px;border-top:1px solid #e2e8f0;background:#ffffff}' +
     '.snchat-input{flex:1;border:1px solid #cbd5e1;border-radius:10px;padding:10px 12px;font-size:13.5px;outline:none;font-family:inherit;transition:border-color .15s}' +
     '.snchat-input:focus{border-color:' + color + '}' +
@@ -233,7 +238,9 @@
 
     var typing = document.createElement('div');
     typing.className = 'snchat-typing';
-    typing.textContent = 'Urban Society typing…';
+    typing.setAttribute('role', 'status');
+    typing.setAttribute('aria-label', name + ' is typing');
+    typing.innerHTML = '<span></span><span></span><span></span>';
     body.appendChild(typing);
     body.scrollTop = body.scrollHeight;
 
