@@ -68,6 +68,13 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
+  // POST /api/knowledge-base/split-notes — organise pasted notes into titled sections
+  // (instant, no AI, nothing is saved: the caller shows the sections and saves them)
+  router.post('/split-notes', requirePermission('content.edit'), express.json({ limit: '200kb' }), (req, res) => {
+    const sections = knowledgeBase.splitNotes((req.body || {}).text);
+    res.json({ success: true, sections });
+  });
+
   // POST /api/knowledge-base/format-notes — AI Text structuring
   router.post('/format-notes', requirePermission('content.create'), async (req, res) => {
     try {

@@ -442,7 +442,11 @@ router.get('/smtp', serverOr(async (req, res) => {
     SMTP_FROM: env.SMTP_FROM || '', SMTP_FROM_NAME: env.SMTP_FROM_NAME || '',
     SMTP_SECURE: env.SMTP_SECURE || '',
     pass_set: !!env.SMTP_PASS,
-    configured: !!(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS),
+    MAIL_PROVIDER: env.MAIL_PROVIDER === 'ses_api' ? 'ses_api' : '',
+    SES_ACCESS_KEY_ID: env.SES_ACCESS_KEY_ID || '', SES_REGION: env.SES_REGION || '', ses_secret_set: !!env.SES_SECRET_ACCESS_KEY,
+    configured: env.MAIL_PROVIDER === 'ses_api'
+      ? !!(env.SES_ACCESS_KEY_ID && env.SES_SECRET_ACCESS_KEY && env.SES_REGION && env.SMTP_FROM)
+      : !!(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS),
   });
 });
 
@@ -456,21 +460,44 @@ async function checkSmtpTarget(b) {
   return n;
 }
 
+// Amazon SES with AWS access keys: checks what the form sent. `savedSecret` is the secret already
+// stored (a blank secret in the form keeps it). Returns the cleaned values.
+function checkSesForm(b, savedSecret) {
+  const typed = typeof b.SES_SECRET_ACCESS_KEY === 'string' && b.SES_SECRET_ACCESS_KEY.trim() && !b.SES_SECRET_ACCESS_KEY.includes('••••') ? b.SES_SECRET_ACCESS_KEY.trim() : '';
+  const n = smtpSettings.normalizeSes({ region: b.SES_REGION, accessKeyId: b.SES_ACCESS_KEY_ID, secretAccessKey: typed || savedSecret });
+  const from = String(b.SMTP_FROM || '').trim();
+  if (!smtpSettings.EMAIL_RE.test(from)) throw Object.assign(new Error('Fill in “Send as” with an email address you verified in Amazon SES.'), { status: 400 });
+  return { ...n, typed, from, fromName: String(b.SMTP_FROM_NAME || '').trim() };
+}
+
 router.post('/smtp', serverOr(async (req, res) => {
   const b = { ...(req.body || {}) };
   try { await checkSmtpTarget(b); } catch (err) { return res.status(err.status || 400).json({ error: err.message }); }
+  const sesValues = {}; const clear = [];
+  try {
+    if (b.MAIL_PROVIDER === 'ses_api') {
+      const saved = (await businessSettings.getAll(req.orgId)).ses_secret_access_key;
+      const c = checkSesForm(b, saved);
+      Object.assign(sesValues, { mail_provider: 'ses_api', ses_region: c.region, ses_access_key_id: c.accessKeyId, smtp_from: c.from });
+      if (c.typed) sesValues.ses_secret_access_key = c.typed;
+    } else if (b.MAIL_PROVIDER === '') clear.push('mail_provider'); // back to a normal mail server
+  } catch (err) { return res.status(err.status || 400).json({ error: err.message }); }
   if (b.SMTP_SECURE != null) b.SMTP_SECURE = secureFlag(b.SMTP_SECURE);
   const map = { SMTP_HOST: 'smtp_host', SMTP_PORT: 'smtp_port', SMTP_SECURE: 'smtp_secure', SMTP_USER: 'smtp_user', SMTP_PASS: 'smtp_pass', SMTP_FROM: 'smtp_from', SMTP_FROM_NAME: 'smtp_from_name' };
   const values = {};
   for (const [f, key] of Object.entries(map)) if (b[f] != null && b[f] !== '') values[key] = f === 'SMTP_PASS' ? String(b[f]) : String(b[f]).trim();
   // Port 465 needs a secure connection from the start; 587/25 upgrade later
   if (b.SMTP_PORT && b.SMTP_SECURE == null) values.smtp_secure = String(b.SMTP_PORT).trim() === '465' ? 'true' : 'false';
-  try { await businessSettings.save(req.orgId, values, { userId: req.session.userId }); }
+  Object.assign(values, sesValues);
+  try { await businessSettings.save(req.orgId, values, { userId: req.session.userId, clear }); }
   catch (err) { return res.status(err.status || 500).json({ error: err.message }); }
   res.json({ success: true });
 }), requireAdmin, async (req, res) => {
   const fields = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM', 'SMTP_FROM_NAME'];
   try { await checkSmtpTarget(req.body || {}); } catch (err) { return res.status(err.status || 400).json({ error: err.message }); }
+  let ses = null;
+  try { if ((req.body || {}).MAIL_PROVIDER === 'ses_api') ses = checkSesForm(req.body, readEnv().SES_SECRET_ACCESS_KEY || ''); }
+  catch (err) { return res.status(err.status || 400).json({ error: err.message }); }
   if (req.body && req.body.SMTP_SECURE != null) req.body.SMTP_SECURE = secureFlag(req.body.SMTP_SECURE);
   try {
     for (const f of fields) {
@@ -481,6 +508,14 @@ router.post('/smtp', serverOr(async (req, res) => {
     // The form has no such switch, so follow the port unless it was sent.
     if (req.body.SMTP_PORT && req.body.SMTP_SECURE == null) {
       writeEnvValue('SMTP_SECURE', String(req.body.SMTP_PORT).trim() === '465' ? 'true' : 'false');
+    }
+    if (ses) {
+      writeEnvValue('MAIL_PROVIDER', 'ses_api');
+      writeEnvValue('SES_REGION', ses.region); writeEnvValue('SES_ACCESS_KEY_ID', ses.accessKeyId);
+      if (ses.typed) writeEnvValue('SES_SECRET_ACCESS_KEY', ses.typed);
+      writeEnvValue('SMTP_FROM', ses.from);
+    } else if (req.body && req.body.MAIL_PROVIDER === '') {
+      writeEnvValue('MAIL_PROVIDER', ''); // back to a normal mail server
     }
   } catch (err) {
     return res.status(400).json({ error: 'A value contains a line break. Check what you pasted and try again.' });
@@ -495,6 +530,18 @@ const smtpTestLimit = rateLimit({ name: 'smtp-test', windowMs: 5 * 60_000, max: 
 async function runSmtpTest(req, res) {
   try {
     const b = req.body || {};
+    if (b.MAIL_PROVIDER === 'ses_api') {
+      const savedSecret = edition.isServer() ? (await businessSettings.getAll(req.orgId)).ses_secret_access_key : readEnv().SES_SECRET_ACCESS_KEY;
+      let c;
+      try { c = checkSesForm(b, savedSecret || ''); } catch (err) { return res.json({ ok: false, error: err.message }); }
+      let toSes = null;
+      if (b.send_to_me) {
+        toSes = String(req.session?.userEmail || req.currentUser?.email || '').trim();
+        if (!toSes) return res.json({ ok: false, error: 'Couldn’t tell which address to send the test to.' });
+      }
+      const r = await smtpSettings.testSes({ ses: { region: c.region, accessKeyId: c.accessKeyId, secretAccessKey: c.typed || savedSecret }, from: c.from }, { to: toSes, fromName: c.fromName || undefined });
+      return res.json(r.ok ? { ...r, to: toSes } : r);
+    }
     let saved;
     if (edition.isServer()) {
       saved = businessSettings.smtpFrom(await businessSettings.getAll(req.orgId));
@@ -536,7 +583,7 @@ router.get('/env-status', (req, res) => {
     openai:    check('OPENAI_API_KEY'),
     luma:      check('LUMA_API_KEY'),
     runway:    check('RUNWAY_API_KEY'),
-    smtp:      check('SMTP_HOST') && check('SMTP_USER') && check('SMTP_PASS'),
+    smtp:      env.MAIL_PROVIDER === 'ses_api' ? check('SES_ACCESS_KEY_ID') && check('SES_SECRET_ACCESS_KEY') && check('SES_REGION') : check('SMTP_HOST') && check('SMTP_USER') && check('SMTP_PASS'),
     linkedin:  check('LINKEDIN_CLIENT_ID'),
     facebook:  check('FACEBOOK_APP_ID'),
     pinterest: check('PINTEREST_APP_ID'),

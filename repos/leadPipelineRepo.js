@@ -7,6 +7,20 @@ function nowEpoch() {
   return Math.floor(Date.now() / 1000);
 }
 
+// A new or changed contact: tell the contact auto-sync (Google Sheet / Salesforce) so it goes out within seconds
+function notifyContactSync(workspaceId) {
+  try { require('../services/contactSync').notify(workspaceId); } catch { /* the timer sends it later */ }
+}
+
+// A logged action changes the contact's "Last action", so mark the contact as updated
+async function touchLead(knex, workspaceId, leadId) {
+  await knex('meta_lead_events').where({ workspace_id: workspaceId, id: Number(leadId) }).update({ updated_at: nowEpoch() }).catch(() => {});
+  notifyContactSync(workspaceId);
+}
+
+// Things a person can log against a lead: a note, a follow-up task, or an action taken
+const ACTIVITY_KINDS = ['note', 'task', 'call', 'whatsapp', 'email', 'meeting', 'demo', 'other'];
+
 function parseJson(v, fallback = null) {
   if (!v) return fallback;
   if (typeof v !== 'string') return v;
@@ -174,6 +188,7 @@ module.exports = (knex) => ({
     }).returning('id');
 
     const id = rows[0]?.id ?? rows[0];
+    notifyContactSync(workspaceId);
     return this.getLeadEvent(workspaceId, id);
   },
 
@@ -245,18 +260,50 @@ module.exports = (knex) => ({
     }
 
     await knex('meta_lead_events').where({ workspace_id: workspaceId, id }).update(patch);
+    notifyContactSync(workspaceId);
     return this.getLeadEvent(workspaceId, id);
   },
 
   // ── CRM activities (notes & follow-up tasks) ────────────────────────────────
-  async addActivity(workspaceId, leadId, { user_id = null, kind = 'note', body = '', due_at = null } = {}) {
+  // kind: note, task, or an action taken (call, whatsapp, email, meeting, demo, other).
+  // actor_*: who took the action (for a task, who it is assigned to); acted_at: when it happened.
+  async addActivity(workspaceId, leadId, { user_id = null, kind = 'note', body = '', due_at = null, actor_user_id = null, actor_name = null, acted_at = null } = {}) {
     const now = nowEpoch();
     const [row] = await knex('lead_activities').insert({
       workspace_id: workspaceId, lead_event_id: Number(leadId), user_id,
-      kind: kind === 'task' ? 'task' : 'note', body: String(body || '').slice(0, 2000),
+      kind: ACTIVITY_KINDS.includes(kind) ? kind : 'note', body: String(body || '').slice(0, 2000),
       due_at: due_at ? Number(due_at) : null, created_at: now,
+      actor_user_id: actor_user_id ?? null, actor_name: actor_name ? String(actor_name).slice(0, 120) : null,
+      acted_at: acted_at ? Number(acted_at) : now,
     }).returning('id');
+    await touchLead(knex, workspaceId, leadId);
     return knex('lead_activities').where({ id: row?.id ?? row }).first();
+  },
+  // Edit an entry: only the fields passed change. Scoped to the workspace.
+  async updateActivity(workspaceId, id, patch = {}) {
+    const set = { updated_at: nowEpoch() };
+    if (patch.body !== undefined) set.body = String(patch.body || '').slice(0, 2000);
+    if (patch.kind !== undefined && ACTIVITY_KINDS.includes(patch.kind)) set.kind = patch.kind;
+    if (patch.due_at !== undefined) set.due_at = patch.due_at ? Number(patch.due_at) : null;
+    if (patch.acted_at !== undefined && patch.acted_at) set.acted_at = Number(patch.acted_at);
+    if (patch.actor_user_id !== undefined) { set.actor_user_id = patch.actor_user_id ?? null; set.actor_name = patch.actor_name ? String(patch.actor_name).slice(0, 120) : null; }
+    const n = await knex('lead_activities').where({ workspace_id: workspaceId, id: Number(id) }).update(set);
+    if (!n) return null;
+    const updated = await knex('lead_activities').where({ workspace_id: workspaceId, id: Number(id) }).first();
+    if (updated) await touchLead(knex, workspaceId, updated.lead_event_id);
+    return updated;
+  },
+  // The most recent entry of each lead (for the "Last action" column)
+  async lastActivities(workspaceId, leadIds = []) {
+    if (!leadIds.length) return {};
+    const rows = await knex('lead_activities').where({ workspace_id: workspaceId }).whereIn('lead_event_id', leadIds.map(Number));
+    const stamp = r => Number(r.acted_at || r.created_at || 0);
+    const out = {};
+    for (const r of rows) {
+      const cur = out[r.lead_event_id];
+      if (!cur || stamp(r) > stamp(cur) || (stamp(r) === stamp(cur) && r.id > cur.id)) out[r.lead_event_id] = r;
+    }
+    return out;
   },
   async listActivities(workspaceId, leadId) {
     return knex('lead_activities').where({ workspace_id: workspaceId, lead_event_id: Number(leadId) })

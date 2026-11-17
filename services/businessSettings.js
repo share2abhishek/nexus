@@ -13,8 +13,10 @@ const AI_KEYS = {
   openrouter_key: 'openrouterKey', mistral_key: 'mistralKey', stability_key: 'stabilityKey',
   openai_key: 'openaiKey', luma_key: 'lumaKey', runway_key: 'runwayKey',
 };
-const SMTP_KEYS = ['smtp_host', 'smtp_port', 'smtp_secure', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_from_name'];
-const SECRET = new Set([...Object.keys(AI_KEYS), 'smtp_pass']);
+const SMTP_KEYS = ['smtp_host', 'smtp_port', 'smtp_secure', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_from_name',
+  // Amazon SES through the API with AWS access keys (mail_provider = 'ses_api')
+  'mail_provider', 'ses_access_key_id', 'ses_secret_access_key', 'ses_region'];
+const SECRET = new Set([...Object.keys(AI_KEYS), 'smtp_pass', 'ses_secret_access_key']);
 const ALLOWED = new Set([...Object.keys(AI_KEYS), 'default_text_model', 'ai_source', ...SMTP_KEYS]);
 // Where a business's AI comes from: 'platform' = Radixile's AI included in the plan,
 // 'own' = only the business's own keys (never Radixile's). Unset = own keys first,
@@ -73,6 +75,11 @@ async function save(orgId, values = {}, { userId = null, clear = [] } = {}) {
 // ── What callers use ────────────────────────────────────────────────────────
 // Mail server for a business, in the same shape as the .env one, or null
 function smtpFrom(s) {
+  // Amazon SES with AWS access keys: no mail server, the SES API is used instead
+  if (s.mail_provider === 'ses_api') {
+    if (!s.ses_access_key_id || !s.ses_secret_access_key || !s.ses_region || !s.smtp_from) return null;
+    return { ses: { region: s.ses_region, accessKeyId: s.ses_access_key_id, secretAccessKey: s.ses_secret_access_key }, from: s.smtp_from, fromName: s.smtp_from_name || '' };
+  }
   if (!s.smtp_host || !s.smtp_user || !s.smtp_pass) return null;
   const port = parseInt(s.smtp_port || '587', 10) || 587;
   return {
@@ -161,6 +168,8 @@ function publicView(s) {
     SMTP_HOST: s.smtp_host || '', SMTP_PORT: s.smtp_port || '587', SMTP_USER: s.smtp_user || '',
     SMTP_FROM: s.smtp_from || '', SMTP_FROM_NAME: s.smtp_from_name || '', SMTP_SECURE: s.smtp_secure || '',
     pass_set: !!s.smtp_pass, configured: !!smtpFrom(s),
+    MAIL_PROVIDER: s.mail_provider === 'ses_api' ? 'ses_api' : '',
+    SES_ACCESS_KEY_ID: s.ses_access_key_id || '', SES_REGION: s.ses_region || '', ses_secret_set: !!s.ses_secret_access_key,
   };
   return out;
 }

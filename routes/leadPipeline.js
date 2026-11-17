@@ -177,6 +177,12 @@ module.exports = (knex, requirePermission) => {
       // attach open/overdue task counts for the list and board badges
       const counts = await repo.openTaskCounts(req.workspaceId).catch(() => ({}));
       for (const l of leads) { const c = counts[l.id] || {}; l.open_tasks = c.open || 0; l.overdue_tasks = c.overdue || 0; }
+      // the latest action on each lead: what, who, when (the "Last action" column)
+      const last = await repo.lastActivities(req.workspaceId, leads.map(l => l.id)).catch(() => ({}));
+      for (const l of leads) {
+        const a = last[l.id];
+        l.last_action = a ? { kind: a.kind, body: String(a.body || '').slice(0, 80), by: a.actor_name || null, at: Number(a.acted_at || a.created_at) } : null;
+      }
       res.json(leads);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -236,12 +242,69 @@ module.exports = (knex, requirePermission) => {
     try { res.json(await repo.listActivities(req.workspaceId, Number(req.params.id))); }
     catch (err) { res.status(500).json({ error: err.message }); }
   });
+  // Who can be chosen as "done by" / "assigned to": the people of THIS workspace only
+  async function workspaceTeam(workspaceId) {
+    const rows = await knex('memberships')
+      .join('users', 'users.id', 'memberships.user_id')
+      .where('memberships.workspace_id', workspaceId)
+      .select('users.id as user_id', 'users.name', 'users.email', 'memberships.role', 'memberships.status');
+    return rows.filter(r => !r.status || r.status === 'active')
+      .map(r => ({ user_id: r.user_id, name: r.name || String(r.email || '').split('@')[0] || `User ${r.user_id}`, email: r.email, role: r.role }));
+  }
+  // Who an action is credited to: the logged-in user unless a team member is chosen.
+  // A chosen person must belong to this workspace (never a user of another business).
+  async function resolveActor(req, requestedId) {
+    const me = req.session?.userId ? Number(req.session.userId) : null;
+    const wanted = requestedId === undefined || requestedId === null || requestedId === '' ? me : Number(requestedId);
+    if (!wanted) return { actor_user_id: null, actor_name: null };
+    const team = await workspaceTeam(req.workspaceId);
+    const person = team.find(p => Number(p.user_id) === wanted);
+    if (person) return { actor_user_id: wanted, actor_name: person.name };
+    if (wanted === me) { // single-user setups may have no membership row
+      const u = await knex('users').where({ id: me }).first('name', 'email');
+      return { actor_user_id: me, actor_name: u?.name || String(u?.email || '').split('@')[0] || null };
+    }
+    const e = new Error('That person is not in your team.'); e.status = 400; throw e;
+  }
+  // When it happened: now unless given; never more than a few minutes in the future
+  const actedAt = (v) => {
+    const n = Number(v);
+    const now = Math.floor(Date.now() / 1000);
+    return Number.isFinite(n) && n > 0 ? Math.min(Math.floor(n), now + 300) : now;
+  };
+
+  router.get('/team', requirePermission('content.view'), async (req, res) => {
+    try {
+      const people = await workspaceTeam(req.workspaceId);
+      const meId = req.session?.userId ? Number(req.session.userId) : null;
+      let me = people.find(p => Number(p.user_id) === meId) || null;
+      if (!me && meId) { const u = await knex('users').where({ id: meId }).first('name', 'email'); me = { user_id: meId, name: u?.name || String(u?.email || '').split('@')[0] || 'Me', email: u?.email || null }; }
+      res.json({ me, people: me && !people.some(p => Number(p.user_id) === meId) ? [me, ...people] : people });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
   router.post('/leads/:id/activities', requirePermission('content.edit'), async (req, res) => {
     try {
-      const { kind, body, due_at } = req.body || {};
+      const { kind, body, due_at, actor_user_id, acted_at } = req.body || {};
       if (!body || !String(body).trim()) return res.status(400).json({ error: 'Write something first.' });
-      res.json(await repo.addActivity(req.workspaceId, Number(req.params.id), { user_id: req.session?.userId || null, kind, body, due_at }));
-    } catch (err) { res.status(500).json({ error: err.message }); }
+      const lead = await knex('meta_lead_events').where({ workspace_id: req.workspaceId, id: Number(req.params.id) }).first('id');
+      if (!lead) return res.status(404).json({ error: 'Lead not found.' });
+      const actor = await resolveActor(req, actor_user_id);
+      res.json(await repo.addActivity(req.workspaceId, lead.id, { user_id: req.session?.userId || null, kind, body, due_at, acted_at: actedAt(acted_at), ...actor }));
+    } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+  });
+  // Edit an entry (what, type, who, when, due date)
+  router.put('/activities/:id', requirePermission('content.edit'), async (req, res) => {
+    try {
+      const { kind, body, due_at, actor_user_id, acted_at } = req.body || {};
+      if (body !== undefined && !String(body).trim()) return res.status(400).json({ error: 'Write something first.' });
+      const patch = { kind, body, due_at };
+      if (acted_at) patch.acted_at = actedAt(acted_at);
+      if (actor_user_id !== undefined) Object.assign(patch, await resolveActor(req, actor_user_id));
+      const updated = await repo.updateActivity(req.workspaceId, Number(req.params.id), patch);
+      if (!updated) return res.status(404).json({ error: 'Entry not found.' });
+      res.json(updated);
+    } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
   });
   router.patch('/activities/:id', requirePermission('content.edit'), async (req, res) => {
     try { res.json(await repo.setActivityDone(req.workspaceId, Number(req.params.id), !!req.body?.done)); }
@@ -282,7 +345,11 @@ module.exports = (knex, requirePermission) => {
         .first();
 
       if (!fbAccount) {
-        return res.status(400).json({ error: 'No Facebook account connected for this workspace.' });
+        // Each workspace has its own Facebook connection: it may be connected in another workspace
+        return res.status(400).json({
+          error: 'Facebook is not connected for this workspace. Go to Settings → Connected accounts and connect Facebook here. If you connected it before, check that you are in the same workspace.',
+          code: 'not_connected',
+        });
       }
 
       const token = fbAccount.page_token || fbAccount.access_token;
@@ -356,7 +423,12 @@ module.exports = (knex, requirePermission) => {
       }
 
       // 3. Fetch active ads and campaigns for the connected ad accounts
-      const adAccIds = ['act_853936970934065', 'act_292683348'];
+      // This business's own ad accounts (chosen in Meta Reports), never another business's
+      let adAccIds = [];
+      try {
+        const own = await knex('meta_lead_configs').where({ workspace_id: req.workspaceId }).first('meta_ad_account_ids');
+        adAccIds = JSON.parse(own?.meta_ad_account_ids || '[]').filter(x => /^act_\d+$/.test(String(x)));
+      } catch { adAccIds = []; }
       const realCampaigns = [];
       const realAds = [];
 

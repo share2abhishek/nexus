@@ -306,7 +306,9 @@ async function syncRealMetaLeads() {
     await loadLeadPipeline();
   } catch (err) {
     console.error('[Lead Pipeline] Real sync error:', err);
-    toast(err.message || 'Error syncing with Meta Graph API', 'error');
+    toast(err.message || 'Error syncing with Meta Graph API', 'error', 8000);
+    // Facebook is not connected here: take them to where it is connected
+    if (/Facebook is not connected/i.test(err.message || '') && typeof navigateTo === 'function') setTimeout(() => navigateTo('settings'), 1200);
   } finally {
     if (btn) {
       btn.disabled = false;
@@ -470,7 +472,7 @@ function renderLeadsTable(searchFilter = '') {
   if (!filtered.length) {
     container.innerHTML = `
       <tr>
-        <td colspan="6" style="text-align:center;padding:48px 16px;color:var(--text-muted)">
+        <td colspan="8" style="text-align:center;padding:48px 16px;color:var(--text-muted)">
           <div style="font-size:32px;margin-bottom:8px">🔍</div>
           <div style="font-weight:700;font-size:15px;color:var(--text-primary)">No Matching Contacts Found</div>
           <div style="font-size:13px;margin-top:4px">Try adjusting your search query or click "+ Add Contact" to create one.</div>
@@ -516,6 +518,11 @@ function renderLeadsTable(searchFilter = '') {
         <td style="padding:12px 16px">
           <span style="font-size:11.5px;font-weight:700;color:var(--text-secondary)">${escapeHtml(l.source || 'AD')}</span>
         </td>
+        <td style="padding:12px 16px;white-space:nowrap">
+          <div style="font-size:12.5px;font-weight:600">${escapeHtml(crmDate(l.created_at))}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${escapeHtml(crmTime(l.created_at))}</div>
+        </td>
+        <td style="padding:12px 16px;min-width:170px">${renderLastAction(l)}</td>
         <td style="padding:12px 16px;text-align:right">
           <div style="display:inline-flex;gap:6px;align-items:center">
             ${l.phone_number ? `
@@ -1075,13 +1082,21 @@ function viewLeadDetails(id) {
             "${escapeHtml(lead.suggested_reply || 'Follow up promptly.')}"
           </div>
           <hr style="border:0;border-top:1px solid var(--border);margin:14px 0"/>
-          <h4 style="margin-bottom:8px">🗒️ Activity &amp; Tasks</h4>
-          <div class="crm-activity-add">
-            <input type="text" id="act-body-${lead.id}" class="form-input" placeholder="Add a note, or a follow-up task…" onkeydown="if(event.key==='Enter')addLeadActivity(${lead.id},'note')" style="width:100%;margin-bottom:6px" />
-            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-              <button class="btn btn-secondary btn-sm" onclick="addLeadActivity(${lead.id},'note')">+ Note</button>
-              <input type="date" id="act-due-${lead.id}" class="form-input" style="width:auto;padding:4px 8px;font-size:12px" title="Task due date" />
-              <button class="btn btn-secondary btn-sm" onclick="addLeadActivity(${lead.id},'task')">+ Task</button>
+          <h4 style="margin-bottom:8px">🗒️ Activity, actions &amp; tasks</h4>
+          <div class="crm-activity-add" style="display:grid;gap:8px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <label style="flex:1;min-width:130px"><span class="form-hint">What happened</span>
+                <select id="act-kind-${lead.id}" class="form-select" onchange="onActKindChange(${lead.id})">${actKindOptions('call')}</select></label>
+              <label style="flex:1;min-width:160px"><span class="form-hint" id="act-who-label-${lead.id}">Done by</span>
+                <select id="act-who-${lead.id}" class="form-select"><option value="">Me</option></select></label>
+              <label style="flex:1;min-width:190px"><span class="form-hint">When</span>
+                <input type="datetime-local" id="act-when-${lead.id}" class="form-input" value="${actNowLocal()}" /></label>
+            </div>
+            <input type="text" id="act-body-${lead.id}" class="form-input" placeholder="What was done, or what needs doing…" onkeydown="if(event.key==='Enter')addLeadActivity(${lead.id})" style="width:100%" />
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <label id="act-due-wrap-${lead.id}" style="display:none"><span class="form-hint">Due date</span>
+                <input type="date" id="act-due-${lead.id}" class="form-input" style="width:auto;padding:4px 8px;font-size:12px" /></label>
+              <button class="btn btn-primary btn-sm" onclick="addLeadActivity(${lead.id})" style="margin-left:auto">+ Add to timeline</button>
             </div>
           </div>
           <div id="lead-activity-list-${lead.id}" class="crm-activity-list" style="margin-top:12px"><div style="color:var(--text-muted);font-size:13px">Loading…</div></div>
@@ -1107,16 +1122,70 @@ function viewLeadDetails(id) {
   `;
 
   document.body.insertAdjacentHTML('beforeend', modalHtml);
+  fillActorSelect(`act-who-${id}`);
   loadLeadActivities(id);
 }
 
 /* ─── CRM activities (notes & tasks) ──────────────────────────────────────── */
 
+// What can be logged. "task" is a to-do assigned to someone; the rest are things already done.
+const ACT_KINDS = {
+  call: ['📞', 'Call'], whatsapp: ['💬', 'WhatsApp'], email: ['✉️', 'Email'], meeting: ['🤝', 'Meeting'],
+  demo: ['🖥️', 'Demo'], note: ['🗒️', 'Note'], task: ['✔', 'Task (to do)'], other: ['•', 'Other'],
+};
+function actKindOptions(selected) {
+  return Object.entries(ACT_KINDS).map(([k, [icon, label]]) => `<option value="${k}" ${k === selected ? 'selected' : ''}>${icon} ${label}</option>`).join('');
+}
+const toMs = (s) => { const n = Number(s); return !n ? 0 : (n > 1e12 ? n : n * 1000); };
+function crmDate(s) { const ms = toMs(s); return ms ? new Date(ms).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'; }
+function crmTime(s) { const ms = toMs(s); return ms ? new Date(ms).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) : ''; }
+function crmDateTime(s) { return `${crmDate(s)}, ${crmTime(s)}`; }
+// value for <input type="datetime-local"> in the user's own timezone
+function actLocalValue(sec) { const d = sec ? new Date(toMs(sec)) : new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); }
+function actNowLocal() { return actLocalValue(null); }
+function actFromLocal(v) { const ms = v ? new Date(v).getTime() : Date.now(); return Math.floor((Number.isFinite(ms) ? ms : Date.now()) / 1000); }
+
+// The "Last action" cell in the Contacts table
+function renderLastAction(l) {
+  const a = l.last_action;
+  const btn = `<button type="button" class="btn btn-secondary btn-sm qa-open" onclick="openQuickAction(${l.id}, this)" title="Log an action" style="font-size:11px;padding:1px 8px;margin-top:4px">＋ Log</button>`;
+  if (!a) return '<span style="color:var(--text-muted);font-size:12px">No action yet</span><br>' + btn;
+  const [icon, label] = ACT_KINDS[a.kind] || ACT_KINDS.other;
+  return `<div style="font-size:12.5px;font-weight:600">${icon} ${escapeHtml(label.replace(' (to do)', ''))}${a.by ? ` · ${escapeHtml(a.by)}` : ''}</div>
+    <div style="font-size:11px;color:var(--text-muted)">${escapeHtml(crmDateTime(a.at))}</div>${btn}`;
+}
+
+// People of this workspace for "Done by" / "Assign to". The logged-in user comes first and is the default.
+let LeadTeamCache = null;
+async function loadLeadTeam() {
+  if (LeadTeamCache) return LeadTeamCache;
+  try { LeadTeamCache = await api('GET', '/api/lead-pipeline/team'); }
+  catch { LeadTeamCache = { me: null, people: [] }; }
+  return LeadTeamCache;
+}
+async function fillActorSelect(selectId, selectedUserId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const team = await loadLeadTeam();
+  const meId = team.me ? Number(team.me.user_id) : null;
+  const people = (team.people || []).slice().sort((a, b) => (Number(b.user_id) === meId) - (Number(a.user_id) === meId));
+  sel.innerHTML = people.length
+    ? people.map(p => `<option value="${Number(p.user_id)}" ${Number(p.user_id) === Number(selectedUserId || meId) ? 'selected' : ''}>${escapeHtml(p.name)}${Number(p.user_id) === meId ? ' (me)' : ''}</option>`).join('')
+    : '<option value="">Me</option>';
+}
+function onActKindChange(leadId) {
+  const isTask = document.getElementById(`act-kind-${leadId}`)?.value === 'task';
+  const due = document.getElementById(`act-due-wrap-${leadId}`); if (due) due.style.display = isTask ? '' : 'none';
+  const lbl = document.getElementById(`act-who-label-${leadId}`); if (lbl) lbl.textContent = isTask ? 'Assign to' : 'Done by';
+}
+
+let LeadActivityCache = {};
 async function loadLeadActivities(leadId) {
   const box = document.getElementById(`lead-activity-list-${leadId}`);
   if (!box) return;
   try {
     const items = await api('GET', `/api/lead-pipeline/leads/${leadId}/activities`);
+    LeadActivityCache[leadId] = Array.isArray(items) ? items : [];
     renderLeadActivities(leadId, Array.isArray(items) ? items : []);
   } catch (err) {
     box.innerHTML = `<div style="color:#ef4444;font-size:13px">${escapeHtml(err.message || 'Could not load activity')}</div>`;
@@ -1126,44 +1195,154 @@ async function loadLeadActivities(leadId) {
 function renderLeadActivities(leadId, items) {
   const box = document.getElementById(`lead-activity-list-${leadId}`);
   if (!box) return;
-  if (!items.length) { box.innerHTML = '<div style="color:var(--text-muted);font-size:13px">No notes or tasks yet.</div>'; return; }
+  if (!items.length) { box.innerHTML = '<div style="color:var(--text-muted);font-size:13px">Nothing logged yet. Add a call, message, meeting, note or task above.</div>'; return; }
   const now = Math.floor(Date.now() / 1000);
-  const fmt = (s) => s ? new Date(s * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
+  const fmt = (s) => s ? new Date(toMs(s)).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
   box.innerHTML = items.map((a) => {
     const isTask = a.kind === 'task';
     const done = !!a.done_at;
     const overdue = isTask && !done && a.due_at && Number(a.due_at) < now;
     const due = a.due_at ? `<span class="crm-act-due ${overdue ? 'overdue' : ''}">${overdue ? 'overdue · ' : 'due '}${fmt(a.due_at)}</span>` : '';
+    const [icon, label] = ACT_KINDS[a.kind] || ACT_KINDS.other;
     const check = isTask
       ? `<input type="checkbox" ${done ? 'checked' : ''} onchange="toggleLeadTask(${leadId},${a.id},this.checked)" title="Mark done" style="margin-top:2px;cursor:pointer" />`
-      : '<span style="width:14px;display:inline-block">•</span>';
-    return `<div class="crm-act ${done ? 'done' : ''}">
+      : `<span style="width:18px;display:inline-block" title="${escapeHtml(label)}">${icon}</span>`;
+    const who = a.actor_name ? `${isTask ? 'Assigned to' : 'By'} <b>${escapeHtml(a.actor_name)}</b> · ` : '';
+    const edited = a.updated_at ? ' · edited' : '';
+    return `<div class="crm-act ${done ? 'done' : ''}" id="act-row-${a.id}">
       ${check}
       <div class="crm-act-main">
         <div class="crm-act-body">${escapeHtml(a.body || '')}</div>
-        <div class="crm-act-meta">${isTask ? '✔ Task' : 'Note'} · ${fmt(a.created_at)} ${due}</div>
+        <div class="crm-act-meta">${icon} ${escapeHtml(label)} · ${who}${escapeHtml(crmDateTime(a.acted_at || a.created_at))}${edited} ${due}</div>
       </div>
+      <button class="crm-act-del" title="Edit" onclick="startInlineActivityEdit(${leadId},${a.id})">✎</button>
       <button class="crm-act-del" title="Delete" onclick="deleteLeadActivity(${leadId},${a.id})">✕</button>
     </div>`;
   }).join('');
 }
 
-async function addLeadActivity(leadId, kind) {
+async function addLeadActivity(leadId) {
   const body = (document.getElementById(`act-body-${leadId}`)?.value || '').trim();
-  if (!body) { toast('Write something first.', 'info'); return; }
+  if (!body) { toast('Write what was done first.', 'info'); return; }
+  const kind = document.getElementById(`act-kind-${leadId}`)?.value || 'note';
+  const actor = document.getElementById(`act-who-${leadId}`)?.value;
+  const acted_at = actFromLocal(document.getElementById(`act-when-${leadId}`)?.value);
   let due_at = null;
   if (kind === 'task') {
     const d = document.getElementById(`act-due-${leadId}`)?.value;
     due_at = d ? Math.floor(new Date(d + 'T18:00:00').getTime() / 1000) : null;
   }
   try {
-    await api('POST', `/api/lead-pipeline/leads/${leadId}/activities`, { kind, body, due_at });
+    await api('POST', `/api/lead-pipeline/leads/${leadId}/activities`, { kind, body, due_at, acted_at, actor_user_id: actor ? Number(actor) : undefined });
     const inp = document.getElementById(`act-body-${leadId}`); if (inp) inp.value = '';
     const due = document.getElementById(`act-due-${leadId}`); if (due) due.value = '';
+    const when = document.getElementById(`act-when-${leadId}`); if (when) when.value = actNowLocal();
     loadLeadActivities(leadId);
+    refreshLeadLastAction(leadId);
     if (kind === 'task') bumpLeadTaskBadge(leadId, 1);
   } catch (err) { toast(err.message || 'Could not save', 'error'); }
 }
+
+// Keep the Contacts table's "Last action" in step without a full reload
+async function refreshLeadLastAction(leadId) {
+  try {
+    const items = await api('GET', `/api/lead-pipeline/leads/${leadId}/activities`);
+    const a = (items || []).slice().sort((x, y) => Number(y.acted_at || y.created_at) - Number(x.acted_at || x.created_at))[0];
+    const lead = (LeadPipelineState.leads || []).find((l) => l.id === leadId);
+    if (lead) {
+      lead.last_action = a ? { kind: a.kind, body: String(a.body || '').slice(0, 80), by: a.actor_name || null, at: Number(a.acted_at || a.created_at) } : null;
+      renderLeadsTable();
+    }
+  } catch { /* the table refreshes on the next load */ }
+}
+
+// Edit an entry in place: the entry turns into small fields; Save or Cancel
+function cancelInlineActivity(leadId) { renderLeadActivities(leadId, LeadActivityCache[leadId] || []); }
+function openEditActivityModal(leadId, actId) { startInlineActivityEdit(leadId, actId); } // kept for older buttons
+async function startInlineActivityEdit(leadId, actId) {
+  const a = (LeadActivityCache[leadId] || []).find((x) => x.id === actId);
+  const row = document.getElementById(`act-row-${actId}`);
+  if (!a || !row) return;
+  const dueVal = a.due_at ? new Date(toMs(a.due_at)).toISOString().slice(0, 10) : '';
+  row.innerHTML = `
+    <div style="flex:1;display:grid;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <select id="ea-kind-${actId}" class="form-select" style="flex:1;min-width:120px" onchange="document.getElementById('ea-due-${actId}').style.display=this.value==='task'?'':'none'">${actKindOptions(a.kind)}</select>
+        <select id="ea-who-${actId}" class="form-select" style="flex:1;min-width:130px" title="Done by / assigned to"></select>
+        <input type="datetime-local" id="ea-when-${actId}" class="form-input" style="flex:1;min-width:170px" value="${actLocalValue(a.acted_at || a.created_at)}" />
+      </div>
+      <input type="text" id="ea-body-${actId}" class="form-input" maxlength="2000" value="${escapeHtml(a.body || '')}" onkeydown="if(event.key==='Enter')saveInlineActivity(${leadId},${actId});if(event.key==='Escape')cancelInlineActivity(${leadId})" />
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <input type="date" id="ea-due-${actId}" class="form-input" style="width:auto;padding:4px 8px;font-size:12px;${a.kind === 'task' ? '' : 'display:none'}" value="${dueVal}" title="Due date" />
+        <button class="btn btn-primary btn-sm" onclick="saveInlineActivity(${leadId},${actId})" style="margin-left:auto">Save</button>
+        <button class="btn btn-secondary btn-sm" onclick="cancelInlineActivity(${leadId})">Cancel</button>
+      </div>
+    </div>`;
+  fillActorSelect(`ea-who-${actId}`, a.actor_user_id);
+  document.getElementById(`ea-body-${actId}`)?.focus();
+}
+async function saveInlineActivity(leadId, actId) {
+  const body = (document.getElementById(`ea-body-${actId}`)?.value || '').trim();
+  if (!body) { toast('Details can not be empty.', 'info'); return; }
+  const who = document.getElementById(`ea-who-${actId}`)?.value;
+  const kind = document.getElementById(`ea-kind-${actId}`)?.value;
+  const due = kind === 'task' ? document.getElementById(`ea-due-${actId}`)?.value : '';
+  try {
+    await api('PUT', `/api/lead-pipeline/activities/${actId}`, {
+      kind, body,
+      actor_user_id: who ? Number(who) : undefined,
+      acted_at: actFromLocal(document.getElementById(`ea-when-${actId}`)?.value),
+      due_at: due ? Math.floor(new Date(due + 'T18:00:00').getTime() / 1000) : null,
+    });
+    toast('Entry updated.', 'success');
+    loadLeadActivities(leadId);
+    refreshLeadLastAction(leadId);
+  } catch (err) { toast(err.message || 'Could not update', 'error'); }
+}
+
+// Quick log from the Contacts table: a small box next to the row, no need to open Details
+function closeQuickAction() { document.getElementById('quick-action-pop')?.remove(); }
+async function openQuickAction(leadId, btn) {
+  closeQuickAction();
+  const r = btn.getBoundingClientRect();
+  const left = Math.max(8, Math.min(r.left, window.innerWidth - 336));
+  const top = Math.max(8, Math.min(r.bottom + 6, window.innerHeight - 280));
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="quick-action-pop" class="card" style="position:fixed;left:${left}px;top:${top}px;width:320px;z-index:99999;box-shadow:0 12px 32px rgba(0,0,0,.28);padding:12px;display:grid;gap:8px" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:13px">Log an action</b>
+        <button class="crm-act-del" onclick="closeQuickAction()" aria-label="Close">✕</button></div>
+      <div style="display:flex;gap:6px">
+        <select id="qa-kind" class="form-select" style="flex:1" onchange="document.getElementById('qa-who-label').textContent=this.value==='task'?'Assign to':'Done by'">${actKindOptions('call')}</select>
+        <select id="qa-who" class="form-select" style="flex:1" title="Done by"></select>
+      </div>
+      <span class="form-hint" id="qa-who-label" style="margin:0">Done by</span>
+      <input type="text" id="qa-body" class="form-input" maxlength="2000" placeholder="What was done…" onkeydown="if(event.key==='Enter')saveQuickAction(${leadId});if(event.key==='Escape')closeQuickAction()" />
+      <input type="datetime-local" id="qa-when" class="form-input" value="${actNowLocal()}" />
+      <div style="display:flex;justify-content:flex-end;gap:6px"><button class="btn btn-secondary btn-sm" onclick="closeQuickAction()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveQuickAction(${leadId})">Save</button></div>
+    </div>`);
+  fillActorSelect('qa-who');
+  document.getElementById('qa-body')?.focus();
+}
+async function saveQuickAction(leadId) {
+  const body = (document.getElementById('qa-body')?.value || '').trim();
+  if (!body) { toast('Write what was done first.', 'info'); return; }
+  const who = document.getElementById('qa-who')?.value;
+  try {
+    await api('POST', `/api/lead-pipeline/leads/${leadId}/activities`, {
+      kind: document.getElementById('qa-kind')?.value || 'note', body,
+      acted_at: actFromLocal(document.getElementById('qa-when')?.value),
+      actor_user_id: who ? Number(who) : undefined,
+    });
+    closeQuickAction();
+    toast('Action saved.', 'success');
+    refreshLeadLastAction(leadId);
+  } catch (err) { toast(err.message || 'Could not save', 'error'); }
+}
+document.addEventListener('click', (e) => {
+  const t = e.target;
+  if (t && t.closest && !t.closest('#quick-action-pop') && !t.closest('.qa-open')) closeQuickAction();
+});
 
 async function toggleLeadTask(leadId, actId, done) {
   try { await api('PATCH', `/api/lead-pipeline/activities/${actId}`, { done }); loadLeadActivities(leadId); bumpLeadTaskBadge(leadId, done ? -1 : 1); }
@@ -1171,7 +1350,7 @@ async function toggleLeadTask(leadId, actId, done) {
 }
 
 async function deleteLeadActivity(leadId, actId) {
-  try { await api('DELETE', `/api/lead-pipeline/activities/${actId}`); loadLeadActivities(leadId); }
+  try { await api('DELETE', `/api/lead-pipeline/activities/${actId}`); loadLeadActivities(leadId); refreshLeadLastAction(leadId); }
   catch (err) { toast(err.message || 'Could not delete', 'error'); }
 }
 

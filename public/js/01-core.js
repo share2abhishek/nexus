@@ -50,6 +50,8 @@ const PAGE_META = {
   'leads-inbox':     { title: 'WhatsApp · Chats',      subtitle: 'Reply to customers on WhatsApp and Messenger' },
   'leads-bot':       { title: 'WhatsApp · Auto-replies', subtitle: 'Answer customers automatically, day and night' },
   'ai-knowledge-base': { title: 'AI Chat Knowledge Base', subtitle: 'Train & manage what your AI chatbot knows across WhatsApp & Website Live Chat' },
+  'contact-sync':    { title: 'Contact Sync', subtitle: 'Send your contacts automatically to a Google Sheet and Salesforce' },
+  'meta-reports':    { title: 'Meta Reports', subtitle: 'Ad account balance, ad spend and WhatsApp analytics from Meta' },
   'leads-templates': { title: 'WhatsApp · Templates', subtitle: 'Approved messages for broadcasts and first contact' },
   'leads-broadcast': { title: 'WhatsApp · Broadcasts', subtitle: 'Send one message to many contacts' },
   'leads-settings':  { title: 'WhatsApp · Setup',      subtitle: 'Connect your WhatsApp Business number' },
@@ -160,7 +162,7 @@ function navigateTo(page) {
   }
 
   // Keep Ad Leads & CRM submenu open when on any of its split screens
-  const isLeadPage = ['lead-ads', 'leads-contacts', 'leads-inbox', 'leads-bot', 'ai-knowledge-base', 'leads-templates', 'leads-broadcast', 'leads-settings'].includes(page);
+  const isLeadPage = ['lead-ads', 'leads-contacts', 'leads-inbox', 'leads-bot', 'ai-knowledge-base', 'meta-reports', 'contact-sync', 'leads-templates', 'leads-broadcast', 'leads-settings'].includes(page);
   const submenu = document.getElementById('sub-nav-lead-ads');
   const chevron = document.getElementById('chevron-lead-ads');
   if (isLeadPage) {
@@ -177,6 +179,8 @@ function navigateTo(page) {
       'leads-inbox': 'nav-sub-leads-inbox',
       'leads-bot': 'nav-sub-leads-bot',
       'ai-knowledge-base': 'nav-sub-ai-knowledge-base',
+      'meta-reports': 'nav-sub-meta-reports',
+      'contact-sync': 'nav-sub-contact-sync',
       'leads-templates': 'nav-sub-leads-templates',
       'leads-broadcast': 'nav-sub-leads-broadcast',
       'leads-settings': 'nav-sub-leads-settings',
@@ -245,6 +249,8 @@ function navigateTo(page) {
       if (typeof window.loadLeadPipeline === 'function') window.loadLeadPipeline();
       if (typeof window.loadAiKnowledgeBase === 'function') window.loadAiKnowledgeBase();
     },
+    'contact-sync': () => (typeof window.loadContactSync === 'function' ? window.loadContactSync() : null),
+    'meta-reports': () => (typeof window.loadMetaReports === 'function' ? window.loadMetaReports() : null),
     'leads-settings':   () => (typeof window.loadLeadPipeline === 'function' ? window.loadLeadPipeline() : null),
     brand:     () => (typeof window.loadBrandKit === 'function' ? window.loadBrandKit() : (typeof loadBrandKit === 'function' ? loadBrandKit() : null)),
     // Server edition: open on the Autopilot tab the first time

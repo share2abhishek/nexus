@@ -26,6 +26,12 @@ Pages you will be asked for (already on the licence server):
    - `instagram_basic`, `instagram_content_publish` — post to Instagram
    - `read_insights`, `instagram_manage_insights` — analytics and client reports
    - `pages_manage_engagement`, `instagram_manage_comments` — first comment and replying to comments from the Inbox (include in the FIRST submission: one-click customers can't reply without them)
+   - `ads_read` — Meta Reports: ad account balance, spend and leads (asked only when the customer
+     clicks "Reconnect Facebook with ads access"; needs the **Marketing API** product on the app).
+     Screen recording: open Meta Reports, choose an ad account, show balance and spend.
+   - `whatsapp_business_management` — Meta Reports: WhatsApp message counts, cost and number
+     quality. Customers paste a system-user token that carries it (no sign-in screen), so it is
+     needed on the app that owns the WhatsApp Business Account. Not asked at Facebook login.
    - Don't ask for `pages_messaging` yet (private messages aren't used); unused permissions hurt the review.
 4. For each permission: a short explanation and a **screen recording** showing it in
    Social-Nexus (connect a test Page, write a post, publish, show it on Facebook).

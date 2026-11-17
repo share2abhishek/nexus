@@ -107,6 +107,89 @@ async function hasTable(knex) {
   }
 }
 
+// ── Organise pasted notes into titled sections (no AI, instant) ──────────────
+// A heading is a short line that ends with ":" or "-", is written in CAPITALS, or starts
+// with "#". Text with no headings is cut at blank lines into pieces of about 1,200
+// characters. Each section can then be edited or deleted on its own.
+const MAX_SECTIONS = 50;
+const SECTION_CONTENT_MAX = 5000;
+
+function headingOf(line) {
+  const t = String(line || '').trim().replace(/^["“”']+|["“”']+$/g, '').trim();
+  if (!t || t.length > 60 || /[.!?]$/.test(t)) return null;
+  const md = t.match(/^#{1,6}\s+(.+)$/);
+  if (md) return md[1].trim();
+  const colon = t.match(/^([\p{L}\p{N}][\p{L}\p{N}\s&/()'’,+]{1,58}?)\s*[:\-–—]+$/u);
+  if (colon) return colon[1].trim();
+  const letters = t.replace(/[^\p{L}]/gu, '');
+  if (letters.length >= 3 && letters === letters.toUpperCase() && letters !== letters.toLowerCase() && t.length <= 50) return t;
+  return null;
+}
+
+function splitNotes(text) {
+  const src = String(text || '').replace(/\r\n?/g, '\n').slice(0, 60000).trim();
+  if (!src) return [];
+  const lines = src.split('\n');
+  let sections = [];
+  let cur = { title: 'Overview', lines: [] };
+  let sawHeading = false;
+  for (const line of lines) {
+    const h = headingOf(line);
+    if (h) {
+      sawHeading = true;
+      if (cur.lines.some(l => l.trim())) sections.push(cur);
+      cur = { title: h, lines: [] };
+    } else {
+      cur.lines.push(line);
+    }
+  }
+  if (cur.lines.some(l => l.trim())) sections.push(cur);
+
+  if (!sawHeading) {
+    sections = [];
+    let buf = [];
+    let len = 0;
+    const flush = () => {
+      const body = buf.join('\n\n').trim();
+      if (body) sections.push({ title: body.split('\n')[0].slice(0, 60), lines: body.split('\n') });
+      buf = []; len = 0;
+    };
+    for (const p of src.split(/\n{2,}/)) {
+      if (len && len + p.length > 1200) flush();
+      buf.push(p.trim()); len += p.length;
+    }
+    flush();
+  }
+
+  // Build clean {title, content}; fold very small pieces into the one before
+  const out = [];
+  for (const s of sections) {
+    const content = s.lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (!content) continue;
+    const title = String(s.title || 'Notes').slice(0, 100);
+    if (content.length < 25 && out.length) {
+      out[out.length - 1].content += `\n${title}: ${content}`;
+      continue;
+    }
+    out.push({ title, content });
+  }
+
+  // A section longer than the limit is cut into numbered parts
+  const parts = [];
+  for (const s of out) {
+    if (s.content.length <= SECTION_CONTENT_MAX) { parts.push(s); continue; }
+    for (let i = 0, n = 1; i < s.content.length; i += SECTION_CONTENT_MAX, n++) {
+      parts.push({ title: `${s.title} (${n})`.slice(0, 100), content: s.content.slice(i, i + SECTION_CONTENT_MAX) });
+    }
+  }
+  // Never more than the limit: the rest joins the last section
+  if (parts.length > MAX_SECTIONS) {
+    const rest = parts.splice(MAX_SECTIONS - 1);
+    parts.push({ title: 'More notes', content: rest.map(r => `${r.title}\n${r.content}`).join('\n\n').slice(0, SECTION_CONTENT_MAX) });
+  }
+  return parts;
+}
+
 // Retrieve or seed workspace Knowledge Base
 async function getKnowledgeBase(knex, workspaceId) {
   const tableReady = await hasTable(knex);
@@ -229,10 +312,10 @@ async function saveKnowledgeBase(knex, workspaceId, userId, payload = {}) {
     enabled: f.enabled !== false,
   })).filter(f => f.question && f.answer);
 
-  const documents = (Array.isArray(payload.documents) ? payload.documents : []).slice(0, 20).map((d, idx) => ({
+  const documents = (Array.isArray(payload.documents) ? payload.documents : []).slice(0, MAX_SECTIONS).map((d, idx) => ({
     id: d.id || `doc_${Date.now()}_${idx}`,
     title: String(d.title || 'Untitled Document').trim().slice(0, 100),
-    content: String(d.content || '').trim().slice(0, 5000),
+    content: String(d.content || '').trim().slice(0, SECTION_CONTENT_MAX),
     updated_at: now(),
   })).filter(d => d.content);
 
@@ -300,6 +383,7 @@ async function saveKnowledgeBase(knex, workspaceId, userId, payload = {}) {
     console.warn('[KnowledgeBase] Could not sync to whatsapp_bot_settings:', err.message);
   }
 
+  require('./kbRetrieval').invalidate(workspaceId); // the bot uses the new notes right away
   return getKnowledgeBase(knex, workspaceId);
 }
 
@@ -357,6 +441,11 @@ async function simulateChat(knex, workspaceId, userId, { message = '', visitorNa
 
   const historyLines = (Array.isArray(history) ? history.slice(-6) : []).map(h => `${h.role === 'user' ? 'Customer' : 'Assistant'}: ${h.text}`).join('\n');
 
+  // Same as the live bot: only the notes that relate to the question go to the AI
+  const kbr = require('./kbRetrieval');
+  const loaded = await kbr.loadKnowledge(knex, workspaceId);
+  const contextText = kbr.selectContext(loaded?.sections?.length ? loaded.sections : kbr.sectionsFromText(kb.compiled_knowledge), message);
+
   const prompt = `${await brandContext(workspaceId, knex)}
 You are ${persona.name || 'AI Assistant'}, representing ${brand.company_name || 'this business'}.
 ${toneInstructions}
@@ -365,7 +454,7 @@ ${strictnessRule}
 ${persona.custom_instructions ? `SPECIAL INSTRUCTIONS:\n${persona.custom_instructions}\n` : ''}
 
 === BUSINESS KNOWLEDGE BASE ===
-${kb.compiled_knowledge || 'No business knowledge entered yet.'}
+${contextText || 'No business knowledge entered yet.'}
 
 ${historyLines ? `=== RECENT CONVERSATION ===\n${historyLines}\n` : ''}
 Customer (${visitorName}): """${String(message).slice(0, 1000)}"""
@@ -533,6 +622,7 @@ module.exports = {
   DEFAULT_FACTS,
   DEFAULT_FAQS,
   compileKnowledge,
+  splitNotes,
   getKnowledgeBase,
   saveKnowledgeBase,
   simulateChat,

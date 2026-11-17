@@ -299,37 +299,42 @@ async function businessName(db, workspaceId) {
 // AI answer for "anything else", with the owner's replies as the only facts.
 // Uses the keys of the person who turned AI answers on, or the workspace manager.
 async function aiAnswer(db, workspaceId, userId, cfg, msg) {
-  // A public chat can be spammed: cap the AI answers per business per day (the plain
-  // rule-based replies keep working). services/aiQuota.js
-  if (!require('../aiQuota').consumeBot(workspaceId)) throw new Error('The daily limit of AI answers was reached.');
+  const kbr = require('../kbRetrieval');
   const { injectUserKeys } = require('../../middleware/auth');
   const { aiGenerate, aiArgsFromReq } = require('../aiHelper');
   const { brandContext } = require('../brandContext');
-  const req = { session: { userId }, workspaceId, body: {} };
-  await new Promise((resolve, reject) => injectUserKeys(req, null, (err) => (err ? reject(err) : resolve())));
-  const { apiKey, options } = aiArgsFromReq(req);
 
-  // Check if there is an active knowledge base with compiled knowledge & persona
-  let kb = (cfg.knowledge || '').trim();
-  let persona = null;
-  try {
-    if (await db.schema.hasTable('ai_knowledge_bases')) {
-      const kbRow = await db('ai_knowledge_bases').where({ workspace_id: workspaceId }).first();
-      if (kbRow) {
-        if (kbRow.compiled_knowledge && kbRow.compiled_knowledge.trim()) {
-          kb = kbRow.compiled_knowledge.trim();
-        }
-        if (kbRow.persona_json) {
-          try { persona = JSON.parse(kbRow.persona_json); } catch {}
-        }
-      }
-    }
-  } catch {}
+  // The knowledge base is read once a minute per business, not on every message
+  const loaded = await kbr.loadKnowledge(db, workspaceId);
+  const persona = loaded?.persona || null;
+
+  // 1. A saved FAQ answers straight away, with no AI call and no AI quota used
+  const faq = kbr.bestFaq(loaded?.faqs, msg.text);
+  if (faq) return String(faq.answer).trim().slice(0, LIMITS.text);
 
   const facts = [
     ...cfg.menu.options.filter(o => o.reply).map(o => `${o.label}: ${o.reply}`),
     ...cfg.keywords.filter(r => r.reply && !r.handover).map(r => `${r.keywords.join('/')}: ${r.reply}`),
   ].join('\n');
+
+  // 2. The same question asked recently reuses the answer
+  const cacheKey = kbr.answerKey(workspaceId, loaded?.stamp || 'cfg', facts, msg.text);
+  const cached = kbr.getCachedAnswer(cacheKey);
+  if (cached) return cached;
+
+  // A public chat can be spammed: cap the AI answers per business per day (the plain
+  // rule-based replies keep working). services/aiQuota.js
+  if (!require('../aiQuota').consumeBot(workspaceId)) throw new Error('The daily limit of AI answers was reached.');
+
+  // 3. Only the part of the knowledge that relates to the question goes to the AI
+  const sections = loaded?.sections?.length ? loaded.sections : kbr.sectionsFromText((cfg.knowledge || '').trim());
+  const kb = kbr.selectContext(sections, msg.text);
+
+  const req = { session: { userId }, workspaceId, body: {} };
+  const keysReady = new Promise((resolve, reject) => injectUserKeys(req, null, (err) => (err ? reject(err) : resolve())));
+  keysReady.catch(() => {}); // awaited below; this stops an early return leaving it unhandled
+  const brandReady = brandContext(workspaceId, db);
+  brandReady.catch(() => {});
 
   const toneRule = persona?.tone === 'professional' ? 'Tone: Professional, crisp, and polite.'
     : persona?.tone === 'casual' ? 'Tone: Friendly, conversational, and casual.'
@@ -353,7 +358,8 @@ async function aiAnswer(db, workspaceId, userId, cfg, msg) {
     console.warn('[WhatsApp bot] A message that tries to change the bot’s instructions was not sent to the AI.');
     const e = new Error('screened'); e.code = 'AI_SCREENED'; throw e;
   }
-  const brand = await brandContext(workspaceId, db);
+  const [brand] = await Promise.all([brandReady, keysReady]);
+  const { apiKey, options } = aiArgsFromReq(req);
   const customer = safety.fence('CUSTOMER', msg.text, 1000);
   const prompt = `${brand}
 You reply to a customer on WhatsApp for ${safety.oneLine(msg.business || 'this business', 80)}.
@@ -376,6 +382,7 @@ Reply:`;
   // number the business didn't write itself
   const checked = safety.screenReply(raw, { allowed: [facts, kb, brand].join('\n'), max: LIMITS.text });
   if (checked.blocked) { const e = new Error('screened'); e.code = 'AI_SCREENED'; throw e; }
+  kbr.setCachedAnswer(cacheKey, checked.text);
   return checked.text;
 }
 

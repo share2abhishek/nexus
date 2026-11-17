@@ -460,21 +460,57 @@ function renderPersonaTab() {
 }
 
 // 4. Raw Notes & Documents Tab
+function renderKbSectionsHtml() {
+  const docs = KbState.data.documents || [];
+  const rows = docs.map(doc => {
+    const preview = String(doc.content || '').replace(/\s+/g, ' ').slice(0, 160);
+    return `
+      <div class="card" style="padding:12px 14px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start;justify-content:space-between">
+        <div style="min-width:0;flex:1">
+          <div style="font-weight:700;font-size:14px">${escapeHtml(doc.title || 'Untitled')}</div>
+          <div style="color:var(--text-muted);font-size:12.5px;margin-top:3px;overflow-wrap:anywhere">${escapeHtml(preview)}${String(doc.content || '').length > 160 ? '…' : ''}</div>
+          <div style="color:var(--text-muted);font-size:11px;margin-top:4px">${String(doc.content || '').length.toLocaleString()} characters</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-secondary btn-sm" onclick="openEditSectionModal('${escapeHtml(doc.id)}')">Edit</button>
+          <button class="btn btn-secondary btn-sm" style="color:var(--danger,#dc2626)" onclick="deleteSection('${escapeHtml(doc.id)}')">Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+  return `
+    <div style="margin-top:22px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;flex-wrap:wrap">
+        <div style="font-weight:700">📑 Organised sections <span class="kb-tab-badge">${docs.length}</span></div>
+        <button class="btn btn-secondary btn-sm" onclick="openAddSectionModal()">+ Add section</button>
+      </div>
+      ${rows || '<div class="form-hint">No sections yet. Paste or upload your notes above and click <b>Organise into sections</b>.</div>'}
+    </div>`;
+}
+
 function renderDocumentsTab() {
   const d = KbState.data;
+  const hasRaw = !!String(d.raw_text || '').trim();
 
   return `
     <div class="kb-docs-container">
       <div class="form-hint" style="margin-bottom:14px">
-        Have existing policy docs, price sheets, or rough notes? Paste them below. Click <b>"✨ Clean &amp; Format with AI"</b> to automatically extract structured FAQs and business facts!
+        Paste your notes or upload a text file (.txt, .md, .csv), then click <b>"📑 Organise into sections"</b>. Each section is listed below and you can edit or delete it. Or use <b>"✨ Clean &amp; Structure with AI"</b> to extract FAQs and business facts.
+        ${hasRaw ? '<br><b>You have saved notes that are not organised yet.</b> Click Organise into sections to split them.' : ''}
       </div>
+
 
       <div class="form-group">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <label class="form-label" style="margin-bottom:0">📋 Raw Business Notes / Document Text</label>
-          <button class="btn btn-secondary btn-sm" onclick="runAiFormatNotes()" ${KbState.isFormattingNotes ? 'disabled' : ''}>
-            ${KbState.isFormattingNotes ? '<span class="spinner sm"></span> Structuring…' : '✨ Clean &amp; Structure with AI'}
-          </button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0">📎 Upload file
+              <input type="file" accept=".txt,.md,.csv,.text,text/plain,text/markdown,text/csv" style="display:none" onchange="handleKbNotesFile(event)" />
+            </label>
+            <button class="btn btn-primary btn-sm" onclick="organiseKbNotes()">📑 Organise into sections</button>
+            <button class="btn btn-secondary btn-sm" onclick="runAiFormatNotes()" ${KbState.isFormattingNotes ? 'disabled' : ''}>
+              ${KbState.isFormattingNotes ? '<span class="spinner sm"></span> Structuring…' : '✨ Clean &amp; Structure with AI'}
+            </button>
+          </div>
         </div>
         <textarea class="form-textarea" id="kb-raw-text" rows="12" placeholder="Paste your company policies, FAQs, product sheets, price lists, or raw notes here..." onchange="markKbDirty()">${escapeHtml(d.raw_text || '')}</textarea>
       </div>
@@ -484,8 +520,10 @@ function renderDocumentsTab() {
           <button class="btn btn-secondary btn-sm" onclick="exportKbFile('json')">Export as JSON</button>
           <button class="btn btn-secondary btn-sm" onclick="exportKbFile('csv')">Export as CSV</button>
         </div>
-        <button class="btn btn-primary" onclick="saveActiveKnowledgeBase()">Save Raw Knowledge</button>
+        <button class="btn btn-primary" onclick="saveRawKnowledge()">Save Raw Knowledge</button>
       </div>
+
+      ${renderKbSectionsHtml()}
     </div>
   `;
 }
@@ -853,6 +891,124 @@ async function executeAiGenerateFaqs() {
   } finally {
     if (btn) btn.innerHTML = '✨ Generate FAQs';
   }
+}
+
+// ── Organised sections: split pasted notes, then edit or delete each one ────────
+
+// Upload a small text file: its text goes into the notes box and is organised
+async function handleKbNotesFile(e) {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  if (file.size > 200 * 1024) { toast('That file is too large (200 KB max). Split it into smaller files.', 'error'); return; }
+  if (!/\.(txt|md|csv|text)$/i.test(file.name) && !/^text\//.test(file.type)) {
+    toast('Only text files (.txt, .md, .csv) can be uploaded. For PDF or Word, copy the text and paste it here.', 'error');
+    return;
+  }
+  try {
+    const text = await file.text();
+    const box = document.getElementById('kb-raw-text');
+    if (box) box.value = (box.value ? box.value + '\n\n' : '') + text;
+    await organiseKbNotes();
+  } catch (err) {
+    toast(`Could not read that file: ${err.message}`, 'error');
+  }
+}
+
+// Save: any notes in the box are saved as organised sections, shown right below
+async function saveRawKnowledge() {
+  const text = (document.getElementById('kb-raw-text')?.value || '').trim();
+  if (text) return organiseKbNotes();
+  return saveActiveKnowledgeBase();
+}
+
+async function organiseKbNotes() {
+  const text = (document.getElementById('kb-raw-text')?.value ?? KbState.data.raw_text ?? '').trim();
+  if (!text) { toast('Paste or upload some notes first.', 'error'); return; }
+  try {
+    const res = await api('POST', '/api/knowledge-base/split-notes', { text });
+    const sections = Array.isArray(res?.sections) ? res.sections : [];
+    if (!sections.length) { toast('Nothing to organise in that text.', 'error'); return; }
+    const stamp = Date.now();
+    const added = sections.map((s, i) => ({ id: `doc_${stamp}_${i}`, title: s.title, content: s.content }));
+    KbState.data.documents = [...(KbState.data.documents || []), ...added].slice(0, 50);
+    KbState.data.raw_text = ''; // the text now lives in the sections: no second copy
+    renderAiKnowledgeBase();
+    await saveActiveKnowledgeBase();
+    toast(`Organised into ${added.length} section${added.length === 1 ? '' : 's'}. Edit or delete any of them below.`, 'success');
+  } catch (err) {
+    toast(`Could not organise the notes: ${err.message}`, 'error');
+  }
+}
+
+function closeSectionModal() {
+  const m = document.getElementById('kb-modal-section');
+  if (m) m.remove();
+}
+
+function renderSectionModal(title, item = {}) {
+  closeSectionModal();
+  const isEdit = !!item.id;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="modal-overlay kb-modal-overlay" id="kb-modal-section" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);z-index:99999;align-items:center;justify-content:center;padding:16px;box-sizing:border-box" onclick="if(event.target===this)closeSectionModal()">
+      <div class="card" style="width:100%;max-width:620px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden" onclick="event.stopPropagation()">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)">
+          <div class="card-title" style="margin:0;font-size:16px;font-weight:700">📑 ${title}</div>
+          <button class="btn btn-ghost btn-sm" onclick="closeSectionModal()" style="font-size:18px;line-height:1;padding:4px 8px" aria-label="Close">✕</button>
+        </div>
+        <form class="card-body" onsubmit="handleSaveSectionModal(event)" style="padding:20px">
+          <div class="form-group">
+            <label class="form-label">Title</label>
+            <input type="text" id="modal-sec-title" class="form-input" value="${escapeHtml(item.title || '')}" required maxlength="100" placeholder="e.g. Flooring" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Content</label>
+            <textarea id="modal-sec-content" class="form-textarea" rows="10" required maxlength="5000" placeholder="The facts the AI may use to answer customers...">${escapeHtml(item.content || '')}</textarea>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+            <button type="button" class="btn btn-secondary" onclick="closeSectionModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary">${isEdit ? 'Update section' : 'Add section'}</button>
+          </div>
+        </form>
+      </div>
+    </div>`);
+  document.getElementById('modal-sec-title')?.focus();
+}
+
+function openAddSectionModal() { KbState.editingSection = null; renderSectionModal('Add section'); }
+
+function openEditSectionModal(id) {
+  const item = (KbState.data.documents || []).find(x => x.id === id);
+  if (!item) return;
+  KbState.editingSection = item.id;
+  renderSectionModal('Edit section', item);
+}
+
+async function handleSaveSectionModal(e) {
+  e.preventDefault();
+  const title = (document.getElementById('modal-sec-title')?.value || '').trim();
+  const content = (document.getElementById('modal-sec-content')?.value || '').trim();
+  if (!title || !content) { toast('Please fill in the title and the content.', 'error'); return; }
+  const docs = KbState.data.documents = KbState.data.documents || [];
+  const editing = KbState.editingSection;
+  const item = editing ? docs.find(x => x.id === editing) : null;
+  if (item) { item.title = title; item.content = content; }
+  else {
+    if (docs.length >= 50) { toast('You can keep up to 50 sections. Delete one first.', 'error'); return; }
+    docs.push({ id: `doc_${Date.now()}`, title, content });
+  }
+  closeSectionModal();
+  renderAiKnowledgeBase();
+  await saveActiveKnowledgeBase();
+}
+
+async function deleteSection(id) {
+  const item = (KbState.data.documents || []).find(x => x.id === id);
+  if (!item) return;
+  if (!confirm(`Delete the section "${item.title}"? The AI will stop using it.`)) return;
+  KbState.data.documents = KbState.data.documents.filter(x => x.id !== id);
+  renderAiKnowledgeBase();
+  await saveActiveKnowledgeBase();
 }
 
 // ── AI Clean & Format Notes ───────────────────────────────────────────────────

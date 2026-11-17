@@ -517,6 +517,8 @@ const SMTP_PRESETS = [
     tip: 'Use the mailbox address. Your Microsoft 365 admin must allow <b>Authenticated SMTP</b> for this mailbox, and “security defaults” can block it. If sign-in keeps failing, ask your admin or use an app password.', link: ['https://learn.microsoft.com/exchange/clients-and-mobile-in-exchange-online/authenticated-client-smtp-submission', 'How to allow it'] },
   { id: 'ses', label: 'Amazon SES (AWS)', host: 'email-smtp.{region}.amazonaws.com', port: 587, security: 'starttls', region: 'ap-south-1', needsFrom: true, userLabel: 'SMTP username', passLabel: 'SMTP password',
     tip: 'Create <b>SMTP credentials</b> in the SES console (SMTP settings): they are not your AWS access keys. The “Send as” address or its domain must be <b>verified</b> in SES, and a new SES account is in the “sandbox” (it can only email verified addresses until you ask AWS for production access). Pick the same region you verified in.', link: ['https://console.aws.amazon.com/ses/home#/smtp', 'Open SES SMTP settings'] },
+  { id: 'ses-api', label: 'Amazon SES (AWS access keys)', api: true, region: 'ap-south-1', needsFrom: true, userLabel: 'AWS Access Key ID', passLabel: 'AWS Secret Access Key',
+    tip: 'Send through the Amazon SES API with an AWS <b>access key</b>: no SMTP login and no mail-server port. In AWS IAM create a user with the permission <b>ses:SendEmail</b> and make an access key for it. The “Send as” address or its domain must be <b>verified</b> in SES in the region you pick, and a new SES account is in the “sandbox” (it can only email verified addresses until you ask AWS for production access).', link: ['https://console.aws.amazon.com/iam/home#/users', 'Open AWS IAM users'] },
   { id: 'workspace', label: 'Google Workspace', host: 'smtp.gmail.com', port: 587, security: 'starttls', userLabel: 'Your work email address', passLabel: 'App password',
     tip: 'Same as Gmail: use an <b>app password</b>. Your Workspace admin may need to allow app passwords.', link: ['https://support.google.com/a/answer/176600', 'Google’s guide'] },
   { id: 'yahoo', label: 'Yahoo Mail', host: 'smtp.mail.yahoo.com', port: 587, security: 'starttls', userLabel: 'Your Yahoo address', passLabel: 'App password',
@@ -593,13 +595,16 @@ function smtpPickProvider(id, { keepValues = false } = {}) {
   const sel = document.getElementById('smtp-provider');
   if (sel) sel.value = id;
   smtpShowTip(p);
+  smtpSetApiMode(!!p.api);
   if (regionGroup) regionGroup.hidden = !p.region;
   text('smtp-user-label', p.userLabel || 'Your email address');
   text('smtp-pass-label', p.passLabel || 'Password or app password');
   text('smtp-from-label', p.needsFrom ? 'Send as (required: a verified address)' : 'Send as (optional)');
   const user = document.getElementById('smtp-user');
   if (user) user.placeholder = p.user || (p.userLabel && /email|address/i.test(p.userLabel) ? 'you@yourbusiness.com' : (p.userLabel || ''));
-  if (!keepValues && !p.custom) {
+  if (!keepValues && p.api) {
+    set('smtp-region', document.getElementById('smtp-region').value || p.region);
+  } else if (!keepValues && !p.custom) {
     if (p.region) set('smtp-region', document.getElementById('smtp-region').value || p.region);
     set('smtp-host', smtpHostFor(p, document.getElementById('smtp-region')?.value));
     set('smtp-port', p.port);
@@ -618,7 +623,23 @@ function smtpMarkCustom() {
   const sel = document.getElementById('smtp-provider');
   if (sel && detected && sel.value !== detected && !(sel.value === 'workspace' && detected === 'gmail')) sel.value = detected;
 }
+// Amazon SES with AWS access keys needs no mail server, port or security: hide them, and
+// start with empty key fields when switching between the two ways (they mean different things)
+function smtpSetApiMode(on) {
+  for (const id of ['smtp-host', 'smtp-port', 'smtp-security']) {
+    const g = document.getElementById(id)?.closest('.form-group');
+    if (g) g.hidden = on;
+  }
+  if (State.smtpApiMode !== undefined && State.smtpApiMode !== on) {
+    const u = document.getElementById('smtp-user'); if (u) u.value = '';
+    const pw = document.getElementById('smtp-pass'); if (pw) { pw.value = ''; pw.placeholder = on ? 'AWS Secret Access Key' : 'App password'; }
+  }
+  State.smtpApiMode = on;
+}
+function smtpIsApi() { return document.getElementById('smtp-provider')?.value === 'ses-api'; }
+
 function smtpRegionChanged() {
+  if (smtpIsApi()) return; // no mail server to fill in
   const p = smtpPresetById('ses');
   document.getElementById('smtp-host').value = smtpHostFor(p, document.getElementById('smtp-region').value);
 }
@@ -632,6 +653,7 @@ function smtpPortChanged() {
 
 async function loadSMTPSettings() {
   smtpBuildProviderList();
+  State.smtpApiMode = undefined; // loading what is saved must not clear the fields it fills in
   if (State.server) setEl('smtp-panel-desc', 'Needed only for the Email and Sales outreach screens. These settings are for your whole business: emails go from this address for everyone on your team.');
   try {
     const s = await api('GET', '/api/config/smtp');
@@ -641,6 +663,16 @@ async function loadSMTPSettings() {
     set('smtp-security', s.SMTP_SECURE === 'true' ? 'ssl' : (s.SMTP_SECURE === 'false' ? 'starttls' : (Number(s.SMTP_PORT) === 465 ? 'ssl' : 'starttls')));
     const pass = document.getElementById('smtp-pass');
     if (pass) { pass.value = ''; pass.placeholder = s.pass_set ? 'Saved — leave empty to keep it' : 'App password'; }
+    if (s.MAIL_PROVIDER === 'ses_api') {
+      // Saved with AWS access keys: show the keys form (the secret is never sent back)
+      const r = document.getElementById('smtp-region'); if (r) r.value = s.SES_REGION || 'ap-south-1';
+      smtpPickProvider('ses-api', { keepValues: true });
+      const u = document.getElementById('smtp-user'); if (u) u.value = s.SES_ACCESS_KEY_ID || '';
+      if (pass) pass.placeholder = s.ses_secret_set ? 'Saved — leave empty to keep it' : 'AWS Secret Access Key';
+      State.smtpReady = !!s.configured;
+      updateSettingsNavStatus();
+      return;
+    }
     // Show the provider the saved server belongs to (and keep what was saved)
     const detected = smtpDetectProvider(s.SMTP_HOST);
     if (detected) {
@@ -664,7 +696,14 @@ async function loadSMTPSettings() {
 function smtpFormValues() {
   const val = id => document.getElementById(id).value.trim();
   const user = val('smtp-user');
+  if (smtpIsApi()) {
+    return {
+      MAIL_PROVIDER: 'ses_api', SES_ACCESS_KEY_ID: user, SES_SECRET_ACCESS_KEY: document.getElementById('smtp-pass').value.trim(),
+      SES_REGION: val('smtp-region'), SMTP_FROM: val('smtp-from'), SMTP_FROM_NAME: val('smtp-from-name'),
+    };
+  }
   return {
+    MAIL_PROVIDER: '', // a normal mail server (switches back from AWS keys if that was saved)
     SMTP_HOST: val('smtp-host'), SMTP_PORT: val('smtp-port') || '587', SMTP_SECURE: val('smtp-security') || 'starttls', SMTP_USER: user,
     SMTP_PASS: document.getElementById('smtp-pass').value, // spaces can be part of an app password
     SMTP_FROM: val('smtp-from') || (user.includes('@') ? user : ''), SMTP_FROM_NAME: val('smtp-from-name'),
@@ -672,6 +711,12 @@ function smtpFormValues() {
 }
 
 function smtpProblem(v) {
+  if (v.MAIL_PROVIDER === 'ses_api') {
+    if (!v.SES_ACCESS_KEY_ID) return 'Fill in the AWS Access Key ID.';
+    if (!v.SES_REGION) return 'Choose the AWS region where you verified your sender.';
+    if (!v.SMTP_FROM) return 'Fill in “Send as” with an email address you verified in Amazon SES.';
+    return '';
+  }
   if (!v.SMTP_USER || !v.SMTP_HOST) return 'Fill in your email address (or username) and the mail server.';
   if (!v.SMTP_FROM) return 'This provider’s username isn’t an email address, so fill in “Send as” with the address emails should come from.';
   return '';
@@ -688,7 +733,8 @@ async function testSMTPSettings(btn, sendToMe) {
   try {
     const r = await api('POST', '/api/config/smtp/test', { ...v, send_to_me: !!sendToMe });
     if (!r) return;
-    if (r.ok) show(true, sendToMe ? `✓ It works. A test email was sent to <b>${escapeHtml(r.to || 'you')}</b>: check the inbox (and spam folder).` : '✓ Connected and signed in. Press <b>Save email settings</b> to keep them.');
+    if (r.ok && v.MAIL_PROVIDER === 'ses_api' && !sendToMe) show(true, '✓ Amazon SES accepted the keys and your “Send as” address. Press <b>Save email settings</b> to keep them.');
+    else if (r.ok) show(true, sendToMe ? `✓ It works. A test email was sent to <b>${escapeHtml(r.to || 'you')}</b>: check the inbox (and spam folder).` : '✓ Connected and signed in. Press <b>Save email settings</b> to keep them.');
     else show(false, escapeHtml(r.error || 'The test did not work.'));
   } catch (err) { show(false, escapeHtml(err.message)); }
   finally { if (btn) btn.disabled = false; }
@@ -1207,6 +1253,12 @@ function handleURLParams() {
     window.history.replaceState({}, '', '/');
     return;
   }
+  if (connected === 'google_sheets') {
+    toast('Google is connected. Now create your sheet.', 'success', 7000);
+    window.history.replaceState({}, '', '/');
+    if (typeof navigateTo === 'function') navigateTo('contact-sync');
+    return;
+  }
   if (connected) {
     toast(`${PLATFORMS[connected]?.label || connected} is connected.`, 'success');
     openSettings('platforms'); // show the result where the user started
@@ -1229,7 +1281,7 @@ function handleURLParams() {
       twitter_denied: 'Twitter authorization was denied',
       twitter_failed: 'Twitter connection failed',
       google_denied: 'Google sign-in was cancelled',
-      google_failed: 'Google connection failed — check the Client ID and secret on the Google Business card',
+      google_failed: 'Google connection failed — check the Client ID and secret on the Google Business card (for Contact Sync, also turn on the Google Sheets API)',
       oauth_state_invalid: 'Sign-in link expired or was not started from NexaDrip — please try connecting again',
       not_available: 'Posting to this platform is not available yet in NexaDrip.',
       instagram_not_found: 'Facebook is connected, but no Instagram account is linked to your Facebook Page. In Instagram, switch to a Business or Creator account and link it to the Page, then click Connect on the Instagram card again.',

@@ -9,6 +9,12 @@ function nowEpoch() {
 
 function getSmtpConfig() {
   const { SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM, SMTP_FROM_NAME, SMTP_PORT, SMTP_SECURE } = process.env;
+  // Amazon SES with AWS access keys (Settings → Email sending)
+  if (process.env.MAIL_PROVIDER === 'ses_api') {
+    const { SES_ACCESS_KEY_ID, SES_SECRET_ACCESS_KEY, SES_REGION } = process.env;
+    if (!SES_ACCESS_KEY_ID || !SES_SECRET_ACCESS_KEY || !SES_REGION || !SMTP_FROM) return null;
+    return { ses: { region: SES_REGION, accessKeyId: SES_ACCESS_KEY_ID, secretAccessKey: SES_SECRET_ACCESS_KEY }, from: SMTP_FROM, fromName: SMTP_FROM_NAME || '' };
+  }
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
     return null;
   }
@@ -35,7 +41,7 @@ async function sendOutreachEmail({ to, subject, body, fromName, fromEmail, works
     throw new Error('SMTP mailer not configured. Please enter your mail server details in Settings → Email.');
   }
 
-  const transporter = nodemailer.createTransport(await require('../smtpSettings').connectionOptions(config));
+  const transporter = await require('../smtpSettings').createTransport(config);
 
   const sender = `${fromName || config.fromName} <${fromEmail || config.from}>`;
   const footerText = `\n\n---\nTo opt out of future emails, reply with "unsubscribe".`;

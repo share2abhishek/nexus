@@ -178,8 +178,11 @@ router.get('/facebook', async (req, res) => {
     // Instagram product, which would also block plain Facebook Page posting.
     // read_insights: reach numbers in Analytics; pages_manage_engagement: first comment
     scope: 'public_profile,email,pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_posts,pages_manage_engagement,read_insights,business_management' +
-      (req.query.instagram === '1' ? ',instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights' : ''),
-    state: issueState(req, 'facebook', startWs, { instagram: req.query.instagram === '1' }),
+      (req.query.instagram === '1' ? ',instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights' : '') +
+      // ads_read: ad account balance, spend and reports (Meta Reports). Only asked for on
+      // request (?ads=1): Facebook refuses the whole sign-in if the app has no Marketing API.
+      (req.query.ads === '1' ? ',ads_read' : ''),
+    state: issueState(req, 'facebook', startWs, { instagram: req.query.instagram === '1', ads: req.query.ads === '1' }),
   });
   res.redirect(url);
 });
@@ -366,11 +369,15 @@ router.get('/google', async (req, res) => {
     // Browser navigation, not an API call: send the user back with a readable message
     return res.redirect('/?error=not_configured&platform=google');
   }
-  const scopes = [
-    'https://www.googleapis.com/auth/userinfo.profile',
-    'https://www.googleapis.com/auth/userinfo.email',
-    'https://www.googleapis.com/auth/business.manage',
-  ].join(' ');
+  const sheets = req.query.sheets === '1';
+  // sheets=1: Contact auto-sync. Only files NEXUS itself creates (drive.file), nothing else in Drive.
+  const scopes = (sheets
+    ? ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/userinfo.email']
+    : [
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/business.manage',
+    ]).join(' ');
 
   const url = buildOAuthUrl('https://accounts.google.com/o/oauth2/v2/auth', {
     client_id: process.env.GOOGLE_OAUTH_CLIENT_ID,
@@ -379,7 +386,7 @@ router.get('/google', async (req, res) => {
     scope: scopes,
     access_type: 'offline',
     prompt: 'consent',
-    state: issueState(req, 'google', startWs),
+    state: issueState(req, 'google', startWs, { sheets }),
   });
   res.redirect(url);
 });
@@ -402,6 +409,16 @@ router.get('/google/callback', async (req, res) => {
       grant_type: 'authorization_code',
     });
 
+    if (savedState.sheets) {
+      // Contact auto-sync: keep only the renewable login, encrypted, for this workspace
+      let email = null;
+      try { email = (await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: `Bearer ${tokenRes.data.access_token}` }, timeout: 10000 })).data.email || null; } catch { /* optional */ }
+      if (!tokenRes.data.refresh_token) return res.redirect('/?error=google_failed');
+      const cs = require('../services/contactSync');
+      await cs.ensureConfig(knexInstance, wsId);
+      await knexInstance('contact_sync_configs').where({ workspace_id: wsId }).update({ google_refresh_token: cs.seal(tokenRes.data.refresh_token), google_email: email, last_google_error: null, updated_at: Math.floor(Date.now() / 1000) });
+      return res.redirect('/?connected=google_sheets');
+    }
     const done = await connectAccounts.completeGoogle(knexInstance, wsId, tokenRes.data);
     // Tell the screen what happened with the Business Profile part
     const q = new URLSearchParams({ connected: 'google_business' });

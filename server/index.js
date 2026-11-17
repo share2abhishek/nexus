@@ -241,6 +241,8 @@ app.use('/api/content', requireAuth, withWorkspace, injectUserKeys, require('../
 app.use('/api/post-extras', requireAuth, withWorkspace, require('../routes/postExtras')(knex, requirePermission)); // signatures, post sets, RSS feeds
 app.use('/api/sellbird', requireAuth, withWorkspace, injectUserKeys, require('../routes/sellbird')(knex, requirePermission));
 app.use('/api/lead-pipeline', requireAuth, withWorkspace, injectUserKeys, require('../routes/leadPipeline')(knex, requirePermission));
+app.use('/api/meta-reports', requireAuth, withWorkspace, require('../routes/metaReports')(knex, requirePermission));
+app.use('/api/contact-sync', requireAuth, withWorkspace, require('../routes/contactSync')(knex, requirePermission));
 app.use('/api/knowledge-base', requireAuth, withWorkspace, injectUserKeys, require('../routes/knowledgeBase')(knex, requirePermission));
 
 // ── Tenancy Routes ────────────────────────────────────────────────────────────
@@ -366,6 +368,7 @@ async function bootstrap() {
     require('../services/rss').start(knex); // blog / news feeds → new posts
     require('../services/leadPipeline/broadcast').recoverInterrupted(knex).catch(() => {}); // broadcasts cut off by a restart
     require('../services/inbox').start(knex); // new comments on published posts
+    require('../services/contactSync').start(knex); // new and changed contacts → Google Sheet / Salesforce
     require('../services/companion').start(knex); // phone companion summaries and actions
     require('../services/cloudPosting').start(knex); // PC-off safety net (paid editions)
     require('../services/billing').start(); // server edition: keeps business plans in step with billing

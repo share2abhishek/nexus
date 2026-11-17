@@ -175,6 +175,12 @@
               <span class="nav-label">AI Knowledge Base</span>
               <span class="nav-badge-ai" style="margin-left:auto;font-size:10px;padding:1px 6px;background:rgba(124,58,237,0.18);color:#a855f7;border-radius:10px;font-weight:700">AI</span>
             </a>
+            <a class="nav-sub-item" data-page="contact-sync" id="nav-sub-contact-sync" href="javascript:void(0)" onclick="navigateTo('contact-sync')">
+              <span class="nav-label">Contact Sync</span>
+            </a>
+            <a class="nav-sub-item" data-page="meta-reports" id="nav-sub-meta-reports" href="javascript:void(0)" onclick="navigateTo('meta-reports')">
+              <span class="nav-label">Meta Reports</span>
+            </a>
             <a class="nav-sub-item" data-page="leads-broadcast" id="nav-sub-leads-broadcast" href="javascript:void(0)" onclick="navigateTo('leads-broadcast')">
               <span class="nav-label">Broadcasts</span>
             </a>
@@ -3237,7 +3243,7 @@
               <span>+ Add Lead</span>
             </button>
             <button class="btn btn-secondary" onclick="loadCrmPipeline()" title="Refresh Pipeline" style="height:40px;width:40px;padding:0;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);display:flex;align-items:center;justify-content:center">
-              <svg class="ico" aria-hidden="true"><use href="icons/sprite.svg#i-rotate-cw"/></svg>
+              <svg class="ico" aria-hidden="true"><use href="icons/sprite.svg#i-refresh-cw"/></svg>
             </button>
           </div>
         </div>
@@ -3338,7 +3344,7 @@
                 <span>🔄 Sync Meta Leads</span>
               </button>
               <button class="btn btn-secondary btn-sm" onclick="loadLeadPipeline()" title="Refresh Leads">
-                <svg class="ico" aria-hidden="true"><use href="icons/sprite.svg#i-rotate-cw"/></svg>
+                <svg class="ico" aria-hidden="true"><use href="icons/sprite.svg#i-refresh-cw"/></svg>
               </button>
               <button id="btn-clear-dummy-leads" onclick="cleanDummyLeads()" style="display:none" aria-hidden="true"></button>
               <button id="btn-simulate-lead" onclick="simulateTestLead()" style="display:none" aria-hidden="true"></button>
@@ -3395,6 +3401,8 @@
                   <th style="padding:12px 16px;font-size:12.5px;font-weight:700;color:var(--text-secondary);text-align:left">Mobile Number</th>
                   <th style="padding:12px 16px;font-size:12.5px;font-weight:700;color:var(--text-secondary);text-align:left">Tags</th>
                   <th style="padding:12px 16px;font-size:12.5px;font-weight:700;color:var(--text-secondary);text-align:left">Source</th>
+                  <th style="padding:12px 16px;font-size:12.5px;font-weight:700;color:var(--text-secondary);text-align:left">Added</th>
+                  <th style="padding:12px 16px;font-size:12.5px;font-weight:700;color:var(--text-secondary);text-align:left">Last action</th>
                   <th style="padding:12px 16px;font-size:12.5px;font-weight:700;color:var(--text-secondary);text-align:right">Actions</th>
                 </tr>
               </thead>
@@ -3752,6 +3760,16 @@
     <!-- ── AI Chat Knowledge Base ────────────────────────────────────────── -->
     <section class="page" id="page-ai-knowledge-base">
       <div id="kb-root"><div class="state-loading"><span class="spinner lg"></span><div>Loading AI Chat Knowledge Base…</div></div></div>
+    </section>
+
+    <!-- ── Contact Sync ─────────────────────────────────────────────────── -->
+    <section class="page" id="page-contact-sync">
+      <div id="cs-root"><div class="state-loading"><span class="spinner lg"></span><div>Loading Contact Sync…</div></div></div>
+    </section>
+
+    <!-- ── Meta Reports ──────────────────────────────────────────────────── -->
+    <section class="page" id="page-meta-reports">
+      <div id="mr-root"><div class="state-loading"><span class="spinner lg"></span><div>Loading Meta Reports…</div></div></div>
     </section>
 
     <!-- ── Blog & news feeds (RSS) ─────────────────────────────────────── -->
@@ -4481,16 +4499,18 @@
 <script src="js/10-media-and-more.js"></script>
 <script src="js/12-sellbird.js"></script>
 
-<script src="js/13-lead-pipeline.js?v=2.2.0"></script>
+<script src="js/13-lead-pipeline.js?v=2.2.2"></script>
 <script src="js/14-whatsapp-bot.js?v=2.2.0"></script>
 <script src="js/15-post-designer.js?v=2.2.0"></script>
 <script src="js/16-whatsapp-templates.js?v=2.2.0"></script>
 <script src="js/17-whatsapp-broadcast.js?v=2.2.0"></script>
 <script src="js/18-post-extras.js?v=2.2.0"></script>
 <script src="js/19-seo-autopilot.js?v=2.2.0"></script>
-<script src="js/20-ai-knowledge-base.js?v=2.2.1"></script>
+<script src="js/20-ai-knowledge-base.js?v=2.2.2"></script>
 <script src="js/21-guidance.js?v=2.2.1"></script>
 <script src="js/22-help-chat-admin.js?v=2.2.1"></script>
+<script src="js/23-meta-reports.js?v=2.2.2"></script>
+<script src="js/24-contact-sync.js?v=2.2.2"></script>
 
 <!-- ── Modal: 7-Step Meta Business Verification & Official Blue/Green Tick Hub ── -->
 <div class="modal" id="modal-meta-verification" style="display:none">

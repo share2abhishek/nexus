@@ -103,4 +103,98 @@ async function test(cfg, { to, fromName } = {}) {
   }
 }
 
-module.exports = { normalize, assertAllowedHost, connectionOptions, explain, test };
+// ── Amazon SES with AWS access keys (the SES API instead of an SMTP login) ─────
+// config.ses = { region, accessKeyId, secretAccessKey }. The address is always AWS's own for
+// the chosen region, never typed by the user, so there is no mail server to guard.
+const SES_REGION_RE = /^[a-z]{2}(-[a-z]+)+-\d{1,2}$/;
+const SES_KEY_ID_RE = /^[A-Z0-9]{16,128}$/;
+const SES_SECRET_RE = /^[A-Za-z0-9/+=]{30,128}$/;
+const EMAIL_RE = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
+
+// Clean and check the keys and region. Throws a readable error.
+function normalizeSes({ region, accessKeyId, secretAccessKey } = {}) {
+  const r = String(region || '').trim().toLowerCase();
+  if (!SES_REGION_RE.test(r)) throw fail('Choose the AWS region where you verified your sender (for example ap-south-1).');
+  const k = String(accessKeyId || '').trim();
+  if (!SES_KEY_ID_RE.test(k)) throw fail('The Access Key ID looks like AKIAIOSFODNN7EXAMPLE (letters and numbers only, no spaces).');
+  const s = String(secretAccessKey || '').trim();
+  if (!SES_SECRET_RE.test(s)) throw fail('The Secret Access Key is about 40 characters of letters, numbers, + and /. Check you copied all of it.');
+  return { region: r, accessKeyId: k, secretAccessKey: s };
+}
+
+function sesClient(ses) {
+  const { SESv2Client } = require('@aws-sdk/client-sesv2');
+  return new SESv2Client({
+    region: ses.region,
+    credentials: { accessKeyId: ses.accessKeyId, secretAccessKey: ses.secretAccessKey },
+    maxAttempts: 2,
+    requestHandler: { requestTimeout: 15000, connectionTimeout: 10000 },
+  });
+}
+
+// A nodemailer transport for either way of sending, so every caller just uses sendMail().
+async function createTransport(config) {
+  if (config && config.ses) {
+    const { SendEmailCommand } = require('@aws-sdk/client-sesv2');
+    return nodemailer.createTransport({ SES: { sesClient: sesClient(config.ses), SendEmailCommand } });
+  }
+  return nodemailer.createTransport(await connectionOptions(config));
+}
+
+// What AWS said, in plain words, with what to try
+function explainSes(err, ses = {}) {
+  const name = String(err?.name || err?.Code || '');
+  const msg = String(err?.message || err || '');
+  const where = ses.region ? ` in ${ses.region}` : '';
+  if (/^(UnrecognizedClientException|InvalidClientTokenId|InvalidSignatureException|SignatureDoesNotMatch|IncompleteSignature|InvalidAccessKeyId)$/.test(name) || /security token.*invalid|signature we calculated|invalid.*access key/i.test(msg)) {
+    return 'AWS did not accept the Access Key ID or Secret Access Key. Check both, and that the key is active (AWS console → IAM → your user → Security credentials).';
+  }
+  if (name === 'AccessDeniedException' || /not authorized to perform|is not authorized/i.test(msg)) {
+    return 'The keys are valid but are not allowed to send email. In AWS IAM give the user the permission ses:SendEmail (for example the policy AmazonSESFullAccess).';
+  }
+  if (name === 'MessageRejected' || /not verified|sandbox/i.test(msg)) {
+    if (/not verified/i.test(msg)) return `Amazon SES refused it because an address is not verified${where}. The “Send as” address (or its domain) must be verified in SES → Verified identities in this same region. While your SES account is in the sandbox, the person you email must be verified too.`;
+    return `Amazon SES refused the message${where}: ${msg.split('\n')[0].slice(0, 160)}`;
+  }
+  if (name === 'MailFromDomainNotVerifiedException') return 'The MAIL FROM domain of this sender is not verified in SES. Finish the domain setup in SES → Verified identities.';
+  if (name === 'AccountSuspendedException') return 'Amazon has suspended sending for this SES account. Open the SES console or contact AWS support.';
+  if (name === 'SendingPausedException') return 'Sending is paused for this SES account or sender. Open the SES console to resume it.';
+  if (name === 'TooManyRequestsException' || name === 'LimitExceededException') return 'You reached your Amazon SES sending limit. Wait a little, or ask AWS for a higher limit.';
+  if (name === 'NotFoundException') return `Amazon SES could not find that sender${where}. Check the region matches where you verified it.`;
+  if (/ENOTFOUND|ETIMEDOUT|ECONNREFUSED|EAI_AGAIN|TimeoutError|socket hang up|getaddrinfo/i.test(`${name} ${msg} ${err?.code || ''}`)) {
+    return `Could not reach Amazon SES${where}. Check your internet connection and the region.`;
+  }
+  return msg.split('\n')[0].slice(0, 200) || 'Amazon SES did not accept the request.';
+}
+
+// A display name that can not break out of the From header
+const safeName = (n) => String(n || '').replace(/[\r\n"<>\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+
+/**
+ * Check the keys and the "Send as" address with one real send (needs only ses:SendEmail): to
+ * Amazon's own simulator address, which accepts mail without delivering it, or, with `to`, to a
+ * real inbox. Passing means the keys, the region, the permission and the verified sender all work.
+ */
+async function testSes(cfg, { to, fromName } = {}) {
+  let ses;
+  try { ses = normalizeSes(cfg.ses); } catch (err) { return { ok: false, error: err.message }; }
+  const from = String(cfg.from || '').trim();
+  if (!EMAIL_RE.test(from)) return { ok: false, error: 'Fill in “Send as” with a verified email address (an address or domain you verified in SES).' };
+  try {
+    const { SendEmailCommand } = require('@aws-sdk/client-sesv2');
+    const name = safeName(fromName);
+    await sesClient(ses).send(new SendEmailCommand({
+      FromEmailAddress: name ? `${name} <${from}>` : from,
+      Destination: { ToAddresses: [to || 'success@simulator.amazonses.com'] },
+      Content: { Simple: {
+        Subject: { Data: 'Your NexaDrip email settings work' },
+        Body: { Text: { Data: 'This is a test message from NexaDrip. Your Amazon SES settings are working: campaigns and outreach emails will be sent from this address.' } },
+      } },
+    }));
+    return { ok: true, sent: !!to };
+  } catch (err) {
+    return { ok: false, error: explainSes(err, ses) };
+  }
+}
+
+module.exports = { normalize, assertAllowedHost, connectionOptions, explain, test, normalizeSes, createTransport, explainSes, testSes, SES_REGION_RE, SES_KEY_ID_RE, SES_SECRET_RE, EMAIL_RE };
