@@ -513,4 +513,5 @@ module.exports = {
   DEFAULT_CONFIG, LIMITS,
   normalizeConfig, normalizeText, decide, isOpen, nextOpening,
   getSettings, saveSettings, getState, pauseForHuman, resume, optedOutLeadIds, handleInbound, aiAnswer,
+  businessName,
 };

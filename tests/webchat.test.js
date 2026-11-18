@@ -74,6 +74,33 @@ describe('website chat webhook', () => {
     expect(r.body.reply).toContain('How can we help');
   });
 
+  test('a phone number gets the thank-you, and each bot reply is saved once', async () => {
+    await request(app).post(`/api/webhooks/webchat/${token}`).send({ text: 'hi', visitor_id: 'v-phone' });
+    const r = await request(app).post(`/api/webhooks/webchat/${token}`).send({ text: 'My name is Ravi, 9876543210', visitor_id: 'v-phone' });
+    expect(r.status).toBe(200);
+    expect(r.body.reply).toContain('noted your contact number (+919876543210)');
+    const h = await request(app).get(`/api/webhooks/webchat/${token}/history`).query({ visitor_id: 'v-phone' });
+    expect(h.body.messages.map(m => m.who)).toEqual(['me', 'bot', 'me', 'bot']);
+  });
+
+  test('the chat profile is public, and the avatar is served from it', async () => {
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    await knex('meta_lead_configs').where({ workspace_id: workspaceId }).update({
+      webchat_profile: JSON.stringify({ name: 'Ask Avi', description: 'Hi!', color: '#D4813C', avatar: 'data:image/png;base64,' + png.toString('base64') }),
+    });
+    const c = await request(app).get(`/api/webhooks/webchat/${token}/config`);
+    expect(c.body).toMatchObject({ name: 'Ask Avi', description: 'Hi!', color: '#D4813C' });
+    expect(c.body.avatar).toBeUndefined();
+    const a = await request(app).get(c.body.avatar_url);
+    expect(a.status).toBe(200);
+    expect(a.headers['content-type']).toBe('image/png');
+    expect(Buffer.compare(a.body, png)).toBe(0);
+    // the other business's profile is untouched
+    const other = await request(app).get(`/api/webhooks/webchat/${token2}/config`);
+    expect(other.body.name).not.toBe('Ask Avi');
+    expect(other.body.avatar_url).toBeNull();
+  });
+
   test('an unknown token is refused', async () => {
     const r = await request(app).post('/api/webhooks/webchat/not-a-real-token').send({ text: 'hi' });
     expect(r.status).toBe(404);
