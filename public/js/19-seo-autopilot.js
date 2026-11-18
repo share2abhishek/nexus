@@ -67,7 +67,7 @@ function renderAutopilot() {
             ${site ? `<button class="btn btn-secondary" id="btn-ap-run" onclick="runAutopilotNow()" ${running ? 'disabled' : ''}>${running ? '<span class="spinner"></span> Checking…' : '🔎 Check now'}</button>` : ''}
           </div>
           ${site ? `<div class="form-hint" style="margin-top:12px">
-            ${running ? 'Checking your website now. This takes a minute or two.' : site.last_status === 'error' ? `⚠️ The last check didn’t work: ${escapeHtml((site.last_error || '').replace(/\.+$/, ''))}. It tries again in a few hours.` : `Last check: ${apWhen(site.last_run_at)}`}
+            ${running ? 'Checking your website now. This takes a minute or two.' : site.last_status === 'error' ? `⚠️ The last check didn’t work: ${escapeHtml((site.last_error || '').replace(/\.+$/, ''))}. It tries again by itself.` : `Last check: ${apWhen(site.last_run_at)}`}
             ${site.enabled && !running ? ` · Next: ${apWhen(site.next_run_at)}` : ''}</div>` : ''}
           ${v?.error ? `<div class="form-hint" style="margin-top:12px">⏱ Page speed: ${escapeHtml(v.error)}</div>` : ""}
           ${v && !v.error ? `<div class="ap-vitals">

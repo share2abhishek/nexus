@@ -232,13 +232,39 @@ function keywordChecks(page, keyword) {
   ];
 }
 
-async function checkPage(input, { keyword = '', timeout = 30000 } = {}) {
+// Can this computer open a connection to the website at all? (only public addresses: safeNet.lookup)
+function probeConnect(host, port, ms = 6000) {
+  return new Promise((resolve) => {
+    const t0 = Date.now();
+    let sock;
+    const done = (ok, why) => { try { sock && sock.destroy(); } catch { /* closed */ } resolve({ ok, why, ms: Date.now() - t0 }); };
+    try { sock = net.connect({ host, port, lookup: safeNet.lookup, timeout: ms }); } catch (e) { return done(false, e.code || 'error'); }
+    sock.once('connect', () => done(true));
+    sock.once('timeout', () => done(false, 'timeout'));
+    sock.once('error', (e) => done(false, e.code || 'error'));
+  });
+}
+
+// A timeout can mean two different things: the website could not be reached at all, or it answered
+// but slowly. Say which, with what to try.
+function timeoutMessage(seconds, probe, host) {
+  if (probe && !probe.ok) {
+    return `NexaDrip could not connect to ${host} from this server (${probe.why === 'timeout' ? 'no answer' : probe.why}). ` +
+      'If your website is hosted on the same server or network as NexaDrip, the server may not be able to open its own public address: ask whoever hosts it to allow this. ' +
+      'If the site was being updated, it will work again once it is back.';
+  }
+  return `The page took too long to answer (${seconds} seconds). NexaDrip could connect, but the website was slow to send the page: check that it opens quickly in a browser.`;
+}
+
+async function checkPage(input, { keyword = '', timeout = 30000, probe = probeConnect } = {}) {
   const url = normaliseUrl(input);
   let res;
   try { res = await fetchText(url, { timeout }); } catch (err) {
     if (/timeout/i.test(err.message) || err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
-      const s = Math.round(timeout / 1000);
-      throw new Error(`The page took too long to answer (${s} seconds).`);
+      const u = new URL(url);
+      const port = Number(u.port) || (u.protocol === 'https:' ? 443 : 80);
+      const result = await probe(u.hostname, port).catch(() => null);
+      throw new Error(timeoutMessage(Math.round(timeout / 1000), result, u.hostname));
     }
     if (err.code === 'ENOTFOUND') throw new Error('Couldn’t find that website. Check the address.');
     throw err;
@@ -348,4 +374,4 @@ function analyzeText(content, keyword = '') {
   };
 }
 
-module.exports = { checkPage, analyzeText, readHtml, robotsRules, robotsAllows, isPrivateName, isPrivateIp, normaliseUrl, fetchText, assertPublic };
+module.exports = { checkPage, analyzeText, readHtml, robotsRules, robotsAllows, isPrivateName, isPrivateIp, normaliseUrl, fetchText, assertPublic, probeConnect, timeoutMessage };

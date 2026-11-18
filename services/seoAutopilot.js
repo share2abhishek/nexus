@@ -80,6 +80,12 @@ async function discoverPages(siteUrl, max = 20) {
   return pages;
 }
 
+// How long to wait before checking again after a failed check: 15 minutes, 1 hour, 3 hours, then 6 hours
+function retryDelay(failures) {
+  const steps = [15 * 60, 3600, 3 * 3600, 6 * 3600];
+  return steps[Math.min(Math.max(Number(failures) || 1, 1), steps.length) - 1];
+}
+
 // ── From check results to to-dos ────────────────────────────────────────────
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
@@ -339,11 +345,12 @@ async function runSite(db, site, options = {}) {
     if (old.length) await db('seo_page_checks').whereIn('id', old).del();
 
     const next = t + (FREQUENCIES[site.frequency] || FREQUENCIES.weekly);
-    await db('seo_sites').where({ id: site.id }).update({ last_status: 'ok', last_error: null, last_run_at: t, next_run_at: next, updated_at: now() });
+    await db('seo_sites').where({ id: site.id }).update({ last_status: 'ok', last_error: null, fail_count: 0, last_run_at: t, next_run_at: next, updated_at: now() });
     return { pages: pages.length, ok: true };
   } catch (err) {
-    // Try again in a few hours
-    await db('seo_sites').where({ id: site.id }).update({ last_status: 'error', last_error: err.message, last_run_at: t, next_run_at: t + 6 * 3600, updated_at: now() });
+    // Try again soon (a website is often only briefly down), then less and less often
+    const fails = (Number(site.fail_count) || 0) + 1;
+    await db('seo_sites').where({ id: site.id }).update({ last_status: 'error', last_error: err.message, fail_count: fails, last_run_at: t, next_run_at: t + retryDelay(fails), updated_at: now() });
     return { ok: false, error: err.message };
   } finally {
     running.delete(site.id);
@@ -412,4 +419,4 @@ function pickStrings(o, keys) {
   return r;
 }
 
-module.exports = { discoverPages, buildIssues, saveTasks, runSite, processDue, draftFor, googleQuiet, internalLinks, FREQUENCIES, RULES };
+module.exports = { discoverPages, buildIssues, saveTasks, runSite, processDue, draftFor, googleQuiet, internalLinks, retryDelay, FREQUENCIES, RULES };
