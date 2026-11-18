@@ -41,12 +41,40 @@ async function saveEnquiry(knex, row) {
 
 const transcriptOf = (history) => history.map((t) => `${t.role === 'user' ? 'Visitor' : 'Bot'}: ${t.text}`).join('\n').slice(0, 3000);
 
+// Website switches (services/siteSwitches.js): with sign-up closed or pricing hidden, the
+// visitor chat neither offers nor answers those (the AI only sees the answers left)
+const switches = require('../services/siteSwitches');
+const PRICING = /₹|\bprices?\b|\bpricing\b|\bper month\b|\ba month\b/i;
+const SIGNUP = /free trial|sign ?up|create (an |your )?account/i;
+function visible(entry, on) {
+  const id = entry.builtin || entry.id;
+  const text = `${entry.q} ${entry.a}`;
+  if (!on.pricing && (id === 'price' || PRICING.test(text))) return false;
+  if (!on.signup && (id === 'trial' || SIGNUP.test(text))) return false;
+  return true;
+}
+async function publicEntries(knex) {
+  const on = await switches.get();
+  return (await knowledge.load(knex)).filter((e) => visible(e, on))
+    .map((e) => (!on.signup && /register|signup/i.test(e.go || '') ? { ...e, go: undefined } : e));
+}
+async function publicSuggestions(knex) {
+  const on = await switches.get();
+  const hidden = (q) => (!on.pricing && PRICING.test(q)) || (!on.signup && SIGNUP.test(q)) || /cost/i.test(q) && !on.pricing;
+  const list = knowledge.SUGGESTIONS.public.filter((q) => !hidden(q));
+  for (const extra of ['What is NexaDrip?', 'Can agencies manage many clients?', 'What is sales outreach?']) {
+    if (list.length >= 4) break;
+    if (!list.includes(extra)) list.push(extra);
+  }
+  return list;
+}
+
 module.exports = (knex, requirePermission) => {
   // ── Public (landing page) ────────────────────────────────────────────────
   const pub = express.Router();
   pub.use(express.json({ limit: '20kb' }));
 
-  pub.get('/suggestions', (req, res) => res.json({ suggestions: knowledge.SUGGESTIONS.public }));
+  pub.get('/suggestions', async (req, res) => res.json({ suggestions: await publicSuggestions(knex) }));
 
   pub.post('/chat', rateLimit({ windowMs: 10 * 60 * 1000, max: 30, key: byIp, name: 'help-public', message: 'You’ve asked a lot of questions. Please wait a few minutes, or leave your details and we’ll reply.' }), async (req, res) => {
     try {
@@ -58,7 +86,7 @@ module.exports = (knex, requirePermission) => {
           ai = { generate: async (prompt) => { budgetUsed++; return (await aiGenerate(prompt, keys.googleKey, 350, null, { ...keys, ollamaEnabled: false })).text; } };
         }
       }
-      res.json(await assistant.answer({ audience: 'public', message: req.body?.message, history: readHistory(req.body?.history), ai, entries: await knowledge.load(knex) }));
+      res.json(await assistant.answer({ audience: 'public', message: req.body?.message, history: readHistory(req.body?.history), ai, entries: await publicEntries(knex) }));
     } catch (err) { res.status(500).json({ error: 'The assistant is unavailable right now. Please try again.' }); }
   });
 

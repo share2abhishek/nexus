@@ -120,6 +120,25 @@ describe('public chat and enquiries over HTTP', () => {
     expect(row.transcript).toMatch(/Visitor: hi/);
   });
 
+  test('with pricing hidden and sign-up closed, the visitor chat neither offers nor answers them', async () => {
+    const switches = require('../services/siteSwitches');
+    const spy = jest.spyOn(switches, 'get').mockResolvedValue({ signup: false, pricing: false });
+    try {
+      const a = app();
+      const s = await request(a).get('/api/assistant/public/suggestions').expect(200);
+      expect(s.body.suggestions.join(' ')).not.toMatch(/cost|price|trial/i);
+      expect(s.body.suggestions.length).toBeGreaterThanOrEqual(3);
+      for (const q of ['How much does it cost?', 'Is there a free trial?', 'what is the price for agencies']) {
+        const r = await request(a).post('/api/assistant/public/chat').send({ message: q }).expect(200);
+        expect(r.body.reply).not.toMatch(/₹|1,275|10,200|14 days|free trial/i);
+        expect(JSON.stringify(r.body.actions || [])).not.toMatch(/register/);
+      }
+      // other questions still work
+      const ok = await request(a).post('/api/assistant/public/chat').send({ message: 'does it work with whatsapp' }).expect(200);
+      expect(ok.body.reply).toMatch(/WhatsApp/);
+    } finally { spy.mockRestore(); }
+  });
+
   test('the public chat is rate limited per visitor', async () => {
     const a = app();
     let last;

@@ -147,7 +147,7 @@
       else {
         var name = '';
         try { name = ((window.State && window.State.user && window.State.user.name) || '').split(' ')[0]; } catch (e) { /* none */ }
-        var hello = mode === 'app' ? 'Hi' + (name ? ' ' + name : '') + '! Stuck on something? Ask me how to do it, or pick a question.' : 'Hi! I can answer questions about features, pricing and the free trial. What would you like to know?';
+        var hello = mode === 'app' ? 'Hi' + (name ? ' ' + name : '') + '! Stuck on something? Ask me how to do it, or pick a question.' : 'Hi! I can answer questions about NexaDrip and what it does. What would you like to know?';
         add('bot', hello);
         fetch(API + '/suggestions').then(function (r) { return r.json(); }).then(function (d) { chips(d.suggestions || []); }).catch(function () { /* chips are optional */ });
       }
@@ -166,7 +166,7 @@
   if (mode === 'public' && !history.length) {
     setTimeout(function () {
       if (panel.classList.contains('open')) return;
-      var h = document.createElement('div'); h.id = 'nh-hint'; h.textContent = 'Questions? Ask me about pricing or the free trial.'; h.onclick = open; document.body.appendChild(h);
+      var h = document.createElement('div'); h.id = 'nh-hint'; h.textContent = 'Questions? Ask me anything about NexaDrip.'; h.onclick = open; document.body.appendChild(h);
       setTimeout(function () { h.remove(); }, 12000);
     }, 6000);
   }

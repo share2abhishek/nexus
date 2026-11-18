@@ -26,6 +26,7 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 
 ### Website (hosted edition)
 - **Sign-up and pricing can be hidden** without a deploy. With `registration_mode = closed` the website has no sign-up buttons or trial text and the sign-in page has no "Create Account"; people invited to a business's team can still create their account. With `show_pricing = off` the Pricing section, its menu link and the prices search engines read are left out. Both are rows in `platform_config`.
+- With sign-up closed the sign-in page is sent without the "Create Account" form (it is still sent to someone opening it from a team invitation), and the website help chat no longer offers the free trial. With pricing hidden the help chat doesn't answer price questions and the help guide has no price link.
 
 ### Email & Outreach
 - **Attachments:** each campaign has a **📎 Files** button. Attach a brochure or price list (PDF, Word, Excel, PowerPoint, CSV, text, images; up to 5 files, 5 MB each) to the first email or to every email. Real-file and size checks; works with SMTP and Amazon SES.

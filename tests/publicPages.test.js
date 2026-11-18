@@ -50,6 +50,26 @@ test('sign-up and pricing can be switched off: those parts are not sent, and the
   expect(on).not.toMatch(/<!--\/?IF:/);
 });
 
+test('sign-in page: with sign-up closed there is no Create Account, except from a team invitation', async () => {
+  const switches = require('../services/siteSwitches');
+  const spy = jest.spyOn(switches, 'get').mockResolvedValue({ signup: false, pricing: false });
+  try {
+    const closed = await request(app()).get('/login.html');
+    expect(closed.status).toBe(200);
+    expect(closed.text).not.toContain('id="tab-register"');
+    expect(closed.text).not.toContain('id="panel-register"');
+    expect(closed.text).not.toContain('doRegister()"');
+    expect(closed.text).not.toMatch(/<!--\/?IF:/);
+    expect(closed.text).toContain('id="panel-login"');
+
+    const invited = await request(app()).get('/login.html').query({ next: '/invite.html?token=abc-123' });
+    expect(invited.text).toContain('id="panel-register"');
+
+    const help = await request(app()).get('/help.html');
+    expect(help.text).not.toContain('license.radixile.com/buy');
+  } finally { spy.mockRestore(); }
+});
+
 test('robots.txt keeps the API out and points to the sitemap; the sitemap lists the public pages', async () => {
   process.env.APP_URL = 'https://app.example.in';
   const robots = await request(app()).get('/robots.txt');

@@ -41,31 +41,10 @@ function faqJsonLd(html) {
   return `<script type="application/ld+json">${json}</script>`;
 }
 
-// Parts of the landing page that can be switched off without a deploy (platform_config):
-//   registration_mode = closed   → sign-up buttons, trial notes and the trial FAQ are left out
-//   show_pricing      = off      → the Pricing section, its menu link and the prices in the
-//                                   structured data are left out
-// In landing.html a part is wrapped in <!--IF:name--> … <!--/IF:name--> (or IF:!name for
-// what shows when it is off). Parts that are off are not sent at all, so search engines
-// don't see them either.
-function applySwitches(html, on) {
-  return html.replace(/<!--IF:(!?)(\w+)-->([\s\S]*?)<!--\/IF:\1\2-->/g,
-    (m, not, name, body) => ((!!on[name]) !== !!not ? body : ''));
-}
-
-let switchesCache = { at: 0, value: { signup: true, pricing: true } };
-async function landingSwitches() {
-  if (Date.now() - switchesCache.at < 30_000) return switchesCache.value;
-  let value = { signup: true, pricing: true };
-  try {
-    const knex = require('../services/knex');
-    const rows = await knex('platform_config').whereIn('key', ['registration_mode', 'show_pricing']).select('key', 'value');
-    const get = (k) => String(rows.find((r) => r.key === k)?.value ?? '').trim().toLowerCase();
-    value = { signup: get('registration_mode') !== 'closed', pricing: !['off', 'false', '0', 'no', 'hidden'].includes(get('show_pricing')) };
-  } catch { /* keep the defaults */ }
-  switchesCache = { at: Date.now(), value };
-  return value;
-}
+// Sign-up and pricing parts of the public pages are switched off from the database
+// (services/siteSwitches.js); parts that are off are not sent, so search engines don't see them
+const switches = require('../services/siteSwitches');
+const applySwitches = switches.apply;
 
 let cache = { key: '', html: '' };
 function landingHtml(on = { signup: true, pricing: true }) {
@@ -80,7 +59,7 @@ function landingHtml(on = { signup: true, pricing: true }) {
 
 async function sendLanding(req, res) {
   const url = siteUrl(req);
-  res.type('html').send(landingHtml(await landingSwitches()).split('%SITE_URL%').join(url));
+  res.type('html').send(landingHtml(await switches.get()).split('%SITE_URL%').join(url));
 }
 
 const router = express.Router();
@@ -89,8 +68,19 @@ const router = express.Router();
 router.get('/landing.html', (req, res) => res.redirect(301, '/'));
 
 // The help guides, with the site's own address filled in (canonical and share tags)
-router.get('/help.html', (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(PUBLIC, 'help.html'), 'utf8').split('%SITE_URL%').join(siteUrl(req)));
+router.get('/help.html', async (req, res) => {
+  const html = applySwitches(fs.readFileSync(path.join(PUBLIC, 'help.html'), 'utf8'), await switches.get());
+  res.type('html').send(html.split('%SITE_URL%').join(siteUrl(req)));
+});
+
+// Sign-in page: with sign-up closed, the "Create Account" tab and form are not sent at all,
+// except to someone opening it from a team invitation (?next=/invite.html?token=…)
+router.get('/login.html', async (req, res) => {
+  const on = await switches.get();
+  const invited = /^\/invite\.html\?token=[\w-]+/.test(String(req.query.next || ''));
+  const html = applySwitches(fs.readFileSync(path.join(PUBLIC, 'login.html'), 'utf8'), { ...on, signup: on.signup || invited });
+  res.set('Cache-Control', 'no-cache');
+  res.type('html').send(html);
 });
 
 router.get('/robots.txt', (req, res) => {
