@@ -18,6 +18,14 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 
 ## Unreleased
 
+### Website SEO
+- **Finds sites that Google may read as empty:** pages whose text is added by JavaScript are flagged with what to ask your developer for, and inner pages that name the home page as their main address are flagged as a fix-first item.
+- **Dead sitemaps are caught:** a sitemap listed in robots.txt that doesn't open now shows as a problem instead of "found". The check also tells you when a website opens at both the www and non-www address.
+- **New "Sitemap & page titles" tab:** makes a `sitemap.xml` to download (type your page addresses when the site hides its links behind JavaScript) and writes titles and descriptions for up to 10 pages at once, ready to paste.
+
+### Super Admin
+- **Client setup tab:** a checklist in the Admin page for connecting a client's WhatsApp number straight to Meta (what the client does, what you do, and what Meta charges them). Ticks are kept in your browser, with a button to clear them for the next client.
+
 ### Website chat
 - **New chat window:** the bot's avatar, name and a short description on the start screen, menu choices as buttons, voice typing where the browser supports it, a "start over" button, and full screen on phones. The name, avatar, description and colour are set per business on the server, so the website snippet needs only `data-token`.
 - **Share page:** `/webchat/<token>` opens the chat full-size on its own address, to try it or send the link.

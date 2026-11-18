@@ -95,7 +95,8 @@ const RULES = {
   robots_txt:  { status: 'bad',  priority: 1, title: (n) => `robots.txt blocks Google from ${plural(n, 'page', 'pages')}`, detail: 'Your robots.txt file tells Google not to read these pages. Ask whoever manages your website to allow them, unless you hid them on purpose.' },
   noindex:     { status: 'bad',  priority: 1, title: (n) => `${plural(n, 'page is', 'pages are')} hidden from Google (“noindex”)`, detail: 'These pages ask Google not to show them. In WordPress this is often a “Discourage search engines” or SEO-plugin setting.' },
   https:       { status: 'warn', priority: 2, site: true, title: () => 'Your website isn’t secure (no https)', detail: 'Browsers mark it “Not secure” and Google prefers https. Most hosts offer a free certificate: turn it on in your hosting settings.' },
-  sitemap:     { status: 'warn', priority: 2, site: true, title: () => 'No sitemap found', detail: 'A sitemap lists your pages for Google. Most website builders and SEO plugins make one: turn it on, then add it in Google Search Console.' },
+  sitemap:     { status: 'warn', priority: 2, site: true, title: () => 'No working sitemap found', detail: 'A sitemap lists your pages for Google. Either there is none, or the one robots.txt points to doesn’t open. Most website builders and SEO plugins make one: turn it on, then add it in Google Search Console. The Sitemap maker in Website SEO can write one for you.' },
+  js_only:     { status: 'warn', priority: 1, title: (n) => `${plural(n, 'page shows', 'pages show')} no text until JavaScript runs`, detail: 'The page arrives almost empty and its text is added in the browser. Google may read it late or not at all, so it can rank poorly, and AI assistants usually can’t read it. Ask your developer to prerender it (server-side rendering), and give each page its own title and description.' },
   canonical:   { status: 'warn', priority: 2, title: (n) => `${plural(n, 'page points', 'pages point')} Google to a different address`, detail: 'Their “canonical” address is another page, so Google may list that one instead. Check this is intended.' },
   title:       { status: 'bad',  priority: 2, title: (n) => `${plural(n, 'page has', 'pages have')} no title`, detail: 'The title is the blue link people click on Google. Social-Nexus can write one for each page.', draft: 'meta' },
   title_len:   { status: 'warn', check: 'title', priority: 3, title: (n) => `${plural(n, 'page title is', 'page titles are')} too short or too long`, detail: 'Aim for 30–60 characters, with your main search phrase near the start.', draft: 'meta' },
@@ -296,7 +297,7 @@ async function runSite(db, site, options = {}) {
         const checks = r.checks.map(({ id, status, label, detail }) => ({ id, status, label, detail }));
         results.push({
           url, checks, title: r.page.title, description: r.page.description, h1: r.page.h1,
-          status: r.status, redirects: r.redirects, canonical: r.page.canonical, json_ld: r.page.json_ld, links: r.page.links,
+          status: r.status, redirects: r.redirects, canonical: r.page.canonical, json_ld: r.page.json_ld, links: r.page.links, words: r.page.word_count,
           fromSitemap: pages.fromSitemap?.has(url),
         });
         await db('seo_page_checks').insert({
@@ -317,7 +318,7 @@ async function runSite(db, site, options = {}) {
           const checks = r.checks.map(({ id, status, label, detail }) => ({ id, status, label, detail }));
           results[0] = {
             url: pages[0], checks, title: r.page.title, description: r.page.description, h1: r.page.h1,
-            status: r.status, redirects: r.redirects, canonical: r.page.canonical, json_ld: r.page.json_ld, links: r.page.links,
+            status: r.status, redirects: r.redirects, canonical: r.page.canonical, json_ld: r.page.json_ld, links: r.page.links, words: r.page.word_count,
             fromSitemap: pages.fromSitemap?.has(pages[0]),
           };
           await db('seo_page_checks').where({ site_id: site.id, url: pages[0], checked_at: t }).del();

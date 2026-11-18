@@ -1580,6 +1580,35 @@
         <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="keywords" onclick="switchSeoTab('keywords',this)">🔑 Search phrase ideas</button>
         <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="optimize" onclick="switchSeoTab('optimize',this)">⚡ Check my text</button>
         <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="tracked" onclick="switchSeoTab('tracked',this)">📍 My search phrases</button>
+        <button class="btn btn-secondary btn-sm seo-tab-btn" data-tab="fixhelper" onclick="switchSeoTab('fixhelper',this)">🛠️ Sitemap &amp; page titles</button>
+      </div>
+
+      <!-- Sitemap maker and titles for many pages -->
+      <div class="seo-panel" id="seo-panel-fixhelper" style="display:none">
+        <div class="grid-2">
+          <div class="card"><div class="card-header"><div class="card-title">🗺️ Make a sitemap</div></div>
+            <div class="card-body">
+              <div class="form-hint" style="margin-bottom:12px">A sitemap lists your pages so Google finds them all. NexaDrip finds the pages that open, then you download <code>sitemap.xml</code>, upload it to your website’s main folder and add it in Google Search Console.</div>
+              <div class="form-group"><label class="form-label" for="sm-url">Website address</label><input type="url" class="form-input" id="sm-url" placeholder="yourbusiness.com" /></div>
+              <div class="form-group"><label class="form-label" for="sm-pages">Pages to add <span class="form-hint" style="display:inline">(optional, one per line)</span></label>
+                <textarea class="form-textarea" id="sm-pages" style="min-height:80px" placeholder="/blog&#10;/pricing&#10;/mcs-act"></textarea>
+                <div class="form-hint">Needed when your website builds its pages with JavaScript, because NexaDrip can’t see its links.</div></div>
+              <button class="btn btn-primary" onclick="makeSitemapXml()" id="btn-sitemap" style="width:100%">🗺️ Make sitemap</button>
+              <div id="sm-output" style="margin-top:14px"></div>
+            </div>
+          </div>
+          <div class="card"><div class="card-header"><div class="card-title">🏷️ Titles for many pages</div></div>
+            <div class="card-body">
+              <div class="form-hint" style="margin-bottom:12px">Each page needs its own title and description. Say what each page is about and NexaDrip writes them all, ready to paste.</div>
+              <div class="form-group"><label class="form-label" for="mp-business">What the business is</label><input type="text" class="form-input" id="mp-business" maxlength="400" placeholder="Urban Society: housing society management software" /></div>
+              <div class="form-group"><label class="form-label" for="mp-city">Where you work <span class="form-hint" style="display:inline">(optional)</span></label><input type="text" class="form-input" id="mp-city" maxlength="100" placeholder="Pune, Mumbai, Maharashtra" /></div>
+              <div class="form-group"><label class="form-label" for="mp-pages">Pages <span class="form-hint" style="display:inline">(one per line: address, then a dash, then what it is about; up to 10)</span></label>
+                <textarea class="form-textarea" id="mp-pages" style="min-height:110px" placeholder="/ - home page, maintenance billing and accounting for societies&#10;/mcs-act - guide to the Maharashtra Co-operative Societies Act&#10;/society-letter-formats - free society letter and notice formats"></textarea></div>
+              <button class="btn btn-primary" onclick="writeManyTitles()" id="btn-manytitles" style="width:100%">🏷️ Write titles &amp; descriptions</button>
+              <div id="mp-output" style="margin-top:14px"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Autopilot (server edition) -->
@@ -2994,6 +3023,7 @@
         <button class="btn btn-secondary btn-sm admin-tab-btn" onclick="switchAdminTab('config',this)">⚙️ Platform Config</button>
         <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-platform-ai" onclick="switchAdminTab('platform-ai',this)" hidden>🤖 Platform AI</button>
         <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-help-chat" onclick="switchAdminTab('help-chat',this)" hidden>💬 Help chat</button>
+        <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-client-setup" onclick="switchAdminTab('client-setup',this)" hidden>📲 Client setup</button>
       </div>
 
       <!-- Overview -->
@@ -3144,6 +3174,51 @@
         <div class="settings-section">
           <div class="settings-section-header"><div><div class="settings-section-title">📨 Enquiries</div><div class="settings-section-sub">Questions the chat could not answer and “talk to a person” requests. <span id="help-enq-count"></span> To get an email for each one, set SUPPORT_NOTIFY_EMAIL on the server.</div></div></div>
           <div id="help-enq-list"></div>
+        </div>
+      </div>
+
+      <!-- Client onboarding: connect a client's WhatsApp number straight to Meta (Super Admin only) -->
+      <div class="admin-panel" id="admin-panel-client-setup" style="display:none">
+        <div class="settings-section">
+          <div class="settings-section-header"><div>
+            <div class="settings-section-title">📲 Connect a client's WhatsApp number</div>
+            <div class="settings-section-sub">The client owns the WhatsApp account at Meta and pays Meta directly, so no middleman adds a fee. Plan 1 to 2 hours in one sitting. Ticks are saved on this browser only, so use one set per client.</div>
+          </div></div>
+          <div class="cs-grid">
+            <div class="cs-box">
+              <div class="cs-h">Part A · The client does at Meta</div>
+              <label class="cs-item"><input type="checkbox" data-cs="a1"><span><b>Create a Meta Business account</b><small>business.facebook.com, in their business name.</small></span></label>
+              <label class="cs-item"><input type="checkbox" data-cs="a2"><span><b>Verify the business</b><small>Registration or GST papers, if Meta asks.</small></span></label>
+              <label class="cs-item"><input type="checkbox" data-cs="a3"><span><b>Add a WhatsApp Business Account</b><small>Use a number not already on the WhatsApp app, or agree to move it.</small></span></label>
+              <label class="cs-item"><input type="checkbox" data-cs="a4"><span><b>Verify the number</b><small>Meta sends a code by SMS or call.</small></span></label>
+              <label class="cs-item"><input type="checkbox" data-cs="a5"><span><b>Add a payment method</b><small>Their own card or credit line in Meta billing.</small></span></label>
+              <label class="cs-item"><input type="checkbox" data-cs="a6"><span><b>Create a System User and access token</b><small>With WhatsApp permissions. The token is private. Never take it by email, chat or screenshot.</small></span></label>
+            </div>
+            <div class="cs-box">
+              <div class="cs-h">Part B · You do</div>
+              <label class="cs-item"><input type="checkbox" data-cs="b1"><span><b>Enter their details in WhatsApp → Setup</b><small>Access token, Phone Number ID and WhatsApp Business Account ID.</small></span></label>
+              <label class="cs-item"><input type="checkbox" data-cs="b2"><span><b>Set the webhook at Meta</b><small>Point to this server's address, enter the verify token, subscribe to message events. The server must be reachable over HTTPS.</small></span></label>
+              <label class="cs-item"><input type="checkbox" data-cs="b3"><span><b>Load their business details</b><small>Services, process, timings and standard answers. They review them.</small></span></label>
+              <label class="cs-item"><input type="checkbox" data-cs="b4"><span><b>Submit message templates</b><small>For confirmations and offers after 24 hours. Meta approves, usually within a day.</small></span></label>
+              <label class="cs-item"><input type="checkbox" data-cs="b5"><span><b>Test with your phone</b><small>Send a message, check the AI reply and the inbox entry.</small></span></label>
+              <label class="cs-item"><input type="checkbox" data-cs="b6"><span><b>Train their team, then go live</b><small>Reply, take over, follow up from the inbox.</small></span></label>
+            </div>
+          </div>
+          <div class="cs-actions"><button class="btn btn-secondary btn-sm" onclick="clientSetupReset()">Clear ticks for a new client</button></div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-header"><div>
+            <div class="settings-section-title">💰 What the client pays Meta</div>
+            <div class="settings-section-sub">Third-party figures for India, before 18% GST. They change, so confirm on Meta's WhatsApp pricing page before you quote.</div>
+          </div></div>
+          <div class="cs-table-wrap"><table class="cs-table">
+            <thead><tr><th>Message type</th><th>Rate</th><th>Example</th></tr></thead>
+            <tbody>
+              <tr><td>Customer messages first, replied to within 24 hours</td><td>Free at the time of writing</td><td>"Do you make L-shaped kitchens?"</td></tr>
+              <tr><td>Utility message</td><td>About ₹0.115 each</td><td>"Your visit is confirmed for Saturday 11."</td></tr>
+              <tr><td>Marketing message</td><td>About ₹0.863 each</td><td>"Festival offer on modular kitchens."</td></tr>
+            </tbody>
+          </table></div>
         </div>
       </div>
 

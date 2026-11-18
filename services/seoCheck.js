@@ -207,6 +207,30 @@ function robotsAllows(rules, path) {
   return !best || best.allow;
 }
 
+// ── Pages that need JavaScript to show any text ─────────────────────────────
+// Almost no text in the HTML, plus a sign of a script-built app (an empty app root,
+// or an "enable JavaScript" message)
+function looksJsOnly(html, wordCount) {
+  if (wordCount >= 50) return false;
+  return /enable\s+javascript|<app-root\b|id\s*=\s*["'](root|__next|app|__nuxt)["']|<noscript\b/i.test(String(html));
+}
+
+// Does this address open as a sitemap? Remembered for 10 minutes per address so a
+// 50-page check asks once.
+const sitemapCache = new Map();
+async function sitemapOpens(url) {
+  const hit = sitemapCache.get(url);
+  if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.ok;
+  let ok = false;
+  try {
+    const s = await fetchText(url, { accept: 'application/xml,text/xml,*/*', maxBytes: 5 * 1024 * 1024, timeout: 15000, retries: 0 });
+    ok = s.status >= 200 && s.status < 300 && /<(urlset|sitemapindex)\b/i.test(s.body);
+  } catch { ok = false; }
+  if (sitemapCache.size > 200) sitemapCache.clear();
+  sitemapCache.set(url, { ok, at: Date.now() });
+  return ok;
+}
+
 // ── The check ───────────────────────────────────────────────────────────────
 function lenCheck(id, label, value, min, max, what) {
   if (!value) return { id, status: 'bad', label, detail: `No ${what}. Google will make one up from the page.` };
@@ -306,9 +330,13 @@ async function checkPage(input, { keyword = '', timeout = 30000, probe = probeCo
       if (s.status >= 200 && s.status < 300 && /<(urlset|sitemapindex)\b/i.test(s.body)) sitemap = `${final.origin}/sitemap.xml`;
     } catch {}
   }
-  add(sitemap
+  // robots.txt may name a sitemap that doesn't open (a 404 or a page instead of a sitemap)
+  const sitemapWorks = sitemap && robots.sitemaps[0] ? await sitemapOpens(sitemap) : true;
+  add(sitemap && sitemapWorks
     ? { id: 'sitemap', status: 'good', label: 'Sitemap', detail: `Found: ${sitemap}` }
-    : { id: 'sitemap', status: 'warn', label: 'Sitemap', detail: 'None found at /sitemap.xml or in robots.txt. A sitemap helps Google find all your pages.' });
+    : sitemap
+      ? { id: 'sitemap', status: 'warn', label: 'Sitemap', detail: `robots.txt names ${sitemap}, but it doesn’t open as a sitemap. Google can’t use it: create it, or fix the address in robots.txt.` }
+      : { id: 'sitemap', status: 'warn', label: 'Sitemap', detail: 'None found at /sitemap.xml or in robots.txt. A sitemap helps Google find all your pages.' });
 
   if (page.canonical) {
     const same = page.canonical.replace(/\/$/, '') === res.finalUrl.replace(/[#].*$/, '').replace(/\/$/, '');
@@ -324,6 +352,9 @@ async function checkPage(input, { keyword = '', timeout = 30000, probe = probeCo
     : page.h1.length === 0
       ? { id: 'h1', status: 'warn', label: 'Main heading (H1)', detail: 'None. Give the page one main heading.' }
       : { id: 'h1', status: 'warn', label: 'Main heading (H1)', detail: `${page.h1.length} of them. One is clearer.` });
+  // A page whose text is built by JavaScript in the browser arrives nearly empty
+  const jsOnly = looksJsOnly(html, page.word_count);
+  if (jsOnly) add({ id: 'js_only', status: 'warn', label: 'Text in the page itself', detail: 'The page arrives almost empty and its text is added by JavaScript. Google may read it late or not at all, and other search tools and AI assistants usually can’t. Ask your developer to prerender it (server-side rendering).' });
   add(page.word_count >= 300
     ? { id: 'words', status: 'good', label: 'Amount of text', detail: `${page.word_count} words.` }
     : { id: 'words', status: 'warn', label: 'Amount of text', detail: `${page.word_count} words. Pages with very little text are hard for Google to understand${page.word_count < 50 ? ' (or the text is added later by JavaScript, which Google may read later)' : ''}.` });
@@ -374,4 +405,4 @@ function analyzeText(content, keyword = '') {
   };
 }
 
-module.exports = { checkPage, analyzeText, readHtml, robotsRules, robotsAllows, isPrivateName, isPrivateIp, normaliseUrl, fetchText, assertPublic, probeConnect, timeoutMessage };
+module.exports = { checkPage, analyzeText, readHtml, looksJsOnly, sitemapOpens, robotsRules, robotsAllows, isPrivateName, isPrivateIp, normaliseUrl, fetchText, assertPublic, probeConnect, timeoutMessage };

@@ -91,6 +91,65 @@ async function generateMetaTags() {
   finally { btn.disabled = false; btn.innerHTML = '🏷️ Write title &amp; description'; }
 }
 
+// ── Sitemap maker ────────────────────────────────────────────────────────────
+async function makeSitemapXml() {
+  const btn = document.getElementById('btn-sitemap');
+  const out = document.getElementById('sm-output');
+  const url = document.getElementById('sm-url').value.trim();
+  if (!url) return toast('Type your website address', 'warning');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Finding your pages… (can take a minute)';
+  out.innerHTML = '';
+  try {
+    const d = await api('POST', '/api/seo/sitemap', { url, pages: document.getElementById('sm-pages').value });
+    State.lastSitemap = d.xml;
+    out.innerHTML = `
+      <div class="badge badge-green">${d.count} ${d.count === 1 ? 'page' : 'pages'} in the sitemap</div>
+      ${d.note ? `<div class="form-hint" style="margin:8px 0;color:var(--warning,#d97706)">${escapeHtml(d.note)}</div>` : ''}
+      <div style="font-size:12px;margin:8px 0;max-height:150px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;word-break:break-all">${d.urls.map(u => escapeHtml(u)).join('<br>')}</div>
+      ${d.skipped.length ? `<div class="form-hint">Left out (${d.skipped.length}): ${d.skipped.slice(0, 5).map(s => `${escapeHtml(s.url)} (${escapeHtml(s.why)})`).join('; ')}${d.skipped.length > 5 ? '; …' : ''}</div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="downloadSitemapXml()">⬇️ Download sitemap.xml</button>
+        <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(State.lastSitemap).then(()=>toast('Copied','success'),()=>toast('Couldn’t copy: use Download','warning'))">📋 Copy</button>
+      </div>
+      <div class="form-hint" style="margin-top:8px">Upload it so it opens at <b>${escapeHtml(d.host)}/sitemap.xml</b>, then add that address in Google Search Console → Sitemaps.</div>`;
+  } catch (err) { out.innerHTML = `<div style="color:#ef4444;padding:8px 0">${escapeHtml(err.message)}</div>`; }
+  finally { btn.disabled = false; btn.innerHTML = '🗺️ Make sitemap'; }
+}
+
+function downloadSitemapXml() {
+  if (!State.lastSitemap) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([State.lastSitemap], { type: 'application/xml' }));
+  a.download = 'sitemap.xml';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ── Titles and descriptions for several pages ────────────────────────────────
+async function writeManyTitles() {
+  const btn = document.getElementById('btn-manytitles');
+  const out = document.getElementById('mp-output');
+  const pages = document.getElementById('mp-pages').value.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+    const m = l.match(/^(\S+)\s*(?:[-–—:]\s*)?(.*)$/);
+    return m ? { path: m[1], about: m[2].trim() } : null;
+  }).filter(p => p && p.about);
+  if (!document.getElementById('mp-business').value.trim()) return toast('Say what the business is', 'warning');
+  if (!pages.length) return toast('Add a page: its address, a dash, then what it is about', 'warning');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Writing… (can take up to a minute)';
+  out.innerHTML = '';
+  try {
+    const d = await api('POST', '/api/seo/meta-pages', { business: document.getElementById('mp-business').value, city: document.getElementById('mp-city').value, pages });
+    State.lastManyTags = d.pages;
+    out.innerHTML = d.pages.map((p, i) => `
+      <div class="seo-result-group">
+        <div class="seo-result-label">${escapeHtml(p.path)}</div>
+        <div class="seo-result-value"><b>${escapeHtml(p.title.text || '(none)')}</b> ${seoLenBadge(p.title.length, 30, 60)}<br>${escapeHtml(p.description.text || '')} ${seoLenBadge(p.description.length, 70, 160)}</div>
+        ${p.tags ? `<button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="navigator.clipboard.writeText(State.lastManyTags[${i}].tags).then(()=>toast('Copied. Paste it in this page’s head.','success'),()=>toast('Couldn’t copy','warning'))">📋 Copy HTML</button>` : ''}
+      </div>`).join('');
+  } catch (err) { out.innerHTML = `<div style="color:#ef4444;padding:8px 0">${escapeHtml(err.message)}</div>`; }
+  finally { btn.disabled = false; btn.innerHTML = '🏷️ Write titles &amp; descriptions'; }
+}
+
 function copyMetaTags() {
   const d = State.lastMetaTags;
   if (!d) return;

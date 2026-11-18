@@ -901,6 +901,25 @@ function switchAdminTab(tab, btn) {
   if (tab === 'config')   loadAdminConfig();
   if (tab === 'platform-ai') loadPlatformAiKeys();
   if (tab === 'help-chat') loadHelpAdmin();
+  if (tab === 'client-setup') clientSetupInit();
+}
+
+// Client onboarding checklist (Super Admin). Ticks live in this browser only.
+const CLIENT_SETUP_KEY = 'nexus.clientSetup.ticks';
+function clientSetupInit() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(CLIENT_SETUP_KEY) || '{}') || {}; } catch (_) { saved = {}; }
+  document.querySelectorAll('#admin-panel-client-setup input[data-cs]').forEach(box => {
+    box.checked = !!saved[box.dataset.cs];
+    box.onchange = () => {
+      saved[box.dataset.cs] = box.checked;
+      try { localStorage.setItem(CLIENT_SETUP_KEY, JSON.stringify(saved)); } catch (_) { /* storage blocked: ticks just won't persist */ }
+    };
+  });
+}
+function clientSetupReset() {
+  try { localStorage.removeItem(CLIENT_SETUP_KEY); } catch (_) { /* nothing to clear */ }
+  clientSetupInit();
 }
 
 async function loadAdminDashboard() {
@@ -919,6 +938,8 @@ async function loadAdminDashboard() {
   // Help chat knowledge base: Super Admin only
   const hcTab = document.getElementById('admin-tab-help-chat');
   if (hcTab) hcTab.hidden = !(State.user?.is_super_admin || State.user?.role === 'superadmin');
+  const csTab = document.getElementById('admin-tab-client-setup');
+  if (csTab) csTab.hidden = !(State.user?.is_super_admin || State.user?.role === 'superadmin');
   try {
     const stats = await fetch('/admin/stats').then(r => r.json());
     setEl('adm-total-users', stats.total_users);

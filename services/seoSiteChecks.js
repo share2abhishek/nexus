@@ -194,6 +194,40 @@ async function aiCrawlers(home) {
   }];
 }
 
+// ── Inner pages that name the home page as their main address ───────────────
+// (typical of a site that sends the same <head> for every page)
+const normAddress = (u) => { try { const x = new URL(u); return `${x.hostname.replace(/^www\./, '')}${x.pathname.replace(/\/+$/, '')}`.toLowerCase(); } catch { return ''; } };
+function canonicalToHome(results, home) {
+  const h = normAddress(home);
+  const bad = results.filter((r) => !r.error && r.canonical && normAddress(r.canonical) === h && normAddress(r.url) !== h);
+  if (!bad.length) return [];
+  return [{
+    key: 'canonical-home', kind: 'fix', priority: 1,
+    title: `${plural(bad.length, 'page tells', 'pages tell')} Google that the home page is its main address`,
+    detail: `Each of these names your home page as its “canonical” address, so Google may drop them from results as copies of the home page. Every page should name itself. This often means the website sends the same title, description and canonical for every page: ask your developer to set them per page.`,
+    pages: bad.map((r) => r.url),
+  }];
+}
+
+// ── Both www and non-www open without sending visitors to one ───────────────
+async function hostVariant(home) {
+  const u = new URL(home);
+  const otherHost = u.hostname.startsWith('www.') ? u.hostname.slice(4) : `www.${u.hostname}`;
+  if (!/\./.test(otherHost)) return [];
+  const s = await statusOf(`${u.protocol}//${otherHost}/`);
+  let landed = '';
+  try { landed = new URL(s.finalUrl || '').hostname; } catch { /* no address */ }
+  if (s.status >= 200 && s.status < 300 && landed === otherHost) {
+    return [{
+      key: 'www-split', kind: 'fix', priority: 3,
+      title: `Your website opens at both ${u.hostname} and ${otherHost}`,
+      detail: 'Google may treat them as two websites and split your ranking between them. Pick one and make the other redirect to it (a permanent “301” redirect), then use that one everywhere.',
+      pages: [],
+    }];
+  }
+  return [];
+}
+
 // ── Page speed (Core Web Vitals) from Google PageSpeed Insights ─────────────
 // Free; a key (PAGESPEED_API_KEY) gives a bigger daily allowance.
 async function coreWebVitals(home) {
@@ -234,16 +268,17 @@ async function coreWebVitals(home) {
 }
 
 async function runAll(results, home, { pageSpeed = true } = {}) {
-  const issues = [...duplicates(results), ...sitemapProblems(results), ...structuredData(results)];
+  const issues = [...duplicates(results), ...sitemapProblems(results), ...structuredData(results), ...canonicalToHome(results, home)];
   const parts = await Promise.all([
     brokenLinks(results, home).catch(() => []),
     soft404(home).catch(() => []),
     canonicalTargets(results).catch(() => []),
     aiCrawlers(home).catch(() => []),
+    hostVariant(home).catch(() => []),
     pageSpeed ? coreWebVitals(home).catch(() => ({ issues: [] })) : { issues: [] },
   ]);
   const cwv = parts.pop();
   return { issues: [...issues, ...parts.flat(), ...cwv.issues], vitals: cwv.vitals || null };
 }
 
-module.exports = { runAll, statusOf, brokenLinks, duplicates, soft404, canonicalTargets, sitemapProblems, structuredData, aiCrawlers, coreWebVitals };
+module.exports = { runAll, statusOf, canonicalToHome, hostVariant, brokenLinks, duplicates, soft404, canonicalTargets, sitemapProblems, structuredData, aiCrawlers, coreWebVitals };

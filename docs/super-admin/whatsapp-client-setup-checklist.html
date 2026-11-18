@@ -1,0 +1,70 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>WhatsApp Setup Checklist</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+@page{size:A4;margin:12mm 14mm}
+*{box-sizing:border-box}
+body{margin:0;zoom:.93;background:#fff;color:#0f1a2b;font:13px/1.5 Inter,system-ui,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+h1,h2{font-family:'Space Grotesk',system-ui,sans-serif;margin:0}
+.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid #d5dbe5;padding-bottom:12px}
+.logo{font:700 18px 'Space Grotesk';letter-spacing:.02em}.logo small{display:block;font:500 10px Inter;letter-spacing:.12em;text-transform:uppercase;color:#4a5568}
+.top span{font-size:11.5px;color:#4a5568}
+h1{font-size:23px;margin:12px 0 4px;letter-spacing:-.01em}
+.sub{color:#4a5568;margin:0 0 14px;max-width:70ch}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.box{border:1px solid #d5dbe5;border-radius:10px;padding:11px 15px;break-inside:avoid}
+.box h2{font-size:14.5px;margin-bottom:8px;color:#c4161c}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+li{display:grid;grid-template-columns:18px 1fr;gap:9px}
+li i{width:13px;height:13px;border:1.5px solid #0f1a2b;border-radius:3px;margin-top:3px}
+li small{display:block;color:#4a5568;font-size:11.5px}
+.wide{margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td,th{text-align:left;padding:5px 10px;border-bottom:1px solid #d5dbe5;vertical-align:top}
+th{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:#4a5568}
+.note{margin-top:10px;background:#fdecd2;border-radius:10px;padding:11px 14px;font-size:12px}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;margin-top:6px}
+.fields div{border-bottom:1px solid #0f1a2b;padding:2px 0 1px;font-size:11.5px;color:#4a5568}
+footer{margin-top:14px;font-size:11px;color:#4a5568;display:flex;justify-content:space-between;gap:12px}
+</style></head><body>
+<div class="top"><div class="logo">Radixile<small>Technology Solutions</small></div><span>Client setup checklist · nexus.radixile.com</span></div>
+<h1>Connect your WhatsApp Business number</h1>
+<p class="sub">You create and own the WhatsApp account at Meta. Radixile connects it to NexaDrip. Meta bills you directly at its own rates, with no middleman charge. Plan for 1–2 hours in one sitting.</p>
+
+<div class="cols">
+<div class="box"><h2>Part A · Client does at Meta</h2>
+<ul>
+<li><i></i><div><b>Create a Meta Business account</b><small>business.facebook.com, in your business name.</small></div></li>
+<li><i></i><div><b>Verify the business</b><small>Upload registration or GST papers if Meta asks.</small></div></li>
+<li><i></i><div><b>Add a WhatsApp Business Account</b><small>Use a number not already on the WhatsApp app, or agree to move it.</small></div></li>
+<li><i></i><div><b>Verify the number</b><small>Meta sends a code by SMS or call. Keep the phone nearby.</small></div></li>
+<li><i></i><div><b>Add a payment method</b><small>Your own card or credit line in Meta billing. Meta charges you for template messages.</small></div></li>
+<li><i></i><div><b>Create a System User and access token</b><small>Give it WhatsApp permissions. Share the token only through the secure step below.</small></div></li>
+</ul></div>
+
+<div class="box"><h2>Part B · Radixile does</h2>
+<ul>
+<li><i></i><div><b>Enter details in NexaDrip</b><small>Token, Phone Number ID and WhatsApp Business Account ID under WhatsApp → Setup.</small></div></li>
+<li><i></i><div><b>Set the webhook at Meta</b><small>Point to our server address and enter the verify token. Subscribe to message events.</small></div></li>
+<li><i></i><div><b>Load your business details</b><small>Services, process, timings and standard answers. You review them.</small></div></li>
+<li><i></i><div><b>Submit message templates</b><small>For confirmations and offers sent after 24 hours. Meta approves them, usually within a day.</small></div></li>
+<li><i></i><div><b>Test with your phone</b><small>Send a message, check the AI reply and the inbox entry.</small></div></li>
+<li><i></i><div><b>Train your team, then go live</b><small>Reply, take over, and follow up from the inbox.</small></div></li>
+</ul></div>
+</div>
+
+<div class="box wide"><h2>What you will be charged by Meta</h2>
+<table>
+<tr><th>Message type</th><th>Typical India rate (before 18% GST)</th><th>Example</th></tr>
+<tr><td>Customer messages first, replied within 24 hours</td><td>Free at the time of writing</td><td>"Do you make L-shaped kitchens?"</td></tr>
+<tr><td>Utility message</td><td>About ₹0.115 per message</td><td>"Your visit is confirmed for Saturday 11."</td></tr>
+<tr><td>Marketing message</td><td>About ₹0.863 per message</td><td>"Festival offer on modular kitchens."</td></tr>
+</table>
+<small style="color:#4a5568">Rates come from third-party sources and change. Confirm on Meta's WhatsApp pricing page before launch.</small></div>
+
+<div class="box wide"><h2>Details to hand over</h2>
+<div class="fields"><div>Business name</div><div>WhatsApp number</div><div>Meta Business account ID</div><div>WhatsApp Business Account ID</div><div>Phone Number ID</div><div>Contact person and phone</div></div></div>
+
+<div class="note"><b>Keep the token private.</b> Do not send it by email, chat or screenshot. Enter it yourself on a screen share, or hand it over in person. We can replace it at any time from your Meta account.</div>
+
+<footer><span>Needed from you: a number you control, a payment method, your business papers.</span><span>Radixile Technology Solutions · nexus.radixile.com</span></footer>
+</body></html>

@@ -69,6 +69,57 @@ Reply with JSON only:
   }
 });
 
+// POST /api/seo/sitemap — build a sitemap.xml for a website (downloaded and uploaded by the person)
+router.post('/sitemap', async (req, res) => {
+  const { url, pages } = req.body || {};
+  if (!str(url)) return res.status(400).json({ error: 'Type the address of your website.' });
+  try {
+    res.json(await require('../services/sitemapMaker').makeSitemap(url, { extra: typeof pages === 'string' || Array.isArray(pages) ? pages : '' }));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// POST /api/seo/meta-pages — title + description for several pages at once, from what the person
+// says each page is about (for websites whose pages can't be read: they are built by JavaScript)
+router.post('/meta-pages', async (req, res) => {
+  const { business, city, pages } = req.body || {};
+  const list = (Array.isArray(pages) ? pages : []).map((p) => ({ path: str(p?.path).slice(0, 200), about: str(p?.about).slice(0, 300) })).filter((p) => p.path && p.about).slice(0, 10);
+  if (!str(business)) return res.status(400).json({ error: 'Say what the business is (a sentence).' });
+  if (!list.length) return res.status(400).json({ error: 'Add at least one page: its address and what it is about.' });
+
+  const prompt = `Write the Google search title and description for each page of this website.
+Business: ${str(business).slice(0, 400)}
+Place served: ${str(city).slice(0, 100) || '(not given)'}
+Pages (address, then what it is about):
+${list.map((p, i) => `${i + 1}. ${p.path} - ${p.about}`).join('\n')}
+
+Rules: only say what each page is about; no made-up numbers, awards or prices.
+Each title is 50-60 characters and starts with the main search phrase for that page; end the home page title with the brand.
+Each description is 140-160 characters and ends with a reason to click.
+Reply with JSON only: {"pages":[{"path":"...","title":"...","description":"..."}]} in the same order.`;
+
+  try {
+    const { data, model } = await aiJSON(prompt, ai(req).apiKey, 2048, ai(req).options, ai(req).model);
+    const byPath = new Map((Array.isArray(data.pages) ? data.pages : []).map((p) => [str(p?.path), p]));
+    const field = (value, max) => { const v = str(value); return { text: v, length: v.length, max, too_long: v.length > max }; };
+    const out = list.map((p, i) => {
+      const r = byPath.get(p.path) || (Array.isArray(data.pages) ? data.pages[i] : null) || {};
+      const title = field(r.title, 60); const description = field(r.description, 160);
+      const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      return {
+        path: p.path, title, description,
+        tags: title.text && description.text ? `<title>${esc(title.text)}</title>\n<meta name="description" content="${esc(description.text)}">` : '',
+      };
+    });
+    if (!out.some((p) => p.title.text)) return res.status(502).json({ error: 'The AI didn’t return titles. Try again.' });
+    historyRepo.save(req.workspaceId, req.session?.userId, { prompt: `SEO titles for ${list.length} pages`, response: JSON.stringify(out), type: 'seo_meta', model }).catch(() => {});
+    res.json({ pages: out });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/seo/keywords — AI keyword research
 router.post('/keywords', async (req, res) => {
   const { topic, niche, competitors } = req.body;
