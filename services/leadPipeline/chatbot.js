@@ -20,6 +20,7 @@ const LIMITS = {
   keywordsPerRule: 20,
   menuOptions: 9,      // one digit per option
   repliesPerHour: 6,   // the bot never sends more than this to one chat in an hour
+  webRepliesPerHour: 40, // website chat (menus are tapped through quickly)
   knowledge: 20000,    // characters of free-text business knowledge for AI answers
 };
 const AWAY_EVERY = 12 * 3600;
@@ -390,7 +391,7 @@ Reply:`;
  * Runs the bot for one incoming WhatsApp message (called by the webhooks after
  * the message is saved). send(text) delivers a reply; returns what was sent.
  */
-async function handleInbound(db, { workspaceId, lead, text, name, send, askN8n }) {
+async function handleInbound(db, { workspaceId, lead, text, name, send, askN8n, channel = 'whatsapp', skipFallback = false }) {
   if (!(await db.schema.hasTable('whatsapp_bot_settings'))) return { sent: [] };
   const settings = await getSettings(db, workspaceId);
   const state = (await getState(db, workspaceId, lead.id)) || {};
@@ -398,6 +399,10 @@ async function handleInbound(db, { workspaceId, lead, text, name, send, askN8n }
 
   const business = await businessName(db, workspaceId);
   const d = decide(settings.config, { text, name, business }, state, at);
+  // The caller answers this one itself (e.g. web chat thanks a visitor who left a number)
+  if (skipFallback && (d.fallback || d.ai || d.n8n || d.reason === 'no_match')) {
+    Object.assign(d, { replies: [], ai: false, n8n: false, fallback: false, reason: 'caller_answers' });
+  }
 
   // STOP/START are honoured even when the bot is off or the licence isn't
   // active: they're the customer's consent, not a feature
@@ -450,16 +455,19 @@ async function handleInbound(db, { workspaceId, lead, text, name, send, askN8n }
   // Never more than a few bot messages per chat per hour
   const windowFresh = state.window_start && at - state.window_start < 3600;
   let count = windowFresh ? state.window_count || 0 : 0;
+  // A website visitor taps through menus quickly; the public chat is already rate
+  // limited per visitor (routes/webhooks.js), so web chat gets a higher cap
+  const perHour = channel === 'web' ? LIMITS.webRepliesPerHour : LIMITS.repliesPerHour;
   const sent = [];
   for (const r of replies) {
-    if (count >= LIMITS.repliesPerHour) break;
+    if (count >= perHour) break;
     const res = await send(r).catch(err => ({ success: false, error: err.message }));
     if (res?.success === false) { console.warn('[WhatsApp bot] Reply not sent:', res.error); break; }
     count++;
     sent.push(r);
     await db('lead_conversation_messages').insert({
       workspace_id: workspaceId, lead_id: lead.id, sender_type: 'bot', sender_name: n8nAsked ? 'n8n' : 'Auto-reply',
-      message_text: r, channel: 'whatsapp', created_at: now(),
+      message_text: r, channel, created_at: now(),
     });
   }
 

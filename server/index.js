@@ -142,6 +142,19 @@ app.get('/__schedule', async (req, res) => {
 const publicPages = require('./publicPages');
 app.use(publicPages.noindexMiddleware); // app, sign-in and one-time links stay out of search results
 app.use(publicPages.router);
+// Share page for a website chat: the bot full-size on its own address, to try it or send
+// the link (the bot's look comes from the workspace's chat profile)
+app.get('/webchat/:token', (req, res) => {
+  const token = String(req.params.token || '');
+  if (!/^webchat_[a-f0-9]{16,64}$/.test(token)) return res.status(404).send('Not found');
+  res.set('Cache-Control', 'no-cache');
+  res.set('X-Robots-Tag', 'noindex');
+  res.type('html').send(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>Chat</title><style>html,body{margin:0;height:100%;background:#f3f1ee}</style></head>
+<body><script src="/webchat-widget.js" data-token="${token}" data-open="true"></script></body></html>`);
+});
+
 // index: false, so "/" goes to the route below (app or landing page), not straight to index.html
 // Hosted: fonts and images are cached for a long time, scripts and styles are re-checked often
 app.use(express.static(path.join(__dirname, '..', 'public'), {

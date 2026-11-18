@@ -186,17 +186,13 @@ async function handleInboundWebChat(knex, { config, visitorId, name, text }) {
   try {
     bot = await chatbot.handleInbound(knex, {
       workspaceId, lead, text: msg, name: senderName,
+      channel: 'web', // handleInbound saves each reply once, as a web message
+      // A message with a phone number gets the "we have your number" answer below
+      // instead of the generic fallback
+      skipFallback: !!phoneMatch,
       // Web-chat captures replies instead of sending them over WhatsApp
       send: async (reply) => {
-        if (reply) {
-          captured.push(reply);
-          await repo.addLeadMessage(workspaceId, lead.id, {
-            sender_type: 'bot',
-            sender_name: 'Nexus Bot',
-            message_text: reply,
-            channel: 'web',
-          }).catch(() => {});
-        }
+        if (reply) captured.push(reply);
         return { success: true };
       },
       askN8n: n8nUrl ? async () => {
@@ -207,7 +203,7 @@ async function handleInboundWebChat(knex, { config, visitorId, name, text }) {
     });
     if (phoneMatch && captured.length === 0) {
       const bName = (await chatbot.businessName(knex, workspaceId)) || 'our team';
-      const thankYou = `Thank you${lead.full_name && lead.full_name !== 'Website visitor' ? ' ' + lead.full_name : ''}! We have registered your contact number (+${lead.phone_number}). An onboarding specialist from ${bName} has been notified and will reach out to you shortly.`;
+      const thankYou = `Thank you${lead.full_name && lead.full_name !== 'Website visitor' ? ' ' + lead.full_name : ''}! We have noted your contact number (+${lead.phone_number}). Our team at ${bName} has been notified and will reach out to you shortly.`;
       captured.push(thankYou);
       await repo
         .addLeadMessage(workspaceId, lead.id, {

@@ -318,10 +318,36 @@ module.exports = (knex) => {
   const chatVisitorLimit = rateLimit({ name: 'chat-visitor', windowMs: 60_000, max: 8, key: (req) => `${req.params.token}:${String(req.body?.visitor_id || '').slice(0, 90)}`, message: 'Please wait a moment before sending another message.' });
   router.options('/webchat/:token', (req, res) => { webchatCors(res); res.status(204).end(); });
   router.options('/webchat/:token/history', (req, res) => { webchatCors(res); res.status(204).end(); });
+  router.options('/webchat/:token/config', (req, res) => { webchatCors(res); res.status(204).end(); });
+
+  // How the chat looks (bot name, avatar, description, colour). Public, like the token.
+  const webchatProfile = require('../services/leadPipeline/webchatProfile');
+  const chatbot = require('../services/leadPipeline/chatbot');
+  router.get('/webchat/:token/config', chatCors, chatIpLimit, async (req, res) => {
+    const token = String(req.params.token || '');
+    const config = await repo.getConfigByWebchatToken(token).catch(() => null);
+    if (!config) return res.status(404).json({ error: 'Unknown chat address' });
+    const p = webchatProfile.publicProfile(config, `/api/webhooks/webchat/${encodeURIComponent(token)}/avatar?v=${config.updated_at || 0}`);
+    if (!p.name) p.name = (await chatbot.businessName(knex, config.workspace_id).catch(() => '')) || null;
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json(p);
+  });
+  router.get('/webchat/:token/avatar', chatIpLimit, async (req, res) => {
+    const config = await repo.getConfigByWebchatToken(String(req.params.token || '')).catch(() => null);
+    const img = config && webchatProfile.avatar(config);
+    if (!img) return res.status(404).end();
+    res.set('Content-Type', img.mime);
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin'); // shown on the customer's own website
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.send(img.buffer);
+  });
+
   router.get('/webchat/:token/history', chatCors, chatIpLimit, async (req, res) => {
     webchatCors(res);
     const config = await repo.getConfigByWebchatToken(String(req.params.token || '')).catch(() => null);
     if (!config) return res.status(404).json({ error: 'Unknown chat address' });
+    const botName = webchatProfile.publicProfile(config, '').name || 'Assistant';
     const visitorId = String(req.query.visitor_id || '').trim();
     if (!visitorId) return res.json({ messages: [] });
     try {
@@ -333,7 +359,7 @@ module.exports = (knex) => {
         id: m.id,
         text: m.message_text,
         who: m.sender_type === 'lead' ? 'me' : 'bot',
-        sender_name: m.sender_name || (m.sender_type === 'lead' ? 'You' : 'Urban Society'),
+        sender_name: m.sender_type === 'lead' ? 'You' : botName,
         created_at: m.created_at,
       }));
       res.json({ messages: list });
