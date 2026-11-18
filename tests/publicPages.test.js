@@ -31,6 +31,25 @@ test('landing page: the site address is filled in everywhere and the FAQ becomes
   expect(faq.mainEntity[0].acceptedAnswer.text).not.toMatch(/<|&amp;/);
 });
 
+test('sign-up and pricing can be switched off: those parts are not sent, and the structured data stays valid', () => {
+  const raw = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'landing.html'), 'utf8');
+  const off = publicPages.applySwitches(raw, { signup: false, pricing: false });
+  expect(off).not.toMatch(/<!--\/?IF:/);
+  expect(off).not.toContain('id="pricing"');
+  expect(off).not.toContain('href="#pricing"');
+  expect(off).not.toMatch(/₹1,275|"price"/);
+  expect(off).not.toContain('/login.html#register');
+  expect(off).not.toMatch(/free trial/i);
+  expect(off).toContain('href="/login.html" class="btn btn-primary">Sign in →</a>');
+  for (const m of off.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) expect(() => JSON.parse(m[1].replace(/%SITE_URL%/g, 'https://x.in'))).not.toThrow();
+
+  const on = publicPages.applySwitches(raw, { signup: true, pricing: true });
+  expect(on).toContain('id="pricing"');
+  expect(on).toContain('/login.html#register');
+  expect(on).not.toContain('Sign in →</a><!--');
+  expect(on).not.toMatch(/<!--\/?IF:/);
+});
+
 test('robots.txt keeps the API out and points to the sitemap; the sitemap lists the public pages', async () => {
   process.env.APP_URL = 'https://app.example.in';
   const robots = await request(app()).get('/robots.txt');

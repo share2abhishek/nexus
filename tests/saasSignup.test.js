@@ -121,6 +121,29 @@ test('an invited person signs up into the inviting business (no new business), w
   expect(await knex('memberships').where({ user_id: ravi.id, workspace_id: ws.id }).first()).toMatchObject({ role: 'creator' });
 });
 
+test('sign-up closed: no new business can sign up, but an invited person still can', async () => {
+  await knex('platform_config').insert({ key: 'registration_mode', value: 'closed' });
+  try {
+    expect((await request(app).get('/users/registration-info')).body.mode).toBe('closed');
+    const blocked = await request(app).post('/users/register').send({ email: 'new@biz.test', password: 'long-enough', business_name: 'New Biz' });
+    expect(blocked.status).toBe(403);
+    expect(await knex('users').where({ email: 'new@biz.test' }).first()).toBeUndefined();
+
+    const owner = await knex('users').where({ email: 'asha@acme.test' }).first();
+    const ws = await knex('workspaces').where({ org_id: (await knex('organizations').where({ owner_user_id: owner.id }).first()).id }).first();
+    const agent = request.agent(app);
+    await agent.post('/users/login').send({ email: 'asha@acme.test', password: 'brand-new-pass' });
+    const inv = await agent.post('/invitations').set('x-ws', String(ws.id)).send({ email: 'neha@acme.test', role: 'creator' });
+    const r = await request(app).post('/users/register').send({ email: 'neha@acme.test', password: 'long-enough', invite_token: inv.body.token });
+    expect(r.status).toBe(200);
+    // a made-up invitation doesn't get round the closed sign-up
+    const fake = await request(app).post('/users/register').send({ email: 'x@biz.test', password: 'long-enough', business_name: 'X', invite_token: 'nope' });
+    expect(fake.status).toBe(400);
+  } finally {
+    await knex('platform_config').where({ key: 'registration_mode' }).del();
+  }
+});
+
 test('the desktop app keeps its old sign-up (no business name, no server flag)', async () => {
   delete process.env.NEXUS_MODE;
   expect((await request(app).get('/users/registration-info')).body.server).toBe(false);

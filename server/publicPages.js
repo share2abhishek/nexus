@@ -41,20 +41,46 @@ function faqJsonLd(html) {
   return `<script type="application/ld+json">${json}</script>`;
 }
 
-let cache = { mtime: 0, html: '' };
-function landingHtml() {
+// Parts of the landing page that can be switched off without a deploy (platform_config):
+//   registration_mode = closed   → sign-up buttons, trial notes and the trial FAQ are left out
+//   show_pricing      = off      → the Pricing section, its menu link and the prices in the
+//                                   structured data are left out
+// In landing.html a part is wrapped in <!--IF:name--> … <!--/IF:name--> (or IF:!name for
+// what shows when it is off). Parts that are off are not sent at all, so search engines
+// don't see them either.
+function applySwitches(html, on) {
+  return html.replace(/<!--IF:(!?)(\w+)-->([\s\S]*?)<!--\/IF:\1\2-->/g,
+    (m, not, name, body) => ((!!on[name]) !== !!not ? body : ''));
+}
+
+let switchesCache = { at: 0, value: { signup: true, pricing: true } };
+async function landingSwitches() {
+  if (Date.now() - switchesCache.at < 30_000) return switchesCache.value;
+  let value = { signup: true, pricing: true };
+  try {
+    const knex = require('../services/knex');
+    const rows = await knex('platform_config').whereIn('key', ['registration_mode', 'show_pricing']).select('key', 'value');
+    const get = (k) => String(rows.find((r) => r.key === k)?.value ?? '').trim().toLowerCase();
+    value = { signup: get('registration_mode') !== 'closed', pricing: !['off', 'false', '0', 'no', 'hidden'].includes(get('show_pricing')) };
+  } catch { /* keep the defaults */ }
+  switchesCache = { at: Date.now(), value };
+  return value;
+}
+
+let cache = { key: '', html: '' };
+function landingHtml(on = { signup: true, pricing: true }) {
   const file = path.join(PUBLIC, 'landing.html');
-  const mtime = fs.statSync(file).mtimeMs;
-  if (mtime !== cache.mtime) {
-    const raw = fs.readFileSync(file, 'utf8');
-    cache = { mtime, html: raw.replace('<!--FAQ_JSONLD-->', faqJsonLd(raw)) };
+  const key = `${fs.statSync(file).mtimeMs}:${on.signup}:${on.pricing}`;
+  if (key !== cache.key) {
+    const html = applySwitches(fs.readFileSync(file, 'utf8'), on);
+    cache = { key, html: html.replace('<!--FAQ_JSONLD-->', faqJsonLd(html)) };
   }
   return cache.html;
 }
 
-function sendLanding(req, res) {
+async function sendLanding(req, res) {
   const url = siteUrl(req);
-  res.type('html').send(landingHtml().split('%SITE_URL%').join(url));
+  res.type('html').send(landingHtml(await landingSwitches()).split('%SITE_URL%').join(url));
 }
 
 const router = express.Router();
@@ -174,4 +200,4 @@ router.get('/legal/:page', (req, res, next) => {
   res.type('html').send(html);
 });
 
-module.exports = { router, sendLanding, sendNotFound, noindexMiddleware, noindexPath, siteUrl, faqJsonLd, LEGAL_PAGES, NOT_FOR_SEARCH };
+module.exports = { router, sendLanding, applySwitches, sendNotFound, noindexMiddleware, noindexPath, siteUrl, faqJsonLd, LEGAL_PAGES, NOT_FOR_SEARCH };

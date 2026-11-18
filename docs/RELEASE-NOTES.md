@@ -24,6 +24,9 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 - Bot replies are no longer saved twice, and a visitor tapping through menus is no longer cut off after 6 replies in an hour.
 - A visitor who types their phone number now gets the "we have noted your number" answer instead of the general fallback.
 
+### Website (hosted edition)
+- **Sign-up and pricing can be hidden** without a deploy. With `registration_mode = closed` the website has no sign-up buttons or trial text and the sign-in page has no "Create Account"; people invited to a business's team can still create their account. With `show_pricing = off` the Pricing section, its menu link and the prices search engines read are left out. Both are rows in `platform_config`.
+
 ---
 
 ## 2.3.0 — 17 November 2026

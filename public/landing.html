@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NexaDrip: Social Media, WhatsApp &amp; SEO Tool for Indian Businesses</title>
-  <meta name="description" content="Schedule Instagram, Facebook and LinkedIn posts, automate WhatsApp replies, find business customers and fix website SEO. Free 14-day trial. Made in India." />
+  <meta name="description" content="Schedule Instagram, Facebook and LinkedIn posts, automate WhatsApp replies, find business customers and fix website SEO.<!--IF:signup--> Free 14-day trial.<!--/IF:signup--> Made in India." />
   <meta name="robots" content="index, follow, max-image-preview:large" />
   <link rel="canonical" href="%SITE_URL%/" />
   <link rel="alternate" hreflang="en-IN" href="%SITE_URL%/" />
@@ -60,7 +60,7 @@
         "description": "Plan and publish social posts, answer and broadcast on WhatsApp, find business customers and keep your website in shape for Google, with AI that drafts and nothing going out without your OK.",
         "featureList": "Social media scheduling, WhatsApp auto-replies and broadcasts, B2B sales outreach, Google Business posts, website SEO checks, client approvals for agencies",
         "image": "%SITE_URL%/og-image.png",
-        "publisher": { "@id": "%SITE_URL%/#org" },
+        "publisher": { "@id": "%SITE_URL%/#org" }<!--IF:pricing-->,
         "offers": [
           { "@type": "Offer", "name": "Individual", "url": "%SITE_URL%/#pricing", "priceCurrency": "INR", "price": "1275", "availability": "https://schema.org/InStock",
             "priceSpecification": { "@type": "UnitPriceSpecification", "price": "1275", "priceCurrency": "INR", "unitText": "MONTH", "valueAddedTaxIncluded": false },
@@ -68,7 +68,7 @@
           { "@type": "Offer", "name": "Agency Pro", "url": "%SITE_URL%/#pricing", "priceCurrency": "INR", "price": "10200", "availability": "https://schema.org/InStock",
             "priceSpecification": { "@type": "UnitPriceSpecification", "price": "10200", "priceCurrency": "INR", "unitText": "MONTH", "valueAddedTaxIncluded": false },
             "description": "25 client workspaces, 10 team members with roles, client approval links and branded reports." }
-        ]
+        ]<!--/IF:pricing-->
       }
     ]
   }
@@ -302,12 +302,12 @@
       <a href="#outreach">Sales outreach</a>
       <a href="#seo">Google &amp; SEO</a>
       <a href="#agencies">Agencies</a>
-      <a href="#pricing">Pricing</a>
+      <!--IF:pricing--><a href="#pricing">Pricing</a><!--/IF:pricing-->
       <a href="#faq">FAQ</a>
     </nav>
     <div class="nav-cta">
       <a href="/login.html" class="btn btn-ghost btn-sm">Sign in</a>
-      <a href="/login.html#register" class="btn btn-primary btn-sm" data-signup>Start free trial</a>
+      <!--IF:signup--><a href="/login.html#register" class="btn btn-primary btn-sm" data-signup>Start free trial</a><!--/IF:signup-->
     </div>
   </div>
 </header>
@@ -321,10 +321,10 @@
       <h1>Your posts, chats and customers. In one place.</h1>
       <p class="lead">Plan and publish social posts, answer and broadcast on WhatsApp, find business customers and keep your website in shape for Google. AI writes the first draft in your words. Nothing goes out without your OK.</p>
       <div class="hero-cta">
-        <a href="/login.html#register" class="btn btn-primary" data-signup>Start free trial →</a>
-        <a href="/login.html" class="btn btn-ghost">Sign in</a>
+        <!--IF:signup--><a href="/login.html#register" class="btn btn-primary" data-signup>Start free trial →</a>
+        <a href="/login.html" class="btn btn-ghost">Sign in</a><!--/IF:signup--><!--IF:!signup--><a href="/login.html" class="btn btn-primary">Sign in →</a><!--/IF:!signup-->
       </div>
-      <p class="hero-note" data-trial-note>14 days free. No card needed. Your posts and settings stay yours.</p>
+      <!--IF:signup--><p class="hero-note" data-trial-note>14 days free. No card needed. Your posts and settings stay yours.</p><!--/IF:signup-->
     </div>
 
     <div class="hero-screens" aria-label="Example: a post being prepared, with its first comment, and the week's calendar">
@@ -535,6 +535,7 @@
   </div>
 </section>
 
+<!--IF:pricing-->
 <!-- ── Pricing ───────────────────────────────────────────────────────────── -->
 <section id="pricing">
   <div class="wrap">
@@ -584,6 +585,7 @@
     <p class="lead" style="text-align:center;margin:18px auto 0;font-size:14px;color:var(--muted)">Prices shown are for monthly billing and exclude GST. Need just one brand? A free plan is available after the trial.</p>
   </div>
 </section>
+<!--/IF:pricing-->
 
 <!-- ── Getting started ────────────────────────────────────────────────────── -->
 <section class="band">
@@ -592,7 +594,7 @@
       <h2>Set up in an afternoon. <span class="soft">Not a week.</span></h2>
     </div>
     <div class="steps">
-      <div class="step"><h3>Create your account</h3><p>Your business name, email and a password. Your free trial starts straight away.</p></div>
+      <!--IF:signup--><div class="step"><h3>Create your account</h3><p>Your business name, email and a password. Your free trial starts straight away.</p></div><!--/IF:signup-->
       <div class="step"><h3>Connect what you use</h3><p>Sign in to Facebook, Instagram, LinkedIn and the rest, and connect your WhatsApp number when you’re ready.</p></div>
       <div class="step"><h3>Plan your first week</h3><p>Let AI draft a few posts, check them, and put them on the calendar. That’s it.</p></div>
     </div>
@@ -630,7 +632,7 @@
   <div class="wrap">
     <div class="section-head center"><h2>Questions</h2></div>
     <div class="faq">
-      <details><summary>What happens after the free trial?</summary><p>Choose the plan that fits: Individual for one business, or Agency for several clients. If you don’t choose one, your account stays: you can still see, write and export everything, but nothing is published or sent until you pick a plan.</p></details>
+      <!--IF:signup--><details><summary>What happens after the free trial?</summary><p>Choose the plan that fits: Individual for one business, or Agency for several clients. If you don’t choose one, your account stays: you can still see, write and export everything, but nothing is published or sent until you pick a plan.</p></details><!--/IF:signup-->
       <details><summary>Do I need my own AI key?</summary><p>No. You can add your own key (many providers have a free allowance) or use the AI credits included in the bigger plans. You can switch any time.</p></details>
       <details><summary>Which platforms can it post to?</summary><p>Facebook pages, Instagram (posts, Reels and Stories), LinkedIn, X, Pinterest, Threads, Bluesky and Google Business Profile. WhatsApp Channels and Status get a ready-to-paste copy, because WhatsApp doesn’t let apps post there.</p></details>
       <details><summary>Is WhatsApp messaging allowed?</summary><p>Yes, through Meta’s official WhatsApp Business platform. Broadcasts use templates that Meta approves, people who reply STOP are never messaged again, and you only message customers who agreed to hear from you.</p></details>
@@ -645,10 +647,10 @@
 <section class="closing">
   <div class="wrap">
     <h2>Spend less time posting. <span class="soft">More time running your business.</span></h2>
-    <p data-trial-note>14 days free. No card needed.</p>
+    <!--IF:signup--><p data-trial-note>14 days free. No card needed.</p><!--/IF:signup-->
     <div class="hero-cta">
-      <a href="/login.html#register" class="btn btn-primary" data-signup>Start free trial →</a>
-      <a href="/login.html" class="btn btn-ghost">Sign in</a>
+      <!--IF:signup--><a href="/login.html#register" class="btn btn-primary" data-signup>Start free trial →</a>
+      <a href="/login.html" class="btn btn-ghost">Sign in</a><!--/IF:signup--><!--IF:!signup--><a href="/login.html" class="btn btn-primary">Sign in →</a><!--/IF:!signup-->
     </div>
   </div>
 </section>

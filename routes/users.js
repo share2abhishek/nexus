@@ -127,7 +127,9 @@ async function registerOnServer(req, res) {
   if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'That doesn’t look like an email address.' });
   if (password.length < 8) return res.status(400).json({ error: 'Choose a password of at least 8 characters.' });
-  if ((await usersRepo.getConfig('registration_mode', 'open')) === 'closed') {
+  // "closed" stops new businesses signing up; people invited to a business's team can
+  // still create their account (the invitation is checked below)
+  if (!inviteToken && (await usersRepo.getConfig('registration_mode', 'open')) === 'closed') {
     return res.status(403).json({ error: 'New sign-ups are paused for the moment. Please try again later.' });
   }
 
