@@ -18,6 +18,10 @@ hosted edition. Paste the section into the GitHub Release
 
 ## Unreleased
 
+---
+
+## 2.3.0 — 17 November 2026
+
 ### Meta reports
 - **New Meta Reports page:** ad account balance, spend and leads, plus WhatsApp analytics, cost and number health in one place.
 - Each workspace picks its own ad accounts. **Pay on Meta** links and a warning when a payment is overdue.
