@@ -337,6 +337,18 @@
     })
     .catch(function () {});
 
+  // ── Keep the host page out of our input ────────────────────────────────────
+  // Sites with a pop-up open (Bootstrap / React modals) pull keyboard focus back into the
+  // pop-up, so the chat box looks frozen. Stop focus events inside the chat from reaching
+  // the page's own listeners, and keep typing from triggering the page's shortcuts.
+  function inChat(t) { return !!t && t.nodeType === 1 && (panel.contains(t) || btn.contains(t)); }
+  ['focus', 'focusin', 'blur', 'focusout'].forEach(function (type) {
+    window.addEventListener(type, function (e) { if (inChat(e.target)) e.stopImmediatePropagation(); }, true);
+  });
+  ['keydown', 'keyup', 'keypress'].forEach(function (type) {
+    panel.addEventListener(type, function (e) { e.stopPropagation(); });
+  });
+
   if (openAtStart) open();
 
   // ── Global API for parent apps (Angular / JS) ──────────────────────────────
