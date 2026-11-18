@@ -20,7 +20,8 @@
     "dist:all": "npm run icons && electron-builder --win --mac --linux --x64",
     "test": "jest --runInBand",
     "migrate": "knex migrate:latest",
-    "migrate:make": "knex migrate:make"
+    "migrate:make": "knex migrate:make",
+    "release": "node scripts/release.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",

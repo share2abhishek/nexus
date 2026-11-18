@@ -1,7 +1,60 @@
 # Social-Nexus release notes
 
-Newest first. Paste the section for a version into the GitHub Release
-(`gh release create ... --notes-file`) when you publish it.
+Newest first. Every release has a section here; the tests fail if the version in
+`package.json` has none.
+
+**While working:** add a line under **Unreleased** in the same commit as any change a
+customer or an installer would notice (new or changed feature, fix, setting, upgrade step).
+Write it for the customer, not the developer.
+
+**To release:** `npm run release -- <version>` (e.g. `npm run release -- 2.3.1`). It turns
+Unreleased into the new version's section with today's date, sets the version in
+`package.json`, `package-lock.json`, the help page and the technical guide, then commits
+and tags `v<version>`. Push with `git push --follow-tags`; pushing `master` deploys the
+hosted edition. Paste the section into the GitHub Release
+(`gh release create ... --notes-file`) when you publish the desktop app.
+
+---
+
+## Unreleased
+
+### Meta reports
+- **New Meta Reports page:** ad account balance, spend and leads, plus WhatsApp analytics, cost and number health in one place.
+- Each workspace picks its own ad accounts. **Pay on Meta** links and a warning when a payment is overdue.
+- When a permission is missing, the page shows step by step how to add it (for ads: **Reconnect Facebook with ads access**).
+
+### Contact Sync to Google Sheets and Salesforce
+- Contacts can sync by themselves to a **Google Sheet** and to **Salesforce Leads**, set up per workspace, with **Test**, **Sync now**, the last status and retry. Keys are stored encrypted, and the saved Salesforce Consumer Key is never sent back to the browser.
+- Clear setup steps and Google error help: the redirect address to copy, and what to do about a 403 (add a test user or publish the app), a 400 or a Sheets API error. You confirm before auto-sync is turned on, and a failure names the contact.
+
+### Leads and contacts
+- **Added** and **Last action** columns. Log a call, WhatsApp, email, meeting, demo, note or task with who did it (you or a teammate) and when; quick-log and edit straight from the table.
+- A clearer message when Facebook isn't connected for the workspace.
+
+### Faster AI chat answers
+- Questions that match an FAQ are answered at once, with no AI call. Other questions get only the relevant parts of your knowledge base, so answers are faster and cheaper. Repeat answers are remembered until you change the knowledge base.
+- Paste or upload raw notes and organise them into sections you can edit and delete.
+- The website chat shows an animated "typing…" indicator.
+
+### Sales outreach
+- **Attach files to a campaign** (PDF, Office, CSV or images) to the first email only or to every email. Works with SMTP and Amazon SES.
+- **Find companies** works again: the AI's company list is read correctly, typed websites are used, and skipped sites say why (already in the campaign, wouldn't open). If the AI fails you see the real reason.
+- **Real addresses only:** emails come from the company's own website. Addresses the AI made up are dropped, the same website or address is never added twice, and a button removes existing repeats.
+- **Faster sending:** due emails are checked every minute (was every 15) and approving an email sends it right away. The Outbox follows an email until it is sent; a send cut off by a restart is marked failed and never resent by itself.
+- Edit and delete contacts (one or many), delete emails from the Outbox with their unsent follow-ups, and change the daily limit (default 25) from the **Sent today: X of Y** pill. The status pill says what is happening (Sending…, Next send…, Nothing waiting).
+- Outreach cards are readable again (they were dark text on dark cards).
+
+### Email sending
+- **Amazon SES with AWS access keys** (the SES API) as a second way to send, next to SMTP, on the hosted edition and the desktop app.
+
+### Also
+- Short pop-up, highlight and hover effects, all turned off when your device is set to reduce motion.
+- **Hosted edition:** every push to `master` is tested and deployed automatically, with a backup and automatic rollback if the new version doesn't start.
+
+### Fixed
+- **Select all** and **Delete selected** in Sales outreach ran the WhatsApp screen's buttons of the same name.
+- A cloud AI that times out is skipped for 90 seconds instead of making every company wait.
+- The missing refresh icon on Leads.
 
 ---
 
@@ -143,3 +196,53 @@ Everything below was finished since 2.1.0.
 - Sales outreach doesn't read your mailbox yet: paste replies in **4. Replies**.
 - Guessed email addresses can bounce.
 - The public tunnel downloads `cloudflared` when you first turn it on.
+
+---
+
+## 2.1.0 — 29 October 2026
+
+_Written afterwards from the change history._
+
+### Upgrading
+- Migrations run by themselves at start-up. Existing data is moved into a first workspace automatically, and an install without an admin gets one once (the first user).
+- Saved social logins are now encrypted on disk; they are converted when the app starts.
+
+### Workspaces and teams
+- **Workspaces:** keep each brand or client separate, each with its own social accounts, posts and settings. Switch between them from the workspace switcher.
+- **Team members and roles:** invite people by link and give each one a role that controls what they can do. Invitations expire.
+- Works on SQLite (desktop app) and PostgreSQL (hosted edition).
+
+### Content and calendar
+- One place for every post: draft, review, approve, schedule and publish, with comments on each post and checks on who may move a post to the next step.
+- Content calendar showing what is planned and published.
+
+### Posting
+- Rebuilt posting for Facebook, Instagram, LinkedIn, Pinterest, X, Google Business, Bluesky and Threads, with a media library and per-platform post options.
+- Tokens refresh by themselves. Accounts saved without a login show **Sign in again**, and publish errors say what went wrong.
+- Facebook asks for Instagram permissions only when you connect Instagram, and keeps the chosen Page when you reconnect.
+
+### Client approval, inbox and reports
+- **Approval links and sets:** send posts to a client for approval, with a client companion page and one-click account connection.
+- **Unified inbox**, a **link-in-bio** page, cloud posting hand-over, insights and reports.
+
+### Licence, backups and import
+- Licence activation in **Settings → Licence**.
+- **Backups** protected by a passphrase, and restore. Bulk import of posts. Festival calendar for planning.
+
+### Fixed
+- AI writing for a single post no longer returns one version per platform.
+- Unknown data addresses return a clear error instead of the app page.
+
+---
+
+## 2.0.0 — 30 May 2026
+
+_Written afterwards from the change history._
+
+First release of NEXUS 2.0, an AI digital marketing platform for Windows.
+
+- **Post to many platforms:** LinkedIn, Facebook, Instagram, Pinterest, Twitter/X, YouTube, Google Business and TikTok.
+- **AI writing** with a local model (Ollama/Llama), Google Gemini or Claude. **AI images** (Stability AI, DALL·E 3) and **AI video** (Luma, Runway).
+- **Marketing tools:** SEO, app store listing (ASO), email marketing, ad copy, hashtag research and a UTM link builder.
+- **Sign-in and roles:** user accounts with an admin dashboard, and invite codes to control who can join.
+- **Windows installer** with Node.js built in, a marketing landing page and in-app help.

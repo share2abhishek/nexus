@@ -446,6 +446,16 @@ CONTENT_FOLDER=D:\\social
 
 ---
 
+## Release Notes and Releases
+
+Every release has release notes in `docs/RELEASE-NOTES.md` (the tests fail without them).
+
+- **With each change** a customer or installer would notice, add a line under `## Unreleased` in the same commit, written for the customer.
+- **To release:** `npm run release -- <version>`. It moves Unreleased into a dated section for that version, sets the version in `package.json`, `package-lock.json`, the help page and the technical guide, commits and tags `v<version>`.
+- **Push:** `git push --follow-tags`. Every push to `master` is tested and deployed to the hosted edition (nexus.radixile.com) by Bitbucket Pipelines.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
