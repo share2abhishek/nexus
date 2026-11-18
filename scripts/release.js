@@ -74,7 +74,12 @@ for (const [rel, re, to] of edits) {
 // 3. Commit and tag
 if (noGit) { console.log(`Prepared ${version}. Not committed (--no-git).`); process.exit(0); }
 git('add', 'docs/RELEASE-NOTES.md', 'package.json', 'package-lock.json', 'public/help.html', 'docs/support/technical-guide.md');
-git('commit', '-q', '-m', `chore(release): ${version}`);
+// The deploy hook must run after the tag exists, so skip it on the commit and run it here.
+execFileSync('git', ['commit', '-q', '-m', `chore(release): ${version}`], { cwd: ROOT, env: { ...process.env, NEXUS_NO_DEPLOY: '1' } });
 git('tag', '-a', `v${version}`, '-m', `Social-Nexus ${version}`);
 console.log(`Released ${version} (commit ${git('rev-parse', '--short', 'HEAD')}, tag v${version}).`);
-console.log('Push it with:  git push --follow-tags   (pushing master deploys the hosted edition)');
+const hook = path.resolve(ROOT, git('rev-parse', '--git-path', 'hooks/post-commit'));
+let hookOn = false;
+try { fs.accessSync(hook, fs.constants.X_OK); hookOn = true; } catch {}
+if (hookOn) execFileSync(hook, { cwd: ROOT, stdio: 'inherit' });
+else console.log('Push it with:  git push --follow-tags');

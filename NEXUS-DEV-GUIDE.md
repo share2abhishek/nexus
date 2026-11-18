@@ -452,7 +452,7 @@ Every release has release notes in `docs/RELEASE-NOTES.md` (the tests fail witho
 
 - **With each change** a customer or installer would notice, add a line under `## Unreleased` in the same commit, written for the customer.
 - **To release:** `npm run release -- <version>`. It moves Unreleased into a dated section for that version, sets the version in `package.json`, `package-lock.json`, the help page and the technical guide, commits and tags `v<version>`.
-- **Push:** `git push --follow-tags`. Every push to `master` is tested and deployed to the hosted edition (nexus.radixile.com) by Bitbucket Pipelines.
+- **Deploy:** with the hook installed (`scripts/deploy/install-hook.sh`, needs the prod SSH key), every commit on `master` pushes to Bitbucket and deploys to the hosted edition (nexus.radixile.com) in the background. The log is `.git/nexus-deploy.log` and a macOS notification shows the result. Skip once with `NEXUS_NO_DEPLOY=1 git commit ...`; deploy again by hand with `scripts/deploy/deploy-from-local.sh`. The server keeps a database backup per deploy and rolls back by itself if the new version doesn't start. Run `npm test` before committing: the hook does not run tests.
 
 ---
 

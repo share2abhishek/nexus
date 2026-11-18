@@ -10,8 +10,8 @@ Write it for the customer, not the developer.
 **To release:** `npm run release -- <version>` (e.g. `npm run release -- 2.3.1`). It turns
 Unreleased into the new version's section with today's date, sets the version in
 `package.json`, `package-lock.json`, the help page and the technical guide, then commits
-and tags `v<version>`. Push with `git push --follow-tags`; pushing `master` deploys the
-hosted edition. Paste the section into the GitHub Release
+and tags `v<version>`. With the deploy hook installed (`scripts/deploy/install-hook.sh`)
+that commit pushes the tag and deploys the hosted edition. Paste the section into the GitHub Release
 (`gh release create ... --notes-file`) when you publish the desktop app.
 
 ---
@@ -53,7 +53,7 @@ hosted edition. Paste the section into the GitHub Release
 
 ### Also
 - Short pop-up, highlight and hover effects, all turned off when your device is set to reduce motion.
-- **Hosted edition:** every push to `master` is tested and deployed automatically, with a backup and automatic rollback if the new version doesn't start.
+- **Hosted edition:** new versions are deployed automatically, with a backup and automatic rollback if the new version doesn't start.
 
 ### Fixed
 - **Select all** and **Delete selected** in Sales outreach ran the WhatsApp screen's buttons of the same name.

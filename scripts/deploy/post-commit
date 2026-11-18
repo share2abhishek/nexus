@@ -1,0 +1,20 @@
+#!/bin/sh
+# Git post-commit hook: after each commit on master, deploy to production in the background.
+# Installed by scripts/deploy/install-hook.sh. Skip once with:  NEXUS_NO_DEPLOY=1 git commit ...
+[ "${NEXUS_NO_DEPLOY:-}" = 1 ] && exit 0
+[ "$(git symbolic-ref --short HEAD 2>/dev/null)" = master ] || exit 0
+GIT_DIR_ABS="$(cd "$(git rev-parse --git-dir)" && pwd)"
+{ [ -d "$GIT_DIR_ABS/rebase-merge" ] || [ -d "$GIT_DIR_ABS/rebase-apply" ]; } && exit 0
+
+ROOT="$(git rev-parse --show-toplevel)"
+LOG="$GIT_DIR_ABS/nexus-deploy.log"
+echo "Deploying to production in the background. Log: $LOG"
+
+nohup sh -c '
+  "$1/scripts/deploy/deploy-from-local.sh" >> "$2" 2>&1
+  if [ $? -eq 0 ]; then msg="Deployed $(git -C "$1" log --oneline -1 | cut -c1-60 | tr -d "\"\\\\")"
+  else msg="Deploy FAILED - see .git/nexus-deploy.log"; fi
+  echo "$msg" >> "$2"
+  command -v osascript >/dev/null && osascript -e "display notification \"$msg\" with title \"Nexus prod deploy\"" >/dev/null 2>&1
+' sh "$ROOT" "$LOG" >/dev/null 2>&1 &
+exit 0

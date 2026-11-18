@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Production deploy for nexus on the EC2 host. Installed on the server as
-# /home/ec2-user/bin/nexus-deploy and used as the SSH *forced command* of the Bitbucket
-# Pipelines key, so that key can do nothing else. It is NOT updated by a deploy:
-# after changing this file, copy it to the server by hand.
+# /home/ec2-user/bin/nexus-deploy and run by scripts/deploy/deploy-from-local.sh over SSH
+# (it can also be an SSH forced command, so a CI key could do nothing else). It is NOT
+# updated by a deploy: after changing this file, copy it to the server by hand.
 #
 # Commands (passed as the SSH command line):
 #   head                  print the commit the server is on
