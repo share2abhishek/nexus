@@ -78,6 +78,9 @@
     return '' +
       '.snc,.snc *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}' +
       '.snc-btn{position:fixed;right:24px;bottom:24px;width:62px;height:62px;border-radius:50%;background:' + c + ';color:#fff;border:0;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.22);z-index:2147483000;display:flex;align-items:center;justify-content:center;transition:transform .2s ease}' +
+      // the page's own styles (e.g. a pop-up setting pointer-events:none on <body>) must not switch the chat off
+      '.snc-btn,.snc-panel,.snc-panel *{pointer-events:auto!important}' +
+      '.snc-input{-webkit-user-select:text!important;user-select:text!important;opacity:1!important;visibility:visible!important;-webkit-appearance:none;appearance:none}' +
       '.snc-btn:hover{transform:scale(1.06)}.snc-btn.hidden{display:none!important}.snc-btn svg{width:28px;height:28px}' +
       '.snc-panel{position:fixed;right:24px;bottom:100px;width:380px;max-width:calc(100vw - 32px);height:620px;max-height:calc(100vh - 124px);background:#fcfcfb;border-radius:22px;box-shadow:0 18px 50px rgba(0,0,0,.25);z-index:2147483000;display:none;flex-direction:column;overflow:hidden;color:#1f1f1f}' +
       '.snc-panel.open{display:flex;animation:snc-in .2s ease-out}' +
@@ -116,7 +119,7 @@
       '.snc-send{background:' + c + ';color:#fff}.snc-send:hover{background:' + c + ';opacity:.9}.snc-mic.listening{color:#dc2626}' +
       '.snc-by{text-align:center;font-size:12.5px;color:#9a928c;padding:6px 0 2px}.snc-by a{color:#9a928c;text-decoration:none}.snc-by a:hover{text-decoration:underline}' +
       '.snc-by b{color:#e8a33d;font-weight:400}' +
-      '@media (max-width:480px){.snc-panel{right:0;bottom:0;width:100vw;max-width:100vw;height:100%;max-height:100%;border-radius:0}.snc-panel.open~.snc-btn,.snc-btn.open{display:none}}' +
+      '@media (max-width:480px){.snc-panel{right:0;bottom:0;width:100vw;max-width:100vw;height:100%;max-height:100%;border-radius:0}.snc-panel.open~.snc-btn,.snc-btn.open{display:none}.snc-input{font-size:16px}}' +
       '@media (prefers-reduced-motion:reduce){.snc-panel.open{animation:none}.snc-typing span{animation:none}}';
   }
   style.textContent = css(profile.color);
@@ -337,17 +340,43 @@
     })
     .catch(function () {});
 
-  // ── Keep the host page out of our input ────────────────────────────────────
-  // Sites with a pop-up open (Bootstrap / React modals) pull keyboard focus back into the
-  // pop-up, so the chat box looks frozen. Stop focus events inside the chat from reaching
-  // the page's own listeners, and keep typing from triggering the page's shortcuts.
+  // ── Keep the host page out of the chat ─────────────────────────────────────
+  // A website's own pop-ups, shortcuts or styles can make the chat box look frozen.
+  // 1) Focus traps (Bootstrap / React modals pull focus back into the pop-up): focus events
+  //    inside the chat never reach the page's listeners.
+  // 2) Page shortcuts: keys typed in the chat never reach the page (typing still works).
   function inChat(t) { return !!t && t.nodeType === 1 && (panel.contains(t) || btn.contains(t)); }
-  ['focus', 'focusin', 'blur', 'focusout'].forEach(function (type) {
+  ['focus', 'focusin', 'blur', 'focusout', 'keydown', 'keyup', 'keypress'].forEach(function (type) {
     window.addEventListener(type, function (e) { if (inChat(e.target)) e.stopImmediatePropagation(); }, true);
   });
-  ['keydown', 'keyup', 'keypress'].forEach(function (type) {
-    panel.addEventListener(type, function (e) { e.stopPropagation(); });
+  // 3) Pop-ups that mark everything else "inert" / "aria-hidden": switch it off for the chat.
+  function unlock(el) {
+    if (el.hasAttribute('inert')) el.removeAttribute('inert');
+    if (el.getAttribute('aria-hidden') === 'true') el.removeAttribute('aria-hidden');
+  }
+  if (window.MutationObserver) {
+    var mo = new MutationObserver(function (list) { list.forEach(function (m) { unlock(m.target); }); });
+    [panel, btn].forEach(function (el) {
+      unlock(el);
+      mo.observe(el, { attributes: true, attributeFilter: ['inert', 'aria-hidden'] });
+    });
+  }
+  // 4) If something still steals focus right after a click, take it back once.
+  input.addEventListener('pointerdown', function () {
+    setTimeout(function () { if (document.activeElement !== input) input.focus(); }, 0);
   });
+  // 5) Phones: keep the chat above the on-screen keyboard.
+  if (window.visualViewport) {
+    var fit = function () {
+      var vv = window.visualViewport;
+      if (window.innerWidth <= 480 && panel.classList.contains('open')) {
+        panel.style.height = vv.height + 'px';
+        panel.style.bottom = Math.max(0, window.innerHeight - vv.height - vv.offsetTop) + 'px';
+      } else { panel.style.height = ''; panel.style.bottom = ''; }
+    };
+    window.visualViewport.addEventListener('resize', fit);
+    window.visualViewport.addEventListener('scroll', fit);
+  }
 
   if (openAtStart) open();
 
