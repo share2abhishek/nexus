@@ -27,6 +27,22 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 ### Website (hosted edition)
 - **Sign-up and pricing can be hidden** without a deploy. With `registration_mode = closed` the website has no sign-up buttons or trial text and the sign-in page has no "Create Account"; people invited to a business's team can still create their account. With `show_pricing = off` the Pricing section, its menu link and the prices search engines read are left out. Both are rows in `platform_config`.
 
+### Email & Outreach
+- **Attachments:** each campaign has a **📎 Files** button. Attach a brochure or price list (PDF, Word, Excel, PowerPoint, CSV, text, images; up to 5 files, 5 MB each) to the first email or to every email. Real-file and size checks; works with SMTP and Amazon SES.
+- **Contacts and outbox:** edit and delete contacts (one or several), delete emails from the outbox with their unsent follow-ups, change the daily limit from the header, and remove repeated addresses with one button. The same website or address is never added twice.
+- **Real addresses only:** email addresses come from the company's own website; an address or person the AI adds on its own is dropped, and an address the AI writes into an email is removed.
+- **Sending:** due emails are checked every minute and approving sends right away. The Outbox follows an email until it is sent, a send that hangs gives up after a minute, and the status pill says what is happening.
+- Fixed: Find companies (the AI list was discarded; the typed-websites button read nothing), Select all and Delete selected in Outreach, and unreadable dark cards in the Outreach window.
+
+### Contact Sync
+- Help for the Google errors people hit (the redirect address to copy, add a test user, enable the Sheets API), clearer wording, a confirmation before turning auto-sync on, failures name the contact, and the saved Salesforce Consumer Key is no longer sent back to the browser.
+
+### Website check
+- When a check times out it now says whether the server could not connect to the website or the site was only slow, and a failed check is retried after 15 minutes, then 1 hour, 3 hours, then every 6 hours (it used to wait 6 hours).
+
+### Ease of use
+- Short, purposeful animation (pop-ups, changed numbers, loading placeholders), switched off for people who ask for less motion. Clearer wording on the daily limit, the quick-log box, the notes organiser and the Amazon SES options.
+
 ---
 
 ## 2.3.0 — 17 November 2026

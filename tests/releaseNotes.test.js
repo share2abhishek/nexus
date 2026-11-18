@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const notes = fs.readFileSync(path.join(ROOT, 'docs', 'RELEASE-NOTES.md'), 'utf8');
+// A Windows checkout saves the file with CRLF line endings: read it the same either way
+const notes = fs.readFileSync(path.join(ROOT, 'docs', 'RELEASE-NOTES.md'), 'utf8').split('\r\n').join('\n');
 const { version } = require('../package.json');
 
 describe('release notes', () => {
