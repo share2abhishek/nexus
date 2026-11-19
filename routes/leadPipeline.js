@@ -1006,7 +1006,7 @@ module.exports = (knex, requirePermission) => {
       const templatesRes = await whatsappCloud.getMessageTemplates(wabaId, token, { forceRefresh });
       const fields = await templateFields(req.workspaceId);
       for (const t of templatesRes.templates || []) t.fields = fields.get(`${t.name}|${t.language}`) || null;
-      res.json({ ...templatesRes, connected: !!(token && wabaId) });
+      res.json({ ...templatesRes, connected: !!(token && wabaId), waba_missing: !!token && !wabaId });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -1767,10 +1767,18 @@ module.exports = (knex, requirePermission) => {
       const verifyRes = await whatsappCloud.verifyWhatsAppCredentials(targetPhoneId, targetToken);
 
       if (verifyRes.valid) {
+        // Templates need the Business Account ID. If it wasn't typed, ask Meta which one this token belongs to.
+        let wabaToSave = waba_id || config.whatsapp_business_account_id || null;
+        if (!wabaToSave) {
+          const found = await whatsappCloud.detectWabaIds(targetToken);
+          if (found.length === 1) { wabaToSave = found[0]; verifyRes.waba_detected = true; }
+        }
+        verifyRes.waba_id = wabaToSave;
+        verifyRes.waba_missing = !wabaToSave;
         await repo.updateConfig(req.workspaceId, {
           whatsapp_access_token: targetToken,
           whatsapp_phone_number_id: targetPhoneId,
-          whatsapp_business_account_id: waba_id || config.whatsapp_business_account_id || null,
+          whatsapp_business_account_id: wabaToSave,
           whatsapp_test_recipient: test_recipient || config.whatsapp_test_recipient || null,
           delivery_engine: delivery_engine || config.delivery_engine || 'cloud_api',
         });
@@ -1786,7 +1794,7 @@ module.exports = (knex, requirePermission) => {
                   await repo.updateConfig(wsId, {
                     whatsapp_access_token: targetToken,
                     whatsapp_phone_number_id: targetPhoneId,
-                    whatsapp_business_account_id: waba_id || config.whatsapp_business_account_id || null,
+                    whatsapp_business_account_id: wabaToSave,
                     whatsapp_test_recipient: test_recipient || config.whatsapp_test_recipient || null,
                   }).catch(() => {});
                 }

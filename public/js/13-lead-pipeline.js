@@ -3735,6 +3735,12 @@ function toggleWaTokenVisibility() {
   }
 }
 
+// Saved either way, but WhatsApp templates need the Business Account ID: say so now, not later
+function waMissingNote(res) {
+  if (res && res.waba_detected) return " Business Account ID found automatically.";
+  return res && res.waba_missing ? " Add your WhatsApp Business Account ID too, or message templates will ask you to connect again." : "";
+}
+
 async function saveWhatsAppConfig() {
   const token = document.getElementById("wa-cfg-access-token")?.value?.trim();
   const phoneId = document.getElementById("wa-cfg-phone-id")?.value?.trim() || "";
@@ -3769,7 +3775,7 @@ async function saveWhatsAppConfig() {
 
     if (res.valid) {
       await loadLeadPipeline().catch(() => {});
-      toast("WhatsApp is connected" + (res.verified_name ? " as " + res.verified_name : "") + ".", "success", 5000);
+      toast("WhatsApp is connected" + (res.verified_name ? " as " + res.verified_name : "") + "." + waMissingNote(res), res.waba_missing ? "warning" : "success", res.waba_missing ? 9000 : 5000);
       renderWhatsAppConfigBadges();
       closeWhatsAppConfigModal();
     } else {
@@ -4033,10 +4039,10 @@ async function saveCardWhatsAppConfig() {
       if (!LeadPipelineState.config) LeadPipelineState.config = {};
       LeadPipelineState.config.whatsapp_access_token = token;
       LeadPipelineState.config.whatsapp_phone_number_id = phoneId;
-      LeadPipelineState.config.whatsapp_business_account_id = wabaId;
+      LeadPipelineState.config.whatsapp_business_account_id = res.waba_id || wabaId;
       LeadPipelineState.config.whatsapp_test_recipient = testRecipient;
 
-      toast("🎉 Connected & Verified! Meta Cloud API verified for " + (res.verified_name || "your number") + ".", "success", 5000);
+      toast("🎉 Connected & Verified! Meta Cloud API verified for " + (res.verified_name || "your number") + "." + waMissingNote(res), res.waba_missing ? "warning" : "success", res.waba_missing ? 9000 : 5000);
       renderWhatsAppConfigBadges();
     } else {
       toast("❌ Meta Verification Failed: " + (res.error || "Invalid token or phone ID"), "error", 7000);

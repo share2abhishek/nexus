@@ -957,8 +957,29 @@ async function deleteMessageTemplate(wabaId, accessToken, name, id) {
   }
 }
 
+/**
+ * The WhatsApp Business Account ID(s) a token may manage, read from Meta itself (debug_token), so
+ * people don't have to find and paste the ID. Returns [] when Meta doesn't say.
+ */
+async function detectWabaIds(accessToken) {
+  if (!accessToken) return [];
+  try {
+    const res = await axios.get(`${GRAPH_BASE_URL}/debug_token`, {
+      params: { input_token: accessToken },
+      headers: { Authorization: `Bearer ${accessToken}` },
+      timeout: 10000,
+    });
+    const scopes = res.data?.data?.granular_scopes || [];
+    const ids = scopes.filter((x) => /whatsapp_business_(management|messaging)/.test(x.scope)).flatMap((x) => x.target_ids || []);
+    return [...new Set(ids.map(String))];
+  } catch (_) {
+    return [];
+  }
+}
+
 module.exports = {
   validateTemplate,
+  detectWabaIds,
   buildTemplatePayload,
   createMessageTemplate,
   deleteMessageTemplate,

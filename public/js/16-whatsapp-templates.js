@@ -39,6 +39,7 @@ async function loadWhatsAppTemplates(force = false) {
   try {
     const r = await api('GET', `/api/lead-pipeline/whatsapp/templates${force ? '?forceRefresh=1' : ''}`);
     TplState.connected = !!r.connected;
+    TplState.wabaMissing = !!r.waba_missing;
     TplState.list = r.templates || [];
     if (!r.success && r.error) TplState.error = r.error;
   } catch (err) { TplState.error = err.message; }
@@ -70,7 +71,9 @@ function renderTemplatesPage() {
     </div>
     ${!TplState.connected && !TplState.loading ? `
       <div class="callout callout-warn">
-        <b>Connect WhatsApp first.</b> Templates live in your WhatsApp Business account, so NexaDrip needs your access token and Business Account ID.
+        ${TplState.wabaMissing
+          ? '<b>Your WhatsApp is connected, but the Business Account ID is missing.</b> Templates live in your WhatsApp Business account, so NexaDrip needs that ID once. It is saved after that.'
+          : '<b>Connect WhatsApp first.</b> Templates live in your WhatsApp Business account, so NexaDrip needs your access token and Business Account ID.'}
         <button class="btn btn-secondary btn-sm" onclick="navigateTo('leads-settings')">Open WhatsApp setup</button>
       </div>` : ''}
     ${TplState.error && TplState.connected ? `<div class="state-error">${escapeHtml(TplState.error)}</div>` : ''}
