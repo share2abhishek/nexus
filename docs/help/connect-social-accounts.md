@@ -41,12 +41,12 @@ Normally the addresses look like this (yours are on the cards):
 
 | Card | Callback address |
 |---|---|
-| LinkedIn | `http://localhost:3000/auth/linkedin/callback` |
-| Facebook + Instagram | `http://localhost:3000/auth/facebook/callback` |
-| Pinterest | `http://localhost:3000/auth/pinterest/callback` |
-| Twitter / X | `http://127.0.0.1:3000/auth/twitter/callback` (X needs `127.0.0.1`, not `localhost`) |
-| YouTube and Google Business (one shared app) | `http://localhost:3000/auth/google/callback` |
-| TikTok | `http://localhost:3000/auth/tiktok/callback` |
+| LinkedIn | `https://nexus.radixile.com/auth/linkedin/callback` |
+| Facebook + Instagram | `https://nexus.radixile.com/auth/facebook/callback` |
+| Pinterest | `https://nexus.radixile.com/auth/pinterest/callback` |
+| Twitter / X | `https://nexus.radixile.com/auth/twitter/callback` |
+| YouTube and Google Business (one shared app) | `https://nexus.radixile.com/auth/google/callback` |
+| TikTok | `https://nexus.radixile.com/auth/tiktok/callback` |
 
 > **Only the admin can save app details.** The developer app details are shared by everyone on this install and by all client workspaces. Each workspace then clicks **Connect** with its **own** social login. For agencies, this means one developer app per network serves all your clients.
 >
@@ -198,7 +198,7 @@ Tokens from the Explorer are short-lived (often about 1 hour). Use this only as 
 ### Steps (same as the Setup guide on the card)
 1. Open the **X Developer Portal** and create a **Project** and **App**. (**Open ↗** goes to https://developer.x.com/en/portal/dashboard.)
 2. Open the app's **"User authentication settings"**. Choose App permissions **"Read and write"** and type **"Web App, Automated App or Bot"**.
-3. Set **"Callback URI / Redirect URL"** to this exact address (X needs `127.0.0.1`, not "localhost"): click **📋 Copy** on the card and paste it.
+3. Set **"Callback URI / Redirect URL"** to this exact address: click **📋 Copy** on the card and paste it.
 4. Enter any website address you own as the **Website URL**, then save.
 5. Open **"Keys and tokens"** and copy the **API Key** and **API Key Secret** into the boxes below. The **Access Token** fields are optional. Click **💾 Save Credentials**.
 6. Click **Connect** and authorise the app.
@@ -215,7 +215,7 @@ The card then shows your @username.
 | You see | What to do |
 |---|---|
 | "Twitter connection failed" straight after clicking Connect | Check the API Key and Secret, and that the callback address is saved in **User authentication settings**. |
-| "Callback URL not approved" | The callback isn't saved or doesn't match. Paste it again with **📋 Copy**. It must start with `http://127.0.0.1`. |
+| "Callback URL not approved" | The callback isn't saved or doesn't match. Paste it again with **📋 Copy**. It must start with `https://nexus.radixile.com`. |
 | Error 403 when posting | App permissions are still **Read** (change to **Read and write**, then disconnect and connect), or your plan doesn't include posting or its limit is used up. |
 | Error 429 | Rate limit. Try again later. |
 
@@ -296,7 +296,7 @@ TikTok only allows web apps with a public `https` redirect address, and posts fr
 **Callback address checklist** (the most common cause of failed connections):
 - Use the card's **📋 Copy** button. Don't type the address.
 - `http`, not `https`.
-- X uses `127.0.0.1`; all other platforms use `localhost`.
+- Every platform uses `https://nexus.radixile.com`.
 - No space or `/` at the end.
 
 Still stuck? Email **info@radixile.com** with the platform name, a screenshot of the error, and your log file `%APPDATA%\Social-Nexus\logs\server.log`. **Never send us your Client Secret or passwords.**

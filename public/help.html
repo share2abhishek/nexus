@@ -463,11 +463,11 @@
     <p>Yours are on the cards (use 📋 Copy). Normally they look like this:</p>
     <div class="table-wrap"><table>
       <tr><th>Card</th><th>Callback address (normally)</th></tr>
-      <tr><td>LinkedIn</td><td><code>http://localhost:3000/auth/linkedin/callback</code></td></tr>
-      <tr><td>Facebook + Instagram</td><td><code>http://localhost:3000/auth/facebook/callback</code></td></tr>
-      <tr><td>Pinterest</td><td><code>http://localhost:3000/auth/pinterest/callback</code></td></tr>
-      <tr><td>Twitter / X</td><td><code>http://127.0.0.1:3000/auth/twitter/callback</code> (X needs 127.0.0.1)</td></tr>
-      <tr><td>Google Business</td><td><code>http://localhost:3000/auth/google/callback</code></td></tr>
+      <tr><td>LinkedIn</td><td><code>https://nexus.radixile.com/auth/linkedin/callback</code></td></tr>
+      <tr><td>Facebook + Instagram</td><td><code>https://nexus.radixile.com/auth/facebook/callback</code></td></tr>
+      <tr><td>Pinterest</td><td><code>https://nexus.radixile.com/auth/pinterest/callback</code></td></tr>
+      <tr><td>Twitter / X</td><td><code>https://nexus.radixile.com/auth/twitter/callback</code></td></tr>
+      <tr><td>Google Business</td><td><code>https://nexus.radixile.com/auth/google/callback</code></td></tr>
     </table></div>
     <p>Card status: 🔴 <strong>Credentials Needed</strong> → 🟠 <strong>Ready to Connect</strong> → 🟢 <strong>Connected</strong> (🔄 Refresh / Disconnect).</p>
     <div class="note">Only the <strong>admin</strong> saves app details, and they're shared by all workspaces. Only workspace <strong>Managers</strong> can connect or disconnect accounts and choose the Facebook Page or Pinterest board. Agencies: switch to the client's workspace (🏢) before clicking Connect.</div>
@@ -570,7 +570,7 @@
       <ol>
         <li>Open the <strong>X Developer Portal</strong> and create a Project and App. (<a href="https://developer.x.com/en/portal/dashboard" target="_blank" rel="noopener">Open ↗</a>)</li>
         <li>Open the app's <strong>"User authentication settings"</strong>. Choose App permissions <strong>"Read and write"</strong> and type <strong>"Web App, Automated App or Bot"</strong>.</li>
-        <li>Set <strong>"Callback URI / Redirect URL"</strong> to the exact address (X needs <code>127.0.0.1</code>, not "localhost"): click <strong>📋 Copy</strong> on the card and paste it.</li>
+        <li>Set <strong>"Callback URI / Redirect URL"</strong> to the exact address: click <strong>📋 Copy</strong> on the card and paste it.</li>
         <li>Enter any website address you own as the <strong>Website URL</strong>, then save.</li>
         <li>Open <strong>"Keys and tokens"</strong> and copy the <strong>API Key</strong> and <strong>API Key Secret</strong> into the boxes on the card. The Access Token fields are optional. Click <strong>💾 Save Credentials</strong>.</li>
         <li>Click <strong>Connect</strong> and authorise the app.</li>
@@ -582,7 +582,7 @@
         <li>Changed permissions to Read and write after connecting? Disconnect and connect again.</li>
       </ul>
       <h4>Common errors</h4>
-      <ul><li><strong>Callback URL not approved</strong>: paste the address again with 📋 Copy (it starts with <code>http://127.0.0.1</code>). <strong>429</strong>: rate limit, try later.</li></ul>
+      <ul><li><strong>Callback URL not approved</strong>: paste the address again with 📋 Copy (it starts with <code>https://nexus.radixile.com</code>). <strong>429</strong>: rate limit, try later.</li></ul>
     </div>
   </details>
 
@@ -635,7 +635,7 @@
       <tr><td>… rejected the connection (401/403) … Reconnect</td><td>Disconnect → Connect, accept all permissions, then 🔁 Retry the post.</td></tr>
       <tr><td>Only an admin can change app-wide settings</td><td>Ask the admin to save the app details.</td></tr>
     </table></div>
-    <p><strong>Callback checklist:</strong> use <strong>📋 Copy</strong>, don't type · <code>http</code> (not https) · X uses <code>127.0.0.1</code>, others <code>localhost</code> · no trailing <code>/</code>.</p>
+    <p><strong>Callback checklist:</strong> use <strong>📋 Copy</strong>, don't type · <code>https://nexus.radixile.com</code> for every platform · no trailing <code>/</code>.</p>
   </section>
 
   <!-- ─────────────── Posting ─────────────── -->

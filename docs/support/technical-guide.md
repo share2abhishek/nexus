@@ -296,12 +296,12 @@ Other endpoints: `GET /auth/status`, `POST /auth/refresh/:platform` (live check;
 
 | Platform | Host | Path | Default URL |
 |---|---|---|---|
-| LinkedIn | localhost | `linkedin` | `http://localhost:3000/auth/linkedin/callback` |
-| Facebook + Instagram | localhost | `facebook` | `http://localhost:3000/auth/facebook/callback` |
-| Pinterest | localhost | `pinterest` | `http://localhost:3000/auth/pinterest/callback` |
-| X / Twitter | **127.0.0.1** | `twitter` | `http://127.0.0.1:3000/auth/twitter/callback` |
-| Google (YouTube, Business Profile) | localhost | `google` | `http://localhost:3000/auth/google/callback` |
-| TikTok | localhost | `tiktok` | `http://localhost:3000/auth/tiktok/callback` |
+| LinkedIn | nexus.radixile.com | `linkedin` | `https://nexus.radixile.com/auth/linkedin/callback` |
+| Facebook + Instagram | nexus.radixile.com | `facebook` | `https://nexus.radixile.com/auth/facebook/callback` |
+| Pinterest | nexus.radixile.com | `pinterest` | `https://nexus.radixile.com/auth/pinterest/callback` |
+| X / Twitter | nexus.radixile.com | `twitter` | `https://nexus.radixile.com/auth/twitter/callback` |
+| Google (YouTube, Business Profile) | nexus.radixile.com | `google` | `https://nexus.radixile.com/auth/google/callback` |
+| TikTok | nexus.radixile.com | `tiktok` | `https://nexus.radixile.com/auth/tiktok/callback` |
 
 If a customer changes the port, every portal's redirect URI must be re-registered.
 

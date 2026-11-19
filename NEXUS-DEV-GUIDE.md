@@ -84,15 +84,15 @@ ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
 
 LINKEDIN_CLIENT_ID=
 LINKEDIN_CLIENT_SECRET=
-LINKEDIN_CALLBACK_URL=http://localhost:3000/auth/linkedin/callback
+LINKEDIN_CALLBACK_URL=https://nexus.radixile.com/auth/linkedin/callback
 
 FACEBOOK_APP_ID=
 FACEBOOK_APP_SECRET=
-FACEBOOK_CALLBACK_URL=http://localhost:3000/auth/facebook/callback
+FACEBOOK_CALLBACK_URL=https://nexus.radixile.com/auth/facebook/callback
 
 PINTEREST_APP_ID=
 PINTEREST_APP_SECRET=
-PINTEREST_CALLBACK_URL=http://localhost:3000/auth/pinterest/callback
+PINTEREST_CALLBACK_URL=https://nexus.radixile.com/auth/pinterest/callback
 
 # Optional: local content folder
 CONTENT_FOLDER=D:/social
@@ -109,7 +109,7 @@ CONTENT_FOLDER=D:/social
 4. Under **Products** → request **Share on LinkedIn** + **Sign In with LinkedIn**
 5. Under **Auth** tab → add Redirect URL:
    ```
-   http://localhost:3000/auth/linkedin/callback
+   https://nexus.radixile.com/auth/linkedin/callback
    ```
 6. Copy **Client ID** and **Client Secret** → paste into `.env`
 
@@ -128,7 +128,7 @@ w_member_social
 3. Add products: **Facebook Login** + **Instagram Graph API**
 4. Under Facebook Login → Settings → add Valid OAuth Redirect URI:
    ```
-   http://localhost:3000/auth/facebook/callback
+   https://nexus.radixile.com/auth/facebook/callback
    ```
 5. Under App Settings → Basic → copy **App ID** and **App Secret** → paste into `.env`
 6. For Instagram posting:
@@ -155,7 +155,7 @@ instagram_content_publish
 2. Click **Create app**
 3. Add redirect URI:
    ```
-   http://localhost:3000/auth/pinterest/callback
+   https://nexus.radixile.com/auth/pinterest/callback
    ```
 4. Copy **App ID** and **App Secret** → paste into `.env`
 
@@ -190,7 +190,7 @@ npm run dev
 
 Then open your browser at:
 ```
-http://localhost:3000
+https://nexus.radixile.com
 ```
 
 The app will auto-open in your browser on startup.
@@ -203,10 +203,10 @@ Once the server is running, visit these URLs to connect each platform:
 
 | Platform | URL |
 |----------|-----|
-| LinkedIn | http://localhost:3000/auth/linkedin |
-| Facebook + Instagram | http://localhost:3000/auth/facebook |
-| Pinterest | http://localhost:3000/auth/pinterest |
-| Check all connections | http://localhost:3000/auth/status |
+| LinkedIn | https://nexus.radixile.com/auth/linkedin |
+| Facebook + Instagram | https://nexus.radixile.com/auth/facebook |
+| Pinterest | https://nexus.radixile.com/auth/pinterest |
+| Check all connections | https://nexus.radixile.com/auth/status |
 
 ---
 
@@ -436,7 +436,7 @@ CONTENT_FOLDER=D:\\social
 [ ] npm install completed
 [ ] .env file created and filled
 [ ] Anthropic API key added
-[ ] npm start → server running at localhost:3000
+[ ] npm start → server running at https://nexus.radixile.com
 [ ] Visit /auth/linkedin → connect LinkedIn
 [ ] Visit /auth/facebook → connect Facebook + Instagram
 [ ] Open app → enter API key → start generating
