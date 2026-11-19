@@ -709,6 +709,37 @@ function onSearchContacts(val) {
   renderLeadsTable(val);
 }
 
+// Contacts as a spreadsheet (CSV opens in Excel). Ticked rows if any, else everything the search shows.
+function exportContactsCsv() {
+  const all = LeadPipelineState.leads || [];
+  const ticked = Array.from(document.querySelectorAll('.contact-row-check:checked')).map((cb) => Number(cb.value));
+  const query = (LeadPipelineState.contactSearchQuery || '').toLowerCase().trim();
+  const rows = ticked.length
+    ? all.filter((l) => ticked.includes(Number(l.id)))
+    : all.filter((l) => !query ||
+        (l.full_name || '').toLowerCase().includes(query) ||
+        (l.phone_number || '').includes(query) ||
+        (l.society || '').toLowerCase().includes(query) ||
+        (l.tag || '').toLowerCase().includes(query));
+  if (!rows.length) return toast('No contacts to export yet.', 'info');
+  // Quote every cell; a leading = + - @ would run as a formula in Excel, so keep it as plain text
+  const cell = (v) => {
+    let s = String(v ?? '');
+    if (/^[=+\-@\t\r]/.test(s) && !/^\+?[\d\s()-]+$/.test(s)) s = "'" + s;
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+  const csv = ['Name,Mobile number,Society,Tag,Score,Stage,Deal value,Owner,Added on']
+    .concat(rows.map((l) => [l.full_name, l.phone_number, l.society, l.tag, l.lead_score, l.pipeline_stage, l.deal_value, l.assigned_agent_name, l.created_at ? String(l.created_at).slice(0, 10) : ''].map(cell).join(',')))
+    .join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })); // BOM so Excel reads accents
+  a.download = `contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast(`Exported ${rows.length} contact${rows.length === 1 ? '' : 's'}.`, 'success');
+}
+window.exportContactsCsv = exportContactsCsv;
+
 function toggleSelectAllContacts(isChecked) {
   const checkboxes = document.querySelectorAll('.contact-row-check');
   checkboxes.forEach((cb) => { cb.checked = isChecked; });
