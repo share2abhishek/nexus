@@ -47,6 +47,10 @@
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-sparkles"/></svg>
           <span class="nav-label">AI writer</span>
         </a>
+        <a class="nav-item nav-action" id="nav-content-studio" href="javascript:void(0)" onclick="openContentStudio()" title="Give it web pages, text files or pasted text: get a post for every network, with headings and hashtags, scheduled">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-sparkles"/></svg>
+          <span class="nav-label">Content Studio</span>
+        </a>
         <a class="nav-item" data-page="calendar" id="nav-calendar" title="Everything planned and published">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-calendar-days"/></svg>
           <span class="nav-label">Calendar</span>
@@ -2379,10 +2383,14 @@
                 <input type="text" class="form-input sellbird-input" id="discover-business-type" placeholder="e.g. Dental clinics, Law firms, Architects" />
               </div>
               <div class="form-group" style="margin-bottom:0">
-                <label class="form-label">City / Region (optional)</label>
-                <input type="text" class="form-input sellbird-input" id="discover-city" placeholder="e.g. Pune, Mumbai, London" />
+                <label class="form-label">City / Area (optional)</label>
+                <input type="text" class="form-input sellbird-input" id="discover-city" placeholder="e.g. Baner Pune, Andheri Mumbai, London" />
               </div>
             </div>
+            <label style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--text-primary);cursor:pointer">
+              <input type="checkbox" id="discover-list-only" style="margin-top:2px" />
+              <span><strong>Only list websites and emails.</strong> Don't write outreach emails. Find them in Contacts, where Export CSV downloads the list.</span>
+            </label>
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">How many companies to find</label>
               <select class="form-select sellbird-select" id="discover-count">
@@ -4167,6 +4175,53 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="studio-modal" style="display:none" onclick="if(event.target===this)closeContentStudio()">
+  <div class="modal modal-wide" onclick="event.stopPropagation()" style="max-width:860px">
+    <div class="modal-header">
+      <div class="modal-title">✨ Content Studio</div>
+      <button class="modal-close" onclick="closeContentStudio()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="studio-step-1">
+        <p style="margin-top:0;color:var(--text-secondary);font-size:13px">
+          Give it web pages (.html), text files (.txt, .md) or paste your own text. AI turns each one into a post for every network you pick, with a heading and hashtags. You check them, then schedule.
+        </p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="document.getElementById('studio-files').click()">Add files…</button>
+          <input type="file" id="studio-files" multiple accept=".html,.htm,.txt,.md,.markdown,.csv,text/html,text/plain" hidden onchange="studioAddFiles(this.files); this.value=''" />
+          <button class="btn btn-secondary btn-sm" onclick="studioAddPasted()">+ Add pasted text</button>
+        </div>
+        <textarea class="form-textarea" id="studio-paste" rows="5" placeholder="Paste an application, article, announcement or HTML here, then press “Add pasted text”" style="margin-top:10px;width:100%"></textarea>
+        <div id="studio-sources" style="margin-top:10px"></div>
+        <div style="margin-top:12px;font-weight:600;font-size:13px">Post to</div>
+        <div id="studio-platforms" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"></div>
+        <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px">
+          <label>Language <input type="text" id="studio-language" class="form-input" placeholder="English" style="width:140px;display:inline-block" /></label>
+        </div>
+      </div>
+      <div id="studio-step-2" style="display:none">
+        <div id="studio-problems"></div>
+        <div id="studio-cards"></div>
+        <div style="margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:10px;display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;font-size:13px">
+          <label>First post at<br><input type="datetime-local" id="studio-start" class="form-input" /></label>
+          <label>Then one every<br><select id="studio-interval" class="form-select">
+            <option value="1">1 hour</option><option value="3">3 hours</option><option value="6">6 hours</option>
+            <option value="24" selected>day</option><option value="48">2 days</option><option value="72">3 days</option><option value="168">week</option>
+          </select></label>
+          <span id="studio-when" style="color:var(--text-muted)"></span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="studio-back" style="display:none" onclick="studioBack()">← Back</button>
+      <button class="btn btn-secondary" onclick="closeContentStudio()">Close</button>
+      <button class="btn btn-primary" id="studio-generate-btn" onclick="studioGenerate()">Write the posts</button>
+      <button class="btn btn-secondary" id="studio-draft-btn" style="display:none" onclick="studioSchedule('draft')">Save as drafts</button>
+      <button class="btn btn-primary" id="studio-schedule-btn" style="display:none" onclick="studioSchedule('scheduled')">Schedule all</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="recovery-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
@@ -4582,6 +4637,7 @@
 <script src="js/13-lead-pipeline.js?v=2.2.3"></script>
 <script src="js/14-whatsapp-bot.js?v=2.2.0"></script>
 <script src="js/15-post-designer.js?v=2.2.0"></script>
+<script src="js/25-content-studio.js?v=2.2.4"></script>
 <script src="js/16-whatsapp-templates.js?v=2.2.0"></script>
 <script src="js/17-whatsapp-broadcast.js?v=2.2.0"></script>
 <script src="js/18-post-extras.js?v=2.2.0"></script>

@@ -2186,17 +2186,29 @@ function formatInitials(name) {
   return parts[0].slice(0, 2).toUpperCase();
 }
 
-function openPullRealProspectsModal() {
+function fillDiscoverCampaignSelect() {
+  const select = document.getElementById('discover-type-campaign-id');
+  if (!select) return;
+  const list = SellbirdState.campaigns || [];
+  // With no campaign yet the list used to be empty and could not be used. The server makes one
+  // from the business type when none is sent, so offer that instead of a dead drop-down.
+  select.innerHTML = list.length
+    ? list.map((c) => `<option value="${c.id}" ${c.id === SellbirdState.selectedCampaignId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')
+    : '<option value="">Create one for me automatically</option>';
+}
+
+async function openPullRealProspectsModal() {
   const modal = document.getElementById('modal-sellbird-pull-real');
   if (modal) {
-    const select = document.getElementById('discover-type-campaign-id');
-    if (select && SellbirdState.campaigns && SellbirdState.campaigns.length) {
-      select.innerHTML = SellbirdState.campaigns.map((c) =>
-        `<option value="${c.id}" ${c.id === SellbirdState.selectedCampaignId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`
-      ).join('');
-    }
+    fillDiscoverCampaignSelect();
     toggleSellbirdDiscoveryMode('type');
     modal.style.display = 'flex';
+    // Campaigns may not have loaded yet (or were made since): refresh the list while the window is open
+    try {
+      const campaigns = await api('GET', '/api/sellbird/campaigns');
+      SellbirdState.campaigns = Array.isArray(campaigns) ? campaigns : [];
+      fillDiscoverCampaignSelect();
+    } catch (_) { /* keep what is shown */ }
   }
 }
 
@@ -2241,6 +2253,7 @@ async function submitDiscoverByType() {
   const location = document.getElementById('discover-city')?.value?.trim();
   const count = document.getElementById('discover-count')?.value || 8;
   const campaign_id = document.getElementById('discover-type-campaign-id')?.value;
+  const list_only = !!document.getElementById('discover-list-only')?.checked;
 
   if (!business_type) {
     toast('Please enter a business type (e.g. "Dental clinics", "Law firms", "Architects")', 'warning');
@@ -2257,17 +2270,21 @@ async function submitDiscoverByType() {
       business_type,
       location,
       count: Number(count),
+      list_only,
       campaign_id: campaign_id ? Number(campaign_id) : undefined,
     });
 
     const added = res.added_count || 0;
+    const noun = added === 1 ? 'company' : 'companies';
     toast(added
-      ? `Added ${added} ${added === 1 ? 'company' : 'companies'}. Their emails are waiting for your OK in Outbox.`
+      ? (list_only
+          ? `Found ${added} ${noun} with website and email. See them in Contacts, and use Export CSV to download.`
+          : `Added ${added} ${noun}. Their emails are waiting for your OK in Outbox.`)
       : 'No new company was added.', added ? 'success' : 'info', 7000);
     closeSellbirdModals();
 
     await loadSellbird();
-    switchSellbirdTab('outbox');
+    switchSellbirdTab(list_only && added ? 'explorer' : 'outbox');
   } catch (err) {
     console.error('[Sellbird Discover By Type] Error:', err);
     toast(err.message || 'Error discovering businesses by type', 'error', 6000);

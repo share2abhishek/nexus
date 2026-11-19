@@ -75,6 +75,8 @@ module.exports = (knex, requirePermission) => {
       score: crawl.buying_signals?.signals?.length >= 2 ? 80 : crawl.buying_signals?.signals?.length ? 65 : 50,
     });
     const contact = await repo.addContact(req.workspaceId, company.id, picked);
+    // "Only list": keep the website and email, write no outreach emails
+    if (target.list_only) return { company, contact, outbox: [] };
     const sequence = await generateOutreachSequence({ product: await productFor(req.workspaceId, campaign), company, contact }, aiOptionsFromReq(req));
     const now = Math.floor(Date.now() / 1000);
     const outbox = [];
@@ -582,7 +584,7 @@ module.exports = (knex, requirePermission) => {
 
   // ── Discover by Business Type & Location (AI Entity & Web Crawler) ────────
   router.post('/discover-by-type', requirePermission('content.create'), async (req, res) => {
-    let { campaign_id, business_type, location, count = 8 } = req.body || {};
+    let { campaign_id, business_type, location, count = 8, list_only } = req.body || {};
     business_type = String(business_type || '').trim();
     location = String(location || '').trim();
     if (!business_type) {
@@ -672,6 +674,7 @@ Important rules:
             name: item.name || '',
             location: item.city || location || null,
             industry: item.industry || business_type || null,
+            list_only: !!list_only,
           });
           discoveredResults.push({
             domain: company.domain,
@@ -692,6 +695,7 @@ Important rules:
         campaign_id: campaign.id,
         business_type,
         location,
+        list_only: !!list_only,
         total_discovered: discovered.length,
         added_count: discoveredResults.length,
         results: discoveredResults,

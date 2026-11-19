@@ -18,6 +18,10 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 
 ## Unreleased
 
+### Content Studio
+- **Web pages, text files or pasted text become posts:** add up to 10 items (.html, .txt, .md or pasted text) and AI writes a separate post for every network you pick, each with a heading and hashtags that suit that network. Check and edit them, then schedule them all in one go: the first at a time you choose, then one every hour, day or week. Posts that need review are saved as drafts instead.
+- **Contacts and company lists:** a new Export button on Contacts downloads a spreadsheet, and Find companies can now just list websites and emails for an area without writing outreach emails.
+
 ### Website SEO
 - **Finds sites that Google may read as empty:** pages whose text is added by JavaScript are flagged with what to ask your developer for, and inner pages that name the home page as their main address are flagged as a fix-first item.
 - **Dead sitemaps are caught:** a sitemap listed in robots.txt that doesn't open now shows as a problem instead of "found". The check also tells you when a website opens at both the www and non-www address.

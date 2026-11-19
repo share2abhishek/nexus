@@ -62,6 +62,94 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
+  // ── Content Studio ────────────────────────────────────────────────────────
+  // Step 1: pages, text files or pasted text in; a ready post (heading, text, hashtags) per platform out.
+  // Nothing is saved here: the person reviews and edits first.
+  router.post('/studio/generate', requirePermission('content.create'), async (req, res) => {
+    try {
+      const studio = require('../services/contentStudio');
+      const { aiList, aiArgsFromReq } = require('../services/aiHelper');
+      const { brandContext } = require('../services/brandContext');
+      const { CHAR_LIMITS } = require('../services/brand');
+      const { isPublishable } = require('../services/platforms/available');
+      const platforms = [...new Set((Array.isArray(req.body?.platforms) ? req.body.platforms : []).map(String).filter(p => studio.STYLE[p]))];
+      if (!platforms.length) return res.status(400).json({ error: 'Pick at least one platform.' });
+      const sources = studio.prepareSources(req.body?.sources);
+      if (!sources.length) return res.status(400).json({ error: 'Add some content first: upload an HTML or text file, or paste your text (at least a sentence).' });
+
+      const ai = aiArgsFromReq(req);
+      const brand = await brandContext(req.workspaceId);
+      const language = String(req.body?.language || '').slice(0, 40);
+      const posts = [];
+      const problems = [];
+      for (const src of sources) {
+        try {
+          const { data } = await aiList(studio.buildPrompt(src, platforms, { brand, language }), ai.apiKey, 3000, ai.options, ai.model);
+          const made = studio.parsePosts(data, platforms, src.name);
+          if (!made.length) problems.push({ source: src.name, error: 'The AI did not return usable posts. Try again.' });
+          for (const p of made) posts.push({ ...p, text: studio.compose(p), limit: CHAR_LIMITS[p.platform] || null, can_post: isPublishable(p.platform) });
+        } catch (err) {
+          problems.push({ source: src.name, error: String(err.message || 'AI error').split('\n')[0].slice(0, 200) });
+          if (err.code === 'AI_QUOTA') break; // no point asking again
+        }
+      }
+      if (!posts.length) return res.status(502).json({ error: problems[0]?.error || 'No posts could be written.', problems });
+      res.json({ posts, problems, sources: sources.map(s => s.name) });
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
+    }
+  });
+
+  // Step 2: the reviewed posts are scheduled one after another (or saved as drafts)
+  router.post('/studio/schedule', requirePermission('content.create'), async (req, res) => {
+    try {
+      const studio = require('../services/contentStudio');
+      const { CHAR_LIMITS } = require('../services/brand');
+      const { posts, start_at, interval_hours = 24, status = 'scheduled' } = req.body || {};
+      if (!Array.isArray(posts) || !posts.length) return res.status(400).json({ error: 'There are no posts to schedule.' });
+      if (posts.length > 200) return res.status(400).json({ error: 'Schedule at most 200 posts at a time.' });
+      const clean = posts.map(p => ({ platform: String(p.platform || ''), text: String(p.text || '').trim(), title: String(p.title || '').slice(0, 120) }));
+      for (const p of clean) {
+        const bad = checkPlatforms([p.platform]);
+        if (bad) return res.status(400).json({ error: bad });
+        if (!p.text) return res.status(400).json({ error: `A ${p.platform} post is empty.` });
+        const lim = CHAR_LIMITS[p.platform];
+        if (lim && p.text.length > lim) return res.status(400).json({ error: `The ${p.platform} post is ${p.text.length - lim} characters over its limit of ${lim}. Shorten it.` });
+      }
+      const now = Math.floor(Date.now() / 1000);
+      const startNum = Number(start_at);
+      if (!Number.isFinite(startNum) || startNum < now - 300) return res.status(400).json({ error: 'Pick a start date and time in the future.' });
+
+      const shouldSchedule = status === 'scheduled' && can(req.role, 'content.schedule') && can(req.role, 'content.approve');
+      if (shouldSchedule && await licenceBlock(req, res)) return;
+
+      const accounts = {};
+      for (const p of new Set(clean.map(x => x.platform))) {
+        const acc = await knex('social_accounts').where({ workspace_id: req.workspaceId, platform: p })
+          .orderByRaw('(CASE WHEN access_token IS NOT NULL AND auth_error IS NULL THEN 0 ELSE 1 END)').orderBy('id', 'desc').first();
+        accounts[p] = acc ? acc.id : null;
+      }
+      const times = studio.planTimes(clean.length, startNum, interval_hours);
+      const seriesId = require('crypto').randomUUID();
+      const rows = clean.map((p, i) => ({
+        workspace_id: req.workspaceId, title: p.title || null, body: p.text, platforms: JSON.stringify([p.platform]),
+        social_account_ids: JSON.stringify(accounts[p.platform] ? [accounts[p.platform]] : []),
+        status: shouldSchedule ? 'scheduled' : 'draft', scheduled_at: times[i],
+        submitted_by: req.session.userId, approved_by: shouldSchedule ? req.session.userId : null,
+        series_id: seriesId, series_index: i + 1, series_total: clean.length, series_every: 'studio',
+        created_at: now, updated_at: now,
+      }));
+      await knex.transaction(async (trx) => { for (let b = 0; b < rows.length; b += 50) await trx('content_items').insert(rows.slice(b, b + 50)); });
+      res.json({
+        success: true, total: rows.length, status: shouldSchedule ? 'scheduled' : 'draft',
+        first_at: times[0], last_at: times[times.length - 1],
+        no_account: Object.keys(accounts).filter(p => !accounts[p]),
+      });
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
+    }
+  });
+
   // Bulk scheduling with custom interval and loop / repeat queue options
   router.post('/bulk-schedule', requirePermission('content.create'), async (req, res) => {
     try {
