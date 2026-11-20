@@ -483,7 +483,8 @@ function desktopOnly(req, res, next) {
 }
 function inContentFolder(name) {
   const folder = process.env.CONTENT_FOLDER;
-  if (!folder || typeof name !== 'string' || !name || name.includes('\0')) return null;
+  // A backslash is a folder separator on Windows (the desktop app runs there): never part of a plain file name
+  if (!folder || typeof name !== 'string' || !name || name.includes('\0') || name.includes('\\')) return null;
   const root = path.resolve(folder);
   const full = path.resolve(root, name);
   if (full !== root && !full.startsWith(root + path.sep)) return null;

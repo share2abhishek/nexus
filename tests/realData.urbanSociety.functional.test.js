@@ -19,7 +19,10 @@ const { qualifyLead } = require('../services/leadPipeline/leadQualifier');
 const { forwardToN8n } = require('../services/leadPipeline/n8nForwarder');
 const { testChatwootConnection, syncContactToChatwoot } = require('../services/leadPipeline/chatwootClient');
 
-describe('Real Data Test: urbansociety.in & Facebook Page 520186977848285', () => {
+// QUARANTINE: Q1 (tests/QUARANTINE.md). Crawls the live urbansociety.in site and uses the app's shared
+// database instead of a test one, so it can't run in CI. Run it on purpose with LIVE_TESTS=1.
+const describeLive = process.env.LIVE_TESTS === '1' ? describe : describe.skip;
+describeLive('Real Data Test: urbansociety.in & Facebook Page 520186977848285', () => {
   let knex;
   let sellbirdRepo;
   let leadRepo;

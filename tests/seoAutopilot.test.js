@@ -26,6 +26,9 @@ jest.mock('../services/aiHelper', () => ({
 
 const dns = require('dns').promises;
 const { makeTestKnex } = require('./helpers/db');
+// Code under test also reaches the app's shared connection (services/knex): point it at the same test database
+const mockKnex = makeTestKnex();
+jest.mock('../services/knex', () => mockKnex);
 const autopilot = require('../services/seoAutopilot');
 const siteChecks = require('../services/seoSiteChecks');
 
@@ -39,7 +42,7 @@ describe('SEO autopilot', () => {
   const env = { ...process.env };
 
   beforeAll(async () => {
-    knex = makeTestKnex();
+    knex = mockKnex;
     await knex.migrate.latest();
     const [org] = await knex('organizations').insert({ name: 'O', owner_user_id: 1 }).returning('id');
     const [w] = await knex('workspaces').insert({ org_id: org?.id ?? org, name: 'W', slug: 'w' }).returning('id');

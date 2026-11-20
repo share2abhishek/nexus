@@ -34,6 +34,7 @@ describe('post designer', () => {
 
   test('Create post has the "Design a picture" button and loads the designer', () => {
     expect(html).toContain('onclick="openPostDesigner()"');
-    expect(html).toContain('<script src="js/15-post-designer.js"></script>');
+    // loaded with a cache-busting version (?v=...) so browsers fetch the new file after a release
+    expect(html).toMatch(/<script src="js\/15-post-designer\.js(\?v=[\w.-]+)?"><\/script>/);
   });
 });

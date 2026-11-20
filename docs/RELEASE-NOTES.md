@@ -18,6 +18,10 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 
 ## Unreleased
 
+### Fixes
+- **No other company's name in your screens:** an example in the sales outreach setup and the fallback name for leads without a company named another business. They now use neutral wording ("Prospect", "Lead").
+- **Desktop app, local content folder:** file names containing a backslash are refused, so a name can never point outside the folder on Windows.
+
 ### Content Studio
 - **Web pages, text files or pasted text become posts:** add up to 10 items (.html, .txt, .md or pasted text) and AI writes a separate post for every network you pick, each with a heading and hashtags that suit that network. Check and edit them, then schedule them all in one go: the first at a time you choose, then one every hour, day or week. Posts that need review are saved as drafts instead.
 - **Contacts and company lists:** a new Export button on Contacts downloads a spreadsheet, and Find companies can now just list websites and emails for an area without writing outreach emails.

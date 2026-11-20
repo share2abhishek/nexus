@@ -1,6 +1,9 @@
 // Fast knowledge-base answers: instant FAQ replies, smaller AI prompts, caching,
 // and (above all) that one business never sees another business's answers.
 const { makeTestKnex } = require('./helpers/db');
+// Code under test also reaches the app's shared connection (services/knex): point it at the same test database
+const mockKnex = makeTestKnex();
+jest.mock('../services/knex', () => mockKnex);
 const kbr = require('../services/kbRetrieval');
 const knowledgeBase = require('../services/knowledgeBase');
 const chatbot = require('../services/leadPipeline/chatbot');
@@ -102,7 +105,7 @@ describe('kbRetrieval with the bot (two businesses)', () => {
   beforeAll(async () => {
     jest.spyOn(require('../services/entitlements'), 'canPublish').mockResolvedValue(true);
     gen = jest.spyOn(aiHelper, 'aiGenerate').mockImplementation(async (prompt) => ({ text: 'AI says hello', model: 'mock' }));
-    knex = makeTestKnex();
+    knex = mockKnex;
     await knex.migrate.latest();
     const [org] = await knex('organizations').insert({ name: 'Tenant Corp', owner_user_id: 1 }).returning('id');
     const orgId = org?.id ?? org;

@@ -2248,14 +2248,14 @@ function exportToSalesforceCsv() {
     const nameParts = fullName.split(' ');
     const firstName = nameParts[0] || 'Prospect';
     const lastName = nameParts.slice(1).join(' ') || '(Inquiry)';
-    const company = l.society || l.organization_name || 'Urban Society Prospect';
+    const company = l.society || l.organization_name || 'Prospect';
     const phone = l.phone_number || '';
     const email = l.email || '';
     const isWeb = l.leadgen_id && String(l.leadgen_id).startsWith('web:');
     const source = l.source || (isWeb ? 'UrbanSociety Webchat' : 'Meta Lead Ad');
     const status = l.status === 'won' ? 'Closed - Converted' : (l.status === 'qualified' ? 'Working - Contacted' : 'Open - Not Contacted');
     const rating = Number(l.lead_score || 50) >= 75 ? 'Hot' : 'Warm';
-    const desc = `${l.intent_summary || 'Urban Society Lead'}${l.suggested_reply ? ' | Note: ' + l.suggested_reply : ''}`.replace(/"/g, '""');
+    const desc = `${l.intent_summary || 'Lead'}${l.suggested_reply ? ' | Note: ' + l.suggested_reply : ''}`.replace(/"/g, '""');
     const extId = l.id;
 
     return [
@@ -2420,7 +2420,7 @@ function crmLeadCardHtml(l) {
       </div>
 
       <div class="crm-card-sub" style="margin-top:3px;font-size:12px;color:var(--text-muted)">
-        ${escapeHtml(l.society || l.organization_name || 'Urban Society Prospect')}
+        ${escapeHtml(l.society || l.organization_name || 'Prospect')}
       </div>
 
       <div style="margin-top:6px;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:space-between">
@@ -2620,7 +2620,7 @@ function renderCrmTable(query) {
       <tr style="border-bottom:1px solid var(--border)">
         <td style="padding:12px 16px">
           <div style="font-weight:700;color:var(--text-primary);font-size:13.5px">${escapeHtml(l.full_name || 'Website Visitor')}</div>
-          <div style="font-size:11.5px;color:var(--text-muted)">${escapeHtml(l.society || 'Urban Society Prospect')}</div>
+          <div style="font-size:11.5px;color:var(--text-muted)">${escapeHtml(l.society || 'Prospect')}</div>
         </td>
         <td style="padding:12px 16px">
           <div style="font-size:13px;font-weight:600">${l.phone_number ? '📞 ' + escapeHtml(l.phone_number) : '<span style="color:var(--text-muted)">-</span>'}</div>

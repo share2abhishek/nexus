@@ -572,7 +572,7 @@ describe('Sellbird Autonomous Sales Agent — Test Suite', () => {
       let sMatch;
       const scriptSources = [];
       while ((sMatch = scriptRegex.exec(html)) !== null) {
-        scriptSources.push(sMatch[1]);
+        scriptSources.push(sMatch[1].split('?')[0]); // drop the cache-busting ?v=...
       }
 
       expect(scriptSources.length).toBeGreaterThan(0);

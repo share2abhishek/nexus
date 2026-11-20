@@ -1,6 +1,9 @@
 const request = require('supertest');
 const express = require('express');
 const { makeTestKnex } = require('./helpers/db');
+// Code under test also reaches the app's shared connection (services/knex): point it at the same test database
+const mockKnex = makeTestKnex();
+jest.mock('../services/knex', () => mockKnex);
 
 // Build a tiny app wiring the workspaces router with a fake session.
 function appWith(knex, session) {
@@ -14,7 +17,7 @@ function appWith(knex, session) {
 describe('workspaces routes', () => {
   let knex;
   beforeAll(async () => {
-    knex = makeTestKnex();
+    knex = mockKnex;
     await knex.migrate.latest();
     const o = await knex('organizations').insert({ name: 'O', owner_user_id: 1 }).returning('id');
     const orgId = o[0]?.id ?? o[0];
