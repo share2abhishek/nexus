@@ -33,7 +33,7 @@ class Usage:
 
 OPENAI_BASE = {"openai": "https://api.openai.com/v1", "groq": "https://api.groq.com/openai/v1"}
 DEFAULT_STT = {"openai": "gpt-4o-transcribe", "groq": "whisper-large-v3"}
-DEFAULT_LLM = {"openai": "gpt-4.1-mini", "groq": "llama-3.3-70b-versatile"}
+DEFAULT_LLM = {"openai": "gpt-4.1-mini", "groq": "openai/gpt-oss-120b"}
 
 
 def _key(provider: str) -> str:
@@ -99,6 +99,8 @@ async def stream_reply(system: str, messages: list[dict], cfg: dict, usage: Usag
         if provider in OPENAI_BASE:
             body = {"model": cfg.get("model", DEFAULT_LLM[provider]), "stream": True, "temperature": temperature, "max_tokens": 300,
                     "stream_options": {"include_usage": True}, "messages": [{"role": "system", "content": system}, *messages]}
+            if "gpt-oss" in body["model"]:
+                body["reasoning_effort"] = cfg.get("reasoning_effort", "low")  # little thinking: a phone reply must start at once
             async with c.stream("POST", f"{OPENAI_BASE[provider]}/chat/completions", headers={"Authorization": f"Bearer {_key(provider)}"}, json=body) as r:
                 if r.status_code != 200:
                     raise ProviderError(f"{provider} {r.status_code}: {(await r.aread())[:200]!r}")
