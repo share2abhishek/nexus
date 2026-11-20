@@ -12,6 +12,11 @@ call's recording, transcript, summary and outcome on the lead.
    behind one model port.
 4. It presents itself as **"the AI assistant of <business>"**: human-like in voice and manner, honest that it is an AI
    assistant when it introduces itself or is asked.
+5. **No outside provider at all** for speech, audio or the call loop: built in-house (WhatsApp itself and the AI model we
+   choose are the only outside services).
+6. **Pilot: UrbanSociety** (housing society management, urbansociety.in). Hinglish by default, with the caller's regional
+   words (Marathi, Gujarati and others); female voice; staff hand-over 08:00–22:00 IST, 7 days a week; calls start
+   **from chat** ("shall we talk on a call?"); recordings kept **30 days**. Setup and sample script: Appendix A.
 
 **Status:** requirements only. Nothing is built. Phases V0–V5 are in `docs/platform/ROADMAP.md` (Wave 7). Facts about
 Meta's calling API, models and prices were checked on 20 Nov 2026 and change often: confirm them in V0 and V1.
@@ -234,7 +239,7 @@ load and call health.
 
 | Phase | Scope | Depends on | Done when |
 |---|---|---|---|
-| **V0** Owner set-up | pilot business (Avinash Group by default) on the official Cloud API with calling switched on; 20–30 real sample recordings per language (with consent) for testing; a GPU server account and budget; answers to section 14 | – | the pilot number shows the call button in WhatsApp; samples and budget ready |
+| **V0** Owner set-up | pilot business (UrbanSociety) on the official Cloud API with calling switched on; 20–30 real sample recordings per language (with consent) for testing; a GPU server account and budget; answers to section 14 | – | the pilot number shows the call button in WhatsApp; samples and budget ready |
 | **V1** Speech lab | GPU server; speech-to-text and text-to-speech candidates set up and compared on the samples (word error rate, naturalness, speed); model port with Claude, Gemini and one hosted open model; a browser test page that talks to the pipeline; latency measured end to end | V0 | chosen STT and TTS per language with numbers in `UAT-LOG.md`; median turn under 1.5 s on the test page |
 | **V2** WhatsApp inbound calls | voice gateway (WebRTC with Meta); call webhook and accept; turn loop with barge-in; assistant editor with voice controls and test call; recordings and transcripts on the lead; summary and outcome; hand-over as call-back task; persistent file storage; catalogue keys; minutes counted | V1, A0, B1, storage | a customer's WhatsApp call is answered by the assistant, and the call appears on the lead with recording, transcript and summary within 2 minutes; another organisation's call id answers 404; webhook replay ×3 stores one call |
 | **V3** Outbound WhatsApp calls | call-permission requests and tracking; "Call with AI" on a lead; call lists with hours, retries and opt-out; Meta charges recorded; minutes per plan with top-ups | V2, B6/B7 metering | no call to a contact without permission; "don't call me" stops all future calls; costs per call shown to staff |
@@ -260,13 +265,136 @@ load and call health.
 | # | Question | Default |
 |---|---|---|
 | VA1 | Channel | **Decided:** WhatsApp calling first; phone-network calls optional later (V5) |
-| VA2 | Speech | **Decided:** in-house STT and TTS on our GPU server; chosen per language in V1 from measured results |
+| VA2 | Speech | **Decided:** in-house STT, TTS, voice controls and call loop on our GPU server, no outside provider; models chosen per language in V1 from measured results |
 | VA3 | AI model | **Decided:** our choice behind a model port; default Claude for quality, an open hosted model compared in V1 for cost |
-| VA4 | Persona | **Decided:** "the AI assistant of <business>", human-like, honest when asked; name and voice per business |
-| VA5 | Pilot business and direction | Avinash Group, inbound first |
-| VA6 | Languages and style | Marathi, Hindi and Hinglish; the business sends sample lines and recordings |
-| VA7 | Recording retention | 180 days for audio; transcript and summary kept |
+| VA4 | Persona | **Decided:** "the AI assistant of <business>", human-like, honest when asked; UrbanSociety: female voice, "Sneha" (Appendix A.1) |
+| VA5 | Pilot business and direction | **Decided:** UrbanSociety. Calls start from chat (Appendix A.3); a customer calling the WhatsApp number is answered too |
+| VA6 | Languages and style | **Decided:** Hinglish by default, switching to the caller's language or mixing in their regional words (Marathi, Gujarati, others) |
+| VA7 | Recording retention | **Decided:** 30 days for audio; transcript and summary kept (to confirm: also delete transcripts after 30 days?) |
 | VA8 | Lead updates after a call | Suggested by AI, confirmed by a person |
-| VA9 | Outbound rules | Only contacts with call permission, 10:00–19:00 IST, at most 3 attempts, 1 day apart |
+| VA9 | Outbound rules | **Decided:** a call only when the person asks for it in chat (and grants WhatsApp call permission); a requested call is placed at once; retries (a missed requested call) only 08:00–22:00 IST, at most 2, 30 minutes apart |
+| VA12 | Hand-over hours | **Decided (UrbanSociety):** 08:00–22:00 IST, 7 days; outside them the assistant books a call-back for 08:00 onwards |
 | VA10 | GPU budget | To set in V0 after a price check; one always-on instance to start |
 | VA11 | Pricing to customers | Minutes included per plan, decided after V2's measured cost per minute |
+
+---
+
+## Appendix A. Pilot: UrbanSociety
+
+Facts below come from UrbanSociety's own website code (landing page, pricing page) on 20 Nov 2026. The assistant answers
+only from the knowledge base; the owner keeps that knowledge base current (prices, offers, app availability).
+
+### A.1 Assistant set-up
+| Setting | Value |
+|---|---|
+| Business | UrbanSociety, the society management app for Indian housing societies, by Radixile Technology Solutions, media partner Sakal Media Group |
+| Name and voice | **Sneha**, female, warm and calm, mid-pace (speaking rate 1.0, slightly slower for numbers and prices) |
+| Language | Hinglish by default. If the caller speaks Marathi, Gujarati or another language, Sneha mirrors it: whole sentences where the TTS supports the language, otherwise Hinglish with the caller's common words ("bara", "kem cho", "chaala", "majama") |
+| Greeting | "Namaste! Main Sneha bol rahi hoon, UrbanSociety ki AI assistant. Aapne chat par call ke liye kaha tha, isliye call kiya. Ye call quality ke liye record ho raha hai. Kya abhi 2-3 minute baat kar sakte hain?" |
+| Goal | understand the society and the caller's role, explain what fits their problem, and **book a free demo** (or start the 30-day free trial) |
+| Lead fields to fill | caller name, role (chairman, secretary, treasurer, committee member, resident, facility manager), society name, city and area, number of flats, wings, how they manage today (Excel, register, another app), main problem, decision timeline, demo date and time, WhatsApp for the link |
+| Hand-over | staff on WhatsApp 08:00–22:00 IST, 7 days. Triggers: the caller asks for a person; a question not in the knowledge base twice; a complaint from an existing customer; a society over 500 flats (custom pricing); an angry caller. Outside the hours: "Hamari team kal subah 8 baje ke baad aapko call karegi" and a call-back task |
+| Recording | on, kept 30 days; transcript and summary on the lead |
+| Never | promise a discount or offer not in the knowledge base; quote competitor prices; give legal advice on society bye-laws or acts (offer the help pages instead); ask for card, OTP or bank details |
+
+### A.2 Knowledge base (first version, from the website)
+- **What it is:** one login for the whole committee: finance and accounting, resident communication, daily operations and
+  AI automation.
+- **Finance and accounting:** automatic maintenance bills sent on schedule with a statement per flat, payments linked to
+  the ledger, vendor payments, member ledgers each resident can see, one-click income, expense and balance-sheet reports for
+  the committee and auditors.
+- **Resident engagement:** notice board (with read counts), polls and voting, complaints with response times (SLA),
+  document storage.
+- **Daily operations (add-on):** gate passes with OTP, visitor tracking, staff attendance, amenity booking (for example the
+  clubhouse).
+- **AI and automation:** AI reads receipts and invoices, reconciles bank statements, flags unusual entries, drafts the
+  monthly report; works in several languages.
+- **Prices (per flat per month, as on the site):** Gate Guard ₹5, Standard ₹15, Premium ₹20. No setup or onboarding fees,
+  no ads in the portal. Taxes extra. (Per-society minimums and the "Founding 50" offer are drafts: add them to the
+  knowledge base only when they go live.)
+- **Trial:** 30-day free trial with every feature, no card needed.
+- **Apps:** Android on Google Play; iPhone app coming soon on the App Store; works in the browser.
+- **Contact:** +91 8554 00 01 02, contact@urbansociety.in, urbansociety.in (demo booking, user guide, help pages, society
+  letter formats, MCS Act and related acts pages).
+- **Referral:** refer another committee; both get benefits when they join (details from the referral page).
+
+### A.3 From chat to call
+1. In WhatsApp chat or the website chat, when a lead shows interest (asks about price, demo, "kaise kaam karta hai") or
+   after the third message, the chat assistant offers: "Agar aap chahein to hum 2-3 minute phone par baat kar sakte hain,
+   main aapko sab samjha dungi. Call karun?" with buttons **Haan, call karo** / **Baad mein** / **Nahi, chat theek hai**.
+2. **Haan:** on WhatsApp, Nexus sends Meta's call-permission request; when the person allows it, Sneha calls at once. From
+   the website chat, Nexus first asks for the WhatsApp number and consent, then sends the permission request there. The
+   person can also tap the call button in WhatsApp themselves; the same assistant answers.
+3. **Baad mein:** the person picks a time (today or tomorrow, 08:00–22:00); the call is scheduled.
+4. **Missed call:** one WhatsApp message ("Maine call kiya tha, aap busy honge. Kab call karun?") and at most 2 retries,
+   30 minutes apart, within 08:00–22:00.
+5. **Nahi:** the chat carries on; no call is offered again in that conversation.
+6. After the call, the chat gets a short WhatsApp message with what was agreed (demo time, link) and the lead shows the
+   call card.
+
+### A.4 Sample call script (Hinglish; Sneha adapts it, it is not read word for word)
+
+**1. Opening (always)**
+> Sneha: Namaste! Main Sneha bol rahi hoon, UrbanSociety ki AI assistant. Aapne chat par call ke liye kaha tha, isliye
+> call kiya. Ye call quality ke liye record ho raha hai. Kya abhi 2-3 minute baat kar sakte hain?
+- If no: "Koi baat nahi. Kab call karun? Aaj shaam ya kal subah?" → schedule, end.
+
+**2. Who and where**
+> Sneha: Thank you! Pehle thoda samajh leti hoon. Aap society mein kya role sambhalte hain, chairman, secretary,
+> treasurer ya committee member? … Aur society ka naam aur area kya hai?
+> Sneha: Kitne flats hain lagbhag, aur kitne wings?
+
+**3. Today's way and the pain**
+> Sneha: Abhi maintenance bills aur collection kaise manage karte hain? Excel, register, ya koi app?
+> Sneha: Sabse zyada time kis cheez mein jaata hai: bills banana aur reminders bhejna, pending dues follow up karna,
+> notices aur complaints, ya gate par visitors?
+
+**4. Fit (pick only what matches their pain)**
+- Bills and dues: "UrbanSociety mein bills apne aap schedule par chale jaate hain, har flat ko apna statement milta hai,
+  aur payment aate hi ledger update ho jaata hai. AGM mein 'kisne kitna diya' wala sawaal hi khatam."
+- Reports and audit: "Income, expense aur balance sheet ek click mein, committee aur auditor dono ke liye ready."
+- Communication: "Notice board pe kitne logon ne padha wo bhi dikhta hai, polls se voting hoti hai, aur complaints ka
+  status members khud dekh sakte hain."
+- Gate and visitors: "Gate pass OTP se, visitor log, staff attendance aur clubhouse booking bhi, ek hi app mein."
+- AI: "Receipts aur invoices ka photo daalo, AI khud category mein daal deta hai, aur bank statement bhi match kar deta hai."
+
+**5. Price (only when asked, or after the fit)**
+> Sneha: Pricing simple hai, per flat per month: Gate Guard ₹5, Standard ₹15, Premium ₹20. Setup ya onboarding ka koi
+> charge nahi. Aur pehle 30 din bilkul free, card bhi nahi chahiye.
+- Over 500 flats: "Itni badi society ke liye hamari team custom plan banati hai. Main unse aapki baat karwa deti hoon."
+  → hand-over.
+
+**6. Common objections**
+- *"Committee se poochna padega."* → "Bilkul sahi. Main ek free demo rakh deti hoon jisme poori committee jud sakti hai,
+  aur 30 din ka trial bhi hai, toh decision aaram se le sakte hain. Kaunsa din theek rahega?"
+- *"Hum already ek app use karte hain."* → "Achha, kaunsa? Usmein sabse zyada kya pareshan karta hai?" Then fit to that
+  pain; never criticise the other app.
+- *"Data safe hai?"* → "Haan ji, platform SSL secured hai aur har society ka data alag rehta hai. Demo mein team details
+  mein bata degi."
+- *"Members tech-savvy nahi hain."* → "Android app aur browser dono mein chalta hai, aur kai bhashaon mein hai. Members ko
+  bas apna statement dekhna aur pay karna hota hai."
+- *"Mehenga hai."* → "Samajh sakti hoon. Example ke liye 100 flats pe Standard ₹1,500 mahine ka padta hai, jo ek
+  part-time accountant se kaafi kam hai. Aur pehle 30 din free hain."
+  (Example computed from ₹15 × 100 flats; no minimums or discounts quoted.)
+
+**7. Close**
+> Sneha: Toh main aapke liye free demo book kar deti hoon. Kal ya parso, subah ya shaam, kya theek rahega? … Done!
+> Main aapko WhatsApp par confirmation aur link bhej rahi hoon. Aur koi sawaal?
+> Sneha: Thank you [naam] ji, aapka din achha rahe!
+
+**8. Regional touches (examples; used only when the caller speaks that way)**
+- Marathi: "Namaskar! Tumchi society kuthe aahe? … Kiti flats aahet? … Chaala, mag demo book karu ya?"
+- Gujarati: "Kem cho! Tamari society kya aavi? … Ketla flats chhe? … Saru, demo book kari dau?"
+
+**9. Hand-over lines**
+- In hours: "Main aapko hamari team se abhi jod deti hoon, ek minute line par rahiye." (V4 live transfer; until then:
+  "Hamari team 10 minute mein aapko call karegi.")
+- Out of hours: "Hamari team abhi available nahi hai, kal subah 8 baje ke baad aapko call karegi. Theek hai?"
+
+### A.5 What the owner still needs to give
+1. Confirm UrbanSociety's WhatsApp number for the pilot and move it to the official Cloud API with calling switched on (V0).
+2. Approve Sneha's greeting and the price lines; say whether the Founding 50 offer is live.
+3. 10–20 real recordings (with consent) of committee members talking about society work, in Hinglish, Marathi and
+   Gujarati, to test speech recognition in V1.
+4. Staff WhatsApp numbers for hand-over, and who gets call-back tasks.
+5. Whether transcripts are also deleted after 30 days, or only the audio.
