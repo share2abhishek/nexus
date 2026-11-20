@@ -26,8 +26,8 @@ Phase ids follow `PLAN.md` section 7. The phases this roadmap adds are **Q0** (q
 
 | Phase | State | Where | Notes |
 |---|---|---|---|
-| Q0 | built, on staging | branch `feature/q0` | Suite green (918 passed, 0 failed; quarantine Q1). Bitbucket Pipelines to be enabled in the repository settings. Staging runs on the server's port 3301 (SSH tunnel) until DNS `staging.nexus.radixile.com` exists. Merging needs the server step in the Q0 card. |
-| S0 | built, on staging | branch `feature/s0` (on top of Q0) | No admin promotion and no cross-business `/admin` for customers on the hosted edition; no workspace from the request body; route inventory (98 routes without a permission and 13 checking inline are the baseline for A0); two-organisation isolation harness: 49 tables, 83 routes, 0 leaks, with a planted-leak self-check. |
+| Q0 | **done, in production** (`97046f4`, 20 Nov 2026) | `master` | Suite green (918 passed, 0 failed; quarantine Q1). **Open:** enable Bitbucket Pipelines in the repository settings; DNS `staging.nexus.radixile.com` (until then staging is reached by SSH tunnel to port 3301). Production now has a stable `NEXUS_DATA_KEY` (copied from the running container, so saved credentials stay readable) and the Dockerfile in git. |
+| S0 | **done, in production** (`97046f4`, 20 Nov 2026) | `master` | No admin promotion and no cross-business `/admin` for customers on the hosted edition; no workspace from the request body; route inventory (98 routes without a permission and 13 checking inline are the baseline for A0); two-organisation isolation harness: 49 tables, 83 routes, 0 leaks, with a planted-leak self-check. |
 
 ## Principles of the order
 1. **Protect what exists.** Wave 0 keeps today's customers running (the Avinash Group trial ends 2 Dec) and makes releases safe (CI, staging, a green suite) before anything new.
