@@ -18,6 +18,10 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 
 ## Unreleased
 
+---
+
+## 2.4.0 — 20 November 2026
+
 ### What’s new page
 - **See what changed in each release inside the app:** Settings → What’s new lists every release, newest first, with what each one added or fixed. A "New" tag appears in the menu after an update until you open the page.
 

@@ -1,6 +1,6 @@
 # Social-Nexus Technical Support & Operations Guide
 
-**Audience:** Radixile developers, L2/L3 support, release managers · **Internal** · App version 2.3.0 (`package.json`), licence server 1.0.0 · October 2026
+**Audience:** Radixile developers, L2/L3 support, release managers · **Internal** · App version 2.4.0 (`package.json`), licence server 1.0.0 · October 2026
 
 | Related document | Use |
 |---|---|
@@ -442,7 +442,7 @@ Evaluated in this order; the first match wins:
 
 `can_publish = active && limits.publish !== false`. Without a licence, `LIMITED = {seats 1, workspaces 1, users 1, autopilot_rules 0, seo_sites 0, publish false, team_mode false}`. Gated by licence: post now, schedule, retry, CSV import (`requirePublishLicense` → HTTP 402 `LICENSE_REQUIRED`), content `→scheduled/published`, email send, scheduler tick. Limits enforced: `users` (register, admin create user), `workspaces` (create) → 402 `LICENSE_LIMIT`.
 
-Read the state: `GET http://localhost:3000/__health` → `{"app":"social-nexus","version":"2.3.0","licence":"<state>"}` (no login), or `GET /api/license` (logged in; full status incl. `lease_until`, `expires_at`, `last_error`, `needs_refresh`, `limits`).
+Read the state: `GET http://localhost:3000/__health` → `{"app":"social-nexus","version":"2.4.0","licence":"<state>"}` (no login), or `GET /api/license` (logged in; full status incl. `lease_until`, `expires_at`, `last_error`, `needs_refresh`, `limits`).
 
 ### 9.3 Fingerprint and `sameDevice`
 
