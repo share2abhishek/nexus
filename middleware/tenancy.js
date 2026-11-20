@@ -20,9 +20,10 @@ function makeWithWorkspace(membershipsRepo, { loadUser } = {}) {
     }
     req.isPlatformAdmin = isPlatform;
 
+    // The workspace comes from the header, the route or the session, never from the request body (S0):
+    // a body is data, and choosing a workspace there made it easy to act on one by mistake.
     let workspaceId = Number(req.headers?.['x-workspace-id'])
       || Number(req.params?.workspaceId)
-      || Number(req.body?.workspaceId)
       || req.session?.activeWorkspaceId;
 
     if (!workspaceId) {
@@ -52,7 +53,7 @@ function makeWithWorkspace(membershipsRepo, { loadUser } = {}) {
 }
 
 function requirePermission(action) {
-  return function (req, res, next) {
+  const mw = function requirePermission(req, res, next) {
     // Set by withWorkspace from the live user record
     if (req.isPlatformAdmin) return next();
     if (!can(req.role, action)) {
@@ -60,6 +61,8 @@ function requirePermission(action) {
     }
     next();
   };
+  mw.accessPermission = action; // read by the route inventory (tests/access/routeInventory.test.js)
+  return mw;
 }
 
 module.exports = { makeWithWorkspace, requirePermission };

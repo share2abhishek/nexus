@@ -22,6 +22,13 @@ Phase ids follow `PLAN.md` section 7. The phases this roadmap adds are **Q0** (q
 - `billing-delivery`
 - `billing-money-review`
 
+## Status
+
+| Phase | State | Where | Notes |
+|---|---|---|---|
+| Q0 | built, on staging | branch `feature/q0` | Suite green (918 passed, 0 failed; quarantine Q1). Bitbucket Pipelines to be enabled in the repository settings. Staging runs on the server's port 3301 (SSH tunnel) until DNS `staging.nexus.radixile.com` exists. Merging needs the server step in the Q0 card. |
+| S0 | built, on staging | branch `feature/s0` (on top of Q0) | No admin promotion and no cross-business `/admin` for customers on the hosted edition; no workspace from the request body; route inventory (98 routes without a permission and 13 checking inline are the baseline for A0); two-organisation isolation harness: 49 tables, 83 routes, 0 leaks, with a planted-leak self-check. |
+
 ## Principles of the order
 1. **Protect what exists.** Wave 0 keeps today's customers running (the Avinash Group trial ends 2 Dec) and makes releases safe (CI, staging, a green suite) before anything new.
 2. **Lay the minimum foundation once.** The access engine (A0) comes before anything that decides access. Tenancy hardening (T1) runs as a **parallel track**: any real leak the S0 harness finds is fixed at once, and the leads module finishes before R1.
@@ -108,6 +115,7 @@ Scope detail is in the cited sections. "Review" names the skill checklist that t
   - staging serves the current `master` with its own database;
   - the suite is green apart from the listed quarantine.
 - **Owner check:** open staging, log in, see test data (not real customers' messages).
+- **Merging to `master` (one time):** production's `Dockerfile` and `.dockerignore` exist on the server as untracked files, and git refuses to fast-forward over them. Before the deploy, on the server: `mkdir -p ~/projects/nexus-backups/pre-q0 && mv ~/projects/nexus/Dockerfile ~/projects/nexus/.dockerignore ~/projects/nexus-backups/pre-q0/`. The new `.dockerignore` keeps every `.env*` file out of the image (production's `.env.bak` was being copied in).
 - **Rollback:** none needed (tooling only).
 - **Review:** QA review checklist in `REVIEW-2026-11-19.md` section 4.
 

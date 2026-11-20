@@ -17,6 +17,12 @@ async function requireAdmin(req, res, next) {
   if (!user || (!['admin', 'superadmin'].includes(user.role) && !isSuperAdminUser(user))) {
     return res.status(403).json({ error: 'Admin access required' });
   }
+  // Hosted (server) edition: everything here lists or changes people and settings across every business,
+  // so only Radixile platform admins may use it; a plain 'admin' role is not enough (S0). The desktop app
+  // keeps its install admin.
+  if (require('../services/edition').isServer() && !isSuperAdminUser(user)) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
   req.currentUser = user;
   req.isSuperAdmin = isSuperAdminUser(user);
   next();

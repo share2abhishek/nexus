@@ -118,6 +118,8 @@ app.get('/__health', (req, res) => {
 // For the desktop app's tray and shutdown warning: when the next posts are due.
 // Counts and times only (no post text), and only for this PC (127.0.0.1).
 app.get('/__schedule', async (req, res) => {
+  // Desktop app only: on the hosted edition every business shares this process, so it is not served at all (S0)
+  if (require('../services/edition').isServer()) return res.status(404).end();
   const ip = req.socket.remoteAddress || '';
   if (!['::1', '127.0.0.1', '::ffff:127.0.0.1'].includes(ip)) return res.status(403).end();
   try {
@@ -408,6 +410,7 @@ async function bootstrap() {
   });
 }
 
-bootstrap().catch(err => { console.error('[Startup] fatal', err); process.exit(1); });
+// NEXUS_NO_BOOT=1 (tests only): build the app without migrating, scheduling or listening
+if (process.env.NEXUS_NO_BOOT !== '1') bootstrap().catch(err => { console.error('[Startup] fatal', err); process.exit(1); });
 
 module.exports = app;

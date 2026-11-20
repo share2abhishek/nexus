@@ -19,6 +19,7 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 ## Unreleased
 
 ### Fixes
+- **Hosted service security:** only Radixile staff can use the administration screens that cover every business, and nobody is made an administrator automatically on the hosted service.
 - **No other company's name in your screens:** an example in the sales outreach setup and the fallback name for leads without a company named another business. They now use neutral wording ("Prospect", "Lead").
 - **Desktop app, local content folder:** file names containing a backslash are refused, so a name can never point outside the folder on Windows.
 

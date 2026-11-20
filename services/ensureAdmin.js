@@ -10,6 +10,9 @@
 const FLAG = 'admin_ensured';
 
 module.exports = async function ensureAdmin(knex) {
+  // Hosted (server) edition: never. There the "first account" is a customer, and an install admin can see
+  // every business (S0, docs/platform/ROADMAP.md). Radixile staff come from PLATFORM_ADMIN_EMAILS instead.
+  if (require('./edition').isServer()) return null;
   const cfg = require('../repos/configRepo')(knex);
   if (await cfg.get(FLAG) === '1') return null;
 

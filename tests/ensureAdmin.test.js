@@ -16,6 +16,16 @@ describe('ensureAdmin', () => {
 
   const idOf = async (email) => (await knex('users').where({ email }).first('id')).id;
 
+  test('hosted (server) edition: nobody is ever made admin automatically (S0)', async () => {
+    process.env.NEXUS_MODE = 'server';
+    try {
+      await add('customer@shop.test');
+      await knex('organizations').insert({ name: 'Shop', owner_user_id: await idOf('customer@shop.test') });
+      expect(await ensureAdmin(knex)).toBeNull();
+      expect(await roles()).toEqual({ 'customer@shop.test': 'user' });
+    } finally { delete process.env.NEXUS_MODE; }
+  });
+
   test('the owner of the first organization becomes admin, not an older test account', async () => {
     await add('test@dev.test');
     await add('owner@shop.test');
