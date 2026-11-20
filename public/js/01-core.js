@@ -63,6 +63,7 @@ const PAGE_META = {
   analytics:         { title: 'Results',            subtitle: 'Likes, comments and reach of your posts' },
   'tools-directory': { title: 'Other AI tools',     subtitle: 'Useful free and paid AI tools' },
   admin:             { title: 'Users & access',     subtitle: 'Who can use NexaDrip on this PC' },
+  'whats-new':       { title: 'What’s new',         subtitle: 'What changed in each release' },
   settings:          { title: 'Settings',           subtitle: 'Accounts, AI, email, backups and licence' },
   clients:           { title: 'Clients',            subtitle: 'A separate brand for each client' },
   feeds:             { title: 'Blog & news feeds', subtitle: 'New articles become posts automatically' },
@@ -255,6 +256,7 @@ function navigateTo(page) {
     brand:     () => (typeof window.loadBrandKit === 'function' ? window.loadBrandKit() : (typeof loadBrandKit === 'function' ? loadBrandKit() : null)),
     // Server edition: open on the Autopilot tab the first time
     seo:       () => (typeof loadFeatures === 'function' ? loadFeatures().then(f => { if (f.seo_autopilot && !State.seoTabChosen) { State.seoTabChosen = true; switchSeoTab('autopilot'); } }) : null),
+    'whats-new': () => (typeof window.loadWhatsNew === 'function' ? window.loadWhatsNew() : null),
     settings:  () => (typeof window.loadSettings === 'function' ? window.loadSettings() : (typeof loadSettings === 'function' ? loadSettings() : null)),
     clients:   () => (typeof window.loadClients === 'function' ? window.loadClients() : (typeof loadClients === 'function' ? loadClients() : null)),
     generate:  () => (typeof window.loadModels === 'function' ? window.loadModels() : (typeof loadModels === 'function' ? loadModels() : null)),

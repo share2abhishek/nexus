@@ -214,6 +214,15 @@ app.use(['/api/knowledge-base', '/api/tools', '/api/media', '/api/seo', '/api/se
 // ── Protected Routes (require login) ─────────────────────────────────────────
 
 app.use('/api/license', requireAuth, require('../routes/license'));
+// "What's new": released notes from docs/RELEASE-NOTES.md. Staff (and the desktop install's own people) also see
+// the Super Admin and upgrade sections.
+app.get('/api/release-notes', requireAuth, async (req, res) => {
+  const user = await platformAdmin.loadUser(req.session.userId);
+  const staff = !require('../services/edition').isServer() || platformAdmin.isPlatformAdmin(user);
+  const { version } = require('../package.json');
+  res.set('Cache-Control', 'private, max-age=300');
+  res.json({ version, releases: require('../services/releaseNotes').forViewer({ staff }) });
+});
 // Server edition: paying for the business's plan (billing service at BILLING_URL)
 const billingRoutes = require('../routes/billing');
 app.use('/billing', billingRoutes.pub);

@@ -18,6 +18,9 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 
 ## Unreleased
 
+### What’s new page
+- **See what changed in each release inside the app:** Settings → What’s new lists every release, newest first, with what each one added or fixed. A "New" tag appears in the menu after an update until you open the page.
+
 ### Fixes
 - **Hosted service security:** only Radixile staff can use the administration screens that cover every business, and nobody is made an administrator automatically on the hosted service.
 - **No other company's name in your screens:** an example in the sales outreach setup and the fallback name for leads without a company named another business. They now use neutral wording ("Prospect", "Lead").

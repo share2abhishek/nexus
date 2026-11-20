@@ -212,6 +212,11 @@
           <span class="nav-label">Settings</span>
           <span class="nav-badge nav-badge-warn" id="settings-attention-badge" style="display:none" title="Something in Settings needs your attention"></span>
         </a>
+        <a class="nav-item" data-page="whats-new" id="nav-whats-new" title="What changed in each release">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-sparkles"/></svg>
+          <span class="nav-label">What’s new</span>
+          <span class="nav-badge" id="whats-new-badge" style="display:none" title="New release">New</span>
+        </a>
         <a class="nav-item" data-page="admin" id="nav-admin" style="display:none" title="People who use NexaDrip on this PC">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-shield-check"/></svg>
           <span class="nav-label">Users &amp; access</span>
@@ -1032,6 +1037,16 @@
     </section>
 
     <!-- ── Local Files ─────────────────────────────────────────────────────── -->
+    <section class="page" id="page-whats-new">
+      <div class="section-header">
+        <div>
+          <div class="section-title">What’s new</div>
+          <div class="section-desc">What changed in each release, newest first. You are on version <span id="whats-new-version">…</span>.</div>
+        </div>
+      </div>
+      <div id="whats-new-list" class="wn-list"><div class="empty-state">Loading…</div></div>
+    </section>
+
     <section class="page" id="page-files">
       <div class="section-header">
         <div>
@@ -4638,6 +4653,7 @@
 <script src="js/14-whatsapp-bot.js?v=2.2.0"></script>
 <script src="js/15-post-designer.js?v=2.2.0"></script>
 <script src="js/25-content-studio.js?v=2.2.4"></script>
+<script src="js/26-whats-new.js?v=2.3.0"></script>
 <script src="js/16-whatsapp-templates.js?v=2.2.0"></script>
 <script src="js/17-whatsapp-broadcast.js?v=2.2.0"></script>
 <script src="js/18-post-extras.js?v=2.2.0"></script>

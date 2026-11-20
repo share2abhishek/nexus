@@ -6756,3 +6756,18 @@ body.is-saas [data-desktop-only],
   .nx-skel { animation: none !important; }
   .btn:hover:not(:disabled), .sb-primary-btn:hover:not(:disabled), .sb-secondary-btn:hover:not(:disabled) { transform: none; }
 }
+
+/* ── What's new (release notes page) ───────────────────────────────────────── */
+.wn-list { display: flex; flex-direction: column; gap: 16px; max-width: 860px; }
+.wn-release { padding: 20px 22px; }
+.wn-latest { border-color: var(--border-active); }
+.wn-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.wn-version { font-size: 18px; font-weight: 700; margin: 0; color: var(--text-primary); }
+.wn-date { font-size: 13px; color: var(--text-muted); }
+.wn-current { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: rgba(16,185,129,0.15); color: var(--accent-green); }
+.wn-section { margin-top: 14px; }
+.wn-title { font-size: 14px; font-weight: 700; margin: 0 0 6px; color: var(--text-secondary); }
+.wn-items { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.wn-items li { font-size: 14px; line-height: 1.55; color: var(--text-primary); }
+.wn-items code { font-size: 12.5px; padding: 1px 5px; border-radius: 4px; background: var(--glass-hover); }
+@media (max-width: 600px) { .wn-release { padding: 16px; } .wn-items { padding-left: 16px; } }

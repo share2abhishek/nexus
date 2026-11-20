@@ -1,6 +1,7 @@
 // Route inventory (S0, docs/platform/ROADMAP.md). Every route the app serves must be one of:
 //   - guarded by a permission (requirePermission) or an admin guard (requireAdmin / requireSuperAdmin);
 //   - public on purpose: listed in PUBLIC below, with the reason;
+//   - for every signed-in user on purpose (needs requireAuth, no permission): listed in SIGNED_IN, with the reason;
 //   - a recorded exception in routeInventory.baseline.json, to be burned down in A0:
 //       authOnly    signed-in users only, but no permission checked
 //       inlineAuth  no guard middleware; the handler checks the session itself (proved below: an anonymous call is refused)
@@ -36,13 +37,18 @@ const PUBLIC = [
   ['*', /^\/(a\/:id|v1\/approvals\/:id(\/response)?)$/, 'client approval links (secret link id)'],
   ['*', /^\/billing\/(webhook|return)$/, 'billing service notices (signed) and the way back after paying'],
 ];
+// Signed in is enough, on purpose: nothing here belongs to a workspace or another person. [method or '*', path, reason]
+const SIGNED_IN = [
+  ['GET', /^\/api\/release-notes$/, 'What\'s new: the published release notes, the same for everyone'],
+];
+const isSignedInRoute = (r) => SIGNED_IN.some(([m, re]) => (m === '*' || m === r.method) && re.test(r.path));
 const isPublic = (r) => PUBLIC.some(([m, re]) => (m === '*' || m === r.method) && re.test(r.path));
 
 const key = (r) => `${r.method} ${r.path}`;
 const category = (r) => {
   if (r.guards.superAdmin || r.guards.admin) return 'admin';
   if (r.guards.permission) return 'permission';
-  if (r.guards.auth) return 'authOnly';
+  if (r.guards.auth) return isSignedInRoute(r) ? 'signedIn' : 'authOnly';
   return isPublic(r) ? 'public' : 'open';
 };
 const fill = (p) => `/${p.replace(/:\w+/g, '1').replace(/\*/g, 'x').replace(/,.*$/, '').replace(/^\/+/, '')}`;
