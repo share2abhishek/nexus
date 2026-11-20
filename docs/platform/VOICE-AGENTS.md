@@ -133,8 +133,8 @@ The editor has a **test call**: the editor's own WhatsApp rings, and the transcr
   (default: suggested, a person confirms).
 - **Storage prerequisite:** production keeps files inside the container with no persistent volume. Before V2, files move to
   a persistent volume or S3-compatible storage (platform L1 files service), or recordings would be lost on deploy.
-- **Retention:** a nightly job deletes audio past the retention period (transcript and summary kept unless the business
-  chooses otherwise); a customer's deletion request removes audio and transcript.
+- **Retention:** a nightly job deletes audio and transcript turns past the retention period (UrbanSociety: 30 days for
+  both); the summary, outcome and next step stay on the lead. A customer's deletion request removes all of it at once.
 
 ---
 
@@ -270,7 +270,7 @@ load and call health.
 | VA4 | Persona | **Decided:** "the AI assistant of <business>", human-like, honest when asked; UrbanSociety: female voice, "Sneha" (Appendix A.1) |
 | VA5 | Pilot business and direction | **Decided:** UrbanSociety. Calls start from chat (Appendix A.3); a customer calling the WhatsApp number is answered too |
 | VA6 | Languages and style | **Decided:** Hinglish by default, switching to the caller's language or mixing in their regional words (Marathi, Gujarati, others) |
-| VA7 | Recording retention | **Decided:** 30 days for audio; transcript and summary kept (to confirm: also delete transcripts after 30 days?) |
+| VA7 | Recording retention | **Decided:** audio **and** transcript deleted after 30 days. The short summary, outcome and next step stay on the lead (they are the lead's history, not the conversation) |
 | VA8 | Lead updates after a call | Suggested by AI, confirmed by a person |
 | VA9 | Outbound rules | **Decided:** a call only when the person asks for it in chat (and grants WhatsApp call permission); a requested call is placed at once; retries (a missed requested call) only 08:00–22:00 IST, at most 2, 30 minutes apart |
 | VA12 | Hand-over hours | **Decided (UrbanSociety):** 08:00–22:00 IST, 7 days; outside them the assistant books a call-back for 08:00 onwards |
@@ -288,13 +288,14 @@ only from the knowledge base; the owner keeps that knowledge base current (price
 | Setting | Value |
 |---|---|
 | Business | UrbanSociety, the society management app for Indian housing societies, by Radixile Technology Solutions, media partner Sakal Media Group |
+| WhatsApp number | **+91 96370 00102** ("Urban Society", quality GREEN), already connected in Nexus on the **official Cloud API** under the **Radixile** business (checked with Meta on 20 Nov 2026). WhatsApp calling on the number is **off** today; it is switched on in V2 when the assistant can answer (switching it on earlier shows customers a call button nobody answers) |
 | Name and voice | **Sneha**, female, warm and calm, mid-pace (speaking rate 1.0, slightly slower for numbers and prices) |
 | Language | Hinglish by default. If the caller speaks Marathi, Gujarati or another language, Sneha mirrors it: whole sentences where the TTS supports the language, otherwise Hinglish with the caller's common words ("bara", "kem cho", "chaala", "majama") |
 | Greeting | "Namaste! Main Sneha bol rahi hoon, UrbanSociety ki AI assistant. Aapne chat par call ke liye kaha tha, isliye call kiya. Ye call quality ke liye record ho raha hai. Kya abhi 2-3 minute baat kar sakte hain?" |
 | Goal | understand the society and the caller's role, explain what fits their problem, and **book a free demo** (or start the 30-day free trial) |
 | Lead fields to fill | caller name, role (chairman, secretary, treasurer, committee member, resident, facility manager), society name, city and area, number of flats, wings, how they manage today (Excel, register, another app), main problem, decision timeline, demo date and time, WhatsApp for the link |
-| Hand-over | staff on WhatsApp 08:00–22:00 IST, 7 days. Triggers: the caller asks for a person; a question not in the knowledge base twice; a complaint from an existing customer; a society over 500 flats (custom pricing); an angry caller. Outside the hours: "Hamari team kal subah 8 baje ke baad aapko call karegi" and a call-back task |
-| Recording | on, kept 30 days; transcript and summary on the lead |
+| Hand-over | one staff number for the PoC (given by the owner on 20 Nov 2026; set in the assistant editor, kept out of git so it can change without a release), 08:00–22:00 IST, 7 days. Triggers: the caller asks for a person; a question not in the knowledge base twice; a complaint from an existing customer; a society over 500 flats (custom pricing); an angry caller. Outside the hours: "Hamari team kal subah 8 baje ke baad aapko call karegi" and a call-back task |
+| Recording | on; audio and transcript kept 30 days, then deleted; summary, outcome and next step stay on the lead |
 | Never | promise a discount or offer not in the knowledge base; quote competitor prices; give legal advice on society bye-laws or acts (offer the help pages instead); ask for card, OTP or bank details |
 
 ### A.2 Knowledge base (first version, from the website)
@@ -310,8 +311,9 @@ only from the knowledge base; the owner keeps that knowledge base current (price
 - **AI and automation:** AI reads receipts and invoices, reconciles bank statements, flags unusual entries, drafts the
   monthly report; works in several languages.
 - **Prices (per flat per month, as on the site):** Gate Guard ₹5, Standard ₹15, Premium ₹20. No setup or onboarding fees,
-  no ads in the portal. Taxes extra. (Per-society minimums and the "Founding 50" offer are drafts: add them to the
-  knowledge base only when they go live.)
+  no ads in the portal. Taxes extra.
+- **Not said in the PoC (decided 20 Nov 2026):** per-society minimums and the "Founding 50" offer (both drafts in
+  UrbanSociety's planning notes). Sneha adds them only when the owner marks them live in the knowledge base.
 - **Trial:** 30-day free trial with every feature, no card needed.
 - **Apps:** Android on Google Play; iPhone app coming soon on the App Store; works in the browser.
 - **Contact:** +91 8554 00 01 02, contact@urbansociety.in, urbansociety.in (demo booking, user guide, help pages, society
@@ -391,10 +393,12 @@ only from the knowledge base; the owner keeps that knowledge base current (price
   "Hamari team 10 minute mein aapko call karegi.")
 - Out of hours: "Hamari team abhi available nahi hai, kal subah 8 baje ke baad aapko call karegi. Theek hai?"
 
-### A.5 What the owner still needs to give
-1. Confirm UrbanSociety's WhatsApp number for the pilot and move it to the official Cloud API with calling switched on (V0).
-2. Approve Sneha's greeting and the price lines; say whether the Founding 50 offer is live.
-3. 10–20 real recordings (with consent) of committee members talking about society work, in Hinglish, Marathi and
-   Gujarati, to test speech recognition in V1.
-4. Staff WhatsApp numbers for hand-over, and who gets call-back tasks.
-5. Whether transcripts are also deleted after 30 days, or only the audio.
+### A.5 Owner inputs: status
+| # | Input | Status |
+|---|---|---|
+| 1 | WhatsApp number on the Cloud API | **Done:** +91 96370 00102, connected under the Radixile business; calling to be switched on in V2 |
+| 2 | Greeting and price lines (A.1, A.4) | waiting for the owner's approval |
+| 3 | Founding 50 offer | **Decided:** not in the PoC (A.2) |
+| 4 | Sample recordings | **Prepared:** the recording kit `docs/platform/voice/RECORDING-KIT.md` (consent line, 40 lines to read, 12 role-play calls); the owner collects them |
+| 5 | Hand-over number | **Done:** one staff number for the PoC, set in the assistant editor |
+| 6 | Retention | **Decided:** audio and transcript 30 days; summary, outcome and next step kept on the lead |
