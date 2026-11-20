@@ -8,6 +8,7 @@ This is the single build order for four documents:
 | `docs/billing/ACCESS-REQUIREMENTS.md` | role catalogue and hierarchy, data scope, AI sales agents, teams and routing, plan designer, support mode |
 | `docs/billing/PLAN.md` | the Super Admin plan designer, customer billing page, Nexus decisions N1–N8 |
 | `docs/platform/CONVERSATIONS-AND-CAMPAIGNS.md` | connected mailboxes (IMAP/SMTP, Gmail, Microsoft 365), two-way campaigns, reply matching, reply AI and auto-reply, campaign strategies and results, SMS with DLT (phases C1–C4) |
+| `docs/platform/VOICE-AGENTS.md` | AI voice agents: inbound customer care and outbound follow-up calls in Indian languages, recordings, transcripts and summaries on the lead, telecom rules (phases V0–V4) |
 | `docs/platform/ACCESS-AND-ENTITLEMENTS.md` | production findings and safety fixes, tenancy hardening, the full decision order, staff roles and support sessions, AI, storage and count limits, consistency checker, row-level security |
 
 Phase ids follow `PLAN.md` section 7. The phases this roadmap adds are **Q0** (quality gates), **S0** (safety), **T1** and **T2** (tenancy), **L1**, **L2a** and **L2b** (limits) and **P1** (plan change handling). B5 is split into **B5a** (expiry alerts) and **B5b** (plan lifecycle).
@@ -41,7 +42,7 @@ Phase ids follow `PLAN.md` section 7. The phases this roadmap adds are **Q0** (q
 
 ## Order (waves)
 
-**MVP = Waves 0 to 2.** Waves 3 to 5 are re-prioritised after the MVP using customer feedback. **Wave 6 (two-way campaigns, C1–C4) is the last priority by the owner's decision (19 Nov 2026).**
+**MVP = Waves 0 to 2.** Waves 3 to 5 are re-prioritised after the MVP using customer feedback. **Wave 6 (two-way campaigns, C1–C4) is the last priority by the owner's decision (19 Nov 2026).** **Wave 7 (AI voice agents, V0–V4) was added on 20 Nov 2026; its priority is not decided yet, so it sits after Wave 6 until the owner moves it. V1 needs only A0, B1 and persistent file storage, so it can move up without waiting for Waves 3–6.**
 
 | Wave | # | Phase | Depends on | Size | Visible change on production |
 |---|---|---|---|---|---|
@@ -71,6 +72,11 @@ Phase ids follow `PLAN.md` section 7. The phases this roadmap adds are **Q0** (q
 | | 22 | **C2** Reply AI, auto-reply and campaign strategies: intents, action items and tasks, automatic lead conversion, guarded auto-reply, A/B variants, windows, warm-up, results | C1, L2a | M | AI action items; campaign comparison |
 | | 23 | **C3** Gmail and Microsoft 365 sign-in | C1, Google verification approved | M | connect with Google or Microsoft |
 | | 24 | **C4** SMS: provider connection (MSG91 first), DLT templates, two-way SMS, SMS steps in sequences | C1, B6, the owner's DLT registration | M | SMS in campaigns and the inbox |
+| **7 AI voice agents (priority to decide)** | 25 | **V0** Owner set-up: provider (Sarvam by default), pilot business, KYC, numbers, answers to VOICE-AGENTS 14 | – | – | none |
+| | 26 | **V1** Agent editor and test call, "Call with AI" on a lead, signed webhook, recording, transcript, summary and outcome on the lead, minutes counted; persistent file storage first | A0, B1, storage | M | AI calls on the lead timeline |
+| | 27 | **V2** Inbound customer care: the business's number answered by the agent, hand-over to staff by hours, call-backs, voicemail | V1 | M | customers call and reach the AI agent |
+| | 28 | **V3** Outbound call lists: consented contacts only, DND scrub, hours, retries, opt-out, minutes per plan with top-ups | V2, B6, B7, operator registration | M | AI follows up leads by phone |
+| | 29 | **V4** WhatsApp calling, a second provider, or our own pipeline (optional) | V3 | M–L | as chosen |
 
 Two pairs share files, so one owner builds both phases in each pair:
 - **B1 with A0's registry.**
@@ -89,6 +95,7 @@ T1 runs alongside Waves 1 to 3 because none of B0, B3 or B2 touches existing ten
 | **M4 Limits and lifecycle** | L1, B6, B5b + P1, B7 + L2b | Usage and storage screens; upgrades pay the difference; AI credits enforced after a month of data. |
 | **M5 Growth** | R2, R3, B8, T2 | Custom roles and teams, AI sales agents, revenue reports, row-level security. |
 | **M6 Two-way campaigns** (last priority) | C1, C2, C3, C4 | Campaign replies from connected mailboxes (domain, then Gmail and Microsoft 365) land in one conversation history; AI lists action items and converts interested replies to leads; guarded auto-reply; A/B strategies and results; two-way SMS with DLT. |
+| **M7 AI voice agents** (priority to decide) | V0, V1, V2, V3 | The business's AI agent answers and makes calls in the caller's language, hands over to staff, and every call's recording, transcript and summary is on the lead. |
 
 ## Phase cards
 
