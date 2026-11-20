@@ -37,6 +37,8 @@ DB_CLIENT=pg
 STAGING_DB_PASSWORD=$P
 DATABASE_URL=postgres://postgres:$P@nexus-db:5432/nexus
 SESSION_SECRET=$(openssl rand -hex 32)
+# Stable key for saved credentials (services/secrets.js); without it a new key is made inside the container on every deploy
+NEXUS_DATA_KEY=$(openssl rand -base64 32)
 APP_URL=https://staging.nexus.radixile.com
 HOST=$(get HOST)
 TRUST_PROXY=$(get TRUST_PROXY)
@@ -47,6 +49,7 @@ ENV
 else
   echo ".env.staging already exists: left as it is"
 fi
+grep -q '^NEXUS_DATA_KEY=' .env.staging || { echo "NEXUS_DATA_KEY=$(openssl rand -base64 32)" >> .env.staging; echo "Added a stable NEXUS_DATA_KEY to .env.staging"; }
 mkdir -p "$HOME/bin"
 REMOTE
 
