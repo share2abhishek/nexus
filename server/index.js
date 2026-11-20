@@ -235,6 +235,9 @@ app.get('/api/release-notes', requireAuth, async (req, res) => {
 // Server edition: paying for the business's plan (billing service at BILLING_URL)
 const billingRoutes = require('../routes/billing');
 app.use('/billing', billingRoutes.pub);
+// Built-in billing, staff side (modules/billing, B0): plans, prices, tax, coupons. 404 unless BILLING_ENABLED=true on the
+// server edition; Radixile staff only (platform.billing.manage). Mounted before the old /api/billing routes.
+app.use('/api/billing/admin', requireAuth, withWorkspace, permit('platform.billing.manage'), require('../services/billingHost').billing().adminRouter());
 app.use('/api/billing', requireAuth, withWorkspace, billingRoutes.api);
 app.use('/api/backups', requireAuth, require('../routes/backups')(knex));
 app.use('/api/bio', requireAuth, withWorkspace, require('../routes/bio')(knex, permit));

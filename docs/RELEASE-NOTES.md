@@ -18,6 +18,11 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 
 ## Unreleased
 
+### Super Admin
+- **Billing → Plans (staff only, off until switched on):** design plans by ticking features (ticking one ticks what it needs), set limits, put a plan on the price list or keep it private for one business, clone it, make it inactive, and see every saved version with who changed it and why. Changing a plan that businesses use asks for a reason. Today's plans are copied in with every feature on and today's limits and prices.
+- **Billing → Prices & tax and Coupons:** dated prices per plan (a new price starts today or later and never changes past bills), discounts per billing cycle, dated tax rates (GST 0% to start), coupons, and a "try a price" bill preview.
+- **Billing → Import:** a dry-run list of how each business would be brought into billing. Nothing is billed: importing is a separate step on the server and turns automatic invoicing off.
+
 ---
 
 ## 2.4.0 — 20 November 2026

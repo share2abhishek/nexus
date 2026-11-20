@@ -3047,6 +3047,7 @@
         <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-platform-ai" onclick="switchAdminTab('platform-ai',this)" hidden>🤖 Platform AI</button>
         <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-help-chat" onclick="switchAdminTab('help-chat',this)" hidden>💬 Help chat</button>
         <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-client-setup" onclick="switchAdminTab('client-setup',this)" hidden>📲 Client setup</button>
+        <button class="btn btn-secondary btn-sm admin-tab-btn" id="admin-tab-billing" onclick="switchAdminTab('billing',this)" hidden>🧾 Billing</button>
       </div>
 
       <!-- Overview -->
@@ -3201,6 +3202,15 @@
       </div>
 
       <!-- Client onboarding: connect a client's WhatsApp number straight to Meta (Super Admin only) -->
+      <div class="admin-panel" id="admin-panel-billing" style="display:none">
+        <div class="bill-subtabs">
+          <button class="btn btn-primary btn-sm bill-subtab" data-t="plans" onclick="switchBillingTab('plans')">Plans</button>
+          <button class="btn btn-secondary btn-sm bill-subtab" data-t="prices" onclick="switchBillingTab('prices')">Prices &amp; tax</button>
+          <button class="btn btn-secondary btn-sm bill-subtab" data-t="coupons" onclick="switchBillingTab('coupons')">Coupons</button>
+          <button class="btn btn-secondary btn-sm bill-subtab" data-t="import" onclick="switchBillingTab('import')">Import</button>
+        </div>
+        <div id="billing-admin-body"></div>
+      </div>
       <div class="admin-panel" id="admin-panel-client-setup" style="display:none">
         <div class="settings-section">
           <div class="settings-section-header"><div>
@@ -4654,6 +4664,7 @@
 <script src="js/15-post-designer.js?v=2.2.0"></script>
 <script src="js/25-content-studio.js?v=2.2.4"></script>
 <script src="js/26-whats-new.js?v=2.3.0"></script>
+<script src="js/27-billing-admin.js?v=2.4.0"></script>
 <script src="js/16-whatsapp-templates.js?v=2.2.0"></script>
 <script src="js/17-whatsapp-broadcast.js?v=2.2.0"></script>
 <script src="js/18-post-extras.js?v=2.2.0"></script>

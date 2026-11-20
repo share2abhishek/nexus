@@ -29,8 +29,10 @@ const ROLES = ['manager', 'creator', 'reviewer', 'client', 'analyst', 'owner', '
 const ROOT = path.join(__dirname, '..', '..');
 const USED = [...new Set([...fs.readdirSync(path.join(ROOT, 'routes')).map((f) => `routes/${f}`), 'server/index.js']
   .flatMap((f) => [...fs.readFileSync(path.join(ROOT, f), 'utf8').matchAll(/\b(?:permit|requirePermission)\('([a-z._]+)'\)/g)].map((m) => m[1])))].sort();
+// Staff-only keys (platform.*) guard routes added after A0; they have their own test below
+const LEGACY_USED = USED.filter((k) => !k.startsWith('platform.'));
 
-const KEYS = [...new Set([...USED, ...Object.values(OLD_MATRIX).flat(), ...access.permissions.PERMISSIONS.map((p) => p.key)])];
+const KEYS = [...new Set([...LEGACY_USED, ...Object.values(OLD_MATRIX).flat(), ...access.permissions.PERMISSIONS.map((p) => p.key)])];
 
 const mockRes = () => ({ code: null, body: null, status(c) { this.code = c; return this; }, json(b) { this.body = b; return this; } });
 const reqFor = (role, { staff = false, userId = 7 } = {}) => ({ session: { userId }, workspaceId: 3, role, isPlatformAdmin: staff });
@@ -56,7 +58,7 @@ describe.each([['desktop', undefined], ['server', 'server']])('on the %s edition
 
   test('every role x every route permission: the new guard answers exactly as the old one', () => {
     for (const role of ROLES) {
-      for (const key of USED) {
+      for (const key of LEGACY_USED) {
         const before = run(oldGuard(key), reqFor(role));
         const after = run(requirePermission(key), reqFor(role));
         expect([role, key, after.passed, after.code]).toEqual([role, key, before.passed, before.code]);
@@ -72,10 +74,22 @@ describe.each([['desktop', undefined], ['server', 'server']])('on the %s edition
   test('Radixile staff still pass every route permission, whatever their role (legacy bypass), and it is logged', () => {
     console.log.mockClear();
     for (const role of ROLES) {
-      for (const key of USED) expect([role, key, run(requirePermission(key), reqFor(role, { staff: true, userId: mode ? 8 : 9 })).passed]).toEqual([role, key, true]);
+      for (const key of LEGACY_USED) expect([role, key, run(requirePermission(key), reqFor(role, { staff: true, userId: mode ? 8 : 9 })).passed]).toEqual([role, key, true]);
     }
     expect(console.log.mock.calls.some(([line]) => /^\[ACCESS\] legacy_staff_bypass perm=/.test(line))).toBe(true);
   });
+});
+
+test('staff-only keys: staff pass on the server edition, nobody else does, and they do not exist on the desktop app', () => {
+  const keys = USED.filter((k) => k.startsWith('platform.'));
+  expect(keys.length).toBeGreaterThan(0);
+  for (const key of keys) {
+    process.env.NEXUS_MODE = 'server';
+    expect(run(requirePermission(key), reqFor('manager', { staff: true, userId: 11 })).passed).toBe(true);
+    expect(run(requirePermission(key), reqFor('manager')).code).toBe(403);
+    delete process.env.NEXUS_MODE;
+    expect(run(requirePermission(key), reqFor('manager', { staff: true, userId: 11 })).code).toBe(404);
+  }
 });
 
 test('nothing calls the old services/rbac.js any more', () => {
