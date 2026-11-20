@@ -13,7 +13,7 @@ const DEFAULTS = {
   handover: { phone: '', hoursFrom: '08:00', hoursTo: '22:00', days: [0, 1, 2, 3, 4, 5, 6] },
   kb_enabled: true, recording_on: true, retention_days: 30, active: false,
 };
-const PROVIDERS = { stt: ['openai', 'gemini'], llm: ['anthropic', 'openai', 'gemini'], tts: ['openai', 'gemini'] };
+const PROVIDERS = { stt: ['openai', 'gemini', 'groq'], llm: ['anthropic', 'openai', 'gemini', 'groq'], tts: ['openai', 'gemini', 'groq'] };
 const json = (v, d) => { try { return v ? JSON.parse(v) : d; } catch { return d; } };
 const now = () => Math.floor(Date.now() / 1000);
 

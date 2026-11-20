@@ -12,18 +12,18 @@
     },
     "models": {
       "stt": {
-        "provider": "openai",
-        "model": "gpt-4o-transcribe"
+        "provider": "groq",
+        "model": "whisper-large-v3"
       },
       "llm": {
-        "provider": "anthropic",
-        "model": "claude-sonnet-5-5",
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile",
         "temperature": 0.4
       },
       "tts": {
-        "provider": "openai",
-        "model": "gpt-4o-mini-tts",
-        "voice": "coral"
+        "provider": "groq",
+        "model": "canopylabs/orpheus-v1-english",
+        "voice": "hannah"
       }
     },
     "handover": {

@@ -31,8 +31,13 @@ class Usage:
     extra: dict = field(default_factory=dict)
 
 
+OPENAI_BASE = {"openai": "https://api.openai.com/v1", "groq": "https://api.groq.com/openai/v1"}
+DEFAULT_STT = {"openai": "gpt-4o-transcribe", "groq": "whisper-large-v3"}
+DEFAULT_LLM = {"openai": "gpt-4.1-mini", "groq": "llama-3.3-70b-versatile"}
+
+
 def _key(provider: str) -> str:
-    k = config.KEYS.get(provider)
+    k = config.key(provider)
     if not k:
         raise ProviderError(f"no API key for {provider} (set it in the gateway environment)")
     return k
@@ -41,15 +46,15 @@ def _key(provider: str) -> str:
 # ── Speech-to-text ─────────────────────────────────────────────────────────────
 async def transcribe(wav: bytes, cfg: dict, hint: str = "") -> tuple[str, str | None]:
     provider = cfg.get("provider", "openai")
-    if provider == "openai":
-        data = {"model": cfg.get("model", "gpt-4o-transcribe"), "response_format": "json"}
+    if provider in OPENAI_BASE:
+        data = {"model": cfg.get("model", DEFAULT_STT[provider]), "response_format": "json"}
         if hint:
             data["prompt"] = hint[:800]
         async with httpx.AsyncClient(timeout=TIMEOUT) as c:
-            r = await c.post("https://api.openai.com/v1/audio/transcriptions", headers={"Authorization": f"Bearer {_key('openai')}"},
+            r = await c.post(f"{OPENAI_BASE[provider]}/audio/transcriptions", headers={"Authorization": f"Bearer {_key(provider)}"},
                              data=data, files={"file": ("turn.wav", wav, "audio/wav")})
         if r.status_code != 200:
-            raise ProviderError(f"openai transcribe {r.status_code}: {r.text[:200]}")
+            raise ProviderError(f"{provider} transcribe {r.status_code}: {r.text[:200]}")
         j = r.json()
         return (j.get("text") or "").strip(), j.get("language")
     if provider == "gemini":
@@ -91,12 +96,12 @@ async def stream_reply(system: str, messages: list[dict], cfg: dict, usage: Usag
                     elif t == "message_delta":
                         usage.tokens_out += ev.get("usage", {}).get("output_tokens", 0)
             return
-        if provider == "openai":
-            body = {"model": cfg.get("model", "gpt-4.1-mini"), "stream": True, "temperature": temperature, "max_tokens": 300,
+        if provider in OPENAI_BASE:
+            body = {"model": cfg.get("model", DEFAULT_LLM[provider]), "stream": True, "temperature": temperature, "max_tokens": 300,
                     "stream_options": {"include_usage": True}, "messages": [{"role": "system", "content": system}, *messages]}
-            async with c.stream("POST", "https://api.openai.com/v1/chat/completions", headers={"Authorization": f"Bearer {_key('openai')}"}, json=body) as r:
+            async with c.stream("POST", f"{OPENAI_BASE[provider]}/chat/completions", headers={"Authorization": f"Bearer {_key(provider)}"}, json=body) as r:
                 if r.status_code != 200:
-                    raise ProviderError(f"openai {r.status_code}: {(await r.aread())[:200]!r}")
+                    raise ProviderError(f"{provider} {r.status_code}: {(await r.aread())[:200]!r}")
                 async for line in r.aiter_lines():
                     if not line.startswith("data:") or line.strip() == "data: [DONE]":
                         continue
@@ -170,4 +175,27 @@ async def speak(text: str, cfg: dict, controls: dict, style: str = "") -> tuple[
         if not data:
             raise ProviderError("gemini speech: no audio")
         return base64.b64decode(data), 24000  # 16-bit PCM mono at 24 kHz
+    if provider == "groq":
+        # Groq's voices (Orpheus) are English only today: fine for testing the flow, not native Hinglish
+        body = {"model": cfg.get("model", "canopylabs/orpheus-v1-english"), "voice": cfg.get("voice", "hannah"), "input": text[:1000], "response_format": "wav"}
+        async with httpx.AsyncClient(timeout=TIMEOUT) as c:
+            r = await c.post(f"{OPENAI_BASE['groq']}/audio/speech", headers={"Authorization": f"Bearer {_key('groq')}"}, json=body)
+        if r.status_code != 200:
+            raise ProviderError(f"groq speech {r.status_code}: {r.text[:200]}")
+        return wav_to_pcm(r.content)
     raise ProviderError(f"voice provider {provider} not supported")
+
+
+def wav_to_pcm(data: bytes) -> tuple[bytes, int]:
+    import io
+    import wave
+    import numpy as np
+    with wave.open(io.BytesIO(data), "rb") as w:
+        rate, ch, width = w.getframerate(), w.getnchannels(), w.getsampwidth()
+        frames = w.readframes(w.getnframes())
+    if width != 2:
+        raise ProviderError(f"unexpected sample width {width}")
+    pcm = np.frombuffer(frames, dtype=np.int16)
+    if ch > 1:
+        pcm = pcm.reshape(-1, ch).mean(axis=1).astype(np.int16)
+    return pcm.tobytes(), rate

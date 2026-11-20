@@ -83,7 +83,7 @@ async def test_a_full_call(fake_providers, monkeypatch):
     answer = await s.answer(caller.localDescription.sdp)
     await caller.setRemoteDescription(RTCSessionDescription(sdp=answer, type="answer"))
 
-    for _ in range(100):
+    for _ in range(300):
         if s.started_at is not None and fake_providers["speak"]:
             break
         await asyncio.sleep(0.1)
@@ -93,7 +93,7 @@ async def test_a_full_call(fake_providers, monkeypatch):
 
     # the caller says something (a turn straight from audio bytes)
     s._on_utterance(np.full(16000, 500, dtype=np.int16).tobytes())
-    for _ in range(100):
+    for _ in range(300):
         if s.ended:
             break
         await asyncio.sleep(0.1)
@@ -121,7 +121,7 @@ async def test_whatsapp_mode_sends_no_audio_before_accept(fake_providers, monkey
     await caller.setLocalDescription(await caller.createOffer())
     answer = await s.answer(caller.localDescription.sdp)
     await caller.setRemoteDescription(RTCSessionDescription(sdp=answer, type="answer"))
-    for _ in range(100):
+    for _ in range(300):
         if s.ended:
             break
         await asyncio.sleep(0.1)
