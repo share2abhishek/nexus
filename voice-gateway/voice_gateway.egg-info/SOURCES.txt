@@ -1,0 +1,13 @@
+pyproject.toml
+voice_gateway/__init__.py
+voice_gateway/brain.py
+voice_gateway/config.py
+voice_gateway/providers.py
+voice_gateway/server.py
+voice_gateway/session.py
+voice_gateway/sign.py
+voice_gateway.egg-info/PKG-INFO
+voice_gateway.egg-info/SOURCES.txt
+voice_gateway.egg-info/dependency_links.txt
+voice_gateway.egg-info/requires.txt
+voice_gateway.egg-info/top_level.txt

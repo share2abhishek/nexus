@@ -6,8 +6,10 @@ call's recording, transcript, summary and outcome on the lead.
 
 **Owner decisions (20 Nov 2026):**
 1. WhatsApp calling first (Meta's Cloud API Calling), not a phone-network voice platform.
-2. **Speech is in-house:** our own speech-to-text, voice (text-to-speech), voice controls and call audio handling, on
-   servers we run. No third-party voice-agent API.
+2. **Speech through the AI providers' APIs (updated 20 Nov 2026):** speech-to-text and the voice use the OpenAI or Gemini
+   APIs with our keys; **no model is installed** (the earlier plan for open speech models on a GPU server is dropped, so no
+   GPU server is needed). Everything else is in-house: the call audio (WebRTC), voice controls, turn-taking and barge-in,
+   recordings, transcripts and the Nexus side. No third-party voice-agent platform.
 3. **The AI model is ours to choose** per platform and per business (Claude, Gemini, OpenAI, or an open model we host),
    behind one model port.
 4. It presents itself as **"the AI assistant of <business>"**: human-like in voice and manner, honest that it is an AI
@@ -18,7 +20,7 @@ call's recording, transcript, summary and outcome on the lead.
    words (Marathi, Gujarati and others); female voice; staff hand-over 08:00–22:00 IST, 7 days a week; calls start
    **from chat** ("shall we talk on a call?"); recordings kept **30 days**. Setup and sample script: Appendix A.
 
-**Status:** requirements only. Nothing is built. Phases V0–V5 are in `docs/platform/ROADMAP.md` (Wave 7). Facts about
+**Status (20 Nov 2026):** building out of the roadmap order, by the owner's decision. The Nexus side is built (calls webhook, signed gateway API, records, retention; switched off), and so is the voice gateway (`voice-gateway/`: WebRTC, turn loop, provider APIs, lab page), on branch `feature/voice`. Speech needs an OpenAI or Gemini key. Phases V0–V5 are in `docs/platform/ROADMAP.md` (Wave 7). Facts about
 Meta's calling API, models and prices were checked on 20 Nov 2026 and change often: confirm them in V0 and V1.
 
 **Related:** access engine and catalogues `docs/platform/ACCESS-AND-ENTITLEMENTS.md`; AI sales agents (persona, goals,
@@ -265,8 +267,8 @@ load and call health.
 | # | Question | Default |
 |---|---|---|
 | VA1 | Channel | **Decided:** WhatsApp calling first; phone-network calls optional later (V5) |
-| VA2 | Speech | **Decided:** in-house STT, TTS, voice controls and call loop on our GPU server, no outside provider; models chosen per language in V1 from measured results |
-| VA3 | AI model | **Decided:** our choice behind a model port; default Claude for quality, an open hosted model compared in V1 for cost |
+| VA2 | Speech | **Decided (updated 20 Nov):** speech-to-text and voice through the OpenAI or Gemini APIs (per assistant setting), AI replies through Anthropic, OpenAI or Gemini; no model installed, no GPU server. Call audio, voice controls, turn loop and records are ours |
+| VA3 | AI model | **Decided:** Anthropic, OpenAI or Gemini through their APIs (no open models); default Claude for replies |
 | VA4 | Persona | **Decided:** "the AI assistant of <business>", human-like, honest when asked; UrbanSociety: female voice, "Sneha" (Appendix A.1) |
 | VA5 | Pilot business and direction | **Decided:** UrbanSociety. Calls start from chat (Appendix A.3); a customer calling the WhatsApp number is answered too |
 | VA6 | Languages and style | **Decided:** Hinglish by default, switching to the caller's language or mixing in their regional words (Marathi, Gujarati, others) |
