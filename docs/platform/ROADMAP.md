@@ -7,6 +7,7 @@ This is the single build order for four documents:
 | `docs/billing/REQUIREMENTS.md` | money: plans, price book, subscriptions, invoices, payments, wallet, metering, top-ups |
 | `docs/billing/ACCESS-REQUIREMENTS.md` | role catalogue and hierarchy, data scope, AI sales agents, teams and routing, plan designer, support mode |
 | `docs/billing/PLAN.md` | the Super Admin plan designer, customer billing page, Nexus decisions N1–N8 |
+| `docs/platform/CONVERSATIONS-AND-CAMPAIGNS.md` | connected mailboxes (IMAP/SMTP, Gmail, Microsoft 365), two-way campaigns, reply matching, reply AI and auto-reply, campaign strategies and results, SMS with DLT (phases C1–C4) |
 | `docs/platform/ACCESS-AND-ENTITLEMENTS.md` | production findings and safety fixes, tenancy hardening, the full decision order, staff roles and support sessions, AI, storage and count limits, consistency checker, row-level security |
 
 Phase ids follow `PLAN.md` section 7. The phases this roadmap adds are **Q0** (quality gates), **S0** (safety), **T1** and **T2** (tenancy), **L1**, **L2a** and **L2b** (limits) and **P1** (plan change handling). B5 is split into **B5a** (expiry alerts) and **B5b** (plan lifecycle).
@@ -32,7 +33,7 @@ Phase ids follow `PLAN.md` section 7. The phases this roadmap adds are **Q0** (q
 
 ## Order (waves)
 
-**MVP = Waves 0 to 2.** Waves 3 to 5 are re-prioritised after the MVP using customer feedback.
+**MVP = Waves 0 to 2.** Waves 3 to 5 are re-prioritised after the MVP using customer feedback. **Wave 6 (two-way campaigns, C1–C4) is the last priority by the owner's decision (19 Nov 2026).**
 
 | Wave | # | Phase | Depends on | Size | Visible change on production |
 |---|---|---|---|---|---|
@@ -51,13 +52,17 @@ Phase ids follow `PLAN.md` section 7. The phases this roadmap adds are **Q0** (q
 | | 12 | **S1** Staff console and organisation health; staff roles `support`, `billing_ops`, `auditor` | R1 | M | staff only |
 | | ∥ | **T1** Tenancy hardening, module by module, as a parallel track from Wave 1 | A0 | L | none |
 | **4 Limits and lifecycle** | 13 | **L1** Limits framework and storage (warn first) | T1 media module, B1 | M | Usage screen; storage bar |
-| | 14 | **B6** Message metering (count only) | L1 | M | usage per channel |
+| | 14 | **B6** Message metering (count only; email and SMS) | L1 | M | usage per channel |
 | | 15 | **B5b + P1** Upgrade, downgrade, cancel, plan change handling, lockout switch | B4, L1 | M | plan changes |
 | | 16 | **B7 + L2b** AI credits enforcement, top-ups, caps | L2a (a month of data), B6 | M | buy more credits |
 | **5 Growth** | 17 | **R2** Custom roles, teams and routing | R1, B1 | M | sellable `custom_roles`, `teams_routing` |
 | | 18 | **R3** AI sales agents | R2, L2a | M | sellable `ai_agents` |
 | | 19 | **B8** Reports and add-ons | B7 | M | staff only |
 | | 20 | **T2** Postgres row-level security (optional) | T1 complete | S–M | none |
+| **6 Two-way campaigns (last priority)** | 21 | **C1** Domain mailboxes and campaign replies: connect IMAP/SMTP, send with tracked `Message-ID`, sync and match replies, bounces and out-of-office, one conversation history, convert to lead; apply for Google verification | A0, B1, T1 Sellbird and leads modules, R1 | L | replies to campaigns arrive in Nexus |
+| | 22 | **C2** Reply AI, auto-reply and campaign strategies: intents, action items and tasks, automatic lead conversion, guarded auto-reply, A/B variants, windows, warm-up, results | C1, L2a | M | AI action items; campaign comparison |
+| | 23 | **C3** Gmail and Microsoft 365 sign-in | C1, Google verification approved | M | connect with Google or Microsoft |
+| | 24 | **C4** SMS: provider connection (MSG91 first), DLT templates, two-way SMS, SMS steps in sequences | C1, B6, the owner's DLT registration | M | SMS in campaigns and the inbox |
 
 Two pairs share files, so one owner builds both phases in each pair:
 - **B1 with A0's registry.**
@@ -75,6 +80,7 @@ T1 runs alongside Waves 1 to 3 because none of B0, B3 or B2 touches existing ten
 | **M3 Team and oversight** | R1, S1, T1 | Sales agents see only their chats; audited support sessions; one view of every organisation's health; isolation enforced in data. |
 | **M4 Limits and lifecycle** | L1, B6, B5b + P1, B7 + L2b | Usage and storage screens; upgrades pay the difference; AI credits enforced after a month of data. |
 | **M5 Growth** | R2, R3, B8, T2 | Custom roles and teams, AI sales agents, revenue reports, row-level security. |
+| **M6 Two-way campaigns** (last priority) | C1, C2, C3, C4 | Campaign replies from connected mailboxes (domain, then Gmail and Microsoft 365) land in one conversation history; AI lists action items and converts interested replies to leads; guarded auto-reply; A/B strategies and results; two-way SMS with DLT. |
 
 ## Phase cards
 
@@ -360,6 +366,89 @@ Scope detail is in the cited sections. "Review" names the skill checklist that t
 - **Switches:** `ACCESS_RLS_ENABLED` in audit mode for 2 weeks, then enforce.
 - **Review:** `tenant-isolation`.
 
+### C1 Domain mailboxes and campaign replies
+- **Outcome:** a campaign sent from a connected mailbox gets its replies back into Nexus, matched to the campaign and contact, in one conversation history. Interested replies become leads with one click. Bounces and out-of-office replies are handled automatically.
+- **Scope:** CONVERSATIONS sections 3.1 (domain mailbox), 4, 5, 8 and 9.
+- **Key deliverables:**
+  - `channel_accounts` with an IMAP/SMTP connect and test screen;
+  - `Message-ID` and reply tokens on every touch;
+  - `List-Unsubscribe` with a one-click unsubscribe;
+  - a suppression list per organisation;
+  - the `mail-sync` job with matching rules 1–3, bounce, auto-reply and complaint detection;
+  - `email_messages`, and the email channel in `lead_conversation_messages`;
+  - an email filter in the inbox;
+  - stop the sequence on a reply;
+  - manual convert to lead;
+  - mailbox health on the organisation Health tab;
+  - the Google verification application started.
+- **Switches:** feature `email_mailboxes` (on in trial, Agency and Full seeds, per PLAN N5); `MAIL_SYNC_ENABLED` off at release, then on for Radixile's own mailbox first.
+- **Done when:**
+  - the fixture suite passes: replies, forwarded mail, HTML-only, non-English, bounces, out-of-office, duplicates on re-sync;
+  - an unmatched message is never stored;
+  - another organisation's mailbox or replies are unreachable (isolation harness);
+  - a reply on staging arrives within 3 minutes.
+- **Owner check:** on staging, connect a test domain mailbox, send a 3-contact campaign, reply from your phone, and see the reply in the contact's history and convert it to a lead.
+- **Rollback:** switch sync off. The tables are additive.
+- **Review:** `tenant-isolation` (mandatory), `access-control`, `usage-limits` (attachments count toward storage).
+
+### C2 Reply AI, auto-reply and campaign strategies
+- **Outcome:**
+  - every human reply gets an intent and action items (tasks with due dates);
+  - interested replies become leads automatically;
+  - safe questions can be answered automatically under strict rules;
+  - campaigns use strategy templates, A/B variants, send windows and warm-up, and are compared on results.
+- **Scope:** CONVERSATIONS sections 6 and 7.
+- **Switches:** features `reply_ai`, `reply_auto` (off in seeds until the owner ticks it), `campaign_variants`. Auto-reply defaults to **draft**.
+- **Done when:**
+  - intents are labelled correctly on a 100-reply labelled fixture set at ≥ 85%;
+  - an auto-reply is never sent for unsubscribe, complaint, legal or negative replies (tests);
+  - at most 2 automatic replies per thread;
+  - prompt-injection fixtures ("ignore your instructions...") are refused;
+  - variant results add up to the campaign totals.
+- **Owner check:** read 20 real replies' intents and action items on staging; correct any wrong ones; check the campaign comparison view.
+- **Rollback:** switch the features off.
+- **Review:** `usage-limits` (AI metering), `tenant-isolation` (prompt contains only that thread and workspace), `access-control`.
+
+### C3 Gmail and Microsoft 365 sign-in
+- **Outcome:** owners connect Gmail / Google Workspace and Outlook / Microsoft 365 by signing in, with no passwords.
+- **Scope:** CONVERSATIONS 3.1 (Gmail and Microsoft rows).
+- **Before it starts:**
+  - Google's OAuth verification and security assessment approved (applied for in C1);
+  - Microsoft publisher verification.
+- **Key deliverables:**
+  - OAuth with PKCE and a state check;
+  - the Gmail API adapter (`history.list`, `send` in the thread);
+  - the Graph adapter (delta query, `sendMail` / reply);
+  - token refresh;
+  - reconnect on revoke;
+  - the same matching and import as C1.
+- **Switches:** feature `email_oauth`.
+- **Done when:**
+  - the adapters pass the same fixture suite as IMAP through fakes;
+  - token revocation shows "reconnect" within one sync;
+  - the scopes are the minimum listed.
+- **Review:** `tenant-isolation`, `access-control`.
+
+### C4 SMS
+- **Outcome:** organisations connect their SMS provider (MSG91 first) and send DLT-registered SMS steps in campaigns. Replies arrive in the same conversation history; STOP is honoured across channels.
+- **Scope:** CONVERSATIONS 3.2, and the SMS rows of 7.1 and 10–12.
+- **Before go-live:** the organisation's DLT registration (entity, header, templates).
+- **Key deliverables:**
+  - the `SmsProvider` port and the MSG91 adapter;
+  - `sms_templates` with DLT ids;
+  - `sms_messages`;
+  - inbound and delivery webhooks with verification;
+  - the time-window rules (promotional 09:00–21:00 IST);
+  - the shared suppression list;
+  - the SMS meter.
+- **Switches:** feature `sms_channel`.
+- **Done when:**
+  - free text to an Indian number is refused;
+  - promotional messages outside the window are held;
+  - a webhook with a bad signature is refused;
+  - STOP suppresses across email, SMS and WhatsApp.
+- **Review:** `tenant-isolation`, `usage-limits`.
+
 ## Decisions needed before each phase
 
 | Before | Decide | Default if not decided |
@@ -375,6 +464,10 @@ Scope detail is in the cited sections. "Review" names the skill checklist that t
 | B3 (go-live) | seller details and GST status (PLAN Q5) | **blocks go-live**, not the build |
 | B4 (go-live) | Razorpay live keys copied server to server and the Nexus webhook; test-mode keys for staging (PLAN Q6) | **blocks go-live**, not the build |
 | R1 | role list and matrix (5.2); Creator bot change (A9); staff MFA (Q5); support consent (A2 / Q4); whether Avinash Group needs agent logins now (review PO6) | as written |
+| C1 | mailbox visibility (CONVERSATIONS M1); import mail from known contacts (M2); lead conversion automatic or one click (M3); start Google verification (M4); expected mailboxes and volume (M9) | as written in CONVERSATIONS section 15 |
+| C2 | auto-reply default and allowed intents (M8); open tracking (M7) | drafts only; opens off |
+| C3 | Google verification approved; Microsoft publisher verification | **blocks the phase** |
+| C4 | SMS provider (MSG91 first) and billing model (M5); the organisation's DLT registration and templates | own provider account; **DLT blocks go-live** |
 | L1 | storage quotas per plan (access 7.3); trash counts (Q9) | unlimited seeded; warn only |
 | B5b | grace days | 3 days |
 | B7 | credit prices and allowances (from L2a data) | count only until set |
@@ -411,7 +504,7 @@ other text is a bug to fix.
 | C7 | Error codes | `LIMIT_REACHED`, `FEATURE_NOT_IN_PLAN`, `NOT_CONFIGURED` vs lower case | **Lower case**, one list: platform 13.3 (`limitreached`, `featurenotinplan`, `notconfigured`, ...) | platform 13.3; billing 7.3; PLAN 4.1 |
 | C8 | Lockout scope | publishing, sending, automation only (D9) vs also AI, create, upload (platform step 5) | **Platform step 5** (reading, export, billing, account and viewing settings still work) | billing D9; platform 5.2 |
 | C9 | Trial AI credits | 10 (D8) vs 100 (platform 7.3) | **Seeded unlimited**; the owner sets the number (platform 7.3 is a proposal) | billing D8; PLAN N5 |
-| C10 | Posts per month | billing channel `POST` vs access `usage_counter` | **Access limit framework** (`usage_counter`); billing channels are AI_CREDIT, WHATSAPP, EMAIL | billing 5.9; platform 10.1 |
+| C10 | Posts per month | billing channel `POST` vs access `usage_counter` | **Access limit framework** (`usage_counter`); billing channels are AI_CREDIT, WHATSAPP, EMAIL and SMS (added with CONVERSATIONS C4) | billing 5.9; platform 10.1 |
 | C11 | Razorpay webhook path | `/billing/webhook` vs `/billing/webhook/razorpay` | **`/billing/webhook/razorpay`** (old path belongs to the old client until B4) | billing 7; PLAN 6 |
 | C12 | Who may pay | org owner only vs owner and Billing admin | **`billing.*` permissions**, held by Owner and Billing admin | billing 4, 11.3; ACCESS-REQ 5.2 |
 | C13 | Staff identity | `users.role` / platform admin vs `platform_staff` | **`platform_staff`** from R1; billing staff endpoints need `platform.billing.manage` (`super_admin`, `billing_ops`) | billing 4; platform 9.1 |

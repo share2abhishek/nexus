@@ -361,7 +361,7 @@ The super admin plan matrix screen shows these as warnings before saving, plus a
 ### 10.1 One limit framework
 | Type | Examples | Source of "used" | Check |
 |---|---|---|---|
-| **Count** | workspaces, seats (`users`), `human_agents`, `ai_agents`, seo_sites, social accounts, `whatsapp_numbers`, `web_chat_sites`, contacts, custom roles, bio pages, RSS feeds | live `COUNT(*)` scoped to the org (cached 30 seconds; evicted on create or delete) | at create, `used + adding <= limit` |
+| **Count** | workspaces, seats (`users`), `human_agents`, `ai_agents`, seo_sites, social accounts, `whatsapp_numbers`, `web_chat_sites`, `mailboxes`, `sms_numbers`, contacts, custom roles, bio pages, RSS feeds | live `COUNT(*)` scoped to the org (cached 30 seconds; evicted on create or delete) | at create, `used + adding <= limit` |
 | **Rate (period)** | scheduled posts per month, AI credits per month, messages per month, emails per month | `usage_counter(org_id, metric, period_start)` incremented atomically | reserve or check at the action |
 | **Size** | storage bytes, max file bytes | `org_storage(org_id, bytes_used)` plus the per-file limit | at upload, before accepting the body |
 | **Speed** | AI calls per minute per user, API requests per minute | in-memory buckets (existing) | per request |

@@ -263,7 +263,7 @@ its own visible line so the customer sees how the bill was built. A reference im
 - **Nightly reconciliation (03:00 IST):** `balance == sum(credits) - sum(debits)` per wallet; log an error on drift. Read-only.
 
 ### 5.9 Metering, allowances and top-ups
-A **channel** is a metered thing (`AI_CREDIT`, `EMAIL`, `WHATSAPP`). The design is channel-generic. Posts per month, storage and count limits are not billing channels: they are counted by the access limit framework (platform 10.1, `usage_counter`, `org_storage`).
+A **channel** is a metered thing (`AI_CREDIT`, `EMAIL`, `WHATSAPP`, `SMS`). The design is channel-generic. Posts per month, storage and count limits are not billing channels: they are counted by the access limit framework (platform 10.1, `usage_counter`, `org_storage`).
 - **Allowance** per plan and channel: `included = clamp(per_unit_per_month * seatUnits + per_account_per_month, min_per_month, max_per_month)`, with an **account override** replacing the formula when active (negotiated deals). One `AllowanceCalculator` serves every channel.
 - **Period** = IST calendar month, created lazily and atomically (`INSERT ... ON CONFLICT DO NOTHING`, supported by SQLite 3.24+ and Postgres). `plan_included` is fixed when the row is created; a plan change in the month updates it, a seat-count change does not. No rollover.
 - **Usage events** `bill_usage_event(account_id, channel, category, billable, status, quantity, actor_user_id, ref, created_at)`; `used` increments with one atomic `UPDATE ... SET used = used + :n`. Events are written **after** the action and **never delay or stop it**: queue in memory (bounded, drop with an error log when full), drain on shutdown, catch every failure.

@@ -114,6 +114,12 @@ the "initial features" list in platform 7.1**; keys there map as shown in the la
 | Sales & CRM | `crm` | leads and CRM pipeline | | `crm_pipeline` |
 | | `email_outreach` | outreach sequences (Sellbird) | | `sellbird` |
 | | `email_campaigns` | e-mail campaigns and newsletters | | `email_campaigns` |
+| | `email_mailboxes` | connect domain mailboxes; campaign replies, history and lead conversion in Nexus (CONVERSATIONS C1) | `email_outreach` | |
+| | `email_oauth` | connect with Google or Microsoft sign-in (C3) | `email_mailboxes` | |
+| | `reply_ai` | AI intent and action items on replies (C2) | `email_mailboxes` | |
+| | `reply_auto` | automatic replies for safe intents (C2) | `reply_ai` | |
+| | `campaign_variants` | A/B variants, strategy templates, warm-up (C2) | `email_outreach` | |
+| | `sms_channel` | SMS provider, two-way SMS, SMS campaign steps (C4) | | |
 | WhatsApp | `whatsapp_chats` | WhatsApp chats, contacts, setup | | |
 | | `whatsapp_broadcasts` | broadcasts | `whatsapp_chats` | `whatsapp_broadcast` |
 | | `whatsapp_templates` | message templates | `whatsapp_chats` | |
@@ -256,7 +262,8 @@ In R1 this moves to Manager, Sales manager and Bot designer. Organisations with 
 | leads and contacts | `leads.view`*, `leads.edit`*, `leads.stage`*, `contacts.view`*, `contacts.import` (limit `contacts`), `contacts.export`, `contacts.delete`, `contactsync.manage` |
 | broadcasts | `broadcasts.view`, `broadcasts.send` (meter `WHATSAPP`), `templates.manage` |
 | bot and AI | `bot.view`, `bot.configure`, `bot.ai.configure`, `kb.manage`, `webchat.configure`, `agents.manage` (limit `ai_agents`) |
-| outreach | `outreach.view`*, `outreach.manage`, `outreach.send` (meter `EMAIL`), `email.campaigns.manage` |
+| outreach | `outreach.view`*, `outreach.manage`, `outreach.send` (meter `EMAIL`, `SMS`), `email.campaigns.manage` |
+| channel accounts | `mailboxes.manage` (shared mailboxes; limit `mailboxes`), `mailboxes.own` (a personal mailbox), `sms.manage` (provider, DLT templates; limit `sms_numbers`). Email and SMS conversations reuse `chats.*` and `leads.*` with their scopes |
 | SEO and web | `seo.view`, `seo.manage` (limit `seo_sites`), `seo.autopilot.manage`, `links.manage`, `feeds.manage`, `bio.manage`, `appstore.manage`, `tools.use` |
 | ads | `ads.create`, `ads.reports.view`, `leadads.manage` |
 | workspace | `members.view`, `members.manage`, `settings.manage`, `integrations.manage` |
