@@ -1,0 +1,11 @@
+# What never goes into the Docker image (Q0). Secrets stay on the host and reach the container through env_file.
+node_modules
+.git
+.env
+.env.*
+*.bak
+*.tar
+*.tar.gz
+scratch
+nexus.iml
+._*
