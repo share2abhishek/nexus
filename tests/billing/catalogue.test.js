@@ -6,6 +6,7 @@ const { makeTestKnex } = require('../helpers/db');
 
 const mockKnex = makeTestKnex();
 jest.mock('../../services/knex', () => mockKnex);
+jest.setTimeout(60000); // Postgres in CI builds the whole schema and seed in beforeAll
 
 const host = require('../../services/billingHost');
 const { init } = require('../../modules/billing');
