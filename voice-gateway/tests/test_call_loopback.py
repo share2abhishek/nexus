@@ -129,3 +129,15 @@ async def test_whatsapp_mode_sends_no_audio_before_accept(fake_providers, monkey
     assert not s.out.started.is_set()  # never started sending
     assert fake_providers["speak"] == []
     await caller.close()
+
+
+async def test_call_audio_stays_inside_the_port_range(fake_providers):
+    s = sess.CallSession("lab-ports", {"greeting": "Namaste"}, {}, {}, None, lab=True)
+    caller = RTCPeerConnection()
+    caller.addTrack(Tone())
+    await caller.setLocalDescription(await caller.createOffer())
+    answer = await s.answer(caller.localDescription.sdp)
+    ports = [int(l.split()[5]) for l in answer.splitlines() if l.startswith("a=candidate") and " udp " in l.lower()]
+    assert ports and all(p in sess.UDP_PORTS for p in ports)
+    await s.pc.close()
+    await caller.close()

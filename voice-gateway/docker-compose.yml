@@ -1,0 +1,14 @@
+# Voice gateway on the EC2 host (docs/platform/VOICE-AGENTS.md V2). Host networking: WebRTC audio needs UDP straight
+# to the host (VOICE_UDP_PORTS, opened in the AWS security group). HTTP listens on the Docker bridge address only, so
+# the Nexus container reaches it as host.docker.internal:3400 and nothing outside the host can.
+# Secrets live in ~/projects/nexus/.env.voice on the server (never in git):
+#   VOICE_GATEWAY_SECRET=<same 32+ chars as Nexus> GROQ_API_KEY=... VOICE_UDP_PORTS=40000-40199 VOICE_GATEWAY_HOST=172.17.0.1
+name: voice-gateway
+services:
+  voice-gateway:
+    build: .
+    image: nexus-voice-gateway
+    network_mode: host
+    env_file: ../.env.voice
+    restart: unless-stopped
+    mem_limit: 512m

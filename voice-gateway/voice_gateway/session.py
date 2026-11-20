@@ -22,10 +22,11 @@ from aiortc import MediaStreamTrack, RTCConfiguration, RTCIceServer, RTCPeerConn
 from aiortc.mediastreams import MediaStreamError
 from av import AudioFrame, AudioResampler
 
-from . import brain, config, providers
+from . import brain, config, providers, udp_ports
 from .sign import sign
 
 log = logging.getLogger("voice")
+UDP_PORTS = udp_ports.install()  # call audio only on VOICE_UDP_PORTS (default 40000-40199)
 
 OUT_RATE = 48000
 OUT_CHUNK = 960  # 20 ms at 48 kHz
