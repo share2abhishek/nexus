@@ -1,10 +1,10 @@
 const express = require('express');
 const { checkPlatforms } = require('../services/platforms/available');
 const router = express.Router();
-const { requirePermission } = require('../middleware/tenancy');
+const { middleware: permit } = require('../modules/access'); // access.middleware (A0)
 const { requirePublishLicense } = require('../middleware/license');
 // Publishing needs both the workspace permission and an active licence
-const canPublish = [requirePermission('content.publish'), requirePublishLicense];
+const canPublish = [permit('content.publish'), requirePublishLicense];
 const fs = require('fs');
 const path = require('path');
 const { postToPlatform } = require('../services/social');
@@ -386,7 +386,7 @@ router.post('/posts/scheduled/:id/retry', canPublish, async (req, res) => {
 });
 
 // Stop a repeating schedule: removes its posts that haven't gone out yet
-router.delete('/posts/series/:seriesId', requirePermission('content.publish'), async (req, res) => {
+router.delete('/posts/series/:seriesId', permit('content.publish'), async (req, res) => {
   try {
     const removed = await scheduledRepo.stopSeries(req.workspaceId, String(req.params.seriesId));
     res.json({ success: true, removed });

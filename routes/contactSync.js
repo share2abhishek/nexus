@@ -45,7 +45,7 @@ const GUIDE = {
   },
 };
 
-module.exports = (knex, requirePermission) => {
+module.exports = (knex, permit) => {
   const router = express.Router();
   const fail = (res, err) => {
     const status = err.status || (String(err.code || '').startsWith('sf_') || String(err.code || '').startsWith('google_') ? 400 : err.code === 'rate_limited' ? 429 : 500);
@@ -72,7 +72,7 @@ module.exports = (knex, requirePermission) => {
     },
   });
 
-  router.get('/status', requirePermission('content.view'), wrap(async (req, res) => {
+  router.get('/status', permit('content.view'), wrap(async (req, res) => {
     const c = await contactSync.ensureConfig(knex, req.workspaceId);
     res.json({
       ...publicConfig(c), guide: GUIDE, columns: contactSync.COLUMNS,
@@ -81,7 +81,7 @@ module.exports = (knex, requirePermission) => {
   }));
 
   // Save settings. A blank secret keeps the saved one.
-  router.post('/config', requirePermission('content.edit'), express.json(), wrap(async (req, res) => {
+  router.post('/config', permit('content.edit'), express.json(), wrap(async (req, res) => {
     const b = req.body || {};
     const c = await contactSync.ensureConfig(knex, req.workspaceId);
     const patch = {};
@@ -129,23 +129,23 @@ module.exports = (knex, requirePermission) => {
     res.json(publicConfig(await contactSync.getConfig(knex, req.workspaceId)));
   }));
 
-  router.post('/google/sheet', requirePermission('content.edit'), express.json(), wrap(async (req, res) => {
+  router.post('/google/sheet', permit('content.edit'), express.json(), wrap(async (req, res) => {
     const c = await contactSync.createSheet(knex, req.workspaceId, req.body && req.body.title);
     res.json(publicConfig(c).google);
   }));
 
-  router.post('/google/disconnect', requirePermission('content.edit'), wrap(async (req, res) => {
+  router.post('/google/disconnect', permit('content.edit'), wrap(async (req, res) => {
     await knex('contact_sync_configs').where({ workspace_id: req.workspaceId })
       .update({ google_refresh_token: null, google_email: null, google_enabled: 0, updated_at: Math.floor(Date.now() / 1000) });
     res.json({ success: true });
   }));
 
-  router.post('/salesforce/test', requirePermission('content.edit'), wrap(async (req, res) => {
+  router.post('/salesforce/test', permit('content.edit'), wrap(async (req, res) => {
     res.json(await contactSync.testSalesforce(knex, req.workspaceId));
   }));
 
   // Send now. force=true sends every contact again, including ones already sent.
-  router.post('/sync', requirePermission('content.edit'), express.json(), wrap(async (req, res) => {
+  router.post('/sync', permit('content.edit'), express.json(), wrap(async (req, res) => {
     const target = req.body && req.body.target === 'salesforce' ? 'salesforce' : 'google';
     const force = !!(req.body && req.body.force);
     if (!force) { // failed contacts get another go

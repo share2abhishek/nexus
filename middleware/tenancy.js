@@ -1,11 +1,13 @@
-const { can } = require('../services/rbac');
 const platformAdmin = require('../services/platformAdmin');
 
 // Factory takes a memberships repo so it's testable without a DB.
 // options.loadUser: look the user up on every request (the server does), so a
 // suspended or demoted account loses access at once instead of keeping a 7-day
 // session. Without it (unit tests) the session's own fields are used.
-function makeWithWorkspace(membershipsRepo, { loadUser } = {}) {
+// options.loadOrg: the workspace's organisation and platform status (services/accessHost.js workspaceOrg), read by
+// access.check step 4. Without it the organisation is unknown and counts as active.
+// This is where the access context is resolved (identity, workspace, role, org); modules/access decides from it.
+function makeWithWorkspace(membershipsRepo, { loadUser, loadOrg } = {}) {
   return async function withWorkspace(req, res, next) {
     const userId = req.session?.userId;
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
@@ -48,21 +50,17 @@ function makeWithWorkspace(membershipsRepo, { loadUser } = {}) {
     }
     req.workspaceId = workspaceId;
     req.role = role;
+    if (loadOrg) {
+      const org = await loadOrg(workspaceId); // an error fails closed (500), like the membership lookup
+      req.orgId = org?.orgId ?? null;
+      req.orgStatus = org?.status || 'active';
+    }
     next();
   };
 }
 
-function requirePermission(action) {
-  const mw = function requirePermission(req, res, next) {
-    // Set by withWorkspace from the live user record
-    if (req.isPlatformAdmin) return next();
-    if (!can(req.role, action)) {
-      return res.status(403).json({ error: 'Forbidden', requiredPermission: action });
-    }
-    next();
-  };
-  mw.accessPermission = action; // read by the route inventory (tests/access/routeInventory.test.js)
-  return mw;
-}
+// The permission guard is access.middleware (modules/access, A0). This name stays so existing callers and tests read
+// the same; it is the same function, not a second implementation.
+const requirePermission = (action) => require('../modules/access').middleware(action);
 
 module.exports = { makeWithWorkspace, requirePermission };

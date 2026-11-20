@@ -8,10 +8,10 @@ const str = (v, max) => String(v ?? '').trim().slice(0, max);
 const json = (v, d) => { try { return JSON.parse(v); } catch { return d; } };
 const cleanPlatforms = (list) => [...new Set((Array.isArray(list) ? list : []).map(String))].filter((p) => PUBLISHABLE.includes(p));
 
-module.exports = (knex, requirePermission) => {
+module.exports = (knex, permit) => {
   const router = express.Router();
-  const view = requirePermission('content.view');
-  const edit = requirePermission('content.create');
+  const view = permit('content.view');
+  const edit = permit('content.create');
 
   // ── Signatures ─────────────────────────────────────────────────────────────
   router.get('/signatures', view, async (req, res) => {

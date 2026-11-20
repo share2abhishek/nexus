@@ -69,7 +69,7 @@ async function publicSuggestions(knex) {
   return list;
 }
 
-module.exports = (knex, requirePermission) => {
+module.exports = (knex, permit) => {
   // ── Public (landing page) ────────────────────────────────────────────────
   const pub = express.Router();
   pub.use(express.json({ limit: '20kb' }));

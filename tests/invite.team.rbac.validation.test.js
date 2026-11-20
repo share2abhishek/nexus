@@ -1,7 +1,7 @@
 const request = require('supertest');
 const express = require('express');
 const { makeTestKnex } = require('./helpers/db');
-const { can, MATRIX, ROLES, ACTIONS } = require('../services/rbac');
+const { roleGrants: can, WORKSPACE_ROLES: MATRIX, WORKSPACE_ROLE_KEYS: ROLES } = require('../modules/access/permissions');
 const { makeWithWorkspace, requirePermission } = require('../middleware/tenancy');
 
 describe('Full Validation: Invitations, Team Formation, and RBAC', () => {

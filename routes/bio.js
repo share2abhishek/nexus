@@ -5,7 +5,7 @@ const axios = require('axios');
 const fs = require('fs');
 const store = require('../services/mediaStore');
 
-module.exports = (knex, requirePermission) => {
+module.exports = (knex, permit) => {
   const router = express.Router();
   const base = () => require('../services/license').serverUrl();
   const proof = () => {
@@ -15,7 +15,7 @@ module.exports = (knex, requirePermission) => {
   };
   const now = () => Math.floor(Date.now() / 1000);
 
-  router.get('/', requirePermission('content.view'), async (req, res) => {
+  router.get('/', permit('content.view'), async (req, res) => {
     try {
       const row = await knex('bio_pages').where({ workspace_id: req.workspaceId }).first();
       res.json(row ? { slug: row.slug, url: row.url, published_at: row.published_at, ...JSON.parse(row.data || '{}') } : null);
@@ -23,7 +23,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // Save and publish
-  router.put('/', requirePermission('content.publish'), express.json({ limit: '64kb' }), async (req, res) => {
+  router.put('/', permit('content.publish'), express.json({ limit: '64kb' }), async (req, res) => {
     try {
       const b = req.body || {};
       const slug = String(b.slug || '').trim().toLowerCase();
@@ -56,7 +56,7 @@ module.exports = (knex, requirePermission) => {
     } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
   });
 
-  router.delete('/', requirePermission('content.publish'), async (req, res) => {
+  router.delete('/', permit('content.publish'), async (req, res) => {
     try {
       const row = await knex('bio_pages').where({ workspace_id: req.workspaceId }).first();
       if (row?.slug) await axios.delete(`${base()}/v1/bio/${encodeURIComponent(row.slug)}`, { headers: proof(), timeout: 15000 }).catch(() => {});
@@ -65,7 +65,7 @@ module.exports = (knex, requirePermission) => {
     } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
   });
 
-  router.get('/stats', requirePermission('content.view'), async (req, res) => {
+  router.get('/stats', permit('content.view'), async (req, res) => {
     try {
       const row = await knex('bio_pages').where({ workspace_id: req.workspaceId }).first();
       if (!row?.slug) return res.json({ views: 0, clicks: {} });

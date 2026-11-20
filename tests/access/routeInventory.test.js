@@ -39,6 +39,7 @@ const PUBLIC = [
 ];
 // Signed in is enough, on purpose: nothing here belongs to a workspace or another person. [method or '*', path, reason]
 const SIGNED_IN = [
+  ['GET', /^\/api\/me\/access$/, 'what the signed-in person may do in their own active workspace (access.explain)'],
   ['GET', /^\/api\/release-notes$/, 'What\'s new: the published release notes, the same for everyone'],
 ];
 const isSignedInRoute = (r) => SIGNED_IN.some(([m, re]) => (m === '*' || m === r.method) && re.test(r.path));

@@ -3,8 +3,8 @@ const { callbackUrl } = require('../services/platforms/callback');
 const router = express.Router();
 
 // Managing a workspace's social accounts needs the social.manage permission
-const { requirePermission } = require('../middleware/tenancy');
-const canManageSocial = requirePermission('social.manage');
+const { middleware: permit } = require('../modules/access'); // access.middleware (A0)
+const canManageSocial = permit('social.manage');
 
 // Settings stored in .env apply to every user of this install, so only an admin
 // may change them. (Per-user AI keys live in /users/settings instead.)

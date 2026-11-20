@@ -42,11 +42,14 @@ const configRoutes = require('../routes/config');
 const ollamaRoutes = require('../routes/ollama');
 const scheduler    = require('../services/scheduler');
 const { requireAuth, injectUserKeys } = require('../middleware/auth');
-const { makeWithWorkspace, requirePermission } = require('../middleware/tenancy');
+const { makeWithWorkspace } = require('../middleware/tenancy');
+// The single decision point (A0): every permission guard is access.middleware(key)
+const access = require('../modules/access');
+const permit = access.middleware;
 const membershipsRepo = require('../repos/membershipsRepo')(knex);
 const platformAdmin = require('../services/platformAdmin');
 // Looks the user up on every request: a suspended or demoted account loses access at once
-const withWorkspace = makeWithWorkspace(membershipsRepo, { loadUser: platformAdmin.loadUser });
+const withWorkspace = makeWithWorkspace(membershipsRepo, { loadUser: platformAdmin.loadUser, loadOrg: require('../services/accessHost').workspaceOrg });
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -214,6 +217,12 @@ app.use(['/api/knowledge-base', '/api/tools', '/api/media', '/api/seo', '/api/se
 // ── Protected Routes (require login) ─────────────────────────────────────────
 
 app.use('/api/license', requireAuth, require('../routes/license'));
+// What the signed-in person may do in the active workspace: role, permissions, features, plan and limits
+// (docs/platform/ACCESS-AND-ENTITLEMENTS.md 13.1). The app reads this instead of deciding on its own.
+app.get('/api/me/access', requireAuth, withWorkspace, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(await access.explain(access.context(req)));
+});
 // "What's new": released notes from docs/RELEASE-NOTES.md. Staff (and the desktop install's own people) also see
 // the Super Admin and upgrade sections.
 app.get('/api/release-notes', requireAuth, async (req, res) => {
@@ -228,7 +237,7 @@ const billingRoutes = require('../routes/billing');
 app.use('/billing', billingRoutes.pub);
 app.use('/api/billing', requireAuth, withWorkspace, billingRoutes.api);
 app.use('/api/backups', requireAuth, require('../routes/backups')(knex));
-app.use('/api/bio', requireAuth, withWorkspace, require('../routes/bio')(knex, requirePermission));
+app.use('/api/bio', requireAuth, withWorkspace, require('../routes/bio')(knex, permit));
 // Phone companion (per user, across workspaces)
 app.use('/api/companion', requireAuth, (() => {
   const r = require('express').Router();
@@ -251,30 +260,30 @@ app.use('/api/companion', requireAuth, (() => {
 })());
 app.use('/api/cloud/status', requireAuth, async (req, res) => res.json({ enabled: await require('../services/cloudPosting').enabled() }));
 app.use('/api/assistant', requireAuth, withWorkspace, injectUserKeys, helpChat.app); // in-app help chat
-app.use('/api/inbox', requireAuth, withWorkspace, injectUserKeys, require('../routes/inbox')(knex, requirePermission));
-app.use('/api/media-library', requireAuth, withWorkspace, require('../routes/mediaLibrary')(knex, requirePermission));
+app.use('/api/inbox', requireAuth, withWorkspace, injectUserKeys, require('../routes/inbox')(knex, permit));
+app.use('/api/media-library', requireAuth, withWorkspace, require('../routes/mediaLibrary')(knex, permit));
 app.use('/api',        requireAuth, withWorkspace, injectUserKeys, apiRoutes);
 // SEO autopilot (server edition): before /api/seo so its paths match first
-app.use('/api/seo/autopilot', requireAuth, withWorkspace, injectUserKeys, require('../routes/seoAutopilot')(knex, requirePermission));
+app.use('/api/seo/autopilot', requireAuth, withWorkspace, injectUserKeys, require('../routes/seoAutopilot')(knex, permit));
 app.use('/api/seo',    requireAuth, withWorkspace, injectUserKeys, seoRoutes);
 app.use('/api/email',  requireAuth, withWorkspace, injectUserKeys, emailRoutes);
 app.use('/api/tools',  requireAuth, withWorkspace, injectUserKeys, toolsRoutes);
 app.use('/api/media',  requireAuth, withWorkspace, injectUserKeys, mediaRoutes);
 app.use('/api/config', requireAuth, withWorkspace, injectUserKeys, configRoutes);
-app.use('/api/content', requireAuth, withWorkspace, injectUserKeys, require('../routes/content')(knex, requirePermission));
-app.use('/api/post-extras', requireAuth, withWorkspace, require('../routes/postExtras')(knex, requirePermission)); // signatures, post sets, RSS feeds
-app.use('/api/sellbird', requireAuth, withWorkspace, injectUserKeys, require('../routes/sellbird')(knex, requirePermission));
-app.use('/api/lead-pipeline', requireAuth, withWorkspace, injectUserKeys, require('../routes/leadPipeline')(knex, requirePermission));
-app.use('/api/meta-reports', requireAuth, withWorkspace, require('../routes/metaReports')(knex, requirePermission));
-app.use('/api/contact-sync', requireAuth, withWorkspace, require('../routes/contactSync')(knex, requirePermission));
-app.use('/api/knowledge-base', requireAuth, withWorkspace, injectUserKeys, require('../routes/knowledgeBase')(knex, requirePermission));
+app.use('/api/content', requireAuth, withWorkspace, injectUserKeys, require('../routes/content')(knex, permit));
+app.use('/api/post-extras', requireAuth, withWorkspace, require('../routes/postExtras')(knex, permit)); // signatures, post sets, RSS feeds
+app.use('/api/sellbird', requireAuth, withWorkspace, injectUserKeys, require('../routes/sellbird')(knex, permit));
+app.use('/api/lead-pipeline', requireAuth, withWorkspace, injectUserKeys, require('../routes/leadPipeline')(knex, permit));
+app.use('/api/meta-reports', requireAuth, withWorkspace, require('../routes/metaReports')(knex, permit));
+app.use('/api/contact-sync', requireAuth, withWorkspace, require('../routes/contactSync')(knex, permit));
+app.use('/api/knowledge-base', requireAuth, withWorkspace, injectUserKeys, require('../routes/knowledgeBase')(knex, permit));
 
 // ── Tenancy Routes ────────────────────────────────────────────────────────────
 
 app.use('/workspaces', requireAuth, require('../routes/workspaces')(knex));
-app.use('/workspaces/:workspaceId/members', requireAuth, require('../routes/members')(knex, withWorkspace, requirePermission));
-app.use('/workspaces/:workspaceId/social-accounts', requireAuth, require('../routes/social-accounts')(knex, withWorkspace, requirePermission));
-app.use('/invitations', requireAuth, require('../routes/invitations')(knex, withWorkspace, requirePermission));
+app.use('/workspaces/:workspaceId/members', requireAuth, require('../routes/members')(knex, withWorkspace, permit));
+app.use('/workspaces/:workspaceId/social-accounts', requireAuth, require('../routes/social-accounts')(knex, withWorkspace, permit));
+app.use('/invitations', requireAuth, require('../routes/invitations')(knex, withWorkspace, permit));
 
 app.post('/session/active-workspace', async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'Not authenticated' });

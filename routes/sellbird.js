@@ -10,7 +10,7 @@ const { runHeartbeat } = require('../services/sellbird/heartbeat');
 const { sendOutreachEmail } = require('../services/sellbird/dispatcher');
 const { aiOptionsFromReq, aiArgsFromReq, aiJSON, aiList } = require('../services/aiHelper');
 
-module.exports = (knex, requirePermission) => {
+module.exports = (knex, permit) => {
   const router = express.Router();
   const repo = sellbirdRepoFactory(knex);
 
@@ -108,7 +108,7 @@ module.exports = (knex, requirePermission) => {
 
   // ── Change or delete a contact ─────────────────────────────────────────────
   const EMAIL_OK = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]{2,}$/;
-  router.patch('/contacts/:id', requirePermission('content.edit'), async (req, res) => {
+  router.patch('/contacts/:id', permit('content.edit'), async (req, res) => {
     try {
       const id = Number(req.params.id);
       const current = await knex('sellbird_contacts').where({ id, workspace_id: req.workspaceId }).first();
@@ -142,8 +142,8 @@ module.exports = (knex, requirePermission) => {
     try { res.json({ success: true, ...(await repo.deleteContacts(req.workspaceId, ids)) }); }
     catch (err) { res.status(500).json({ error: err.message }); }
   };
-  router.delete('/contacts/:id', requirePermission('content.delete'), (req, res) => deleteContacts(req, res, [req.params.id]));
-  router.post('/contacts/delete', requirePermission('content.delete'), (req, res) => {
+  router.delete('/contacts/:id', permit('content.delete'), (req, res) => deleteContacts(req, res, [req.params.id]));
+  router.post('/contacts/delete', permit('content.delete'), (req, res) => {
     const ids = (req.body || {}).ids;
     if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'Choose at least one contact.' });
     return deleteContacts(req, res, ids.slice(0, 500));
@@ -151,7 +151,7 @@ module.exports = (knex, requirePermission) => {
 
   // ── Files sent with a campaign's emails ─────────────────────────────────────
   const attachmentsLib = require('../services/sellbird/attachments');
-  router.get('/campaigns/:id/attachments', requirePermission('content.view'), async (req, res) => {
+  router.get('/campaigns/:id/attachments', permit('content.view'), async (req, res) => {
     try {
       const camp = await repo.getCampaign(req.workspaceId, Number(req.params.id));
       if (!camp) return res.status(404).json({ error: 'Campaign not found' });
@@ -162,7 +162,7 @@ module.exports = (knex, requirePermission) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
   // The file is the request body (like the contact import); its name is in X-File-Name
-  router.post('/campaigns/:id/attachments', requirePermission('content.edit'), express.raw({ type: () => true, limit: '8mb' }), async (req, res) => {
+  router.post('/campaigns/:id/attachments', permit('content.edit'), express.raw({ type: () => true, limit: '8mb' }), async (req, res) => {
     try {
       const camp = await repo.getCampaign(req.workspaceId, Number(req.params.id));
       if (!camp) return res.status(404).json({ error: 'Campaign not found' });
@@ -172,14 +172,14 @@ module.exports = (knex, requirePermission) => {
       res.status(201).json(saved);
     } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
   });
-  router.patch('/attachments/:id', requirePermission('content.edit'), async (req, res) => {
+  router.patch('/attachments/:id', permit('content.edit'), async (req, res) => {
     try {
       const updated = await repo.setAttachmentSendWith(req.workspaceId, Number(req.params.id), (req.body || {}).send_with);
       if (!updated) return res.status(404).json({ error: 'Attachment not found' });
       res.json(updated);
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
-  router.delete('/attachments/:id', requirePermission('content.edit'), async (req, res) => {
+  router.delete('/attachments/:id', permit('content.edit'), async (req, res) => {
     try {
       const n = await repo.deleteAttachment(req.workspaceId, Number(req.params.id));
       if (!n) return res.status(404).json({ error: 'Attachment not found' });
@@ -188,13 +188,13 @@ module.exports = (knex, requirePermission) => {
   });
 
   // Remove repeated addresses already in this business's list (and cancel their unsent emails)
-  router.post('/contacts/dedupe', requirePermission('content.edit'), async (req, res) => {
+  router.post('/contacts/dedupe', permit('content.edit'), async (req, res) => {
     try { res.json({ success: true, ...(await repo.removeDuplicateContacts(req.workspaceId)) }); }
     catch (err) { res.status(500).json({ error: err.message }); }
   });
 
   // ── Metrics & Stats ────────────────────────────────────────────────────────
-  router.get('/stats', requirePermission('content.view'), async (req, res) => {
+  router.get('/stats', permit('content.view'), async (req, res) => {
     try {
       const stats = await repo.getStats(req.workspaceId);
       const { smtpConfigFor, isPaused } = require('../services/sellbird/dispatcher');
@@ -231,7 +231,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Product Training / URL Extractor ───────────────────────────────────────
-  router.post('/train-url', requirePermission('content.create'), async (req, res) => {
+  router.post('/train-url', permit('content.create'), async (req, res) => {
     const { url } = req.body || {};
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
@@ -244,7 +244,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Campaigns ──────────────────────────────────────────────────────────────
-  router.get('/campaigns', requirePermission('content.view'), async (req, res) => {
+  router.get('/campaigns', permit('content.view'), async (req, res) => {
     try {
       const campaigns = await repo.listCampaigns(req.workspaceId);
       res.json(campaigns);
@@ -253,7 +253,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/campaigns', requirePermission('content.create'), async (req, res) => {
+  router.post('/campaigns', permit('content.create'), async (req, res) => {
     const { name, product_url, product_description, icp_definition, sequence_template_json, max_emails_per_day, auto_approve } = req.body || {};
     if (!name) return res.status(400).json({ error: 'Campaign name is required' });
 
@@ -280,7 +280,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.get('/campaigns/:id', requirePermission('content.view'), async (req, res) => {
+  router.get('/campaigns/:id', permit('content.view'), async (req, res) => {
     try {
       const campaign = await repo.getCampaign(req.workspaceId, Number(req.params.id));
       if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
@@ -290,7 +290,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.patch('/campaigns/:id', requirePermission('content.edit'), async (req, res) => {
+  router.patch('/campaigns/:id', permit('content.edit'), async (req, res) => {
     try {
       const updated = await repo.updateCampaign(req.workspaceId, Number(req.params.id), req.body);
       res.json(updated);
@@ -299,7 +299,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.delete('/campaigns/:id', requirePermission('content.delete'), async (req, res) => {
+  router.delete('/campaigns/:id', permit('content.delete'), async (req, res) => {
     try {
       await repo.deleteCampaign(req.workspaceId, Number(req.params.id));
       res.json({ success: true });
@@ -308,7 +308,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/campaigns/:id/toggle', requirePermission('content.edit'), async (req, res) => {
+  router.post('/campaigns/:id/toggle', permit('content.edit'), async (req, res) => {
     try {
       const camp = await repo.getCampaign(req.workspaceId, Number(req.params.id));
       if (!camp) return res.status(404).json({ error: 'Campaign not found' });
@@ -320,14 +320,14 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/sending/pause', requirePermission('content.edit'), async (req, res) => {
+  router.post('/sending/pause', permit('content.edit'), async (req, res) => {
     const { setPaused } = require('../services/sellbird/dispatcher');
     await setPaused(knex, req.workspaceId, !!req.body?.paused);
     res.json({ paused: !!req.body?.paused });
   });
 
   // ── Contacts / Prospect People ─────────────────────────────────────────────
-  router.get('/contacts', requirePermission('content.view'), async (req, res) => {
+  router.get('/contacts', permit('content.view'), async (req, res) => {
     const { campaignId, search, limit, offset } = req.query;
     try {
       const contacts = await repo.listContactsDetailed(req.workspaceId, {
@@ -374,7 +374,7 @@ module.exports = (knex, requirePermission) => {
     return parsed;
   }
 
-  router.post('/contacts/import', requirePermission('content.create'), express.raw({ type: () => true, limit: '5mb' }), async (req, res) => {
+  router.post('/contacts/import', permit('content.create'), express.raw({ type: () => true, limit: '5mb' }), async (req, res) => {
     try {
       if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'No file was sent.' });
       let name = String(req.get('X-File-Name') || ''); try { name = decodeURIComponent(name); } catch {}
@@ -430,13 +430,13 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.get('/contacts/import/template', requirePermission('content.view'), (req, res) => {
+  router.get('/contacts/import/template', permit('content.view'), (req, res) => {
     res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="contacts-template.csv"' });
     res.send('﻿' + require('../services/sellbird/contactImport').TEMPLATE_CSV);
   });
 
   // ── Companies / Target Prospecting ─────────────────────────────────────────
-  router.get('/companies', requirePermission('content.view'), async (req, res) => {
+  router.get('/companies', permit('content.view'), async (req, res) => {
     const { campaignId, status, limit, offset } = req.query;
     try {
       const companies = await repo.listCompanies(req.workspaceId, {
@@ -452,7 +452,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // Add a company: open its website, pick who to email, write the emails
-  router.post('/companies', requirePermission('content.create'), async (req, res) => {
+  router.post('/companies', permit('content.create'), async (req, res) => {
     const { campaign_id, domain, name, location, industry } = req.body || {};
     if (!domain) return res.status(400).json({ error: 'Type the company’s website address.' });
     if (!campaign_id) return res.status(400).json({ error: 'Pick a campaign first.' });
@@ -469,7 +469,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // Bulk Prospecting Discovery (Paste list of domains/names)
-  router.post('/discover', requirePermission('content.create'), async (req, res) => {
+  router.post('/discover', permit('content.create'), async (req, res) => {
     const { campaign_id, items } = req.body || {};
     if (!campaign_id) return res.status(400).json({ error: 'campaign_id is required' });
     if (!Array.isArray(items) || !items.length) {
@@ -505,7 +505,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Clear Dummy & Seeded Demo Data ─────────────────────────────────────────
-  router.post('/clear-dummy', requirePermission('content.edit'), async (req, res) => {
+  router.post('/clear-dummy', permit('content.edit'), async (req, res) => {
     try {
       const result = await repo.cleanSellbirdDummyData(req.workspaceId);
       res.json({
@@ -520,7 +520,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Discover & Enrich Real-World Targets ────────────────────────────────────
-  router.post('/discover-real', requirePermission('content.create'), async (req, res) => {
+  router.post('/discover-real', permit('content.create'), async (req, res) => {
     let { campaign_id, targets } = req.body || {};
     // Only companies the user chose. (A built-in list of real executives at real
     // companies used to be added for everyone — and could then be emailed.)
@@ -583,7 +583,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Discover by Business Type & Location (AI Entity & Web Crawler) ────────
-  router.post('/discover-by-type', requirePermission('content.create'), async (req, res) => {
+  router.post('/discover-by-type', permit('content.create'), async (req, res) => {
     let { campaign_id, business_type, location, count = 8, list_only } = req.body || {};
     business_type = String(business_type || '').trim();
     location = String(location || '').trim();
@@ -707,7 +707,7 @@ Important rules:
   });
 
   // ── Outbox / Safety Approval Queue ─────────────────────────────────────────
-  router.get('/outbox', requirePermission('content.view'), async (req, res) => {
+  router.get('/outbox', permit('content.view'), async (req, res) => {
     const { status, campaignId, limit, offset } = req.query;
     try {
       const items = await repo.listOutbox(req.workspaceId, {
@@ -722,7 +722,7 @@ Important rules:
     }
   });
 
-  router.patch('/outbox/:id/approve', requirePermission('content.approve'), async (req, res) => {
+  router.patch('/outbox/:id/approve', permit('content.approve'), async (req, res) => {
     try {
       const item = await repo.getOutboxItem(req.workspaceId, Number(req.params.id));
       if (!item) return res.status(404).json({ error: 'Outbox item not found' });
@@ -744,7 +744,7 @@ Important rules:
     }
   });
 
-  router.patch('/outbox/:id/reject', requirePermission('content.approve'), async (req, res) => {
+  router.patch('/outbox/:id/reject', permit('content.approve'), async (req, res) => {
     try {
       const item = await repo.getOutboxItem(req.workspaceId, Number(req.params.id));
       if (!item) return res.status(404).json({ error: 'Outbox item not found' });
@@ -759,7 +759,7 @@ Important rules:
     }
   });
 
-  router.patch('/outbox/:id', requirePermission('content.edit'), async (req, res) => {
+  router.patch('/outbox/:id', permit('content.edit'), async (req, res) => {
     try {
       const item = await repo.getOutboxItem(req.workspaceId, Number(req.params.id));
       if (!item) return res.status(404).json({ error: 'Not found' });
@@ -780,14 +780,14 @@ Important rules:
       res.json({ success: true, ...r });
     } catch (err) { res.status(500).json({ error: err.message }); }
   };
-  router.delete('/outbox/:id', requirePermission('content.delete'), (req, res) => deleteOutbox(req, res, [req.params.id]));
-  router.post('/outbox/delete', requirePermission('content.delete'), (req, res) => {
+  router.delete('/outbox/:id', permit('content.delete'), (req, res) => deleteOutbox(req, res, [req.params.id]));
+  router.post('/outbox/delete', permit('content.delete'), (req, res) => {
     const ids = (req.body || {}).ids;
     if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'Choose at least one email.' });
     return deleteOutbox(req, res, ids.slice(0, 500));
   });
 
-  router.post('/outbox/batch-approve', requirePermission('content.approve'), async (req, res) => {
+  router.post('/outbox/batch-approve', permit('content.approve'), async (req, res) => {
     const { ids } = req.body || {};
     if (!Array.isArray(ids) || !ids.length) {
       return res.status(400).json({ error: 'ids array required' });
@@ -803,7 +803,7 @@ Important rules:
   });
 
   // ── Replies & Conversations ────────────────────────────────────────────────
-  router.get('/replies', requirePermission('content.view'), async (req, res) => {
+  router.get('/replies', permit('content.view'), async (req, res) => {
     const { status, limit, offset } = req.query;
     try {
       const replies = await repo.listReplies(req.workspaceId, {
@@ -818,7 +818,7 @@ Important rules:
   });
 
   // Simulate or record incoming reply and auto-classify
-  router.post('/replies/simulate', requirePermission('content.create'), async (req, res) => {
+  router.post('/replies/simulate', permit('content.create'), async (req, res) => {
     const { outbox_id, sender_email, subject, message_text } = req.body || {};
     if (!sender_email || !message_text) {
       return res.status(400).json({ error: 'sender_email and message_text required' });
@@ -862,7 +862,7 @@ Important rules:
     }
   });
 
-  router.patch('/replies/:id', requirePermission('content.edit'), async (req, res) => {
+  router.patch('/replies/:id', permit('content.edit'), async (req, res) => {
     try {
       const { ai_drafted_reply, status, intent_category } = req.body || {};
       const patch = {};
@@ -876,7 +876,7 @@ Important rules:
     }
   });
 
-  router.post('/replies/:id/send', requirePermission('content.create'), async (req, res) => {
+  router.post('/replies/:id/send', permit('content.create'), async (req, res) => {
     try {
       const reply = await repo.getReply(req.workspaceId, Number(req.params.id));
       if (!reply) return res.status(404).json({ error: 'Reply not found' });
@@ -921,7 +921,7 @@ Important rules:
   });
 
   // ── Autonomous Loop Trigger ────────────────────────────────────────────────
-  router.post('/heartbeat/run', requirePermission('content.create'), async (req, res) => {
+  router.post('/heartbeat/run', permit('content.create'), async (req, res) => {
     try {
       let licensed = false;
       try { licensed = await require('../services/entitlements').canPublish(req.workspaceId); } catch {}

@@ -1,10 +1,10 @@
 const express = require('express');
 
-module.exports = (knex, withWorkspace, requirePermission) => {
+module.exports = (knex, withWorkspace, permit) => {
   const router = express.Router();
   const invites = require('../repos/invitationsRepo')(knex);
 
-  router.post('/', withWorkspace, requirePermission('members.manage'), async (req, res) => {
+  router.post('/', withWorkspace, permit('members.manage'), async (req, res) => {
     try {
       const { email, role } = req.body;
       const workspace = await knex('workspaces').where({ id: req.workspaceId }).first();

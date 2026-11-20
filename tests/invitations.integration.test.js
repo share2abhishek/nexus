@@ -1,5 +1,5 @@
 const { makeTestKnex } = require('./helpers/db');
-const { can } = require('../services/rbac');
+const { roleGrants: can } = require('../modules/access');
 
 describe('invitations + role-gated actions', () => {
   let knex, invites, members, ws;

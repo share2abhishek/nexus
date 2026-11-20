@@ -4,11 +4,11 @@
 const express = require('express');
 const store = require('../services/mediaStore');
 
-module.exports = (knex, requirePermission) => {
+module.exports = (knex, permit) => {
   const router = express.Router();
   const raw = express.raw({ type: () => true, limit: store.LIMITS.video });
 
-  router.get('/', requirePermission('content.view'), async (req, res) => {
+  router.get('/', permit('content.view'), async (req, res) => {
     try {
       const kind = ['image', 'video'].includes(req.query.kind) ? req.query.kind : null;
       const q = knex('media_assets').where({ workspace_id: req.workspaceId }).orderBy('created_at', 'desc').orderBy('id', 'desc').limit(200);
@@ -20,7 +20,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/', requirePermission('content.create'), raw, async (req, res) => {
+  router.post('/', permit('content.create'), raw, async (req, res) => {
     try {
       if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'No file was sent.' });
       let name = String(req.get('X-File-Name') || '');
@@ -34,7 +34,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // Save an AI-generated picture (base64) or a picture from a web link into the library
-  router.post('/import', requirePermission('content.create'), async (req, res) => {
+  router.post('/import', permit('content.create'), async (req, res) => {
     try {
       const { base64, url, name } = req.body || {};
       let buffer, source;
@@ -54,7 +54,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.get('/:id/file', requirePermission('content.view'), async (req, res) => {
+  router.get('/:id/file', permit('content.view'), async (req, res) => {
     const asset = await store.get(knex, req.workspaceId, Number(req.params.id));
     if (!asset) return res.status(404).json({ error: 'Not found' });
     res.set('Content-Type', asset.mime);
@@ -63,7 +63,7 @@ module.exports = (knex, requirePermission) => {
     res.sendFile(store.filePath(asset), (err) => { if (err && !res.headersSent) res.status(404).end(); });
   });
 
-  router.delete('/:id', requirePermission('content.create'), async (req, res) => {
+  router.delete('/:id', permit('content.create'), async (req, res) => {
     try {
       const id = Number(req.params.id);
       // Still used by a post that hasn't gone out? Say so instead of breaking it.
