@@ -107,3 +107,11 @@ test('decide() is fast: well under the 5 ms budget per check', () => {
   times.sort((a, b) => a - b);
   expect(times[Math.floor(times.length * 0.95)]).toBeLessThan(5);
 });
+
+test('explain() for staff does not write a bypass log line per permission', async () => {
+  console.log.mockClear();
+  const ctx = access.context({ session: { userId: 99 }, workspaceId: ids.ws, role: 'analyst', isPlatformAdmin: true, orgId: ids.org });
+  const d = await access.explain(ctx);
+  expect(d.permissions).toContain('content.publish');
+  expect(console.log.mock.calls.filter(([l]) => /legacy_staff_bypass/.test(l))).toEqual([]);
+});

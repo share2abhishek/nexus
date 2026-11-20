@@ -2,7 +2,7 @@
 // Spec: docs/platform/ACCESS-AND-ENTITLEMENTS.md 5 (interface 5.1, order 5.2). Skill: .claude/skills/access-control.
 //
 //   access.context(req)                 -> frozen ctx, built from what requireAuth + withWorkspace resolved
-//   access.decide(ctx, key)             -> Decision, synchronous: steps 1-4 and 7 (no I/O)
+//   access.decide(ctx, key, { quiet })  -> Decision, synchronous: steps 1-4 and 7 (no I/O); quiet: no bypass log (explain)
 //   access.check(ctx, key, opts)        -> Promise<Decision>: decide, then with { entitlements: true } steps 5, 6, 8
 //   access.assert(ctx, key, opts)       -> throws AccessError on deny
 //   access.middleware(key)              -> express middleware (replaces requirePermission)
@@ -77,7 +77,7 @@ function context(req) {
 }
 
 // ── Steps 1-4 and 7 ──────────────────────────────────────────────────────────
-function decide(ctx, key) {
+function decide(ctx, key, { quiet = false } = {}) {
   const perm = permissions.get(key);
   if (!perm) throw new Error(`access: unknown permission "${key}" (add it to modules/access/permissions.js)`);
 
@@ -98,7 +98,7 @@ function decide(ctx, key) {
 
   // 7. Role
   if (permissions.roleGrants(ctx.workspaceRole, key)) return ALLOW;
-  if (ctx.actor.staff) { logBypass(ctx, key); return ALLOW; }
+  if (ctx.actor.staff) { if (!quiet) logBypass(ctx, key); return ALLOW; }
   return deny(403, 'forbidden', 'Forbidden', { requiredPermission: key });
 }
 
@@ -167,7 +167,7 @@ function middleware(key) {
 async function explain(ctx) {
   const allowed = permissions.PERMISSIONS
     .filter((p) => p.scope !== 'platform')
-    .filter((p) => { try { return decide(ctx, p.key).allow; } catch { return false; } })
+    .filter((p) => { try { return decide(ctx, p.key, { quiet: true }).allow; } catch { return false; } })
     .map((p) => p.key);
   const featureState = Object.fromEntries(features.FEATURES.map((f) => [f.key, f.editions.includes(ctx.edition) ? 'on' : 'off']));
   let subscription = null;
