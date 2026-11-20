@@ -9,7 +9,9 @@ This is the single build order for four documents:
 | `docs/billing/PLAN.md` | the Super Admin plan designer, customer billing page, Nexus decisions N1–N8 |
 | `docs/platform/ACCESS-AND-ENTITLEMENTS.md` | production findings and safety fixes, tenancy hardening, the full decision order, staff roles and support sessions, AI, storage and count limits, consistency checker, row-level security |
 
-Phase ids follow `PLAN.md` section 7. The phases this roadmap adds are **S0** (safety), **T1** and **T2** (tenancy), **L1** and **L2** (limits) and **P1** (plan change handling).
+Phase ids follow `PLAN.md` section 7. The phases this roadmap adds are **Q0** (quality gates), **S0** (safety), **T1** and **T2** (tenancy), **L1**, **L2a** and **L2b** (limits) and **P1** (plan change handling). B5 is split into **B5a** (expiry alerts) and **B5b** (plan lifecycle).
+
+**Priority:** set on 19 Nov 2026 after the product owner, architect and QA review in `docs/platform/REVIEW-2026-11-19.md`. That file has the reasons for this order.
 
 **Status:** this is a plan only; nothing is built. Skills for the build are in `.claude/skills/`:
 - `access-control`
@@ -20,56 +22,59 @@ Phase ids follow `PLAN.md` section 7. The phases this roadmap adds are **S0** (s
 - `billing-money-review`
 
 ## Principles of the order
-1. **Safety first.** S0 removes the path by which a customer can become a global admin, and adds the tests every later phase relies on.
-2. **One decision point before new rules.** A0 routes every check through `access.check` and changes nothing for customers.
-3. **Isolation before growth.** T1 puts `org_id` on every table and every query before more roles, scopes and modules add data.
-4. **Entitlements before money.** The plan decides features and menus (B0, B1) before anyone pays through the new module.
-5. **Count before enforcing.** Storage, AI and messages are counted and shown first. They are enforced only after the counts match reality.
-6. **Kill switches ship off.** Lockout, storage enforcement, AI enforcement and the feature gate are never switched on in the release that introduces them.
-7. **Seeds change nothing.** Seeded plans have every feature on and today's limits (PLAN N5), and seeded roles keep exactly today's permissions.
+1. **Protect what exists.** Wave 0 keeps today's customers running (the Avinash Group trial ends 2 Dec) and makes releases safe (CI, staging, a green suite) before anything new.
+2. **Lay the minimum foundation once.** The access engine (A0) comes before anything that decides access. Tenancy hardening (T1) runs as a **parallel track**: any real leak the S0 harness finds is fixed at once, and the leads module finishes before R1.
+3. **Sell by feature, then get paid, then alert.** Feature-based plans (B0, B1), expiry alerts (B5a), invoices and offline payments (B3), then online payment (B4).
+4. **Count before enforcing.** AI usage counting (L2a) starts in Wave 1, because enforcement and pricing need a month of real data.
+5. **Kill switches ship off.** The feature gate, lockout, storage and AI enforcement are never switched on in the release that introduces them.
+6. **Seeds change nothing.** Seeded plans have every feature on and today's limits (PLAN N5). Seeded roles keep today's permissions.
+7. **Branch per phase.** Each phase is built on `feature/<phase>` and merged to `master` only when its gates pass, because every `master` commit deploys to production (review AR1).
 
-## Unified order
+## Order (waves)
 
-| # | Phase | Source | Depends on | Size | Visible change on production |
+**MVP = Waves 0 to 2.** Waves 3 to 5 are re-prioritised after the MVP using customer feedback.
+
+| Wave | # | Phase | Depends on | Size | Visible change on production |
 |---|---|---|---|---|---|
-| 1 | **S0** Safety net: verify staff accounts on production, stop `ensureAdmin` on the server edition, super admin only on cross-org `/admin/*`, no workspace id from request body, route inventory test, two-org isolation harness (baseline) | access 16 | none | S | none (security fix) |
-| 2 | **A0** Access foundation: feature and permission catalogues, menu registry (data), `access.check` with all steps, `GET /api/me/access`, characterization tests (no behaviour change) | PLAN 7, access 16 | S0 | M | none |
-| 3 | **T1** Tenancy hardening: `org_id` on every tenant table, scoped repositories, id resolution with 404, jobs, webhooks, caches, files by org; split per module | access 11, 16 | A0 | L | none |
-| 4 | **B0** Catalogue and plan designer: billing tables, pure maths, seeder, staff Plans / Prices / Coupons, import of today's organisations as subscriptions (dry run first) | PLAN 7, billing 12 | none (parallel with T1) | M | staff only |
-| 5 | **B1** Feature gate and upgrade prompts: API gate from the registry, engine and job checks, menu rendered from `/api/me/menu`, locked items, upgrade dialog, consistency checker (access B1a and B1b) | PLAN 7, access 16 | A0, B0 | M | none until staff remove a feature from a plan |
-| 6 | **R1** Roles v2 and support mode: new system roles, data scope, Team & roles screen, agent inbox tabs, `platform_staff` (super_admin), staff MFA, support sessions replacing the silent bypass, org support log, org suspend | ACCESS-REQ 5–6, access 9 | A0, T1 | L | new roles; support banner and log |
-| 7 | **S1** Organisation health and staff console: org list with health and usage badges, Org 360, user directory, audit screens, staff roles support / billing_ops / auditor | PLAN 7, access 9.2 | R1 | M | staff only |
-| 8 | **B2** Wallet | billing | B0 | M | staff only |
-| 9 | **B3** Invoices and offline payments | billing | B2 | M | staff can bill and activate by bank transfer |
-| 10 | **B4** Online payment and customer Billing page; retires the old licence-server client (PLAN N1) | billing, PLAN | B3 | M | customers can pay online |
-| 11 | **L1** Limits framework and storage: limit catalogue, count limits, `stored_file` registry and files service, org storage counter, upload checks, trash, reconciliation, Usage screen, 80/100% notices (storage **warn-only** for 2 weeks) | access 10, 16 | T1, B1 | M | Usage screen; storage bar |
-| 12 | **B5 + P1** Lifecycle, expiry alerts, lockout (switch off), plus plan change handling: impact preview in the plan designer, downgrade rules (features paused, over-limit archiving) | billing, access 7.5 | B4, L1 | M | upgrade, downgrade and cancel; alerts |
-| 13 | **R2** Custom roles and teams, routing rules, agent status | ACCESS-REQ 5.7–5.8 | R1, B1 | M | sellable `custom_roles`, `teams_routing` |
-| 14 | **R3** AI sales agents | ACCESS-REQ 5.6 | R2 | M | sellable `ai_agents` |
-| 15 | **B6** Usage metering (count only) | billing | L1 | M | usage per channel |
-| 16 | **B7 + L2** AI credits, top-ups, every AI call metered (reserve / settle / release), org daily, per-user and platform cost caps, BYOK counted not charged, model tiers; enforcement switch off for a month | billing, access 10.2 | B6, R3 | M | AI credits on the Usage tab; buy more |
-| 17 | **B8** Reports and add-ons | billing, PLAN | B7 | M | staff only |
-| 18 | **T2** Postgres row-level security (optional), audit mode for 2 weeks, then enforce | access 11.3 | T1 complete | S–M | none |
+| **0 Now** | – | **Owner action:** extend Avinash Group's trial or set a paid plan before 2 Dec, using the existing Super Admin → Subscriptions tab | – | – | their bot keeps answering |
+| | 1 | **Q0** Quality gates: Bitbucket Pipelines CI (SQLite and Postgres), test quarantine, staging environment, branch per phase | – | S | none |
+| | 2 | **S0** Safety net: no `ensureAdmin` on the server edition, super admin only on cross-org `/admin/*`, no workspace id from the request body, route inventory test, two-org isolation harness | Q0 | S | none (security fix) |
+| **1 Sell by feature** | 3 | **A0** Access foundation: catalogues, menu registry (data), `access.check`, `GET /api/me/access`, characterization tests, access snapshot diff tool | S0 | M | none |
+| | 4 | **B0** Catalogue and plan designer, import of today's organisations (dry run first) | A0 | M | staff only |
+| | 5 | **B1** Feature gate, server-driven menu, upgrade prompts, consistency checker | A0, B0 | M | none until staff edit a plan and switch the gate on |
+| | 6 | **B5a** Expiry and overdue alerts: e-mails and in-app banners from the trial and paid-until dates | B0 | S | alerts start |
+| | 7 | **L2a** AI usage counting: every AI call recorded per organisation and feature (count only, no limits) | A0 | S–M | staff usage view |
+| **2 Get paid** | 8 | **B3** Invoices and offline payments (activate the plan) | B0 | M | staff bill and activate by bank or UPI |
+| | 9 | **B2** Wallet | B3 | M | staff only |
+| | 10 | **B4** Online payment (Razorpay) and customer Billing page; old licence-server client removed | B2 | M | customers pay online |
+| **3 Team and oversight** | 11 | **R1** Roles v2 (sales and support agents, data scope) and support sessions | A0, T1 leads module | L | new roles; support banner and log |
+| | 12 | **S1** Staff console and organisation health; staff roles `support`, `billing_ops`, `auditor` | R1 | M | staff only |
+| | ∥ | **T1** Tenancy hardening, module by module, as a parallel track from Wave 1 | A0 | L | none |
+| **4 Limits and lifecycle** | 13 | **L1** Limits framework and storage (warn first) | T1 media module, B1 | M | Usage screen; storage bar |
+| | 14 | **B6** Message metering (count only) | L1 | M | usage per channel |
+| | 15 | **B5b + P1** Upgrade, downgrade, cancel, plan change handling, lockout switch | B4, L1 | M | plan changes |
+| | 16 | **B7 + L2b** AI credits enforcement, top-ups, caps | L2a (a month of data), B6 | M | buy more credits |
+| **5 Growth** | 17 | **R2** Custom roles, teams and routing | R1, B1 | M | sellable `custom_roles`, `teams_routing` |
+| | 18 | **R3** AI sales agents | R2, L2a | M | sellable `ai_agents` |
+| | 19 | **B8** Reports and add-ons | B7 | M | staff only |
+| | 20 | **T2** Postgres row-level security (optional) | T1 complete | S–M | none |
 
 Two pairs share files, so one owner builds both phases in each pair:
 - **B1 with A0's registry.**
-- **B7 with L2.**
+- **B7 with L2b.**
 
-T1 can run in parallel with B0, B2 and B3, because none of them touches tenant tables.
+T1 runs alongside Waves 1 to 3 because none of B0, B3 or B2 touches existing tenant tables (new tables carry `org_id` / `account_id` from the start).
 
 ## Milestones
 
 | Milestone | Phases | What the owner can do at the end |
 |---|---|---|
-| **M1 Safe foundation** | S0, A0 | Nothing visible. Every check runs through one engine; customers can't become admins; tests guard every route. |
-| **M2 Isolation** | T1 | Nothing visible. Every row and file carries its organisation; a guessed id from another organisation always answers 404. |
-| **M3 Plans and feature control** | B0, B1 | Design plans in Super Admin → Billing by ticking features, and see menus lock and unlock per organisation within a minute. |
-| **M4 Roles and oversight** | R1, S1 | Give people sales, support, bot or viewer roles. See every organisation's health, and open one in an audited support session. |
-| **M5 Money** | B2, B3, B4 | Record bank and UPI payments that activate a plan; customers pay online (Razorpay, shared with UrbanSociety). |
-| **M6 Limits and lifecycle** | L1, B5 + P1 | Customers see their usage and storage. Expiry alerts go out. Upgrades and downgrades work. Lockout is ready (switch off). |
-| **M7 Teams and AI agents** | R2, R3 | Custom roles, teams and routing; AI sales agents that hand over to people. |
-| **M8 AI credits** | B6, B7 + L2 | Every AI call metered; monthly credits per plan; top-ups; enforcement after a month of counting. |
-| **M9 Reports and hardening** | B8, T2 | Revenue and usage reports, add-ons, Postgres row-level security. |
+| **M0 Safe to build** | owner action, Q0, S0 | Avinash Group keeps running. Every change is tested in CI and rehearsed on staging. Customers can't become admins. |
+| **M1 Sell by feature** | A0, B0, B1, B5a, L2a | Design plans by ticking features (for example "Website AI Chat"); menus lock and unlock within a minute; customers are warned before expiry; AI cost per organisation is known. |
+| **M2 Get paid (MVP complete)** | B3, B2, B4 | Bank and UPI payments recorded with numbered invoices that activate plans; customers pay online. |
+| **M3 Team and oversight** | R1, S1, T1 | Sales agents see only their chats; audited support sessions; one view of every organisation's health; isolation enforced in data. |
+| **M4 Limits and lifecycle** | L1, B6, B5b + P1, B7 + L2b | Usage and storage screens; upgrades pay the difference; AI credits enforced after a month of data. |
+| **M5 Growth** | R2, R3, B8, T2 | Custom roles and teams, AI sales agents, revenue reports, row-level security. |
 
 ## Phase cards
 
@@ -82,7 +87,25 @@ Each card adds what the specs leave out:
 
 Scope detail is in the cited sections. "Review" names the skill checklist that the reviewing agent applies. It must be a different agent from the author.
 
-### 1. S0 Safety net
+### Q0 Quality gates (before any build)
+- **Outcome:** every change is tested automatically on SQLite and Postgres and can be rehearsed on staging.
+- **Scope:** review AR1, AR2, QA1, QA2, QA3, QA4.
+- **Key deliverables:**
+  - `bitbucket-pipelines.yml` ported from `.github/workflows/test.yml` (Node 20; a SQLite leg; a Postgres 16 service leg with `PG_TEST_URL`), run on every branch and pull request;
+  - the 28 known failures fixed or quarantined in `tests/QUARANTINE.md` (owner and reason per test), and the gate "green except quarantine; quarantine does not grow";
+  - staging: a second compose project `nexus-staging` on the same server, its own database restored from a masked production copy, `staging.nexus.radixile.com`, Razorpay **test** keys, SMTP to a catch-all inbox, and a deploy script option `--staging <branch>`;
+  - a branch per phase (`feature/<phase>`), merged to `master` only when green;
+  - `docs/platform/UAT-LOG.md`.
+- **Switches:** none.
+- **Done when:**
+  - a pull request with a failing test is shown red in Bitbucket;
+  - staging serves the current `master` with its own database;
+  - the suite is green apart from the listed quarantine.
+- **Owner check:** open staging, log in, see test data (not real customers' messages).
+- **Rollback:** none needed (tooling only).
+- **Review:** QA review checklist in `REVIEW-2026-11-19.md` section 4.
+
+### S0 Safety net
 - **Outcome:** a customer can never become a global admin. Every route is inventoried, and an isolation baseline exists.
 - **Scope:** access 16 (S0). Production was verified on 19 Nov 2026: no customer holds admin.
 - **Key deliverables:**
@@ -99,7 +122,7 @@ Scope detail is in the cited sections. "Review" names the skill checklist that t
 - **Rollback:** revert the commit. There is no migration.
 - **Review:** `access-control`, `tenant-isolation`.
 
-### 2. A0 Access foundation
+### A0 Access foundation
 - **Outcome:** one engine answers every check, with identical behaviour to today.
 - **Scope:** access 5, 6.2 and 16 (A0); ACCESS-REQUIREMENTS 4.1 and 5.3 (catalogues).
 - **Key deliverables:**
@@ -116,23 +139,7 @@ Scope detail is in the cited sections. "Review" names the skill checklist that t
 - **Rollback:** revert. A0 adds no tables except the `organizations.status` column (all `active`).
 - **Review:** `access-control`.
 
-### 3. T1 Tenancy hardening (one release per module)
-- **Outcome:** isolation enforced in data, not just remembered in queries.
-- **Scope:** access 11 and 16 (T1).
-- **Key deliverables, per module:**
-  - an `org_id` migration with backfill, then `NOT NULL` and indexes;
-  - `forCtx` repositories;
-  - id resolution answering 404;
-  - jobs and webhooks on a system ctx;
-  - the module's caches keyed by organisation;
-  - files moved under `{org_id}/{workspace_id}/`, with a resumable script and a recount.
-- **Order:** content, media, leads/CRM/Sellbird, inbox, SEO, e-mail, bio/tools, legacy user tables.
-- **Switches:** none per module. The raw-knex lint test is tightened module by module.
-- **Owner check:** the isolation harness report shows the baseline shrinking to zero. Decide what to do with the orphan rows the migration lists.
-- **Rollback:** each module's migration adds columns only; reverting the code is safe. The `NOT NULL` step is a separate migration after a week.
-- **Review:** `tenant-isolation` (mandatory for every module).
-
-### 4. B0 Catalogue and plan designer (parallel with T1)
+### B0 Catalogue and plan designer
 - **Outcome:** Super Admin → Billing exists, with plans, prices, tax and coupons; plans are data.
 - **Scope:** billing 12 (B0); ACCESS-REQUIREMENTS 4.2 (designer, revisions, private plans); PLAN 5.1.
 - **Key deliverables:**
@@ -149,7 +156,7 @@ Scope detail is in the cited sections. "Review" names the skill checklist that t
 - **Rollback:** the migration `down` drops only `bill_*` tables.
 - **Review:** `billing-money-review` (pricing maths), `access-control`.
 
-### 5. B1 Feature gate and menu
+### B1 Feature gate and menu
 - **Outcome:** plans control features and menus within a minute; upgrade prompts appear.
 - **Scope:** access 7, 8 and 16 (B1a, B1b); PLAN 4.1.
 - **Key deliverables:**
@@ -170,7 +177,61 @@ Scope detail is in the cited sections. "Review" names the skill checklist that t
 - **Rollback:** switch off.
 - **Review:** `access-control`, `tenant-isolation`.
 
-### 6. R1 Roles v2 and support mode
+### B5a Expiry and overdue alerts (Wave 1)
+- **Outcome:** owners are warned before a trial or paid period ends, and after it lapses, by e-mail and an in-app banner. This works before the billing module bills anyone, because it reads today's `trial_ends_at` and `paid_until`, and later the subscription.
+- **Scope:** billing 5.11 (dedupe keys, recipients), the reminder offsets in billing 5.10 (D-30/15/5/2/1), and the lapse notice. Not upgrade or downgrade.
+- **Key deliverables:**
+  - the `reminders` job (08:00 IST, claimed per day through `bill_job_run`);
+  - e-mail templates;
+  - a banner component on the dashboard with a "Choose a plan" button (opens Billing, or "contact us" until B4);
+  - a staff "send a test reminder" action;
+  - SMTP domain check (review AR9).
+- **Switches:** `BILLING_REMINDERS_ENABLED` off at release; switched on after a test send on staging.
+- **Done when:**
+  - with the clock override on staging, an organisation whose trial ends in 7, 2 and 1 days gets exactly one e-mail per offset;
+  - a second run sends nothing;
+  - the banner shows the right date.
+- **Owner check:** receive the test reminders for a staging organisation.
+- **Rollback:** switch off.
+- **Review:** `billing-money-review` (notification rules), `tenant-isolation` (recipients inside the organisation).
+
+### L2a AI usage counting (Wave 1, count only)
+- **Outcome:** every AI call on platform keys and on the organisation's own keys is recorded per organisation, workspace, feature, model and provider cost. Nothing is limited.
+- **Scope:** access 10.2 (sequence, what counts, BYOK counted not charged) and billing 5.9 (`bill_ai_request`, `bill_feature_price`). Only the recording: no credits are deducted, nothing is blocked.
+- **Key deliverables:**
+  - an `afterCall` hook beside the existing `beforeCall` in `aiHelper.aiGenerate`;
+  - the same in image and video generation and in the bot's AI path;
+  - a staff usage view (per organisation, feature, model, cost);
+  - a test that fails on an unmetered AI call site;
+  - prompts never stored (hashes and token counts only).
+- **Switches:** `BILLING_AI_ENABLED` (metering on, enforcement off).
+- **Done when:**
+  - every AI call path is recorded;
+  - a failure in recording never delays or fails the AI answer (slow-database test);
+  - a month's counts compare with the provider dashboards within 5%.
+- **Owner check:** after a week, read the staff usage view, then decide credit prices and allowances for B7.
+- **Rollback:** switch off.
+- **Review:** `usage-limits`, `tenant-isolation`.
+
+### B3 Invoices and offline payments, B2 Wallet, B4 Online payment and Billing page
+- **Outcome:**
+  - staff record bank, UPI, cheque and cash payments, which issue numbered invoices and activate the plan;
+  - customers pay online through Razorpay (shared account with UrbanSociety, PLAN 6) on one Billing page.
+- **Scope:** billing 5.6–5.8 and 12 (B2–B4); PLAN 5.2 and 6.
+- **Before B3 goes live:** seller details (PLAN Q5).
+- **Before B4 goes live:**
+  - copy the Razorpay keys server to server (PLAN Q6);
+  - add the Nexus webhook in the Razorpay dashboard (the owner does this);
+  - the old licence-server client is removed in B4 (PLAN N1).
+- **Switches:** without Razorpay keys, checkout answers 503 `NOT_CONFIGURED`.
+- **Owner check:**
+  - record a ₹1 bank payment for a test organisation and check the invoice PDF (rupee sign, Hindi name);
+  - pay ₹1 online in Razorpay test mode;
+  - replay the webhook and confirm there is one payment.
+- **Rollback:** additive tables. Each phase is reverted by switch or code revert; money tables are never dropped once used.
+- **Review:** `billing-money-review` (mandatory), `tenant-isolation`.
+
+### R1 Roles v2 and support mode
 - **Outcome:** sales, support, bot-designer and viewer roles; data scope; staff in a table with MFA; support sessions instead of silent access.
 - **Scope:** ACCESS-REQUIREMENTS 5.1–5.5 and 13; access 6, 9.1, 9.3 and 16 (R1).
 - **Key deliverables:**
@@ -192,7 +253,7 @@ Scope detail is in the cited sections. "Review" names the skill checklist that t
 - **Rollback:** switch off. The new tables are additive, and the old `role` columns are kept for one release.
 - **Review:** `access-control`, `tenant-isolation`.
 
-### 7. S1 Staff console and organisation health
+### S1 Staff console and organisation health
 - **Outcome:** one console over all organisations, with a health badge each.
 - **Scope:** access 9.2 (including Org health), 9.4 and 15; staff roles `support`, `billing_ops` and `auditor`.
 - **Key deliverables:**
@@ -209,25 +270,23 @@ Scope detail is in the cited sections. "Review" names the skill checklist that t
 - **Rollback:** revert. There are no customer effects.
 - **Review:** `access-control`.
 
-### 8–10. B2 Wallet, B3 Invoices and offline payments, B4 Online payment and Billing page
-- **Outcome:**
-  - staff record bank, UPI, cheque and cash payments, which issue numbered invoices and activate the plan;
-  - customers pay online through Razorpay (shared account with UrbanSociety, PLAN 6) on one Billing page.
-- **Scope:** billing 5.6–5.8 and 12 (B2–B4); PLAN 5.2 and 6.
-- **Before B3 goes live:** seller details (PLAN Q5).
-- **Before B4 goes live:**
-  - copy the Razorpay keys server to server (PLAN Q6);
-  - add the Nexus webhook in the Razorpay dashboard (the owner does this);
-  - the old licence-server client is removed in B4 (PLAN N1).
-- **Switches:** without Razorpay keys, checkout answers 503 `NOT_CONFIGURED`.
-- **Owner check:**
-  - record a ₹1 bank payment for a test organisation and check the invoice PDF (rupee sign, Hindi name);
-  - pay ₹1 online in Razorpay test mode;
-  - replay the webhook and confirm there is one payment.
-- **Rollback:** additive tables. Each phase is reverted by switch or code revert; money tables are never dropped once used.
-- **Review:** `billing-money-review` (mandatory), `tenant-isolation`.
+### T1 Tenancy hardening (parallel track; one release per module)
+- **Outcome:** isolation enforced in data, not just remembered in queries.
+- **Scope:** access 11 and 16 (T1).
+- **Key deliverables, per module:**
+  - an `org_id` migration with backfill, then `NOT NULL` and indexes;
+  - `forCtx` repositories;
+  - id resolution answering 404;
+  - jobs and webhooks on a system ctx;
+  - the module's caches keyed by organisation;
+  - files moved under `{org_id}/{workspace_id}/`, with a resumable script and a recount.
+- **Order:** content, media, leads/CRM/Sellbird, inbox, SEO, e-mail, bio/tools, legacy user tables.
+- **Switches:** none per module. The raw-knex lint test is tightened module by module.
+- **Owner check:** the isolation harness report shows the baseline shrinking to zero. Decide what to do with the orphan rows the migration lists.
+- **Rollback:** each module's migration adds columns only; reverting the code is safe. The `NOT NULL` step is a separate migration after a week.
+- **Review:** `tenant-isolation` (mandatory for every module).
 
-### 11. L1 Limits framework and storage
+### L1 Limits framework and storage
 - **Outcome:** customers see seats, workspaces, contacts and storage used against the plan; storage is counted exactly.
 - **Scope:** access 10.1, 10.3, 10.4 and 16 (L1).
 - **Key deliverables:**
@@ -247,9 +306,24 @@ Scope detail is in the cited sections. "Review" names the skill checklist that t
 - **Rollback:** switch off. The registry is additive.
 - **Review:** `usage-limits`, `tenant-isolation`.
 
-### 12. B5 + P1 Lifecycle, expiry alerts, lockout, plan change handling
+### B6 Message metering, B7 + L2b AI credits and enforcement
 - **Outcome:**
-  - expiry and overdue e-mails and banners;
+  - every AI call metered with reserve, settle and release (the counting itself started in L2a);
+  - credits per plan, top-ups, daily, user and platform cost caps;
+  - BYOK counted but not charged;
+  - message counts.
+- **Scope:** billing 5.9 and 12 (B6, B7); access 10.2 and 16 (L2; enforcement part).
+- **Switches:**
+  - `BILLING_AI_ENABLED` metering on and enforcement off for a month;
+  - `BILLING_ENFORCEMENT_ENABLED` off;
+  - then one organisation at a time.
+- **Owner check:**
+  - compare a month of counted credits with the AI provider bills;
+  - set the credit prices and allowances in the designer.
+- **Review:** `usage-limits`, `billing-money-review`.
+
+### B5b + P1 Plan lifecycle, lockout, plan change handling
+- **Outcome:**
   - upgrade (pay the difference), downgrade at period end, cancel and undo;
   - the impact preview and keep-for-current in the designer;
   - downgrade behaviour (access 7.5);
@@ -260,7 +334,7 @@ Scope detail is in the cited sections. "Review" names the skill checklist that t
 - **Rollback:** switch off.
 - **Review:** `billing-money-review`, `access-control`.
 
-### 13. R2 Custom roles, teams and routing
+### R2 Custom roles, teams and routing
 - **Outcome:** organisations make their own roles from templates; teams and routing rules; agent status.
 - **Scope:** ACCESS-REQUIREMENTS 5.7–5.8; access 6.3–6.4 and 16 (R2).
 - **Switches:** sellable features `custom_roles` and `teams_routing`, off in seeded plans until the owner ticks them.
@@ -269,34 +343,18 @@ Scope detail is in the cited sections. "Review" names the skill checklist that t
   - confirm an Admin cannot grant more than they hold.
 - **Review:** `access-control`.
 
-### 14. R3 AI sales agents
+### R3 AI sales agents
 - **Outcome:** AI agents per workspace with restricted rights. Routing goes bot, then AI agent, then person. Today's "Let AI answer" becomes the default agent unchanged.
 - **Scope:** ACCESS-REQUIREMENTS 5.6.
 - **Switches:** sellable feature `ai_agents`. The migration of today's fallback keeps behaviour identical (characterization on recorded bot conversations).
 - **Owner check:** an AI agent for Ask Avi qualifies a test lead and hands over on "talk to a person"; an export attempt by the agent is refused.
 - **Review:** `access-control`, `tenant-isolation` (prompt contains only own workspace data), `usage-limits`.
 
-### 15–16. B6 Metering, B7 + L2 AI credits and enforcement
-- **Outcome:**
-  - every AI call metered: reserve, settle, release;
-  - credits per plan, top-ups, daily, user and platform cost caps;
-  - BYOK counted but not charged;
-  - message counts.
-- **Scope:** billing 5.9 and 12 (B6, B7); access 10.2 and 16 (L2).
-- **Switches:**
-  - `BILLING_AI_ENABLED` metering on and enforcement off for a month;
-  - `BILLING_ENFORCEMENT_ENABLED` off;
-  - then one organisation at a time.
-- **Owner check:**
-  - compare a month of counted credits with the AI provider bills;
-  - set the credit prices and allowances in the designer.
-- **Review:** `usage-limits`, `billing-money-review`.
-
-### 17. B8 Reports and add-ons
+### B8 Reports and add-ons
 - **Outcome:** MRR, ARR, ageing, collections, AI margin; paid add-ons on top of plans (ACCESS-REQUIREMENTS 4.4).
 - **Review:** `billing-money-review`.
 
-### 18. T2 Postgres row-level security (optional)
+### T2 Postgres row-level security (optional)
 - **Outcome:** the database itself refuses cross-organisation reads on the server edition.
 - **Scope:** access 11.3.
 - **Switches:** `ACCESS_RLS_ENABLED` in audit mode for 2 weeks, then enforce.
@@ -306,17 +364,21 @@ Scope detail is in the cited sections. "Review" names the skill checklist that t
 
 | Before | Decide | Default if not decided |
 |---|---|---|
+| Wave 0 | Avinash Group: extend the trial or set a paid plan before 2 Dec (review PO1) | **no default: needs a decision** |
+| Q0 | staging on the same server; branch per phase; Bitbucket Pipelines | as proposed |
 | S0 | nothing | go |
 | A0 | feature list grouping (ACCESS-REQUIREMENTS 4.1); permission keys (5.3) | as written |
-| B0 | yearly price rule (PLAN Q4); keep the draft migration | percentage annual discount; keep |
-| B1 | locked vs hidden menu items (A3 / Q6); which features each plan should **not** have | locked; all on until the owner edits |
-| R1 | role list and matrix (5.2); Creator bot change (A9); staff MFA (Q5); support consent (A2 / Q4) | as written |
-| B3 | seller details on invoices (PLAN Q5) | **blocks go-live**, not the build |
-| B4 | Razorpay keys copy and Nexus webhook (PLAN Q6) | **blocks go-live**, not the build |
-| L1 | storage quotas per plan (access 7.3), trash counts (Q9) | unlimited seeded; warn only |
-| B5 | grace days, reminder schedule | 3 days; D-30/15/5/2/1 |
+| B0 | yearly price rule (PLAN Q4); keep the draft migration | percentage annual discount; keep (with the C-register follow-ups) |
+| B1 (switch on) | **first price list and which features each plan lacks** (review section 6); locked vs hidden menu items (A3 / Q6) | gate stays off; locked |
+| B5a | reminder offsets; sender address | D-30/15/5/2/1 before, +3/+7 after; the existing SMTP sender |
+| L2a | nothing (count only) | go |
+| B3 (go-live) | seller details and GST status (PLAN Q5) | **blocks go-live**, not the build |
+| B4 (go-live) | Razorpay live keys copied server to server and the Nexus webhook; test-mode keys for staging (PLAN Q6) | **blocks go-live**, not the build |
+| R1 | role list and matrix (5.2); Creator bot change (A9); staff MFA (Q5); support consent (A2 / Q4); whether Avinash Group needs agent logins now (review PO6) | as written |
+| L1 | storage quotas per plan (access 7.3); trash counts (Q9) | unlimited seeded; warn only |
+| B5b | grace days | 3 days |
+| B7 | credit prices and allowances (from L2a data) | count only until set |
 | R2 / R3 | custom roles and AI agents per plan (Q12, A6) | Agency and Full |
-| B7 | credit prices and allowances (access 10.2, 7.3) | count only until set |
 
 ## How to use Claude models for this build
 - **Author:** the strongest model (Opus 5.5) for S0, A0, T1, B3, B4, B7 and L2, which cover security, isolation and money. Sonnet 5.5 for screens, routes and tests written from a fixed contract.
@@ -325,10 +387,11 @@ Scope detail is in the cited sections. "Review" names the skill checklist that t
 - **One phase at a time.** A phase is committed only when its gates pass. Every commit to `master` deploys to production.
 
 ## Gates between phases (every phase)
-1. **Tests:** the phase's own "Done when" tests pass. The route inventory and two-org isolation harness stay green; from T1 onwards their baseline is empty.
+0. **Where:** built on `feature/<phase>`; Bitbucket Pipelines green on SQLite and Postgres; rehearsed on staging (UAT recorded in `UAT-LOG.md`); only then merged to `master`, which deploys to production.
+1. **Tests:** the phase's own "Done when" tests pass, and the full suite is green apart from `tests/QUARANTINE.md`, which must not grow. The route inventory and two-org isolation harness stay green; their baseline shrinks with T1 and is empty when T1 completes. A real cross-organisation leak found at any time is fixed at once.
 2. **Consistency checker:** green from B1 onwards.
 3. **Migration:** it runs on empty SQLite, empty Postgres and a copy of production data, and has a rollback note.
-4. **Before/after check:** a before and after snapshot of plans, subscription states, counts and money totals is taken. Any unexplained difference stops the rollout.
+4. **Before/after check:** a before and after snapshot of plans, subscription states, counts and money totals, plus the access snapshot diff (every organisation and user's `/api/me/access` and menu, from A0), is taken. Any unexplained difference stops the rollout.
 5. **Owner hand-off:** release notes, a changelog entry and a version bump; a UAT checklist for the owner; and a list of what has never run for real.
 
 ## Conflicts resolved (19 Nov 2026)

@@ -137,8 +137,9 @@ This is the single place a customer goes for anything about paying.
 
 ## 7. Phases
 **The one build order, with dependencies and detailed phase cards, is `docs/platform/ROADMAP.md`.** Phase ids used across the
-documents: S0 (safety), A0 (access foundation), T1 and T2 (tenancy), B0 to B8 (billing), R1 to R3 (roles, support, AI
-agents), S1 (staff console and health), L1 and L2 (limits), P1 (plan change handling).
+documents: Q0 (quality gates), S0 (safety), A0 (access foundation), T1 and T2 (tenancy), B0 to B8 (billing, with B5 split
+into B5a alerts and B5b lifecycle), R1 to R3 (roles, support, AI agents), S1 (staff console and health), L1, L2a and L2b
+(limits), P1 (plan change handling). Priority and reasons: `docs/platform/REVIEW-2026-11-19.md`.
 
 ## 8. Decisions taken for Nexus (owner may override)
 

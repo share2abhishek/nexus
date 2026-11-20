@@ -698,7 +698,7 @@ Every phase ships on its own, with migrations first, a version bump, release not
   - reconciliation drift is 0 on a copy of production;
   - no module writes files outside the files service (test).
 
-### L2 AI usage limits (medium; with billing B6/B7 AI part)
+### L2 AI usage limits (medium; delivered as L2a counting in Wave 1 and L2b enforcement with B7, per `ROADMAP.md`)
 - **Scope:**
   - credit prices;
   - reserve, settle and release on every AI path (`aiHelper`, `platformAi`, `aiAssist`, `helpAssistant`, knowledge base, SEO, image and video, bots);

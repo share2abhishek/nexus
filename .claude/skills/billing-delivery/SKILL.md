@@ -15,7 +15,8 @@ per-phase loop below apply to them.
 
 ## Rules of the road
 
-1. **One phase at a time**, in the `ROADMAP.md` order (each card names the review skill to use). Each phase ships alone, with a version bump, release notes and a changelog entry.
+1. **One phase at a time**, in the `ROADMAP.md` wave order (each card names the review skill to use), on a branch
+   `feature/<phase>`, rehearsed on staging, merged to `master` only when CI is green (every `master` commit deploys). Each phase ships alone, with a version bump, release notes and a changelog entry.
    Do not start B5 or B7 enforcement until B1 and B6 data has run for a month.
 2. **Plan before code.** For a phase, read its section, list the files you will add and change, list the tests, then build.
    Ask the owner only for decisions in section 15 that the default does not settle.

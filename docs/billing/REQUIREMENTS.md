@@ -517,7 +517,7 @@ Do not rip out the external service on day one.
 
 ## 12. Phases (each ships on its own, each with a version bump, release notes and tests)
 
-**The order and the final split of work are in `docs/platform/ROADMAP.md`.** Mapping: B1 below is delivered as ROADMAP **A0** (engine, adapter, characterization) plus **B1** (feature gate and menu); B6 and B7 metering pair with ROADMAP **L1** and **L2**; B5 pairs with **P1**. Scope and "Done when" below still apply.
+**The order and the final split of work are in `docs/platform/ROADMAP.md`.** Mapping: B1 below is delivered as ROADMAP **A0** (engine, adapter, characterization) plus **B1** (feature gate and menu); B5 is split into **B5a** (expiry and overdue alerts, early) and **B5b** (lifecycle, paired with **P1**); AI usage counting starts early as **L2a**, and B7 pairs with **L2b** (enforcement); B6 follows **L1**. Scope and "Done when" below still apply.
 
 | Phase | Scope | Ships dark? | Done when |
 |---|---|---|---|
