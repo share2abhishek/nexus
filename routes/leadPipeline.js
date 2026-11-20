@@ -1895,8 +1895,21 @@ module.exports = (knex, requirePermission) => {
         : !!((config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN) && config.whatsapp_phone_number_id);
       const optedOut = (await chatbot.optedOutLeadIds(knex, req.workspaceId)).size;
       const base = (process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
-      res.json({ ...settings, licensed: await broadcast.licensed(req.workspaceId), whatsapp_connected: connected, engine, opted_out_count: optedOut, limits: chatbot.LIMITS, n8n_configured: !!config.n8n_webhook_url, webchat_token: config.webchat_token, webchat_base: base });
+      res.json({ ...settings, licensed: await broadcast.licensed(req.workspaceId), whatsapp_connected: connected, engine, opted_out_count: optedOut, limits: chatbot.LIMITS, n8n_configured: !!config.n8n_webhook_url, webchat_token: config.webchat_token, webchat_base: base, webchat_profile: require('../services/leadPipeline/webchatProfile').editable(config) });
     } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // The website chat's look (name, picture, description, colour): this workspace only
+  router.post('/webchat/profile', requirePermission('content.edit'), async (req, res) => {
+    try {
+      const webchatProfile = require('../services/leadPipeline/webchatProfile');
+      const profile = webchatProfile.sanitize(req.body || {});
+      await repo.getOrCreateConfig(req.workspaceId);
+      await knex('meta_lead_configs').where({ workspace_id: req.workspaceId })
+        .update({ webchat_profile: JSON.stringify(profile), updated_at: Math.floor(Date.now() / 1000) });
+      const config = await repo.getOrCreateConfig(req.workspaceId);
+      res.json({ webchat_profile: webchatProfile.editable(config) });
+    } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
   });
 
   // New website-chat token (the old embed code stops working)

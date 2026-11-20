@@ -5396,6 +5396,22 @@ body:not(.light-mode) .state-error { color: #fca5a5; }
 .bot-editor .card-body { padding: 16px 20px; }
 .bot-editor code { background: var(--bg-tertiary); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
+/* 7. Website chat: look editor + live preview */
+.wc-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.wc-form { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.wc-form .form-label { margin-top: 8px; margin-bottom: 0; }
+.wc-avatar-row { display: flex; align-items: center; gap: 14px; }
+.wc-avatar { width: 64px; height: 64px; border-radius: 50%; flex: none; overflow: hidden; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 26px; font-weight: 600; }
+.wc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.wc-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.wc-color-row { display: flex; gap: 8px; align-items: center; }
+.wc-color-row input[type="color"] { width: 42px; height: 38px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; background: none; cursor: pointer; flex: none; }
+.wc-save { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+.wc-preview { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.wc-preview-tabs { display: flex; gap: 6px; }
+.wc-preview iframe { width: 340px; height: 600px; border: 1px solid var(--border); border-radius: 22px; background: #fcfcfb; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
+@media (max-width: 1400px) { .wc-layout { grid-template-columns: 1fr; } }
+
 .bot-hero {
   display: flex; align-items: center; gap: 16px; padding: 18px 20px; margin-bottom: 16px;
   background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-md);

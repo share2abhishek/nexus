@@ -152,7 +152,7 @@ app.get('/webchat/:token', (req, res) => {
   res.type('html').send(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
 <title>Chat</title><style>html,body{margin:0;height:100%;background:#f3f1ee}</style></head>
-<body><script src="/webchat-widget.js" data-token="${token}" data-open="true"></script></body></html>`);
+<body><script src="/webchat-widget.js" data-token="${token}" data-open="true"${req.query.preview === '1' ? ' data-preview="true"' : ''}></script></body></html>`);
 });
 
 // index: false, so "/" goes to the route below (app or landing page), not straight to index.html

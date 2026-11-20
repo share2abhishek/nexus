@@ -181,26 +181,7 @@ function renderWhatsAppBot() {
           </div>
         </div>
 
-        ${(() => {
-          const base = d.webchat_base || '';
-          const tok = d.webchat_token || '';
-          const snippet = `<script src="${base}/webchat-widget.js"\n        data-token="${tok}"\n        data-name="Your business"\n        data-color="#15233b"></scr` + `ipt>`;
-          return `
-        <div class="settings-section" id="bot-webchat">
-          <div class="settings-section-header">
-            <div><div class="settings-section-title">7. Put the bot on your website</div>
-            <div class="settings-section-sub">Optional. Paste this one line into your website just before &lt;/body&gt;. A chat bubble appears and answers with the same menu, keywords and knowledge base as WhatsApp.</div></div>
-          </div>
-          <div class="card-body">
-            <textarea class="form-textarea" id="bot-webchat-snippet" readonly rows="4" style="font-family:monospace;font-size:12px" onclick="this.select()">${escapeHtml(snippet)}</textarea>
-            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-              <button class="btn btn-secondary btn-sm" type="button" onclick="copyWebchatSnippet()">Copy code</button>
-              <button class="btn btn-ghost btn-sm" type="button" onclick="regenerateWebchatToken()">Reset the code</button>
-            </div>
-            <div class="form-hint" style="margin-top:8px">Change <code>data-name</code> to your business and <code>data-color</code> to your brand colour. Anyone with this code can chat with your bot — reset it if it leaks. Replies need an active licence and your AI setup (for AI answers), same as WhatsApp.</div>
-          </div>
-        </div>`;
-        })()}
+        ${botWebchatSection(d)}
 
         <div class="bot-savebar">
           <span id="bot-dirty" class="form-hint">${BotState.dirty ? 'Unsaved changes' : 'All changes saved'}</span>
@@ -239,9 +220,9 @@ function wireWhatsAppBot() {
     const el = document.getElementById('bot-dirty');
     if (el) el.textContent = 'Unsaved changes';
   };
-  root.addEventListener('input', markDirty);
+  root.addEventListener('input', (e) => { if (!e.target.closest('#bot-webchat')) markDirty(); });
   root.addEventListener('change', (e) => {
-    if (e.target.closest('.bot-try')) return;
+    if (e.target.closest('.bot-try') || e.target.closest('#bot-webchat')) return;
     markDirty();
     if (e.target.id === 'bot-enabled') {
       document.getElementById('bot-hero-title').textContent = e.target.checked ? 'Auto-replies will be on (save to start)' : 'Auto-replies will be off (save to stop)';
@@ -267,6 +248,196 @@ function wireWhatsAppBot() {
   document.getElementById('bot-save').onclick = saveWhatsAppBot;
   document.getElementById('bot-try-form').onsubmit = (e) => { e.preventDefault(); tryWhatsAppBot(); };
   document.getElementById('bot-try-clear').onclick = () => { BotState.tryLog = []; BotState.tryPaused = false; renderBotTryLog(); };
+  wireWebchatLook();
+}
+
+// ── 7. Website chat: its look (name, picture, description, colour) with a live preview ──
+const WC_DEFAULT_COLOR = '#D4813C';
+
+function botWebchatSection(d) {
+  const p = d.webchat_profile || {};
+  const tok = d.webchat_token || '';
+  const base = d.webchat_base || '';
+  const snippet = `<script src="${base}/webchat-widget.js"\n        data-token="${tok}"></scr` + `ipt>`;
+  const color = p.color || WC_DEFAULT_COLOR;
+  return `
+        <div class="settings-section" id="bot-webchat">
+          <div class="settings-section-header">
+            <div><div class="settings-section-title">7. Website chat</div>
+            <div class="settings-section-sub">How the chat looks on your website, and the code to put it there. It answers with the same menu, answers and knowledge base as WhatsApp. The preview updates as you type.</div></div>
+          </div>
+          <div class="card-body">
+            <div class="wc-layout">
+              <div class="wc-form">
+                <label class="form-label" for="wc-name">Bot name</label>
+                <input class="form-input" id="wc-name" maxlength="60" value="${escapeHtml(p.name || '')}" placeholder="e.g. Ask Avi" />
+
+                <label class="form-label" for="wc-avatar-file">Bot picture</label>
+                <div class="wc-avatar-row">
+                  <div class="wc-avatar" id="wc-avatar-thumb"></div>
+                  <div>
+                    <input type="file" id="wc-avatar-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+                    <button class="btn btn-secondary btn-sm" type="button" id="wc-avatar-pick">Upload picture</button>
+                    <button class="btn btn-ghost btn-sm" type="button" id="wc-avatar-remove">Remove</button>
+                    <div class="form-hint">A square picture works best. It’s resized to 256 × 256.</div>
+                  </div>
+                </div>
+
+                <label class="form-label" for="wc-desc">Welcome text <span class="form-hint" style="display:inline;font-weight:400">— under the picture before the chat starts. Put *stars* around words to make them bold.</span></label>
+                <textarea class="form-textarea" id="wc-desc" rows="3" maxlength="400" placeholder="e.g. Hi, I’m Avi! Ask me about our projects. Send *Hi* to begin.">${escapeHtml(p.description || '')}</textarea>
+
+                <div class="wc-two">
+                  <div>
+                    <label class="form-label" for="wc-color">Brand colour</label>
+                    <div class="wc-color-row">
+                      <input type="color" id="wc-color" value="${escapeHtml(color)}" />
+                      <input class="form-input" id="wc-color-text" maxlength="7" value="${escapeHtml(color)}" />
+                    </div>
+                  </div>
+                  <div>
+                    <label class="form-label" for="wc-placeholder">Message box text</label>
+                    <input class="form-input" id="wc-placeholder" maxlength="80" value="${escapeHtml(p.placeholder || '')}" placeholder="Type your message..." />
+                  </div>
+                </div>
+
+                <label class="form-label" for="wc-whatsapp">WhatsApp number <span class="form-hint" style="display:inline;font-weight:400">— optional, with country code</span></label>
+                <input class="form-input" id="wc-whatsapp" maxlength="20" value="${escapeHtml(p.whatsapp || '')}" placeholder="919876543210" />
+
+                <div class="wc-save">
+                  <button class="btn btn-primary btn-sm" type="button" id="wc-save">Save chat look</button>
+                  <span class="form-hint" id="wc-state">Saved</span>
+                </div>
+              </div>
+
+              <div class="wc-preview">
+                <div class="wc-preview-tabs" role="group" aria-label="Preview">
+                  <button type="button" class="btn btn-sm btn-secondary active" data-wc-view="start">Start screen</button>
+                  <button type="button" class="btn btn-sm btn-ghost" data-wc-view="chat">Conversation</button>
+                </div>
+                ${tok ? `<iframe id="wc-frame" title="Website chat preview" src="/webchat/${encodeURIComponent(tok)}?preview=1" loading="lazy"></iframe>` : '<div class="state-empty">Preview appears once the chat code is ready.</div>'}
+                ${tok ? `<a class="form-hint" href="/webchat/${encodeURIComponent(tok)}" target="_blank" rel="noopener">Open the live chat ↗</a>` : ''}
+              </div>
+            </div>
+
+            <label class="form-label" style="margin-top:18px">Code for your website</label>
+            <div class="form-hint" style="margin-bottom:6px">Paste this one line into your website just before &lt;/body&gt;. Changes to the look above show on your website without changing the code.</div>
+            <textarea class="form-textarea" id="bot-webchat-snippet" readonly rows="2" style="font-family:monospace;font-size:12px" onclick="this.select()">${escapeHtml(snippet)}</textarea>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <button class="btn btn-secondary btn-sm" type="button" onclick="copyWebchatSnippet()">Copy code</button>
+              <button class="btn btn-ghost btn-sm" type="button" onclick="regenerateWebchatToken()">Reset the code</button>
+            </div>
+            <div class="form-hint" style="margin-top:8px">Anyone with this code can chat with your bot — reset it if it leaks. Replies need an active licence and your AI setup (for AI answers), same as WhatsApp.</div>
+          </div>
+        </div>`;
+}
+
+const WcState = { avatar: '', view: 'start', sample: null, dirty: false };
+
+function wcDraft() {
+  const v = (id) => document.getElementById(id)?.value ?? '';
+  return { name: v('wc-name').trim(), description: v('wc-desc').trim(), color: v('wc-color-text').trim(),
+    placeholder: v('wc-placeholder').trim(), whatsapp: v('wc-whatsapp').trim(), avatar: WcState.avatar };
+}
+
+function wcThumb() {
+  const el = document.getElementById('wc-avatar-thumb');
+  if (!el) return;
+  const d = wcDraft();
+  el.style.background = WcState.avatar ? '#f4e9e4' : (/^#[0-9a-fA-F]{6}$/.test(d.color) ? d.color : WC_DEFAULT_COLOR);
+  el.innerHTML = WcState.avatar ? `<img src="${escapeHtml(WcState.avatar)}" alt="" />` : escapeHtml((d.name || '?').charAt(0).toUpperCase());
+}
+
+function wcPost() {
+  const f = document.getElementById('wc-frame');
+  if (!f || !f.contentWindow) return;
+  const msg = { type: 'nexus-chat-preview', profile: wcDraft(), messages: WcState.view === 'chat' ? (WcState.sample || []) : [] };
+  f.contentWindow.postMessage(msg, location.origin);
+}
+
+// The conversation preview: what the bot really says to "Hi" (same rules as "Try it")
+async function wcLoadSample() {
+  try {
+    const r = await api('POST', '/api/lead-pipeline/bot/preview', { text: 'Hi', config: collectBotConfig(), first_time: true });
+    const replies = (r.replies || []).map(t => ({ who: 'bot', text: t }));
+    WcState.sample = [{ who: 'me', text: 'Hi' }, ...(replies.length ? replies : [{ who: 'bot', text: 'Hello! How can we help?' }])];
+  } catch { WcState.sample = [{ who: 'me', text: 'Hi' }, { who: 'bot', text: 'Hello! How can we help?' }]; }
+}
+
+function wcMarkDirty() {
+  WcState.dirty = true;
+  const s = document.getElementById('wc-state');
+  if (s) s.textContent = 'Unsaved changes';
+  wcThumb(); wcPost();
+}
+
+// Square-crop and shrink a picture to 256 × 256 so it stays small
+function wcResize(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const size = 256, side = Math.min(img.width, img.height);
+      const c = document.createElement('canvas'); c.width = c.height = size;
+      c.getContext('2d').drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
+      URL.revokeObjectURL(img.src);
+      let out = c.toDataURL('image/png');
+      if (out.length > 200 * 1024) out = c.toDataURL('image/jpeg', 0.85);
+      resolve(out);
+    };
+    img.onerror = () => reject(new Error('That file isn’t a picture we can read.'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function wireWebchatLook() {
+  const sec = document.getElementById('bot-webchat');
+  if (!sec) return;
+  WcState.avatar = BotState.data?.webchat_profile?.avatar || '';
+  WcState.dirty = false;
+  sec.addEventListener('input', (e) => {
+    if (e.target.id === 'wc-color') document.getElementById('wc-color-text').value = e.target.value;
+    if (e.target.id === 'wc-color-text' && /^#[0-9a-fA-F]{6}$/.test(e.target.value.trim())) document.getElementById('wc-color').value = e.target.value.trim();
+    if (e.target.closest('.wc-form')) wcMarkDirty();
+  });
+  document.getElementById('wc-avatar-pick').onclick = () => document.getElementById('wc-avatar-file').click();
+  document.getElementById('wc-avatar-file').onchange = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try { WcState.avatar = await wcResize(file); wcMarkDirty(); } catch (err) { toast(err.message, 'error'); }
+  };
+  document.getElementById('wc-avatar-remove').onclick = () => { WcState.avatar = ''; wcMarkDirty(); };
+  document.getElementById('wc-save').onclick = saveWebchatLook;
+  sec.querySelectorAll('[data-wc-view]').forEach(b => {
+    b.onclick = async () => {
+      WcState.view = b.dataset.wcView;
+      sec.querySelectorAll('[data-wc-view]').forEach(x => {
+        const on = x === b;
+        x.classList.toggle('active', on); x.classList.toggle('btn-secondary', on); x.classList.toggle('btn-ghost', !on);
+      });
+      if (WcState.view === 'chat') await wcLoadSample();
+      wcPost();
+    };
+  });
+  const frame = document.getElementById('wc-frame');
+  if (frame) frame.addEventListener('load', wcPost);
+  if (!window.__wcReadyListener) {
+    window.__wcReadyListener = true;
+    window.addEventListener('message', (e) => { if (e.origin === location.origin && e.data?.type === 'nexus-chat-preview-ready') wcPost(); });
+  }
+  wcThumb();
+}
+
+async function saveWebchatLook() {
+  const btn = document.getElementById('wc-save');
+  btn.disabled = true;
+  try {
+    const r = await api('POST', '/api/lead-pipeline/webchat/profile', wcDraft());
+    if (BotState.data) BotState.data.webchat_profile = r.webchat_profile;
+    WcState.dirty = false;
+    document.getElementById('wc-state').textContent = 'Saved';
+    toast('Chat look saved. Your website shows it now.', 'success');
+  } catch (err) { toast(err.message, 'error'); }
+  finally { btn.disabled = false; }
 }
 
 // Read the form into the same shape the server saves

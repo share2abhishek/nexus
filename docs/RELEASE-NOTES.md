@@ -33,6 +33,7 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 ### Website chat
 - **New chat window:** the bot's avatar, name and a short description on the start screen, menu choices as buttons, voice typing where the browser supports it, a "start over" button, and full screen on phones. The name, avatar, description and colour are set per business on the server, so the website snippet needs only `data-token`.
 - **Share page:** `/webchat/<token>` opens the chat full-size on its own address, to try it or send the link.
+- **Edit the chat's look in the app:** Auto-replies → 7. Website chat now has the bot name, picture (upload, cropped to a square), welcome text, brand colour, message-box text and WhatsApp number, with a live preview of the start screen and of a real conversation. Saving updates every website using the chat at once; the embed code no longer needs `data-name` or `data-color`.
 - Bot replies are no longer saved twice, and a visitor tapping through menus is no longer cut off after 6 replies in an hour.
 - A visitor who types their phone number now gets the "we have noted your number" answer instead of the general fallback.
 

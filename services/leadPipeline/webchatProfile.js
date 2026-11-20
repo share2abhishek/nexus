@@ -36,4 +36,33 @@ function avatar(config) {
   return m ? { mime: m[1], buffer: Buffer.from(m[2], 'base64') } : null;
 }
 
-module.exports = { parse, publicProfile, avatar, MAX_AVATAR };
+// What the owner edits on the Auto-replies screen (avatar as its data: URL)
+function editable(config) {
+  const p = parse(config);
+  const pub = publicProfile(config, '');
+  return {
+    name: pub.name || '', description: pub.description || '', color: pub.color || '',
+    placeholder: pub.placeholder || '', whatsapp: pub.whatsapp || '',
+    avatar: avatar(config) ? p.avatar : '',
+  };
+}
+
+// Check what the owner sent and return the JSON to store. Throws { status: 400 } on bad input.
+function sanitize(input = {}) {
+  const bad = (msg) => Object.assign(new Error(msg), { status: 400 });
+  const color = String(input.color || '').trim();
+  if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) throw bad('Choose a colour like #D4813C.');
+  const av = String(input.avatar || '');
+  if (av && av.length > MAX_AVATAR) throw bad('That picture is too large. Use one under 200 KB.');
+  if (av && !AVATAR_RE.test(av)) throw bad('Use a PNG, JPG, WebP or GIF picture.');
+  const whatsapp = String(input.whatsapp || '').replace(/[^0-9]/g, '');
+  if (whatsapp && (whatsapp.length < 8 || whatsapp.length > 15)) throw bad('Write the WhatsApp number with the country code, e.g. 919876543210.');
+  const out = {
+    name: text(input.name, 60), description: text(input.description, 400), color,
+    placeholder: text(input.placeholder, 80), whatsapp, avatar: av,
+  };
+  Object.keys(out).forEach((k) => { if (!out[k]) delete out[k]; });
+  return out;
+}
+
+module.exports = { parse, publicProfile, avatar, editable, sanitize, MAX_AVATAR };

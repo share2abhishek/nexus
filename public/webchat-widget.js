@@ -6,6 +6,8 @@
  * chat profile). Optional attributes, used only when the profile has no value:
  *   data-name, data-color, data-greeting (description), data-whatsapp
  * Other attributes: data-open="true" (open at once), data-hide-button="true".
+ * data-preview="true" is for the look editor in the app: nothing is sent, and the page
+ * that frames it (same site only) can show a draft look and sample messages.
  * The visitor's messages go to /api/webhooks/webchat/<token> and the bot (menu,
  * keywords, knowledge base, AI or live agents) answers. No dependencies.
  */
@@ -34,6 +36,7 @@
   };
   var hideButton = script.getAttribute('data-hide-button') === 'true';
   var openAtStart = script.getAttribute('data-open') === 'true';
+  var preview = script.getAttribute('data-preview') === 'true';
 
   // ── Visitor ────────────────────────────────────────────────────────────────
   var VKEY = 'snchat_visitor_' + token;
@@ -174,8 +177,10 @@
     return '<div class="snc-av-ph ' + (cls || '') + '">' + esc((profile.name || '?').charAt(0).toUpperCase()) + '</div>';
   }
 
+  var styledColor = profile.color;
   function applyProfile() {
-    style.textContent = css(profile.color);
+    // rewriting the styles restarts the opening animation: only when the colour changed
+    if (profile.color !== styledColor) { styledColor = profile.color; style.textContent = css(profile.color); }
     $('.snc-name').textContent = profile.name;
     $('.snc-head-av').innerHTML = avatarEl('');
     input.placeholder = profile.placeholder || 'Type your message...';
@@ -227,6 +232,7 @@
   });
 
   function fetchHistory() {
+    if (preview) { loaded = true; return Promise.resolve(true); }
     return fetch(api + '/history?visitor_id=' + encodeURIComponent(visitorId) + '&t=' + Date.now())
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -242,6 +248,12 @@
   function send(text) {
     var t = String(text || '').trim();
     if (!t || pending) return;
+    if (preview) {
+      input.value = ''; syncButtons();
+      messages.push({ id: 'p' + Date.now(), text: t, who: 'me' });
+      messages.push({ id: 'q' + Date.now(), text: 'This is a preview. Use "Try it" or open the live chat to test the replies.', who: 'bot' });
+      render(); return;
+    }
     pending = t;
     input.value = '';
     syncButtons();
@@ -310,7 +322,7 @@
     panel.classList.add('open'); btn.classList.add('open'); btn.innerHTML = ICON.down;
     if (!loaded) fetchHistory();
     clearInterval(pollTimer);
-    pollTimer = setInterval(function () { if (!pending) fetchHistory(); }, 5000); // a team member may answer
+    if (!preview) pollTimer = setInterval(function () { if (!pending) fetchHistory(); }, 5000); // a team member may answer
     setTimeout(function () { input.focus(); }, 60);
   }
   function close() {
@@ -319,8 +331,10 @@
   }
   function toggle() { panel.classList.contains('open') ? close() : open(); }
   function restart() {
-    visitorId = newVisitor();
-    try { localStorage.setItem(VKEY, visitorId); } catch (e) {}
+    if (!preview) {
+      visitorId = newVisitor();
+      try { localStorage.setItem(VKEY, visitorId); } catch (e) {}
+    }
     messages = []; pending = null; render(); input.focus();
   }
   btn.addEventListener('click', toggle);
@@ -330,7 +344,7 @@
 
   // ── Profile from the server ────────────────────────────────────────────────
   applyProfile();
-  fetch(api + '/config')
+  if (!preview) fetch(api + '/config')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (p) {
       if (!p) return;
@@ -339,6 +353,26 @@
       applyProfile();
     })
     .catch(function () {});
+
+  // ── Look editor preview: a draft look and sample messages from the app (same site) ──
+  if (preview) {
+    window.addEventListener('message', function (e) {
+      var d = e.data;
+      if (e.origin !== location.origin || !d || d.type !== 'nexus-chat-preview') return;
+      var p = d.profile || {};
+      profile.name = p.name || 'Chat with us';
+      profile.description = p.description || 'Send "Hi" to get started!';
+      profile.color = /^#[0-9a-fA-F]{6}$/.test(p.color || '') ? p.color : '#D4813C';
+      profile.placeholder = p.placeholder || '';
+      profile.avatar_url = /^data:image\/(png|jpeg|webp|gif);base64,/.test(p.avatar || '') ? p.avatar
+        : (p.avatar_url && /^(https?:|\/)/.test(p.avatar_url) ? p.avatar_url : null);
+      if (Array.isArray(d.messages)) {
+        messages = d.messages.map(function (m, i) { return { id: 's' + i, text: String(m.text || ''), who: m.who === 'me' ? 'me' : 'bot' }; });
+      }
+      applyProfile();
+    });
+    if (window.parent !== window) window.parent.postMessage({ type: 'nexus-chat-preview-ready' }, location.origin);
+  }
 
   // ── Keep the host page out of the chat ─────────────────────────────────────
   // A website's own pop-ups, shortcuts or styles can make the chat box look frozen.
