@@ -32,8 +32,14 @@
     color: attr('data-color') || '#D4813C',
     avatar_url: null,
     whatsapp: attr('data-whatsapp'),
-    placeholder: 'Type your message...'
+    placeholder: 'Type your message...',
+    footer_text: 'Powered by Radixile Technology',
+    footer_url: 'https://radixile.com',
+    privacy_url: null,
+    privacy_label: null
   };
+  // Only plain web addresses become links
+  var webUrl = function (u) { return /^https?:\/\/[^\s"'<>]+$/i.test(String(u || '')) ? String(u) : null; };
   var hideButton = script.getAttribute('data-hide-button') === 'true';
   var openAtStart = script.getAttribute('data-open') === 'true';
   var preview = script.getAttribute('data-preview') === 'true';
@@ -122,6 +128,7 @@
       '.snc-send{background:' + c + ';color:#fff}.snc-send:hover{background:' + c + ';opacity:.9}.snc-mic.listening{color:#dc2626}' +
       '.snc-by{text-align:center;font-size:12.5px;color:#9a928c;padding:6px 0 2px}.snc-by a{color:#9a928c;text-decoration:none}.snc-by a:hover{text-decoration:underline}' +
       '.snc-by b{color:#e8a33d;font-weight:400}' +
+      '.snc-legal{text-align:center;font-size:11.5px;padding:0 0 2px}.snc-legal a{color:#9a928c;text-decoration:underline}.snc-legal.hide{display:none}' +
       '@media (max-width:480px){.snc-panel{right:0;bottom:0;width:100vw;max-width:100vw;height:100%;max-height:100%;border-radius:0}.snc-panel.open~.snc-btn,.snc-btn.open{display:none}.snc-input{font-size:16px}}' +
       '@media (prefers-reduced-motion:reduce){.snc-panel.open{animation:none}.snc-typing span{animation:none}}';
   }
@@ -160,7 +167,8 @@
         '<button class="snc-ico snc-mic" type="button" aria-label="Speak your message">' + ICON.mic + '</button>' +
         '<button class="snc-ico snc-send hide" type="submit" aria-label="Send">' + ICON.send + '</button>' +
       '</div>' +
-      '<div class="snc-by"><a href="https://radixile.com" target="_blank" rel="noopener"><b>⚡</b> Powered by Radixile Technology</a></div>' +
+      '<div class="snc-by"></div>' +
+      '<div class="snc-legal hide"></div>' +
     '</form>';
 
   document.body.appendChild(panel);
@@ -184,6 +192,13 @@
     $('.snc-name').textContent = profile.name;
     $('.snc-head-av').innerHTML = avatarEl('');
     input.placeholder = profile.placeholder || 'Type your message...';
+    // Bottom line (the business may set its own text and link) and the privacy policy link
+    var by = '<b>⚡</b> ' + esc(profile.footer_text || 'Powered by Radixile Technology');
+    var byUrl = webUrl(profile.footer_url);
+    $('.snc-by').innerHTML = byUrl ? '<a href="' + esc(byUrl) + '" target="_blank" rel="noopener">' + by + '</a>' : '<span>' + by + '</span>';
+    var privacy = webUrl(profile.privacy_url);
+    $('.snc-legal').innerHTML = privacy ? '<a href="' + esc(privacy) + '" target="_blank" rel="noopener">' + esc(profile.privacy_label || 'Privacy policy') + '</a>' : '';
+    $('.snc-legal').classList.toggle('hide', !privacy);
     btn.setAttribute('aria-label', 'Chat with ' + profile.name);
     panel.setAttribute('aria-label', profile.name + ' chat');
     render();
@@ -348,7 +363,10 @@
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (p) {
       if (!p) return;
-      ['name', 'description', 'color', 'whatsapp', 'placeholder'].forEach(function (k) { if (p[k]) profile[k] = p[k]; });
+      ['name', 'description', 'color', 'whatsapp', 'placeholder', 'footer_text', 'privacy_label'].forEach(function (k) { if (p[k]) profile[k] = p[k]; });
+      // a link may be cleared on purpose (a bottom line without a link, no privacy policy)
+      if ('footer_url' in p) profile.footer_url = p.footer_url;
+      if ('privacy_url' in p) profile.privacy_url = p.privacy_url;
       if (p.avatar_url) profile.avatar_url = /^https?:/.test(p.avatar_url) ? p.avatar_url : base + p.avatar_url;
       applyProfile();
     })
@@ -364,6 +382,10 @@
       profile.description = p.description || 'Send "Hi" to get started!';
       profile.color = /^#[0-9a-fA-F]{6}$/.test(p.color || '') ? p.color : '#D4813C';
       profile.placeholder = p.placeholder || '';
+      profile.footer_text = p.footer_text || 'Powered by Radixile Technology';
+      profile.footer_url = p.footer_text ? (p.footer_url || null) : (p.footer_url || 'https://radixile.com');
+      profile.privacy_url = p.privacy_url || null;
+      profile.privacy_label = p.privacy_label || null;
       profile.avatar_url = /^data:image\/(png|jpeg|webp|gif);base64,/.test(p.avatar || '') ? p.avatar
         : (p.avatar_url && /^(https?:|\/)/.test(p.avatar_url) ? p.avatar_url : null);
       if (Array.isArray(d.messages)) {

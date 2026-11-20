@@ -303,6 +303,18 @@ function botWebchatSection(d) {
                 <label class="form-label" for="wc-whatsapp">WhatsApp number <span class="form-hint" style="display:inline;font-weight:400">— optional, with country code</span></label>
                 <input class="form-input" id="wc-whatsapp" maxlength="20" value="${escapeHtml(p.whatsapp || '')}" placeholder="919876543210" />
 
+                <label class="form-label" for="wc-footer-text">Bottom line <span class="form-hint" style="display:inline;font-weight:400">— the small line at the bottom of the chat. Leave blank for “Powered by Radixile Technology”.</span></label>
+                <div class="wc-two">
+                  <input class="form-input" id="wc-footer-text" maxlength="60" value="${escapeHtml(p.footer_text || '')}" placeholder="Powered by Radixile Technology" aria-label="Bottom line text" />
+                  <input class="form-input" id="wc-footer-url" maxlength="500" value="${escapeHtml(p.footer_url || '')}" placeholder="${p.footer_text ? 'Link (optional), https://…' : 'https://radixile.com'}" aria-label="Bottom line link" />
+                </div>
+
+                <label class="form-label" for="wc-privacy-url">Privacy policy <span class="form-hint" style="display:inline;font-weight:400">— optional; shown as a link under the bottom line.</span></label>
+                <div class="wc-two">
+                  <input class="form-input" id="wc-privacy-url" maxlength="500" value="${escapeHtml(p.privacy_url || '')}" placeholder="https://yourwebsite.com/privacy-policy" aria-label="Privacy policy link" />
+                  <input class="form-input" id="wc-privacy-label" maxlength="60" value="${escapeHtml(p.privacy_label || '')}" placeholder="Privacy policy" aria-label="Privacy policy link text" />
+                </div>
+
                 <div class="wc-save">
                   <button class="btn btn-primary btn-sm" type="button" id="wc-save">Save chat look</button>
                   <span class="form-hint" id="wc-state">Saved</span>
@@ -336,7 +348,9 @@ const WcState = { avatar: '', view: 'start', sample: null, dirty: false };
 function wcDraft() {
   const v = (id) => document.getElementById(id)?.value ?? '';
   return { name: v('wc-name').trim(), description: v('wc-desc').trim(), color: v('wc-color-text').trim(),
-    placeholder: v('wc-placeholder').trim(), whatsapp: v('wc-whatsapp').trim(), avatar: WcState.avatar };
+    placeholder: v('wc-placeholder').trim(), whatsapp: v('wc-whatsapp').trim(), avatar: WcState.avatar,
+    footer_text: v('wc-footer-text').trim(), footer_url: v('wc-footer-url').trim(),
+    privacy_url: v('wc-privacy-url').trim(), privacy_label: v('wc-privacy-label').trim() };
 }
 
 function wcThumb() {
