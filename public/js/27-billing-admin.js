@@ -62,7 +62,7 @@
       </table></div>`;
   }
 
-  const MODULE_NAMES = { core: 'Core', social: 'Social publishing', ai: 'AI content', seo: 'Website & SEO', ads: 'Advertising', sales: 'Sales & CRM', whatsapp: 'WhatsApp', webchat: 'Website chat', agents: 'AI agents', admin: 'Access & admin' };
+  const MODULE_NAMES = { core: 'Core', social: 'Social publishing', ai: 'AI content', seo: 'Website & SEO', ads: 'Advertising', sales: 'Sales & CRM', whatsapp: 'WhatsApp', webchat: 'Website chat', agents: 'AI agents', voice: 'Voice assistant', admin: 'Access & admin' };
 
   async function billingEditPlan(code) {
     let plan = null;

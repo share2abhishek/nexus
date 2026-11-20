@@ -72,6 +72,10 @@ const FEATURES = [
   f('web_chat_ai', 'AI answers in the website chat', 'webchat', { requires: ['web_chat'] }),
   f('white_label', 'Your own bottom line, no Radixile branding', 'webchat'),
 
+  // Voice assistant (docs/platform/VOICE-AGENTS.md)
+  f('voice_assistant', 'AI voice assistant on WhatsApp calls', 'voice', { kind: 'module', requires: ['whatsapp_chats'], editions: ['server'], beta: true }),
+  f('voice_outbound', 'The AI assistant calls leads who asked for a call', 'voice', { requires: ['voice_assistant'], editions: ['server'], beta: true }),
+
   // AI agents
   f('ai_knowledge_base', 'AI knowledge base', 'agents', { requiresAny: ['whatsapp_bot_ai', 'web_chat_ai', 'ai_agents'] }),
   f('ai_agents', 'AI sales agents', 'agents', { requiresAny: ['whatsapp_chats', 'web_chat'] }),

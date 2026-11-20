@@ -197,6 +197,7 @@ app.use('/admin',      adminRoutes);  // super admin dashboard
 app.use('/ollama',     ollamaSetupGuard, ollamaRoutes); // guided AI setup (status / pull)
 const helpChat = require('../routes/assistant')(knex);
 app.use('/api/assistant/public', helpChat.pub); // landing-page chat: no sign-in
+app.use('/api/webhooks/voice-gateway', require('../routes/voiceGateway')(knex)); // voice gateway callbacks (signed)
 app.use('/api/webhooks', require('../routes/webhooks')(knex)); // Meta Lead Ads & Messenger Webhooks (HMAC-SHA256 verified)
 // Hosted edition: client approval links are served by this app (no relay or licence server)
 if (isHosted) {
@@ -237,6 +238,8 @@ const billingRoutes = require('../routes/billing');
 app.use('/billing', billingRoutes.pub);
 // Built-in billing, staff side (modules/billing, B0): plans, prices, tax, coupons. 404 unless BILLING_ENABLED=true on the
 // server edition; Radixile staff only (platform.billing.manage). Mounted before the old /api/billing routes.
+// AI voice assistant on WhatsApp calls (docs/platform/VOICE-AGENTS.md; PoC: staff only, off unless VOICE_ENABLED=true)
+app.use('/api/voice', requireAuth, withWorkspace, require('../routes/voice')(knex, permit));
 app.use('/api/billing/admin', requireAuth, withWorkspace, permit('platform.billing.manage'), require('../services/billingHost').billing().adminRouter());
 app.use('/api/billing', requireAuth, withWorkspace, billingRoutes.api);
 app.use('/api/backups', requireAuth, require('../routes/backups')(knex));

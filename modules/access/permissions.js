@@ -76,6 +76,12 @@ const PERMISSIONS = [
   p('kb.manage', 'edit', 'ai_knowledge_base'),
   p('webchat.configure', 'settings', 'web_chat'),
   p('agents.manage', 'settings', 'ai_agents', { limit: 'ai_agents' }),
+  // voice assistant (PoC: no role grants yet, so only Radixile staff pass)
+  p('voice.assistants.manage', 'settings', 'voice_assistant', { editions: ['server'], limit: 'voice_assistants' }),
+  p('voice.calls.view', 'read', 'voice_assistant', { editions: ['server'] }),
+  p('voice.calls.start', 'send', 'voice_outbound', { editions: ['server'], meter: 'VOICE_MINUTE', risk: 'high' }),
+  p('voice.recordings.listen', 'read', 'voice_assistant', { editions: ['server'], risk: 'high' }),
+  p('voice.numbers.view', 'read', 'voice_assistant', { editions: ['server'], risk: 'high' }),
   // outreach
   p('outreach.view', 'read', 'email_outreach', { scoped: true }),
   p('outreach.manage', 'edit', 'email_outreach'),

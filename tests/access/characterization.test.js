@@ -29,8 +29,11 @@ const ROLES = ['manager', 'creator', 'reviewer', 'client', 'analyst', 'owner', '
 const ROOT = path.join(__dirname, '..', '..');
 const USED = [...new Set([...fs.readdirSync(path.join(ROOT, 'routes')).map((f) => `routes/${f}`), 'server/index.js']
   .flatMap((f) => [...fs.readFileSync(path.join(ROOT, f), 'utf8').matchAll(/\b(?:permit|requirePermission)\('([a-z._]+)'\)/g)].map((m) => m[1])))].sort();
-// Staff-only keys (platform.*) guard routes added after A0; they have their own test below
-const LEGACY_USED = USED.filter((k) => !k.startsWith('platform.'));
+// The keys routes used before A0 (frozen). Keys added later (platform.*, voice.*) are server-only staff keys with their
+// own test below.
+const LEGACY_KEYS = new Set([...Object.values(OLD_MATRIX).flat(), 'content.delete']);
+const LEGACY_USED = USED.filter((k) => LEGACY_KEYS.has(k));
+const NEW_USED = USED.filter((k) => !LEGACY_KEYS.has(k));
 
 const KEYS = [...new Set([...LEGACY_USED, ...Object.values(OLD_MATRIX).flat(), ...access.permissions.PERMISSIONS.map((p) => p.key)])];
 
@@ -80,8 +83,9 @@ describe.each([['desktop', undefined], ['server', 'server']])('on the %s edition
   });
 });
 
-test('staff-only keys: staff pass on the server edition, nobody else does, and they do not exist on the desktop app', () => {
-  const keys = USED.filter((k) => k.startsWith('platform.'));
+test('keys added after A0: staff pass on the server edition, no role does yet, and they do not exist on the desktop app', () => {
+  const keys = NEW_USED;
+  for (const k of keys) expect([k, access.permissions.get(k).editions]).toEqual([k, ['server']]);
   expect(keys.length).toBeGreaterThan(0);
   for (const key of keys) {
     process.env.NEXUS_MODE = 'server';

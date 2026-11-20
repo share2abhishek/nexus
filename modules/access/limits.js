@@ -25,6 +25,9 @@ const LIMITS = [
   l('ai_agents', 'AI sales agents', 'count', 'agents'),
   l('mailboxes', 'Connected mailboxes', 'count', 'mailboxes'),
   l('sms_numbers', 'SMS numbers', 'count', 'numbers'),
+  l('voice_assistants', 'AI voice assistants', 'count', 'assistants'),
+  l('voice_concurrent_calls', 'Voice calls at the same time', 'count', 'calls'),
+  l('voice_minutes', 'AI voice call minutes', 'rate', 'minutes'),
 ];
 
 const BY_KEY = Object.freeze(Object.fromEntries(LIMITS.map((x) => [x.key, Object.freeze(x)])));
