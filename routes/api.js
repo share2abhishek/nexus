@@ -171,7 +171,7 @@ function buildSystemPrompt(type, tone, platforms, language) {
   };
   const langStr = language && language !== 'en' ? `\nIMPORTANT: Write the post in ${languageMap[language] || language}. Do NOT translate to English.` : '';
 
-  return `You are Social-Nexus, an expert social media content creator for the Indian market.
+  return `You are NexaDrip, an expert social media content creator for the Indian market.
 Generate ${platformStr} content that is ${toneStr}.
 Keep posts concise and impactful. Include relevant emojis where appropriate.
 If writing for LinkedIn, be professional. For Instagram/Pinterest, be visual and descriptive.

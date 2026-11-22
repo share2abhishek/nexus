@@ -31,8 +31,8 @@ module.exports = (knex, withWorkspace, permit) => {
         const org = await knex('organizations').where({ id: workspace.org_id }).first('name');
         const inviter = await knex('users').where({ id: req.session.userId }).first('name', 'email');
         try {
-          emailed = await require('../services/accounts').sendMail(email, `You’re invited to ${org?.name || workspace.name} on Social-Nexus`,
-            `Hello,\n\n${inviter?.name || inviter?.email || 'A colleague'} invited you to work on “${workspace.name}” (${org?.name || ''}) in Social-Nexus.\n\nAccept the invitation here:\n${invite_url}\n\nIf you don’t have an account yet, you can create one from that page with this email address.\n\nSocial-Nexus by Radixile Technology Solutions`);
+          emailed = await require('../services/accounts').sendMail(email, `You’re invited to ${org?.name || workspace.name} on NexaDrip`,
+            `Hello,\n\n${inviter?.name || inviter?.email || 'A colleague'} invited you to work on “${workspace.name}” (${org?.name || ''}) in NexaDrip.\n\nAccept the invitation here:\n${invite_url}\n\nIf you don’t have an account yet, you can create one from that page with this email address.\n\nNexaDrip by Radixile Technology Solutions`);
         } catch (err) { console.warn('[Invitations] Email failed:', err.message); }
       }
       res.status(201).json({ ...inv, invite_url, emailed });

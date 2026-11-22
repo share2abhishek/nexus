@@ -1,5 +1,5 @@
 // services/leadPipeline/whatsappCloud.js
-// Official Meta WhatsApp Business Cloud API Client for Social-Nexus.
+// Official Meta WhatsApp Business Cloud API Client for NexaDrip.
 // Supports direct messaging, utility templates, 2-Step PIN registration, profile updates, and OBA verification audit.
 
 const axios = require('axios');
@@ -200,7 +200,7 @@ function autoFillTemplateComponents(tmplDef, { templateComponents, templateParam
         const val =
           (templateParams && typeof templateParams === 'object' && !Array.isArray(templateParams) && templateParams[paramName]) ||
           np.example ||
-          'Social-Nexus';
+          'NexaDrip';
         return { type: 'text', parameter_name: paramName, text: String(val) };
       });
       components.push({ type: 'header', parameters: params });
@@ -211,7 +211,7 @@ function autoFillTemplateComponents(tmplDef, { templateComponents, templateParam
           : [];
       const examples = headerComp.example?.header_text || [];
       const params = positionalMatches.map((_, idx) => {
-        const val = userHeaderParams[idx] || examples[idx] || 'Social-Nexus';
+        const val = userHeaderParams[idx] || examples[idx] || 'NexaDrip';
         return { type: 'text', text: String(val) };
       });
       components.push({ type: 'header', parameters: params });

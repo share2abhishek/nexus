@@ -21,7 +21,7 @@ async function statusOf(url) {
   const opts = {
     timeout: 20000, maxRedirects: 5, validateStatus: () => true,
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 (compatible; Social-Nexus SEO check; +https://radixile.com)',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 (compatible; NexaDrip SEO check; +https://radixile.com)',
       'Accept': '*/*',
       'Accept-Language': 'en-US,en;q=0.9',
     },
@@ -91,7 +91,7 @@ function duplicates(results) {
       issues.push({
         key: `duplicate-${field}`, kind: 'fix', priority: field === 'title' ? 2 : 3, draft: 'meta',
         title: `${plural(pages.length, 'page shares', 'pages share')} the same ${what} with another page`,
-        detail: `Google may not know which page to show. Give each page its own ${what}. Social-Nexus can write them.`,
+        detail: `Google may not know which page to show. Give each page its own ${what}. NexaDrip can write them.`,
         pages,
       });
     }

@@ -25,6 +25,8 @@ function sniff(buf) {
   if (b.slice(0, 4).toString() === 'RIFF' && b.slice(8, 12).toString() === 'WEBP') return { mime: 'image/webp', ext: 'webp', kind: 'image' };
   if (b.slice(4, 8).toString() === 'ftyp') {
     const brand = b.slice(8, 12).toString();
+    // HEIC/AVIF photos and audio-only files share this container: not videos
+    if (/^(heic|heix|hevc|hevx|heim|heis|mif1|msf1|avif|avis|M4A |M4B |M4P )$/.test(brand)) return null;
     if (brand === 'qt  ') return { mime: 'video/quicktime', ext: 'mov', kind: 'video' };
     return { mime: 'video/mp4', ext: 'mp4', kind: 'video' };
   }

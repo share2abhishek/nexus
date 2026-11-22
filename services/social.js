@@ -16,7 +16,7 @@ const { asMedia, hostOnFacebook, cleanupHostedPhotos } = require('./platforms/me
 
 async function postToYouTube() {
   // YouTube's public Data API has no way to create Community posts (text/image
-  // posts); it only supports uploading videos, which Social-Nexus doesn't do yet.
+  // posts); it only supports uploading videos, which NexaDrip doesn't do yet.
   throw new Error('Posting text or images to YouTube is not possible through the public YouTube API. Publish there from YouTube Studio for now.');
 }
 
@@ -71,8 +71,8 @@ async function postToPlatform(platform, tokenData, content, imageRef, options = 
     if (status === 401 || status === 403) {
       throw new Error(`${name} rejected the connection (${status}) — the login has expired or lacks permission. Reconnect ${name} in Settings.`);
     }
-    // The platform retired the API version this copy of Social-Nexus uses
-    if (status === 426) throw new Error(`${name} no longer accepts posts from this version of Social-Nexus. Update Social-Nexus to keep posting to ${name}.`);
+    // The platform retired the API version this copy of NexaDrip uses
+    if (status === 426) throw new Error(`${name} no longer accepts posts from this version of NexaDrip. Update NexaDrip to keep posting to ${name}.`);
     if (status === 429) throw new Error(`${name} rate limit reached — try again later.`);
     if (status >= 500) throw new Error(`${name} is having problems (${status}) — try again later.`);
     if (status) {

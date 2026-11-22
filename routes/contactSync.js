@@ -8,10 +8,10 @@ const GUIDE = {
   google: {
     title: 'Send contacts to a Google Sheet',
     steps: [
-      'Click "Connect Google" and sign in with the Google account that should own the sheet. NEXUS only gets access to files it creates itself.',
-      'Click "Create sheet". NEXUS makes a new Google Sheet called "NEXUS Contacts" in that account.',
+      'Click "Connect Google" and sign in with the Google account that should own the sheet. NexaDrip only gets access to files it creates itself.',
+      'Click "Create sheet". NexaDrip makes a new Google Sheet called "NexaDrip Contacts" in that account.',
       'Turn on "Auto-sync". New and changed contacts are added or updated in the sheet within a few seconds.',
-      'Do not rename the first column ("Lead ID"). NEXUS uses it to find the right row when a contact changes. You can add your own columns after the last one.',
+      'Do not rename the first column ("Lead ID"). NexaDrip uses it to find the right row when a contact changes. You can add your own columns after the last one.',
     ],
     // What people actually hit when connecting Google, and what to do
     troubleshooting: [
@@ -28,7 +28,7 @@ const GUIDE = {
         fix: 'In Google Cloud Console open APIs & Services → Library, search for "Google Sheets API" and click Enable. Then press "Sync now".',
       },
     ],
-    server_note: 'If "Connect Google" says Google is not set up, the owner of this NEXUS server must add GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET and turn on the Google Sheets API in Google Cloud Console (APIs & Services → Library → Google Sheets API → Enable).',
+    server_note: 'If "Connect Google" says Google is not set up, the owner of this NexaDrip server must add GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET and turn on the Google Sheets API in Google Cloud Console (APIs & Services → Library → Google Sheets API → Enable).',
   },
   salesforce: {
     title: 'Send contacts to Salesforce as Leads',
@@ -67,7 +67,7 @@ module.exports = (knex, permit) => {
       enabled: !!c.sf_enabled, auto: !!c.sf_auto,
       domain: c.sf_domain || '', has_client_id: !!c.sf_client_id, client_id_hint: c.sf_client_id ? String(c.sf_client_id).slice(-4) : '', has_secret: !!c.sf_client_secret,
       api_version: c.sf_api_version || 'v60.0', external_id_field: c.sf_external_id_field || '',
-      lead_source: c.sf_lead_source || 'NEXUS', default_company: c.sf_default_company || '[Not provided]',
+      lead_source: c.sf_lead_source || 'NexaDrip', default_company: c.sf_default_company || '[Not provided]',
       last_sync_at: c.last_sf_sync_at || null, last_error: c.last_sf_error || null,
     },
   });
@@ -112,7 +112,7 @@ module.exports = (knex, permit) => {
       if (f && !/^[A-Za-z][A-Za-z0-9_]*__c$/.test(f)) return res.status(400).json({ error: 'The External ID field name must end with __c, for example NEXUS_Lead_Id__c', code: 'bad_field' });
       patch.sf_external_id_field = f || null;
     }
-    if (b.sf_lead_source !== undefined) patch.sf_lead_source = String(b.sf_lead_source).trim().slice(0, 100) || 'NEXUS';
+    if (b.sf_lead_source !== undefined) patch.sf_lead_source = String(b.sf_lead_source).trim().slice(0, 100) || 'NexaDrip';
     if (b.sf_default_company !== undefined) patch.sf_default_company = String(b.sf_default_company).trim().slice(0, 150) || '[Not provided]';
 
     // Switching on needs the basics first, so "on" never means "silently failing"

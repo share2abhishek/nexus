@@ -1,6 +1,6 @@
-# Social-Nexus User Guide
+# NexaDrip User Guide
 
-**Social-Nexus by Radixile Technology Solutions**
+**NexaDrip by Radixile Technology Solutions**
 For version 2.1 · Support: info@radixile.com · Licence portal: https://license.radixile.com
 
 This guide is for business owners, marketers and agency teams. You don't need any technical knowledge. If you get stuck, write to **info@radixile.com**. It helps if you attach your log file (see [Troubleshooting](#18-troubleshooting)).
@@ -12,9 +12,9 @@ This guide is for business owners, marketers and agency teams. You don't need an
 - [Getting started in 10 minutes](#getting-started-in-10-minutes)
 - [Opening help inside the app](#opening-help-inside-the-app)
 
-1. [What Social-Nexus is](#1-what-social-nexus-is)
+1. [What NexaDrip is](#1-what-social-nexus-is)
 2. [System requirements](#2-system-requirements)
-3. [Installing Social-Nexus](#3-installing-social-nexus)
+3. [Installing NexaDrip](#3-installing-nexadrip)
 4. [First run: creating the admin account](#4-first-run-creating-the-admin-account)
 5. [Activating your licence or coupon](#5-activating-your-licence-or-coupon-available-from-version-21)
 6. [A quick tour of the screen](#6-a-quick-tour-of-the-screen)
@@ -38,27 +38,27 @@ This guide is for business owners, marketers and agency teams. You don't need an
 
 The short version. Each step links to the full instructions.
 
-1. **Install.** Run `Social-Nexus-Setup-….exe` from Radixile and open the app. ([Installing](#3-installing-social-nexus))
+1. **Install.** Run `NexaDrip-Setup-….exe` from Radixile and open the app. ([Installing](#3-installing-nexadrip))
 2. **Create the admin account.** Click **Create Account**, enter your name, email and a password. The first account is the admin. ([First run](#4-first-run-creating-the-admin-account))
 3. **Activate.** Go to **Settings → 🔑 Licence**, paste your licence key or coupon, enter your email and name, and click **Activate**. No key yet? You can still write and plan; publishing waits until you activate. ([Licence](#5-activating-your-licence-or-coupon-available-from-version-21))
 4. **Set up AI.** Either install **Ollama** (free, private, on your PC) and download the `llama3.2` model, or get a **free Gemini or Groq key** and paste it in **your name → ⚙️ My API Keys → 💾 Save All Keys**. ([Setting up AI](#7-setting-up-ai))
 5. **Connect one platform.** Open **Settings → 🔗 Social Platforms**, pick a card (LinkedIn or Facebook is easiest), and follow its **📘 Setup guide**. Use **📋 Copy** for the callback address. Then click **Connect**. ([Connecting](#8-connecting-your-social-accounts))
 6. **Write with AI.** Open **✨ AI Generate**, describe your post with real details, choose the platform and click **✨ Generate Content**. Click **→ Compose** on the card. ([Writing](#9-writing-and-publishing-a-post))
-7. **Schedule.** In **Compose & Post**, click **📅 Schedule**, pick the date and time, and click **📅 Schedule Post**. Leave Social-Nexus running in the tray at that time. ([Scheduling](#10-scheduling-the-calendar-and-failed-posts))
+7. **Schedule.** In **Compose & Post**, click **📅 Schedule**, pick the date and time, and click **📅 Schedule Post**. Leave NexaDrip running in the tray at that time. ([Scheduling](#10-scheduling-the-calendar-and-failed-posts))
 
 ## Opening help inside the app
 
 - **❓ Help & User Guide** is the last item in the left menu. It opens this guide.
 - The **❓** button in the top bar opens help **at the section for the screen you're on**. For example, on **Settings → 🔑 Licence** it opens the licence section.
 - Press **F1** on any screen to do the same.
-- Help normally opens in its own window. If it opens in the same window instead, click **← Back to Social-Nexus** at the top of the help page to return.
+- Help normally opens in its own window. If it opens in the same window instead, click **← Back to NexaDrip** at the top of the help page to return.
 - On the help page, use the **search box** to find a topic, and **🖨 Print / Save as PDF** to print the whole guide or save it as a PDF.
 
 ---
 
-## 1. What Social-Nexus is
+## 1. What NexaDrip is
 
-Social-Nexus is a Windows app for managing all your social media in one place. You can:
+NexaDrip is a Windows app for managing all your social media in one place. You can:
 
 - **Write posts with AI**, in English and 8 Indian languages, in the tone you choose.
 - **Publish or schedule** to LinkedIn, Facebook, Instagram, Pinterest, X (Twitter), YouTube, Google Business Profile and TikTok.
@@ -67,7 +67,7 @@ Social-Nexus is a Windows app for managing all your social media in one place. Y
 - Use **marketing tools**: templates, a Brand Kit, hashtag research, a UTM link builder, SEO tools, ad copy, press releases and email campaigns.
 - **Manage several clients** (for agencies), each with its own connected accounts and team.
 
-**Your data stays on your computer.** Social-Nexus is not a website. It runs on your PC, and your posts, drafts and settings are saved on your PC. It only connects to the internet when you ask it to do something online, such as publish a post or use a cloud AI service. See [Backup, data location and privacy](#16-backup-data-location-and-privacy).
+**Your data stays on your computer.** NexaDrip is not a website. It runs on your PC, and your posts, drafts and settings are saved on your PC. It only connects to the internet when you ask it to do something online, such as publish a post or use a cloud AI service. See [Backup, data location and privacy](#16-backup-data-location-and-privacy).
 
 **You choose the AI.** You can use free local AI on your own computer (Ollama), or your own free or paid keys from Google Gemini, Groq, OpenRouter, Mistral or Anthropic Claude. Radixile doesn't charge you for AI and never sees your AI keys.
 
@@ -85,28 +85,28 @@ Social-Nexus is a Windows app for managing all your social media in one place. Y
 
 **Ollama is optional.** You only need it if you want free, private AI that runs on your own PC. Without it you can use a free cloud AI key instead.
 
-Social-Nexus checks your Windows version when it starts. If Windows is too old, it tells you and stops. If memory or disk space is low, it warns you and lets you continue.
+NexaDrip checks your Windows version when it starts. If Windows is too old, it tells you and stops. If memory or disk space is low, it warns you and lets you continue.
 
 ---
 
-## 3. Installing Social-Nexus
+## 3. Installing NexaDrip
 
-1. Download the installer (`Social-Nexus-Setup-….exe`) from Radixile. Only download it from Radixile's website or from a link Radixile sent you.
+1. Download the installer (`NexaDrip-Setup-….exe`) from Radixile. Only download it from Radixile's website or from a link Radixile sent you.
 2. Double-click the installer.
-3. **If you see a blue "Windows protected your PC" box:** early versions of Social-Nexus are not yet code-signed, so Windows SmartScreen doesn't recognise them yet. This is expected for new software from a small publisher.
+3. **If you see a blue "Windows protected your PC" box:** early versions of NexaDrip are not yet code-signed, so Windows SmartScreen doesn't recognise them yet. This is expected for new software from a small publisher.
    1. Click **More info**.
-   2. Check that the app name is the Social-Nexus installer.
+   2. Check that the app name is the NexaDrip installer.
    3. Click **Run anyway**.
 
    Once Radixile's signing certificate is in place, this message will stop appearing.
 4. Choose whether to install for just you or for everyone on the PC, and pick a folder (the default is fine).
 5. Click **Install**, then **Finish**.
-6. Open **Social-Nexus** from the Start menu or the desktop shortcut.
+6. Open **NexaDrip** from the Start menu or the desktop shortcut.
 
 **What the app does while it runs**
 - A small splash screen appears while the app starts its built-in local server. This takes a few seconds.
-- When you close the window with **✕**, Social-Nexus **keeps running in the system tray** (the small icons near the clock). It has to stay running there to publish your scheduled posts on time.
-- To quit completely, right-click the Social-Nexus tray icon and choose **Quit Social-Nexus**. Scheduled posts are **not** published while the app is closed.
+- When you close the window with **✕**, NexaDrip **keeps running in the system tray** (the small icons near the clock). It has to stay running there to publish your scheduled posts on time.
+- To quit completely, right-click the NexaDrip tray icon and choose **Quit NexaDrip**. Scheduled posts are **not** published while the app is closed.
 - The tray menu also has **Open Dashboard**, **Open in Browser** and **Help & Documentation**.
 
 > The app only accepts connections from this PC. It doesn't open any port to your network or the internet, and it doesn't add a firewall rule.
@@ -115,19 +115,19 @@ Social-Nexus checks your Windows version when it starts. If Windows is too old, 
 
 ## 4. First run: creating the admin account
 
-The first time you open Social-Nexus you will see the **Sign In / Create Account** screen.
+The first time you open NexaDrip you will see the **Sign In / Create Account** screen.
 
 1. Click **Create Account**.
 2. Enter your name, email and a password (at least 6 characters). The notice "You're the first user — your account will be the Super Admin" confirms that you are setting up the admin account.
 3. Click **Create Account →**.
 
-The **admin** can change app-wide settings: social platform app details, shared AI keys, email (SMTP) settings, users and registration. Other people who use Social-Nexus on the same PC get their own login and their own private posts and keys.
+The **admin** can change app-wide settings: social platform app details, shared AI keys, email (SMTP) settings, users and registration. Other people who use NexaDrip on the same PC get their own login and their own private posts and keys.
 
 **Keep your password safe.** There is no "forgot password" link. If a user forgets their password, the admin can reset it in **Admin Dashboard → Users**. If the admin forgets the admin password, contact support.
 
 **Optional: set up local AI.** On a new install you may be shown a short **"Set up your local AI"** page with 3 steps for Ollama. You can follow it now, or click **Skip for now — use cloud AI →** and do it later (see [Setting up AI](#7-setting-up-ai)).
 
-**Welcome wizard.** A 4-step welcome box (Connect · Setup AI · Generate · Publish) helps you get started. You can skip any step, and you can do everything later from the menu. On the **Setup AI** step, Social-Nexus checks whether Ollama is already running on your PC. If it is, and your model is downloaded, it says *"✅ Ollama is running on this computer and llama3.2 is ready. Nothing else to set up."* If Ollama is running but the model is missing, it tells you to download it in **Settings → Local AI** (one click).
+**Welcome wizard.** A 4-step welcome box (Connect · Setup AI · Generate · Publish) helps you get started. You can skip any step, and you can do everything later from the menu. On the **Setup AI** step, NexaDrip checks whether Ollama is already running on your PC. If it is, and your model is downloaded, it says *"✅ Ollama is running on this computer and llama3.2 is ready. Nothing else to set up."* If Ollama is running but the model is missing, it tells you to download it in **Settings → Local AI** (one click).
 
 ### Who can register after you
 In **Admin Dashboard → Platform Config → Registration Mode** the admin chooses:
@@ -139,7 +139,7 @@ In **Admin Dashboard → Platform Config → Registration Mode** the admin choos
 
 ## 5. Activating your licence or coupon (available from version 2.1)
 
-Without a licence you can still write, use AI, plan and export. To **publish, schedule, retry failed posts, import a CSV schedule and send email campaigns**, Social-Nexus needs an **active licence** (a paid key or a coupon).
+Without a licence you can still write, use AI, plan and export. To **publish, schedule, retry failed posts, import a CSV schedule and send email campaigns**, NexaDrip needs an **active licence** (a paid key or a coupon).
 
 ### Types of licence
 
@@ -151,7 +151,7 @@ Without a licence you can still write, use AI, plan and export. To **publish, sc
 
 **Editions:** *Individual* (1 PC, 1 brand) and *Agency* (several PCs, many client workspaces, more users). **Settings → 🔑 Licence → Includes** shows exactly what your licence allows. Current prices are on **https://license.radixile.com/buy**.
 
-**Limits count the whole installation.** The number of users and workspaces in your licence is counted across everything on this PC, not per person. If you reach a limit, Social-Nexus tells you, for example "Your Individual licence allows 1 brand/client workspaces. Upgrade at license.radixile.com to add more."
+**Limits count the whole installation.** The number of users and workspaces in your licence is counted across everything on this PC, not per person. If you reach a limit, NexaDrip tells you, for example "Your Individual licence allows 1 brand/client workspaces. Upgrade at license.radixile.com to add more."
 
 ### Activate a licence key or coupon
 Only the **admin** of this installation can activate or change the licence. The PC must be online for this step.
@@ -161,7 +161,7 @@ Only the **admin** of this installation can activate or change the licence. The 
 3. Enter **your email**. It is needed for coupons. Some offers allow one use per email.
 4. Enter **your name or business**. This is shown as "Licensed to".
 5. Optional: give **this computer a name**, for example "Office PC".
-6. Click **Activate**. You'll see "Social-Nexus is activated ✅" and **Status: ✅ Active**.
+6. Click **Activate**. You'll see "NexaDrip is activated ✅" and **Status: ✅ Active**.
 
 **Keep your key safe.** Your key appears on the payment success page and is emailed to you with your GST invoice. For security, Radixile stores only a scrambled (hashed) copy and can't read it back to you.
 
@@ -174,23 +174,23 @@ The **Status** line in **Settings → 🔑 Licence** and the banner at the top t
 | Status | What it means | What to do |
 |---|---|---|
 | **⚪ Not activated** | No licence yet. | Activate a key or coupon. Writing, AI, planning and export still work. |
-| **Checking your licence…** | The first few seconds after Social-Nexus starts, while it checks this PC. Publishing waits for a moment. | Nothing. Wait a few seconds. If a publish button says "still checking your licence", try again. |
+| **Checking your licence…** | The first few seconds after NexaDrip starts, while it checks this PC. Publishing waits for a moment. | Nothing. Wait a few seconds. If a publish button says "still checking your licence", try again. |
 | **✅ Active** | Everything your edition allows works. | Nothing. |
 | **🟠 Needs internet** | Your offline time has run out (see below), or your PC's date looks wrong. | Connect to the internet and click **Check now** on the banner. Check the PC's date and time. |
 | **🔴 Ended** | Your subscription or coupon period is over. | Renew or buy a licence. All your data is still here. |
-| **🔴 Not valid on this PC** | The licence belongs to another PC or installation, was cancelled, or this copy of Social-Nexus was modified. The message says which. | Follow the message. Usually: activate again on this PC. |
+| **🔴 Not valid on this PC** | The licence belongs to another PC or installation, was cancelled, or this copy of NexaDrip was modified. The message says which. | Follow the message. Usually: activate again on this PC. |
 
 ### Working offline
-After activation Social-Nexus works **without internet**. **Settings → 🔑 Licence** shows a **Works offline until** date. Whenever the PC is online, Social-Nexus checks in by itself and moves that date forward. You don't need to do anything.
+After activation NexaDrip works **without internet**. **Settings → 🔑 Licence** shows a **Works offline until** date. Whenever the PC is online, NexaDrip checks in by itself and moves that date forward. You don't need to do anything.
 
-- When **3 days or fewer** of offline time are left, a banner asks you to connect: *"Connect to the internet within … days so Social-Nexus can confirm your licence."*
+- When **3 days or fewer** of offline time are left, a banner asks you to connect: *"Connect to the internet within … days so NexaDrip can confirm your licence."*
 - After the **Works offline until** date, publishing pauses until the PC is online for a moment. Click **Check now** on the banner, or **🔄 Check licence now** in **Settings → 🔑 Licence**.
 - **🔄 Check licence now** is also useful straight after you renew or upgrade, so you don't have to wait for the automatic check.
 
 > Don't change your PC's clock to get extra days. If the clock goes back by more than a day, the app asks you to fix the date and go online.
 
 ### Limited mode
-When there's no active licence (not activated, ended, needs internet, or not valid), Social-Nexus runs in **limited mode**:
+When there's no active licence (not activated, ended, needs internet, or not valid), NexaDrip runs in **limited mode**:
 - ✅ You can still **open and view everything, write drafts, use AI, plan on the calendar, export and back up**. Your data is never locked away.
 - ⛔ **Publishing, scheduling, Retry, CSV schedule import and sending email campaigns** are paused until the licence is active again.
 
@@ -200,7 +200,7 @@ Posts that were already scheduled wait. If the licence becomes active again with
 Your licence is linked to your computer through a scrambled "fingerprint" of its hardware. Changing one part, such as a new disk or more RAM, doesn't break it.
 
 1. On the **old** PC: **Settings → 🔑 Licence → Deactivate this PC**. **The old PC must be online.** This frees your seat on Radixile's licence server.
-2. Install Social-Nexus on the **new** PC and activate with the same key.
+2. Install NexaDrip on the **new** PC and activate with the same key.
 3. To bring your posts and settings across, copy your data folder (see [Backup](#16-backup-data-location-and-privacy)).
 
 If you try to deactivate while offline, you'll see "… Deactivating needs the internet so your seat is freed for another PC." Nothing is removed, and your licence keeps working on this PC. Connect to the internet and try again.
@@ -210,10 +210,10 @@ If the old PC is broken or lost, email **info@radixile.com** with your licence k
 **"This licence is already active on N of N computers"** means all your seats are in use. Deactivate one PC, or ask support to move the licence.
 
 ### Reinstalling on the same PC
-Reinstalled Social-Nexus or Windows, or started with a fresh data folder? **Just activate again with the same key** (or the same coupon) in **Settings → 🔑 Licence**. Social-Nexus recognises the same PC and gives you back your seat; it doesn't use up another one. A coupon gives back the same coupon period, not a new one.
+Reinstalled NexaDrip or Windows, or started with a fresh data folder? **Just activate again with the same key** (or the same coupon) in **Settings → 🔑 Licence**. NexaDrip recognises the same PC and gives you back your seat; it doesn't use up another one. A coupon gives back the same coupon period, not a new one.
 
-### "This copy of Social-Nexus has been modified"
-If files of the app were changed or damaged (for example by a "crack", a broken update or a damaged disk), the licence can't be used. **Reinstall Social-Nexus from radixile.com. Your data is safe**: it's kept in a separate folder and isn't touched by reinstalling.
+### "This copy of NexaDrip has been modified"
+If files of the app were changed or damaged (for example by a "crack", a broken update or a damaged disk), the licence can't be used. **Reinstall NexaDrip from radixile.com. Your data is safe**: it's kept in a separate folder and isn't touched by reinstalling.
 
 ### No internet on the PC at all (rare)
 1. In **Settings → 🔑 Licence**, open **No internet on this computer? Activate offline**.
@@ -254,7 +254,7 @@ Only the admin can save the app-wide settings: social platform app details, emai
 
 ## 7. Setting up AI
 
-You need at least one AI option to use AI Generate, AI Assist, hashtags, captions, SEO, ad copy and email writing. You can set up several. Social-Nexus then uses the next one if the first is busy.
+You need at least one AI option to use AI Generate, AI Assist, hashtags, captions, SEO, ad copy and email writing. You can set up several. NexaDrip then uses the next one if the first is busy.
 
 ### Option A: Ollama (free, private, works offline)
 
@@ -262,8 +262,8 @@ Ollama runs AI models **on your own PC**. Nothing you write is sent anywhere. It
 
 **Step by step**
 1. Go to **https://ollama.com/download**, download **Ollama for Windows** and install it. No account is needed. Ollama starts by itself in the background (you'll see a llama icon in the tray).
-2. Download a model (the AI "brain"). You can do this in Social-Nexus or in Windows:
-   - **In Social-Nexus:** go to **Settings → 🦙 Local AI (Ollama)**, type the model name under **⬇️ Pull a New Model** (for example `llama3.2`) and click **Pull**. Wait for it to finish. This can take a few minutes. (Only the admin can do this here.)
+2. Download a model (the AI "brain"). You can do this in NexaDrip or in Windows:
+   - **In NexaDrip:** go to **Settings → 🦙 Local AI (Ollama)**, type the model name under **⬇️ Pull a New Model** (for example `llama3.2`) and click **Pull**. Wait for it to finish. This can take a few minutes. (Only the admin can do this here.)
    - **Or in Windows:** open **Command Prompt** (press Start, type `cmd`, press Enter), type `ollama pull llama3.2` and press Enter.
 3. In **Settings → 🦙 Local AI (Ollama)** click **🔄 Check**. The dot should turn green, and your model appears under **Downloaded Models**.
 4. Choose your model under **Active Model**, tick **Use Ollama as Primary AI**, then click **💾 Save Ollama Settings**.
@@ -290,7 +290,7 @@ To find out how much RAM you have: Start → **Settings → System → About →
 
 ### Option B: free cloud AI keys
 
-These services give you a **free API key**. An API key is a password that lets Social-Nexus use the service on your behalf. Each person uses their own key, so usage is billed to (or free under) **your** account, and the provider's free limits apply to you.
+These services give you a **free API key**. An API key is a password that lets NexaDrip use the service on your behalf. Each person uses their own key, so usage is billed to (or free under) **your** account, and the provider's free limits apply to you.
 
 | Service | Where to get the key | What the key looks like | Notes |
 |---|---|---|---|
@@ -312,20 +312,20 @@ Your keys are saved for **your login only**. Other users on the same PC can't se
 
 > **Settings → 🤖 AI Keys** and **Settings → 🎨 Media AI** also save to **your own** account. They're just shortcuts for the same personal keys. Keys that were set up in the app's configuration when the app was installed are used only by the admin who set up the install. **Every other user must add their own keys** (or use Ollama).
 
-### How Social-Nexus chooses an AI (and falls back)
+### How NexaDrip chooses an AI (and falls back)
 
-**If you pick a model on the AI Generate page**, Social-Nexus uses **exactly that one**. If it fails, you see the reason, and it doesn't switch to another AI behind your back.
+**If you pick a model on the AI Generate page**, NexaDrip uses **exactly that one**. If it fails, you see the reason, and it doesn't switch to another AI behind your back.
 
-**Otherwise**, Social-Nexus tries the options you've set up in this order and uses the first one that works:
+**Otherwise**, NexaDrip tries the options you've set up in this order and uses the first one that works:
 
-1. **Ollama**, if it's turned on, running and has your model. If Ollama is installed but the model you chose **isn't downloaded**, Social-Nexus tells you and moves on to your cloud AI.
+1. **Ollama**, if it's turned on, running and has your model. If Ollama is installed but the model you chose **isn't downloaded**, NexaDrip tells you and moves on to your cloud AI.
 2. **Google Gemini**
 3. **Groq**
 4. **OpenRouter**
 5. **Mistral**
 6. **Anthropic Claude**
 
-A provider that is "busy" is retried once after 2 seconds before Social-Nexus moves on. If all of them fail, you get one message that lists **each provider and why it failed**, for example *"Gemini: busy right now (503)"* or *"Groq: API key rejected"*.
+A provider that is "busy" is retried once after 2 seconds before NexaDrip moves on. If all of them fail, you get one message that lists **each provider and why it failed**, for example *"Gemini: busy right now (503)"* or *"Groq: API key rejected"*.
 
 **Tip:** set up **two** options, for example Ollama plus a free Gemini key, or Gemini plus Groq. Then a busy service never stops you.
 
@@ -341,7 +341,7 @@ If the bar says *"No text models configured"*, add a key in **My API Keys** or s
 
 ## 8. Connecting your social accounts
 
-Connecting is a one-time setup for each platform. Because Social-Nexus runs on your PC (and isn't a website that Radixile hosts), each network asks you to create a free **developer app**. You then paste its **Client ID** and **Client Secret** into **Settings → 🔗 Social Platforms**, and click **Connect**.
+Connecting is a one-time setup for each platform. Because NexaDrip runs on your PC (and isn't a website that Radixile hosts), each network asks you to create a free **developer app**. You then paste its **Client ID** and **Client Secret** into **Settings → 🔗 Social Platforms**, and click **Connect**.
 
 The full step-by-step guide for each network is in a separate document: **[Connecting your social accounts](connect-social-accounts.md)**. It's also in the in-app Help page.
 
@@ -383,7 +383,7 @@ If Facebook's **Connect** keeps failing, the Facebook card also offers **🔑 Pa
 
 The preview's **Google Biz** tab shows how it will look on Search and Maps. Google posts take one photo and no video. Missing titles, dates or links are pointed out before you save.
 
-**First comment** (Instagram and Facebook): often used for hashtags or "Order on WhatsApp…". Under **Add it**, choose *right after the post goes out* or 1, 2, 5, 10, 15, 30 minutes or 1 hour after. A short wait looks more natural and gives Instagram time to finish the post; delayed comments are added while Social-Nexus is running. Stories can't have comments. If a comment can't be added you're told why: most often Instagram wasn't given permission to add comments, so click **Connect** on the Instagram card in Settings and allow everything it asks. The Calendar shows for each post whether the first comment was added, is waiting, or why not.
+**First comment** (Instagram and Facebook): often used for hashtags or "Order on WhatsApp…". Under **Add it**, choose *right after the post goes out* or 1, 2, 5, 10, 15, 30 minutes or 1 hour after. A short wait looks more natural and gives Instagram time to finish the post; delayed comments are added while NexaDrip is running. Stories can't have comments. If a comment can't be added you're told why: most often Instagram wasn't given permission to add comments, so click **Connect** on the Instagram card in Settings and allow everything it asks. The Calendar shows for each post whether the first comment was added, is waiting, or why not.
 
 **← Back to editing** returns to the text; saving again updates the same draft. Without publish permission in a workspace (e.g. as a Creator on a client's workspace) you'll see only **Send for review** and **Keep as draft**.
 
@@ -414,7 +414,7 @@ Publishing needs the **publish** permission in the workspace (the Manager role).
 **Per-platform variants:** Compose sends the **same text** to every platform you select. To post a different version on each network, send each AI card to Compose separately and post them one at a time. In the Calendar, the **📱 Variants** button in AI Assist suggests platform versions of a draft.
 
 ### Character limits
-Social-Nexus warns you, and won't post, if your text is too long for a selected platform:
+NexaDrip warns you, and won't post, if your text is too long for a selected platform:
 
 | Platform | Limit (characters) |
 |---|---|
@@ -461,18 +461,18 @@ Each repeat is its own post on the Calendar (**🔁 Every week · post 2 of 6**)
 3. Click **📅 Schedule Post**. The post appears in the **📅 Scheduled Queue** on the right.
 4. To cancel it, click 🗑 next to it.
 
-**Social-Nexus must be running** (it's enough for it to be in the system tray), the PC must be awake and online, and your licence must be active at the scheduled time. The app checks for due posts every minute. Scheduling also needs an active licence.
+**NexaDrip must be running** (it's enough for it to be in the system tray), the PC must be awake and online, and your licence must be active at the scheduled time. The app checks for due posts every minute. Scheduling also needs an active licence.
 
-**Tip:** close the window with **✕** instead of quitting. Social-Nexus then keeps running in the tray and posts on time. Make sure the PC doesn't go to sleep at your posting times (Windows **Settings → System → Power**).
+**Tip:** close the window with **✕** instead of quitting. NexaDrip then keeps running in the tray and posts on time. Make sure the PC doesn't go to sleep at your posting times (Windows **Settings → System → Power**).
 
 ### Missed posts are not posted late
-If a post is **more than 6 hours overdue** (the PC was off or asleep, Social-Nexus was closed, or the licence wasn't active), Social-Nexus **does not post it automatically**. A "Happy Diwali" post a week after Diwali does more harm than good.
+If a post is **more than 6 hours overdue** (the PC was off or asleep, NexaDrip was closed, or the licence wasn't active), NexaDrip **does not post it automatically**. A "Happy Diwali" post a week after Diwali does more harm than good.
 
-Instead, the post is marked **failed** with a message that starts with **"Missed:"**, for example *"Missed: it was due 8/11/2026, 9:00:00 am but Social-Nexus wasn't running or wasn't licensed then. Use Retry to post it now."*
+Instead, the post is marked **failed** with a message that starts with **"Missed:"**, for example *"Missed: it was due 8/11/2026, 9:00:00 am but NexaDrip wasn't running or wasn't licensed then. Use Retry to post it now."*
 
 - If the post still makes sense, click **🔁 Retry** (in Compose, under **⚠️ Failed in the last 14 days**). It goes out in about a minute.
 - If it's out of date, delete it with 🗑, or edit it and schedule it again.
-- Posts that are **less than 6 hours** late go out as soon as Social-Nexus is running again.
+- Posts that are **less than 6 hours** late go out as soon as NexaDrip is running again.
 
 ### The Content Calendar
 The **📅 Content Calendar** shows the content you plan there, in **Week**, **Month** or **Agenda** view. Use **← Prev / Next →** to move through dates, and the **Filter status** boxes to show or hide items.
@@ -495,7 +495,7 @@ Working alone? You can submit and approve your own posts. A one-click "schedule 
 ### Failed posts and Retry
 A post can fail if a network rejects it: the login expired, a permission is missing, there's no image for Instagram, and so on.
 - **From Compose:** failed scheduled posts from the last 14 days are listed under **⚠️ Failed in the last 14 days** in the Scheduled Queue, with the reason for each platform. Fix the cause (for example, reconnect the account), then click **🔁 Retry**. The post is tried again in about a minute.
-- **"Interrupted while publishing — check the platform, then Retry"** means Social-Nexus was closed, or the PC shut down, while the post was being sent. It may or may not have reached the network. **Look at your page or profile first.** Only click **🔁 Retry** if the post isn't there, so it doesn't appear twice.
+- **"Interrupted while publishing — check the platform, then Retry"** means NexaDrip was closed, or the PC shut down, while the post was being sent. It may or may not have reached the network. **Look at your page or profile first.** Only click **🔁 Retry** if the post isn't there, so it doesn't appear twice.
 - **"Missed: …"** means the post was more than 6 hours overdue, so it wasn't posted late. See [Missed posts](#missed-posts-are-not-posted-late). Click **🔁 Retry** to post it now.
 - **From the Calendar:** failed items (including Missed ones) show as **Failed** with the error message in their details. Click **✏️ Edit** (this returns the item to Draft), fix it, and schedule it again.
 
@@ -545,7 +545,7 @@ UTM links show you in Google Analytics which post or campaign brought visitors t
 
 ## 13. SEO tools and other marketing tools
 
-**🤖 SEO autopilot (server edition only).** When Social-Nexus runs as a server it can look after your website by itself. In Website SEO → **Autopilot**:
+**🤖 SEO autopilot (server edition only).** When NexaDrip runs as a server it can look after your website by itself. In Website SEO → **Autopilot**:
 1. Type your website and the phrases you want to be found for (one per line; your saved search phrases are included too). Choose how often to check (every week or every day), how many pages (up to 10, 20 or 50) and when to remind you about Google posts.
 2. Click **Start watching my website**. The first check starts straight away. The next ones run by themselves.
 3. **To do** lists what needs attention, most urgent first (*Fix first*, *Important*, *Nice to have*), in plain words. It covers pages Google can't open or is told not to show, missing or poor titles and descriptions, the same title on several pages, broken links, missing pages that pretend to exist (soft 404), sitemap and main-address (canonical) problems, structured data, phone set-up, AI assistants blocked from your site, phrases no page is about, and phone page speed.
@@ -557,17 +557,17 @@ UTM links show you in Google Analytics which post or campaign brought visitors t
 The Home page shows the top to-dos. The autopilot never changes your website and never posts by itself. Page speed needs a free Google PageSpeed API key on the server (`PAGESPEED_API_KEY`). In the desktop app the autopilot is not available; the tools below are.
 
 **🔍 Website SEO** (More tools → Website SEO):
-- **🔎 Check a page:** type your page's address (and, if you like, the phrase you want to be found for). Social-Nexus opens the page the way Google's crawler does and lists what's fine, what to improve and what to fix:
+- **🔎 Check a page:** type your page's address (and, if you like, the phrase you want to be found for). NexaDrip opens the page the way Google's crawler does and lists what's fine, what to improve and what to fix:
   - whether the page opens, uses https, is allowed by your `robots.txt` and isn't marked "noindex" (these decide whether Google can list it at all);
   - whether there's a sitemap and where the page's main address (canonical) points;
   - the title and description (with how they may look on Google), the main heading, the amount of text, pictures without a description (alt text), phone set-up and the preview when shared;
   - where your search phrase appears.
 
   Everything here is measured from the page, not guessed. Addresses on your PC or local network can't be checked. To see whether a page is already in Google, search `site:yourbusiness.com/page` on Google, or use Google Search Console.
-- **🏷️ Write title & description:** give the page's address (Social-Nexus reads it and shows what's there now) or, without a website, a title and a few sentences. AI writes a title (50–60 characters) and description (140–160), with length badges, and **Copy as HTML for your website**.
+- **🏷️ Write title & description:** give the page's address (NexaDrip reads it and shows what's there now) or, without a website, a title and a few sentences. AI writes a title (50–60 characters) and description (140–160), with length badges, and **Copy as HTML for your website**.
 - **🔑 Search phrase ideas:** phrases, questions and page ideas from AI. "Competition" is the AI's rough guess, not search data. For real volumes use Google Keyword Planner or Search Console.
 - **⚡ Check my text:** paste text and your search phrase. Words, sentence length, reading ease and how often the phrase appears are **measured**; AI adds suggestions, a stronger first paragraph and headings. The numbers still show if your AI isn't available.
-- **📍 My search phrases:** the phrases you want to be found for. Social-Nexus doesn't look up your Google position (Google doesn't allow automatic searches): **Search on Google** opens the search in your browser, and Google Search Console shows exact positions.
+- **📍 My search phrases:** the phrases you want to be found for. NexaDrip doesn't look up your Google position (Google doesn't allow automatic searches): **Search on Google** opens the search in your browser, and Google Search Console shows exact positions.
 
 **📱 App store listing** (More tools → App store listing): AI writes the fields each store really has, and checks Apple's and Google's limits:
 - **App Store:** name (30), subtitle (30), promotional text (170), keywords (100, comma-separated; words already in the name or subtitle are left out because Apple counts them anyway) and description (4,000).
@@ -618,14 +618,14 @@ Sales outreach writes a short, personal email to each business you pick, waits f
 The side menu follows the order you use it:
 
 1. **Campaigns.** Click **+ New campaign**. Give it a name and, most importantly, **say what you offer in a sentence or two**: the emails are written from this. Your business name comes from **Brand Kit**, so fill that in too. Set **Most emails per day** (25 is a safe start). Leave **Send without asking me** off.
-2. **Companies & people.** Click **+ Add a company** (or **Add many companies** for a list of up to 20 websites). Social-Nexus reads their website, picks who to email and writes 3 emails: a first email, a short follow-up 3 days later and a last note 7 days later.
+2. **Companies & people.** Click **+ Add a company** (or **Add many companies** for a list of up to 20 websites). NexaDrip reads their website, picks who to email and writes 3 emails: a first email, a short follow-up 3 days later and a last note 7 days later.
    - The email address is marked **✓ Verified** when it was found on their own website, **⚠ Guessed** when it wasn't (for example `contact@their-company.com`; it may bounce, so check it if you can) and **✕ Won't work** when the domain can't receive email. "Won't work" addresses are never emailed.
    - If a website doesn't open, the company isn't added and you're told why.
 3. **Outbox (approve).** Read each email, edit it if needed and click **Approve** (or **Approve all**). Nothing is sent before that. An email that still has a blank like `[Name]` or `{{first_name}}` can't be approved until you fill it in.
 4. Approved emails go out by themselves (the app checks every 15 minutes), a few seconds apart and never more than the campaign's daily limit. To send what's due right away, click **⚡** at the top.
    - **Follow-ups go out in order**: email 2 only after email 1 has really been sent, and at least the planned number of days after it. If email 1 went out late, the follow-ups move by the same amount. If an earlier email was cancelled or failed, the later ones aren't sent.
    - The Outbox shows the real state of each email: **✓ Sent**, **Approved · goes out** (with the date), **Not sent** (with the reason, such as "they replied") or **Failed** (with the error).
-5. **Replies.** Social-Nexus doesn't read your mailbox yet. When someone answers, click **+ Add a reply you received** and paste it in. Then:
+5. **Replies.** NexaDrip doesn't read your mailbox yet. When someone answers, click **+ Add a reply you received** and paste it in. Then:
    - Their follow-ups stop at once, and the company shows **Replied**.
    - The reply is sorted as **Interested**, **Question**, **Not now**, **Not interested** or **Asked to stop**. People who said "not interested" or asked to stop are never emailed again, by any campaign.
    - An answer is drafted from your campaign's description. Click **Edit** to change it and **Send answer** to send it. It goes out with the subject of your original email ("Re: …"). It's only marked as answered if it was really sent, and it can't be sent twice by accident.
@@ -653,10 +653,10 @@ Click the **🏢 workspace name** in the top bar and choose a workspace. Everyth
 ### Invite team members
 1. Switch to the workspace, then open **Settings → 👥 Members**, or **🏢 → 👥 Manage Members**.
 2. Enter the person's **email** and choose a **role**.
-3. Click **📩 Send Invite**. Social-Nexus **doesn't email the invite for you**. It shows a link. Send the link to the person yourself (WhatsApp, email…).
-4. The person opens the link. Social-Nexus asks them to **sign in** (or create an account) **with the invited email address**, and then takes them back to the invite. They click **Join workspace**. The link doesn't work for any other email address.
+3. Click **📩 Send Invite**. NexaDrip **doesn't email the invite for you**. It shows a link. Send the link to the person yourself (WhatsApp, email…).
+4. The person opens the link. NexaDrip asks them to **sign in** (or create an account) **with the invited email address**, and then takes them back to the invite. They click **Join workspace**. The link doesn't work for any other email address.
 
-> Social-Nexus only accepts connections from the PC it's installed on. Team members therefore need their own login **on the same PC**. Access from other PCs is planned for the Agency edition.
+> NexaDrip only accepts connections from the PC it's installed on. Team members therefore need their own login **on the same PC**. Access from other PCs is planned for the Agency edition.
 
 **Roles**
 
@@ -677,9 +677,9 @@ Accepting an invite never lowers the role of someone who is already a member.
 ### Where your data is
 Everything is in one folder on your PC:
 
-**`%APPDATA%\Social-Nexus`** (usually `C:\Users\<you>\AppData\Roaming\Social-Nexus`)
+**`%APPDATA%\NexaDrip`** (usually `C:\Users\<you>\AppData\Roaming\NexaDrip`)
 
-To open it, press **Windows key + R**, type `%APPDATA%\Social-Nexus` and press Enter.
+To open it, press **Windows key + R**, type `%APPDATA%\NexaDrip` and press Enter.
 
 | Inside | What it is |
 |---|---|
@@ -689,13 +689,13 @@ To open it, press **Windows key + R**, type `%APPDATA%\Social-Nexus` and press E
 | `content\` | Your local content folder (unless you chose another) |
 | `logs\server.log` | The technical log, used for troubleshooting |
 
-**Coming from the older "NEXUS" app?** The first time Social-Nexus starts, it automatically moves your old NEXUS data into `%APPDATA%\Social-Nexus`. It then offers to delete the old copy. Say yes once you've checked that your posts and settings are there.
+**Coming from the older "NEXUS" app?** The first time NexaDrip starts, it automatically moves your old NEXUS data into `%APPDATA%\NexaDrip`. It then offers to delete the old copy. Say yes once you've checked that your posts and settings are there.
 
 ### Backing up
 There's no backup button yet. To back up:
-1. Right-click the Social-Nexus tray icon → **Quit Social-Nexus**. Quitting first makes sure everything is saved.
-2. Copy the whole `%APPDATA%\Social-Nexus` folder to a USB drive or a private cloud folder.
-3. To restore, quit Social-Nexus and copy the folder back.
+1. Right-click the NexaDrip tray icon → **Quit NexaDrip**. Quitting first makes sure everything is saved.
+2. Copy the whole `%APPDATA%\NexaDrip` folder to a USB drive or a private cloud folder.
+3. To restore, quit NexaDrip and copy the folder back.
 
 **Treat the backup like a password.** It contains your connected-account logins and API keys. These are stored on your PC without extra encryption, so keep your Windows account password-protected and don't share the folder.
 
@@ -711,20 +711,20 @@ Full details: **[Privacy and your data](privacy-and-data.md)**.
 
 ## 17. Uninstalling
 
-1. Quit Social-Nexus from the tray.
-2. Open **Windows Settings → Apps → Installed apps**, find **Social-Nexus**, and click **⋯ → Uninstall**.
-3. Windows asks: **"Also delete all Social-Nexus data on this PC (posts, settings, connected accounts, API keys, licence)?"**
+1. Quit NexaDrip from the tray.
+2. Open **Windows Settings → Apps → Installed apps**, find **NexaDrip**, and click **⋯ → Uninstall**.
+3. Windows asks: **"Also delete all NexaDrip data on this PC (posts, settings, connected accounts, API keys, licence)?"**
    - **No** (the default) keeps your data for a future reinstall.
-   - **Yes** permanently deletes the `%APPDATA%\Social-Nexus` folder. Back it up first if you might need it.
+   - **Yes** permanently deletes the `%APPDATA%\NexaDrip` folder. Back it up first if you might need it.
 
-If you're moving to a new PC, deactivate your licence before uninstalling, while the PC is online (see [Moving to a new PC](#moving-to-a-new-pc)). Reinstalling on the same PC? You can simply activate again with the same key. Updating Social-Nexus never deletes your data.
+If you're moving to a new PC, deactivate your licence before uninstalling, while the PC is online (see [Moving to a new PC](#moving-to-a-new-pc)). Reinstalling on the same PC? You can simply activate again with the same key. Updating NexaDrip never deletes your data.
 
 ---
 
 ## 18. Troubleshooting
 
 ### Where is the log file?
-`%APPDATA%\Social-Nexus\logs\server.log`. Older logs are `server.1.log` and `server.2.log`. Press **Windows key + R**, paste `%APPDATA%\Social-Nexus\logs` and press Enter. Attach `server.log` when you email info@radixile.com.
+`%APPDATA%\NexaDrip\logs\server.log`. Older logs are `server.1.log` and `server.2.log`. Press **Windows key + R**, paste `%APPDATA%\NexaDrip\logs` and press Enter. Attach `server.log` when you email info@radixile.com.
 
 The log stays on your PC unless you send it. Before sending, you can open it in Notepad to see what's inside.
 
@@ -743,9 +743,9 @@ The provider didn't accept your key. **My API Keys** is in the **user menu** (cl
 - For Claude: make sure your Anthropic account has credit.
 
 ### "busy right now (503)" or "rate limit reached (429)"
-The AI service is overloaded or you've used up its free allowance for now. This isn't a problem with Social-Nexus.
-- Wait a minute and try again. Social-Nexus already retried once for you.
-- Choose another model on the **🤖 Model:** bar, or add a second free key so Social-Nexus can fall back to it automatically.
+The AI service is overloaded or you've used up its free allowance for now. This isn't a problem with NexaDrip.
+- Wait a minute and try again. NexaDrip already retried once for you.
+- Choose another model on the **🤖 Model:** bar, or add a second free key so NexaDrip can fall back to it automatically.
 
 ### "No AI provider available"
 You haven't set up any AI yet. Add a free key in **user menu → My API Keys**, or install Ollama (see [Setting up AI](#7-setting-up-ai)).
@@ -765,27 +765,27 @@ Facebook only allows posting to **Pages**, not personal profiles. On the Faceboo
 ### "Before connecting …, add your … app details"
 You clicked **Connect** before saving the developer app details. Open **🔑 API Credentials** on the card, paste them, and click **💾 Save Credentials** first.
 
-### "Sign-in link expired or was not started from Social-Nexus"
-Start the connection again from the platform card, and finish signing in within 10 minutes. Use the window that Social-Nexus opened.
+### "Sign-in link expired or was not started from NexaDrip"
+Start the connection again from the platform card, and finish signing in within 10 minutes. Use the window that NexaDrip opened.
 
 ### "Port 3000 In Use" when starting
-Another copy of Social-Nexus, or another program, is using the same connection port.
-1. Click **Try to Connect**. If Social-Nexus was already running in the tray, it opens.
-2. If that doesn't work: quit Social-Nexus from the tray, open **Task Manager** (Ctrl + Shift + Esc), end any **Social-Nexus** tasks, and start the app again.
-3. If another program uses port 3000 (some developer tools do), close that program. Social-Nexus's connection addresses for the social networks depend on port 3000, so don't change it.
+Another copy of NexaDrip, or another program, is using the same connection port.
+1. Click **Try to Connect**. If NexaDrip was already running in the tray, it opens.
+2. If that doesn't work: quit NexaDrip from the tray, open **Task Manager** (Ctrl + Shift + Esc), end any **NexaDrip** tasks, and start the app again.
+3. If another program uses port 3000 (some developer tools do), close that program. NexaDrip's connection addresses for the social networks depend on port 3000, so don't change it.
 
-### Social-Nexus shows an error when starting
-The message explains the actual problem and shows the log folder (`%APPDATA%\Social-Nexus\logs`). Follow the advice in the message. If it doesn't help, email info@radixile.com with a screenshot and `server.log` from that folder.
+### NexaDrip shows an error when starting
+The message explains the actual problem and shows the log folder (`%APPDATA%\NexaDrip\logs`). Follow the advice in the message. If it doesn't help, email info@radixile.com with a screenshot and `server.log` from that folder.
 
 ### The app window is blank or says it can't connect
 Wait 10–20 seconds. The local server may still be starting, and the app retries automatically. If it doesn't recover, quit from the tray and start again. If it keeps happening, email support with `server.log`.
 
 ### Scheduled post didn't go out
-- Was Social-Nexus running (at least in the tray), the PC online and awake, and the licence active at that time?
+- Was NexaDrip running (at least in the tray), the PC online and awake, and the licence active at that time?
 - Look under **⚠️ Failed in the last 14 days** in Compose for the reason, then **🔁 Retry**.
 
-### A post says "Missed: it was due … but Social-Nexus wasn't running or wasn't licensed then"
-The post was more than 6 hours overdue, so Social-Nexus didn't post it late on purpose. If it's still relevant, click **🔁 Retry** to post it now. Otherwise delete it. To avoid this, keep Social-Nexus running in the tray and stop the PC sleeping at your posting times. See [Missed posts](#missed-posts-are-not-posted-late).
+### A post says "Missed: it was due … but NexaDrip wasn't running or wasn't licensed then"
+The post was more than 6 hours overdue, so NexaDrip didn't post it late on purpose. If it's still relevant, click **🔁 Retry** to post it now. Otherwise delete it. To avoid this, keep NexaDrip running in the tray and stop the PC sleeping at your posting times. See [Missed posts](#missed-posts-are-not-posted-late).
 
 ### Ollama is slow, or AI seems stuck
 - **The first request after starting takes about 30 seconds** while Ollama loads the model. This is normal.
@@ -793,7 +793,7 @@ The post was more than 6 hours overdue, so Social-Nexus didn't post it late on p
 - Still too slow? Use `llama3.2:1b`, close other heavy programs, or choose a cloud AI (Groq is fastest) on the **🤖 Model:** bar.
 
 ### Licence: "Checking your licence…" or "still checking your licence"
-This appears for the first few seconds after Social-Nexus starts. Wait a moment and try again.
+This appears for the first few seconds after NexaDrip starts. Wait a moment and try again.
 
 ### Licence: 🟠 "Needs internet" / "needs to connect to the internet briefly"
 Your offline time (the **Works offline until** date) has run out. Connect to the internet and click **Check now** on the banner, or **🔄 Check licence now** in **Settings → 🔑 Licence**. If it says your **computer's date looks wrong**, fix the date and time in Windows first.
@@ -801,7 +801,7 @@ Your offline time (the **Works offline until** date) has run out. Connect to the
 ### Licence: 🔴 "Not valid on this PC"
 Read the message under **Settings → 🔑 Licence**:
 - *"…belongs to another installation"* or *"…activated on a different computer"*: activate again here with the same key. On the same PC (for example after reinstalling) this doesn't use another seat.
-- *"This copy of Social-Nexus has been modified…"*: reinstall Social-Nexus from radixile.com. Your data is safe.
+- *"This copy of NexaDrip has been modified…"*: reinstall NexaDrip from radixile.com. Your data is safe.
 - *"The licence file is damaged or was changed"*: activate again.
 - The licence was cancelled or put on hold: email info@radixile.com.
 
@@ -825,19 +825,19 @@ No. Your posts, drafts, contacts and keys stay on your PC. See [Privacy and your
 No. Ollama is free and local. Gemini, Groq, OpenRouter and Mistral have free tiers. Claude and the image and video services are paid. You pay the provider directly, never Radixile.
 
 **Why do I need a "developer app" to connect Facebook or LinkedIn?**
-Because Social-Nexus runs privately on your PC, not as a central website, your PC talks to each network directly using your own app. This means Radixile never holds your social logins. The connect guide walks you through it, and you only do it once.
+Because NexaDrip runs privately on your PC, not as a central website, your PC talks to each network directly using your own app. This means Radixile never holds your social logins. The connect guide walks you through it, and you only do it once.
 
 **Why does Instagram need a Business or Creator account?**
 Instagram only lets apps publish to professional accounts that are linked to a Facebook Page. Personal Instagram accounts can't be posted to by any app. Switching to a Business or Creator account is free in the Instagram app.
 
-**Can I use Social-Nexus on two PCs?**
+**Can I use NexaDrip on two PCs?**
 Each activated PC uses one seat. The Individual edition has 1 seat, and the Agency edition has several. Deactivate a PC to free its seat.
 
 **Does it work without internet?**
 Yes, for drafting, the calendar, templates, Brand Kit and AI with Ollama. Publishing, cloud AI, email sending and activating need internet. After activation the licence works offline until the **Works offline until** date in **Settings → 🔑 Licence**, then it needs the internet briefly.
 
 **Will my scheduled posts go out if my PC is off?**
-No. Social-Nexus must be running (the tray is enough) at the scheduled time. Posts more than 6 hours late are marked **Missed** instead of being posted late. You can then **🔁 Retry** them.
+No. NexaDrip must be running (the tray is enough) at the scheduled time. Posts more than 6 hours late are marked **Missed** instead of being posted late. You can then **🔁 Retry** them.
 
 **Can my team work from their own PCs?**
 Not yet. Today team members sign in on the same PC. Multi-PC team access is planned for the Agency edition.

@@ -16,7 +16,7 @@ const isServer = () => {
 // Features only the server edition has, for the screens to show or hide
 const features = () => ({ server: isServer(), seo_autopilot: isServer() });
 
-const SERVER_ONLY_MESSAGE = 'This is part of the Social-Nexus server edition, which runs all the time. It isn’t available in the desktop app.';
+const SERVER_ONLY_MESSAGE = 'This is part of the NexaDrip server edition, which runs all the time. It isn’t available in the desktop app.';
 
 // Local AI (Ollama) runs on the same computer. On the desktop app it is on unless
 // switched off; on the server it is off unless Radixile runs one (OLLAMA_ENABLED=true).

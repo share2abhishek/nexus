@@ -170,7 +170,7 @@ function status() {
   const store = readStore();
   const t = now();
   const base = { server: SERVER(), app_version: APP_VERSION, limits: LIMITED, licensed: false, can_publish: false };
-  const modified = { ...base, state: 'invalid', integrity: 'modified', message: 'This copy of Social-Nexus has been modified, so it cannot be licensed. Please reinstall it from radixile.com — your data is safe.' };
+  const modified = { ...base, state: 'invalid', integrity: 'modified', message: 'This copy of NexaDrip has been modified, so it cannot be licensed. Please reinstall it from radixile.com — your data is safe.' };
 
   // A modified installation keeps working for viewing/export, but isn't licensed
   const integrityNow = integrityState();
@@ -181,7 +181,7 @@ function status() {
     return { ...base, state: 'unlicensed', message: 'Licensing is not configured in this build. Publishing is disabled.' };
   }
   if (!store.file) {
-    return { ...base, state: 'unlicensed', message: 'Activate Social-Nexus with a licence key or coupon code to start publishing.' };
+    return { ...base, state: 'unlicensed', message: 'Activate NexaDrip with a licence key or coupon code to start publishing.' };
   }
   const f = verifySignature(store.file);
   if (!f) {
@@ -221,7 +221,7 @@ function status() {
       : 'Your subscription has ended. Renew to keep publishing — all your data is still here.');
   }
   if (t > f.lease_until) {
-    return limited('offline', 'Social-Nexus needs to connect to the internet briefly to confirm your licence.');
+    return limited('offline', 'NexaDrip needs to connect to the internet briefly to confirm your licence.');
   }
 
   // Remember the latest time we've seen (never moves backwards); saved at most hourly
@@ -231,7 +231,7 @@ function status() {
   const leaseDays = Math.max(0, Math.floor((f.lease_until - t) / DAY));
   let message = null;
   if (daysLeft !== null && daysLeft <= 14) message = `${f.type === 'coupon' ? 'Coupon' : 'Subscription'} ends in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`;
-  else if (leaseDays <= 3) message = `Connect to the internet within ${leaseDays === 0 ? 'a day' : `${leaseDays} day${leaseDays === 1 ? '' : 's'}`} so Social-Nexus can confirm your licence.`;
+  else if (leaseDays <= 3) message = `Connect to the internet within ${leaseDays === 0 ? 'a day' : `${leaseDays} day${leaseDays === 1 ? '' : 's'}`} so NexaDrip can confirm your licence.`;
   return {
     ...base, ...info, state: 'active', licensed: true, can_publish: f.limits?.publish !== false,
     limits: { ...LIMITED, ...f.limits }, days_left: daysLeft, message,
@@ -254,7 +254,7 @@ async function call(endpoint, body) {
     }
     const st = err.response?.status;
     const e = new Error(st === 429 ? 'Too many attempts. Please wait a few minutes and try again.'
-      : st >= 500 ? 'The licence server is having a problem. Please try again later — Social-Nexus keeps working meanwhile.'
+      : st >= 500 ? 'The licence server is having a problem. Please try again later — NexaDrip keeps working meanwhile.'
       : st ? `The licence server answered with an error (${st}). Please try again later.`
       : 'Could not reach the licence server. Check your internet connection and try again.');
     e.code = st ? 'SERVER' : 'NETWORK';
@@ -373,7 +373,7 @@ function importLicense(content) {
   let parsed = content;
   if (typeof content === 'string') { try { parsed = JSON.parse(content); } catch { parsed = null; } }
   const file = parsed?.kind === 'social-nexus-license' ? parsed.file : parsed;
-  if (!file?.payload || !file?.sig) return Promise.reject(Object.assign(new Error('That is not a Social-Nexus licence file.'), { code: 'BAD_FILE' }));
+  if (!file?.payload || !file?.sig) return Promise.reject(Object.assign(new Error('That is not a NexaDrip licence file.'), { code: 'BAD_FILE' }));
   return serial(async () => {
     await ensureFingerprint(); // needed to recognise this PC after a reinstall
     const store = readStore();

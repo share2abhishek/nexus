@@ -4,7 +4,7 @@ const axios = require('axios');
 const dns = require('dns').promises;
 const net = require('net');
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 (compatible; Social-Nexus SEO check; +https://radixile.com)';
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 (compatible; NexaDrip SEO check; +https://radixile.com)';
 
 const BROWSER_HEADERS = {
   'User-Agent': UA,

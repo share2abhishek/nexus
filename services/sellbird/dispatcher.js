@@ -58,7 +58,7 @@ async function sendOutreachEmail({ to, subject, body, fromName, fromEmail, works
     text: body + footerText,
     html: htmlBody,
     headers: {
-      'X-Mailer': 'Social-Nexus',
+      'X-Mailer': 'NexaDrip',
     },
     ...(Array.isArray(attachments) && attachments.length ? { attachments } : {}),
   });

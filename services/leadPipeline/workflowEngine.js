@@ -1,5 +1,5 @@
 // services/leadPipeline/workflowEngine.js
-// Native In-App Workflow Automation Engine (n8n node architecture inside Social-Nexus).
+// Native In-App Workflow Automation Engine (n8n node architecture inside NexaDrip).
 
 const axios = require('axios');
 const { qualifyLead } = require('./leadQualifier');
@@ -232,7 +232,7 @@ async function executeWorkflowPipeline(lead, customConfig = {}, aiOpts = {}) {
     const channel = slackNode.config?.channel || '#leads';
     const slackPayload = {
       channel,
-      username: 'Social-Nexus',
+      username: 'NexaDrip',
       icon_emoji: ':office:',
       text: `*New Meta Ad Lead:* ${currentPayload.full_name} (${currentPayload.society_name || 'Society'})\n*Score:* ${currentPayload.lead_score}/100\n*Phone:* ${currentPayload.phone_number}\n*Intent:* ${currentPayload.intent_summary}`,
       blocks: [

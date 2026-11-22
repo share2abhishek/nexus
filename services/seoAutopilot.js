@@ -98,9 +98,9 @@ const RULES = {
   sitemap:     { status: 'warn', priority: 2, site: true, title: () => 'No working sitemap found', detail: 'A sitemap lists your pages for Google. Either there is none, or the one robots.txt points to doesn’t open. Most website builders and SEO plugins make one: turn it on, then add it in Google Search Console. The Sitemap maker in Website SEO can write one for you.' },
   js_only:     { status: 'warn', priority: 1, title: (n) => `${plural(n, 'page shows', 'pages show')} no text until JavaScript runs`, detail: 'The page arrives almost empty and its text is added in the browser. Google may read it late or not at all, so it can rank poorly, and AI assistants usually can’t read it. Ask your developer to prerender it (server-side rendering), and give each page its own title and description.' },
   canonical:   { status: 'warn', priority: 2, title: (n) => `${plural(n, 'page points', 'pages point')} Google to a different address`, detail: 'Their “canonical” address is another page, so Google may list that one instead. Check this is intended.' },
-  title:       { status: 'bad',  priority: 2, title: (n) => `${plural(n, 'page has', 'pages have')} no title`, detail: 'The title is the blue link people click on Google. Social-Nexus can write one for each page.', draft: 'meta' },
+  title:       { status: 'bad',  priority: 2, title: (n) => `${plural(n, 'page has', 'pages have')} no title`, detail: 'The title is the blue link people click on Google. NexaDrip can write one for each page.', draft: 'meta' },
   title_len:   { status: 'warn', check: 'title', priority: 3, title: (n) => `${plural(n, 'page title is', 'page titles are')} too short or too long`, detail: 'Aim for 30–60 characters, with your main search phrase near the start.', draft: 'meta' },
-  description: { status: 'bad',  priority: 2, title: (n) => `${plural(n, 'page has', 'pages have')} no description`, detail: 'Without one, Google picks a random bit of the page. Social-Nexus can write one for each page.', draft: 'meta' },
+  description: { status: 'bad',  priority: 2, title: (n) => `${plural(n, 'page has', 'pages have')} no description`, detail: 'Without one, Google picks a random bit of the page. NexaDrip can write one for each page.', draft: 'meta' },
   desc_len:    { status: 'warn', check: 'description', priority: 3, title: (n) => `${plural(n, 'page description is', 'page descriptions are')} too short or too long`, detail: 'Aim for 70–160 characters that make people want to click.', draft: 'meta' },
   h1:          { status: 'warn', priority: 3, title: (n) => `${plural(n, 'page has', 'pages have')} no clear main heading`, detail: 'Give each page one main heading (H1) that says what it is about.' },
   words:       { status: 'warn', priority: 3, title: (n) => `${plural(n, 'page has', 'pages have')} very little text`, detail: 'Pages with only a few words are hard for Google to understand. Add a few useful paragraphs.' },
@@ -165,7 +165,7 @@ function buildIssues(results, phrases, previous) {
       issues.set(`phrase:${p}`, {
         key: `phrase:${p}`, kind: 'idea', priority: 2, pages: [], draft: 'page',
         title: `No page is about “${phrase}”`,
-        detail: 'Google matches searches to pages mainly by their title and main heading. Make a page for this phrase (or rename a page that fits). Social-Nexus can draft one.',
+        detail: 'Google matches searches to pages mainly by their title and main heading. Make a page for this phrase (or rename a page that fits). NexaDrip can draft one.',
         phrase,
       });
     }
@@ -258,7 +258,7 @@ async function googleQuiet(db, site, phrases, homeResult) {
     contentId = row?.id ?? row;
     detail = 'A short update is waiting for your OK on the Calendar (“In review”). Edit it if you like, then approve and publish or schedule it. Regular posts keep your profile active on Search and Maps.';
   } catch {
-    detail = 'Write a short update in Create post (tick Google Biz). Regular posts keep your profile active on Search and Maps. (Social-Nexus couldn’t write a draft: no AI was available.)';
+    detail = 'Write a short update in Create post (tick Google Biz). Regular posts keep your profile active on Search and Maps. (NexaDrip couldn’t write a draft: no AI was available.)';
   }
   await db('seo_tasks').insert({
     workspace_id: site.workspace_id, site_id: site.id, key: `gbp-quiet:${t}`, kind: 'post', priority: 2,

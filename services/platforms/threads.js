@@ -24,7 +24,7 @@ async function publicUrl(m, ctx) {
   const file = await m.file();
   if (file.kind !== 'image') throw new Error('Threads: videos from the media library need a web link for now. Use a photo, or a video link.');
   const fb = ctx.workspaceId ? await workspaceFacebookPage(ctx.workspaceId) : null;
-  if (!fb) throw new Error('Threads takes pictures from a public link. Paste a web link to the picture, or connect a Facebook Page (Social-Nexus uses it to share library photos).');
+  if (!fb) throw new Error('Threads takes pictures from a public link. Paste a web link to the picture, or connect a Facebook Page (NexaDrip uses it to share library photos).');
   const h = await hostOnFacebook(fb.pageToken, fb.pageId, file, { workspaceId: ctx.workspaceId });
   ctx.hosted.push(h);
   return h.url;

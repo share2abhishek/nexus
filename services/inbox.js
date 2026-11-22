@@ -1,4 +1,4 @@
-// Inbox: new comments on posts published from Social-Nexus, from Facebook and
+// Inbox: new comments on posts published from NexaDrip, from Facebook and
 // Instagram (and replies on Threads), checked every 10 minutes. Answer them from
 // the app; the reply is posted under the comment.
 //

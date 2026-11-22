@@ -123,7 +123,7 @@ describe('other platform rules', () => {
 
   test('a retired API version (426) asks for an update', async () => {
     axios.post.mockRejectedValue(Object.assign(new Error('426'), { response: { status: 426, data: {} } }));
-    await expect(social.postToPlatform('linkedin', { access_token: 't', external_id: 'a' }, 'Hi', null)).rejects.toThrow(/Update Social-Nexus/);
+    await expect(social.postToPlatform('linkedin', { access_token: 't', external_id: 'a' }, 'Hi', null)).rejects.toThrow(/Update NexaDrip/);
   });
 });
 

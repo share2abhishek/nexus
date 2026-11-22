@@ -1,5 +1,5 @@
 // routes/sellbird.js
-// REST API routes for Sellbird autonomous B2B sales agent in Social-Nexus.
+// REST API routes for Sellbird autonomous B2B sales agent in NexaDrip.
 
 const express = require('express');
 const sellbirdRepoFactory = require('../repos/sellbirdRepo');

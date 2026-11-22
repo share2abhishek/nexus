@@ -4,7 +4,7 @@ const path    = require('path');
 // read and the database is opened
 try { require('../services/backup').applyPendingRestore(); } catch (err) {
   // Don't start on half-restored data: stop with the reason (shown by the desktop app)
-  console.error(`Restoring the backup did not finish: ${err.message}. Your previous data is in the backups folder (before-restore-…). Free some disk space or close other programs, then start Social-Nexus again.`);
+  console.error(`Restoring the backup did not finish: ${err.message}. Your previous data is in the backups folder (before-restore-…). Free some disk space or close other programs, then start NexaDrip again.`);
   process.exit(1);
 }
 
@@ -345,7 +345,7 @@ app.get('/', (req, res) => {
     // The desktop app's own window: straight to sign-in
     res.redirect('/login.html');
   } else {
-    // Any browser: visitors see what Social-Nexus is, then sign up or sign in
+    // Any browser: visitors see what NexaDrip is, then sign up or sign in
     publicPages.sendLanding(req, res);
   }
 });

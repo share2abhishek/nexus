@@ -40,7 +40,7 @@ async function csCall(key, fn, okMsg) {
 // ── Actions ──────────────────────────────────────────────────────────────────
 function csConnectGoogle() { window.location.href = '/auth/google?sheets=1'; }
 function csCreateSheet() {
-  const title = (document.getElementById('cs-sheet-title')?.value || '').trim() || 'NEXUS Contacts';
+  const title = (document.getElementById('cs-sheet-title')?.value || '').trim() || 'NexaDrip Contacts';
   return csCall('sheet', () => api('POST', '/api/contact-sync/google/sheet', { title }), 'Sheet created. Turn on Auto-sync to start sending contacts.');
 }
 function csDisconnectGoogle() {
@@ -51,7 +51,7 @@ function csDisconnectGoogle() {
 function csToggle(target, on) {
   if (on) {
     const where = target === 'google' ? 'your Google Sheet' : 'Salesforce';
-    if (!confirm(`Turn on auto-sync?\n\nEvery contact's name, phone, email and deal value is copied to ${where}, and new or changed contacts follow automatically.\n\nDeleting a contact in NEXUS does not delete it there.`)) { renderContactSync(); return; }
+    if (!confirm(`Turn on auto-sync?\n\nEvery contact's name, phone, email and deal value is copied to ${where}, and new or changed contacts follow automatically.\n\nDeleting a contact in NexaDrip does not delete it there.`)) { renderContactSync(); return; }
   }
   const body = target === 'google' ? { google_enabled: on, google_auto: on } : { sf_enabled: on, sf_auto: on };
   return csCall(`toggle-${target}`, () => api('POST', '/api/contact-sync/config', body), on ? 'Auto-sync is on.' : 'Auto-sync is off.');
@@ -122,7 +122,7 @@ const csBtn = (label, onclick, busyKey, kind = 'secondary', title = '') =>
   `<button class="btn btn-${kind} btn-sm" onclick="${onclick}" ${title ? `title="${csEsc(title)}"` : ''} ${CsState.busy[busyKey] ? 'disabled' : ''}>${CsState.busy[busyKey] ? '<span class="spinner sm"></span> ' : ''}${label}</button>`;
 const csToggleHtml = (target, on) =>
   `<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:600"><input type="checkbox" ${on ? 'checked' : ''} ${CsState.busy[`toggle-${target}`] ? 'disabled' : ''} onchange="csToggle('${target}', this.checked)" /> Auto-sync ${on ? 'is on' : 'is off'}</label>`;
-const csDeleteNote = '<div class="form-hint" style="margin-top:6px">Deleting a contact in NEXUS does not delete it there.</div>';
+const csDeleteNote = '<div class="form-hint" style="margin-top:6px">Deleting a contact in NexaDrip does not delete it there.</div>';
 
 function renderGoogleCard(s) {
   const g = s.google; const guide = s.guide.google; const c = s.counts.google;
@@ -137,7 +137,7 @@ function renderGoogleCard(s) {
   } else if (!g.sheet_url) {
     body = `<div class="form-hint" style="margin-top:8px">Connected as <b>${csEsc(g.email || 'your Google account')}</b>.</div>
       <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px">
-        <label style="flex:1;min-width:200px"><span class="form-hint">Sheet name</span><input id="cs-sheet-title" class="form-input" value="NEXUS Contacts" maxlength="100" /></label>
+        <label style="flex:1;min-width:200px"><span class="form-hint">Sheet name</span><input id="cs-sheet-title" class="form-input" value="NexaDrip Contacts" maxlength="100" /></label>
         ${csBtn('Create sheet', 'csCreateSheet()', 'sheet', 'primary')}
       </div>`;
   } else {
@@ -176,7 +176,7 @@ function renderSalesforceCard(s) {
       ${input('cs-sf-secret', 'Consumer Secret', '', f.has_secret ? 'Saved. Leave blank to keep it' : 'From your connected app', 'password', 'Same place as the Consumer Key')}
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
-      ${input('cs-sf-ext', 'External ID field (optional)', f.external_id_field, 'NEXUS_Lead_Id__c', 'text', 'Stops the same contact being created twice')}
+      ${input('cs-sf-ext', 'External ID field (optional)', f.external_id_field, 'NexaDrip_Lead_Id__c', 'text', 'Stops the same contact being created twice')}
       ${input('cs-sf-source', 'Lead Source', f.lead_source)}
       ${input('cs-sf-company', 'Company when unknown', f.default_company, '', 'text', 'Salesforce needs a Company on every Lead')}
       ${input('cs-sf-ver', 'API version', f.api_version, 'v60.0')}

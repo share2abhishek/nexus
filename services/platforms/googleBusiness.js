@@ -108,7 +108,7 @@ async function postToGoogleBusiness(token, accountName, content, imageRef = null
   let url = media?.url || null;
   if (media && !url) {
     const fb = workspaceId ? await workspaceFacebookPage(workspaceId) : null;
-    if (!fb) throw new Error('Google Business needs a public picture link. Paste a web link to the picture, or connect a Facebook Page (Social-Nexus uses it to share library photos).');
+    if (!fb) throw new Error('Google Business needs a public picture link. Paste a web link to the picture, or connect a Facebook Page (NexaDrip uses it to share library photos).');
     url = (await hostOnFacebook(fb.pageToken, fb.pageId, await media.file(), { workspaceId, keepFor: 2 * 86400 })).url;
   }
 

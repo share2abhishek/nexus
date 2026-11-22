@@ -137,7 +137,7 @@ router.post('/campaigns/:id/send', canPublish, requirePublishLicense, async (req
     for (const sub of subscribers) {
       try {
         await transporter.sendMail({
-          from: `${fromName || 'Social-Nexus'} <${fromAddr}>`,
+          from: `${fromName || 'NexaDrip'} <${fromAddr}>`,
           to: sub.email,
           subject: campaign.subject,
           html: (campaign.html_content || `<pre>${escapeForHtml(campaign.text_content || '')}</pre>`) + footerHtml,

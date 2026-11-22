@@ -296,7 +296,7 @@ router.get('/platforms', async (req, res) => {
       label: 'Instagram',
       icon: PLATFORM_ICONS.instagram,
       color: '#e1306c',
-      note: 'Connect Instagram here (it signs in through Facebook). Needs a Business or Creator account linked to your Facebook Page, and the Instagram product added to your Facebook app. Instagram only takes pictures from a public link: for photos from your media library, Social-Nexus adds the photo to your Facebook Page as a hidden photo for a moment and removes it once Instagram has it.',
+      note: 'Connect Instagram here (it signs in through Facebook). Needs a Business or Creator account linked to your Facebook Page, and the Instagram product added to your Facebook app. Instagram only takes pictures from a public link: for photos from your media library, NexaDrip adds the photo to your Facebook Page as a hidden photo for a moment and removes it once Instagram has it.',
       credentials: [],
       configured: !!(env.FACEBOOK_APP_ID && env.FACEBOOK_APP_SECRET),
       connected: !!tokenMap.instagram,
@@ -327,7 +327,7 @@ router.get('/platforms', async (req, res) => {
       oauth_url: '/auth/google',
       scopes: 'business.manage',
       setup_url: 'https://console.cloud.google.com/apis/credentials',
-      note: 'Enable the "My Business" APIs in Google Cloud Console for this OAuth app. Google only takes pictures from a public link: for photos from your media library, Social-Nexus adds the photo to your connected Facebook Page as a hidden photo for 2 days, then removes it.',
+      note: 'Enable the "My Business" APIs in Google Cloud Console for this OAuth app. Google only takes pictures from a public link: for photos from your media library, NexaDrip adds the photo to your connected Facebook Page as a hidden photo for 2 days, then removes it.',
     },
   };
 

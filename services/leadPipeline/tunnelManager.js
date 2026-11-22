@@ -1,5 +1,5 @@
 // services/leadPipeline/tunnelManager.js
-// Automated Public HTTPS Tunnel & Webhook Manager for Social-Nexus.
+// Automated Public HTTPS Tunnel & Webhook Manager for NexaDrip.
 // Supports:
 // 1. Production Server Mode (automatic when PUBLIC_URL / APP_URL or non-local host is configured)
 // 2. Local Mode (automatically provisions a zero-config Cloudflare HTTPS tunnel for Meta Webhooks)
@@ -34,7 +34,7 @@ class TunnelManager {
       };
     }
 
-    // A public tunnel puts this PC's Social-Nexus on the internet, so it only
+    // A public tunnel puts this PC's NexaDrip on the internet, so it only
     // starts when the user turned it on (WhatsApp setup → Start tunnel, or
     // AUTO_TUNNEL=true). It used to start on every launch, via `npx cloudflared`
     // (downloaded at run time), without asking.

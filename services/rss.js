@@ -63,7 +63,7 @@ async function fetchFeed(url) {
     maxRedirects: 3,
     beforeRedirect: (opts) => { if (isPrivateHost(opts.hostname)) throw new Error('The feed redirected to a local address.'); },
     timeout: 15000, maxContentLength: 3 * 1024 * 1024, responseType: 'text',
-    headers: { 'User-Agent': 'Social-Nexus feed reader', Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' },
+    headers: { 'User-Agent': 'NexaDrip feed reader', Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' },
   });
   const parsed = parseFeed(r.data);
   if (!parsed.items.length && !/<(rss|feed|rdf)/i.test(String(r.data))) {

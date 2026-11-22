@@ -1,4 +1,4 @@
-// Backups of everything Social-Nexus keeps on this PC.
+// Backups of everything NexaDrip keeps on this PC.
 //
 //  - Daily automatic backup (the newest 7 are kept; ones you make yourself, the
 //    newest 10): a safe copy of the database plus settings, in
@@ -198,7 +198,7 @@ function safeJoin(dest, name) {
 const ALLOWED = (name) => name === 'nexus.db' || SETTINGS_FILES.includes(name) || /^media\/\d+\/[\w-]+\.(jpg|png|gif|webp|mp4|mov)$/.test(name);
 const knownMigrations = () => fs.readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.js'));
 
-// A backup from a newer Social-Nexus has database changes this version doesn't know
+// A backup from a newer NexaDrip has database changes this version doesn't know
 function checkMigrations(dbFile) {
   const Database = require('better-sqlite3');
   let names = [];
@@ -209,7 +209,7 @@ function checkMigrations(dbFile) {
   } finally { db.close(); }
   const known = new Set(knownMigrations());
   const unknown = names.filter(n => !known.has(n));
-  if (unknown.length) throw new Error('This backup was made by a newer version of Social-Nexus. Update Social-Nexus first, then restore it.');
+  if (unknown.length) throw new Error('This backup was made by a newer version of NexaDrip. Update NexaDrip first, then restore it.');
 }
 
 const readAt = (fd, pos, len) => { const b = Buffer.alloc(len); const n = fs.readSync(fd, b, 0, len, pos); return b.subarray(0, n); };
@@ -227,7 +227,7 @@ async function stageFromExportFile(file, { passphrase } = {}) {
   let header, start;
   try {
     const head = readAt(fd, 0, Math.min(size, 4 * 1024 * 1024));
-    if (head.subarray(0, MAGIC.length).toString() !== MAGIC) throw new Error('That isn’t a Social-Nexus backup file (.snbackup).');
+    if (head.subarray(0, MAGIC.length).toString() !== MAGIC) throw new Error('That isn’t a NexaDrip backup file (.snbackup).');
     const nl = head.indexOf(0x0a, MAGIC.length);
     if (nl < 0) throw new Error('The backup file is damaged.');
     try { header = JSON.parse(head.subarray(MAGIC.length, nl).toString('utf8')); } catch { throw new Error('The backup file is damaged.'); }

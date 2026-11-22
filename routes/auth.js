@@ -370,7 +370,7 @@ router.get('/google', async (req, res) => {
     return res.redirect('/?error=not_configured&platform=google');
   }
   const sheets = req.query.sheets === '1';
-  // sheets=1: Contact auto-sync. Only files NEXUS itself creates (drive.file), nothing else in Drive.
+  // sheets=1: Contact auto-sync. Only files NexaDrip itself creates (drive.file), nothing else in Drive.
   const scopes = (sheets
     ? ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/userinfo.email']
     : [

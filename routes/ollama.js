@@ -1,5 +1,5 @@
 /**
- * Social-Nexus — Ollama Guided Setup routes (public, no auth)
+ * NexaDrip — Ollama Guided Setup routes (public, no auth)
  *
  * Powers the first-run setup wizard: live status detection, hardware-based
  * model recommendation, and a streamed model download that flips Ollama on as

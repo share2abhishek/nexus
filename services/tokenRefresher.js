@@ -122,7 +122,7 @@ async function ensureFresh(db, acc, { within = RENEW_BEFORE } = {}) {
     console.log(`[Logins] Renewed ${acc.platform} login (workspace ${acc.workspace_id})`);
   } catch (err) {
     if (isBadAppKeys(err)) {
-      throw new Error(`${acc.platform.replace('_', ' ')} refused Social-Nexus's app keys while renewing the login. Check the app ID and secret in Settings → Connected accounts (an admin can fix this), then press Retry.`);
+      throw new Error(`${acc.platform.replace('_', ' ')} refused NexaDrip's app keys while renewing the login. Check the app ID and secret in Settings → Connected accounts (an admin can fix this), then press Retry.`);
     }
     if (isRevoked(err)) {
       const hint = acc.platform === 'google_business' ? ' (A Google app still in "Testing" mode ends logins after 7 days: publish the app in Google Cloud Console.)' : '';

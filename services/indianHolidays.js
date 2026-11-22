@@ -1,6 +1,6 @@
 /**
  * Indian Holidays & Festivals Calendar
- * Built for Social-Nexus — tailored for Indian social media marketing
+ * Built for NexaDrip — tailored for Indian social media marketing
  *
  * The list itself lives in services/festivals (built-in years plus signed
  * updates from Radixile); these helpers keep their old names.

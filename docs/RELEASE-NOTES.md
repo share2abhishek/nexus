@@ -19,6 +19,9 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 ## Unreleased
 
 ### Fixes after a full review
+- **Name:** the app, its messages, licence notices, legal pages and help now all say NexaDrip instead of Social-Nexus or NEXUS. Your data folder keeps its name, so nothing moves.
+- **Videos:** iPhone HEIC photos and audio-only files are no longer accepted as videos. Editing a second video in one session keeps its sound, and a video with no readable length now gives a clear message.
+- **Search engines:** the set-up and invitation pages are now kept out of search results.
 - **Studio:** a new "AI keys" button lets you add or replace a Claude, Gemini, Groq, OpenRouter or Mistral key any time, not only after an error.
 - **Contacts:** the "Added" date filters and the CSV "Added on" column now read dates correctly, you can search a phone number with or without spaces and dashes, and untagged contacts have their own filter.
 - **Studio:** before scheduling, you are warned when Instagram, Pinterest or TikTok posts have no picture or video. Hashtags keep accents in Hindi and other scripts.

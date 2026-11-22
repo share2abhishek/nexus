@@ -1,5 +1,5 @@
 /**
- * Social-Nexus — Electron Main Process
+ * NexaDrip — Electron Main Process
  * Company: Radixile Technology Solutions LLP (India)
  *
  * Bundles Node.js, manages the Express server as a child process,
@@ -20,8 +20,9 @@ const os     = require('os');
 // ── Company & App Info ────────────────────────────────────────────────────────
 
 const COMPANY   = 'Radixile Technology Solutions LLP';
-const APP_NAME  = 'Social-Nexus';
-const APP_FULL  = 'Social-Nexus by Radixile Technology Solutions';
+const APP_NAME  = 'NexaDrip';
+const DATA_FOLDER = 'Social-Nexus'; // folder name on disk: kept so existing installs keep their data
+const APP_FULL  = 'NexaDrip by Radixile Technology Solutions';
 const APP_VER   = app.getVersion();
 const PORT      = parseInt(process.env.PORT || '3000');
 const APP_URL   = `http://localhost:${PORT}`;
@@ -31,7 +32,7 @@ const IS_DEV    = process.env.NODE_ENV === 'development';
 let APP_ROOT, BUNDLED_NODE, ICON_PATH;
 
 function resolvePaths() {
-  const exeDir = path.dirname(app.getPath('exe')); // e.g. D:\Radixile\social\Social-Nexus
+  const exeDir = path.dirname(app.getPath('exe')); // e.g. D:\Radixile\social\NexaDrip
 
   if (IS_DEV) {
     APP_ROOT     = path.join(__dirname, '..');
@@ -63,7 +64,7 @@ function resolvePaths() {
 // Data lives in %APPDATA%\Social-Nexus. Set explicitly so it never depends on the
 // package name, and carry over data from the old "NEXUS" folder on first start.
 app.setName(APP_NAME);
-app.setPath('userData', path.join(app.getPath('appData'), APP_NAME));
+app.setPath('userData', path.join(app.getPath('appData'), DATA_FOLDER));
 const DATA_DIR  = app.getPath('userData');
 const LEGACY_DIR = path.join(app.getPath('appData'), 'NEXUS');
 
@@ -110,7 +111,7 @@ function offerLegacyBackupDeletion(backup) {
   const choice = dialog.showMessageBoxSync({
     type: 'question',
     title: `${APP_NAME} — Data moved`,
-    message: 'Your NEXUS data was moved to Social-Nexus.',
+    message: 'Your NEXUS data was moved to NexaDrip.',
     detail: `An old copy is still at:
 ${backup}
 
@@ -151,7 +152,7 @@ function setupAutoUpdate(refreshTray) {
   autoUpdater.on('update-downloaded', info => {
     updateReady = info.version;
     refreshTray?.();
-    showTrayNotification(`${APP_NAME} ${info.version} is ready`, 'It installs the next time Social-Nexus closes, or choose "Restart to update" from the tray icon.');
+    showTrayNotification(`${APP_NAME} ${info.version} is ready`, 'It installs the next time NexaDrip closes, or choose "Restart to update" from the tray icon.');
   });
   autoUpdater.on('error', err => serverLog(`UPDATE ERR ${err?.message || err}`));
   const check = () => autoUpdater.checkForUpdates().catch(err => serverLog(`UPDATE ERR ${err.message}`));
@@ -278,7 +279,7 @@ function checkWindowsCompatibility() {
     const freeGB = (st.bavail * st.bsize) / (1024 ** 3);
     if (freeGB < 0.5) {
       issues.push(`Low disk space (${freeGB.toFixed(1)} GB free).
-Social-Nexus needs at least 500MB to operate.`);
+NexaDrip needs at least 500MB to operate.`);
     }
   } catch {}
 
@@ -612,7 +613,7 @@ function createMainWindow() {
       mainWindow.hide();
       showTrayNotification(
         `${APP_NAME} is running`,
-        'Social-Nexus is minimized to the system tray. Right-click the icon to quit.',
+        'NexaDrip is minimized to the system tray. Right-click the icon to quit.',
       );
     }
   });
@@ -640,7 +641,7 @@ function createMainWindow() {
         action: 'allow',
         overrideBrowserWindowOptions: {
           width: 1100, height: 820, minWidth: 420, autoHideMenuBar: true,
-          title: url.includes('/api/reports/') ? 'Social-Nexus report' : 'Social-Nexus Help',
+          title: url.includes('/api/reports/') ? 'NexaDrip report' : 'NexaDrip Help',
           webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true },
         },
       };
@@ -693,7 +694,7 @@ function createTray() {
     { label: `v${APP_VER} · ${COMPANY}`,     enabled: false },
     { type: 'separator' },
     {
-      label: '🚪  Quit Social-Nexus',
+      label: '🚪  Quit NexaDrip',
       click: async () => {
         await fetchSchedule();
         if (schedule.due_24h > 0) {
@@ -795,7 +796,7 @@ app.whenReady().then(async () => {
     const choice = dialog.showMessageBoxSync({
       type: 'warning',
       title: `${APP_NAME} — Port ${PORT} In Use`,
-      message: `Port ${PORT} is already in use by another application.\n\nThis may be a previous instance of Social-Nexus.`,
+      message: `Port ${PORT} is already in use by another application.\n\nThis may be a previous instance of NexaDrip.`,
       buttons: ['Try to Connect', 'Cancel'],
       defaultId: 0,
     });
@@ -815,11 +816,11 @@ app.whenReady().then(async () => {
   if (!nodeExe) {
     showError(
       `${APP_NAME} — Node.js Not Found`,
-      `Could not find Node.js to run the Social-Nexus server.\n\n` +
+      `Could not find Node.js to run the NexaDrip server.\n\n` +
       `Looked for bundled Node.js at:\n${BUNDLED_NODE}\n\n` +
       `Fix options:\n` +
-      `1. Reinstall Social-Nexus from the latest installer\n` +
-      `2. Install Node.js from https://nodejs.org then restart Social-Nexus\n\n` +
+      `1. Reinstall NexaDrip from the latest installer\n` +
+      `2. Install Node.js from https://nodejs.org then restart NexaDrip\n\n` +
       `Support: support@radixile.com`
     );
     app.quit();
@@ -872,7 +873,7 @@ app.whenReady().then(async () => {
     setTimeout(() => {
       showTrayNotification(
         `Welcome to ${APP_NAME}!`,
-        'Register your admin account to get started. Click here to open Social-Nexus.',
+        'Register your admin account to get started. Click here to open NexaDrip.',
       );
     }, 3000);
   }

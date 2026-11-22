@@ -114,7 +114,7 @@ async function openRouterGenerate(prompt, maxTokens = 1024, opts = {}) {
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'HTTP-Referer': 'https://radixile.com',
-      'X-Title': 'Social-Nexus Marketing Platform',
+      'X-Title': 'NexaDrip Marketing Platform',
       'Content-Type': 'application/json',
     },
     timeout: 30000,

@@ -68,7 +68,7 @@ function mailSettings() {
   return {
     host: e('SMTP_HOST'), port, secure: e('SMTP_SECURE') ? e('SMTP_SECURE') === 'true' : port === 465,
     auth: { user: e('SMTP_USER'), pass: e('SMTP_PASS') },
-    from: `${e('SMTP_FROM_NAME') || 'Social-Nexus'} <${e('SMTP_FROM') || e('SMTP_USER')}>`,
+    from: `${e('SMTP_FROM_NAME') || 'NexaDrip'} <${e('SMTP_FROM') || e('SMTP_USER')}>`,
   };
 }
 
@@ -91,15 +91,15 @@ function appUrl(req) {
 async function sendVerification(knex, req, user) {
   const token = await issueToken(knex, user.id, 'verify_email');
   const link = `${appUrl(req)}/users/verify-email?token=${encodeURIComponent(token)}`;
-  return sendMail(user.email, 'Confirm your email for Social-Nexus',
-    `Hello${user.name ? ` ${user.name}` : ''},\n\nPlease confirm your email address for Social-Nexus by opening this link:\n${link}\n\nThe link works for 3 days. If you didn't create an account, you can ignore this email.\n\nSocial-Nexus by Radixile Technology Solutions`);
+  return sendMail(user.email, 'Confirm your email for NexaDrip',
+    `Hello${user.name ? ` ${user.name}` : ''},\n\nPlease confirm your email address for NexaDrip by opening this link:\n${link}\n\nThe link works for 3 days. If you didn't create an account, you can ignore this email.\n\nNexaDrip by Radixile Technology Solutions`);
 }
 
 async function sendReset(knex, req, user) {
   const token = await issueToken(knex, user.id, 'reset_password');
   const link = `${appUrl(req)}/login.html?reset=${encodeURIComponent(token)}`;
-  return sendMail(user.email, 'Reset your Social-Nexus password',
-    `Hello${user.name ? ` ${user.name}` : ''},\n\nSomeone (hopefully you) asked to reset your Social-Nexus password. Choose a new one here:\n${link}\n\nThe link works for 1 hour and only once. If you didn't ask for this, ignore this email: your password stays the same.\n\nSocial-Nexus by Radixile Technology Solutions`);
+  return sendMail(user.email, 'Reset your NexaDrip password',
+    `Hello${user.name ? ` ${user.name}` : ''},\n\nSomeone (hopefully you) asked to reset your NexaDrip password. Choose a new one here:\n${link}\n\nThe link works for 1 hour and only once. If you didn't ask for this, ignore this email: your password stays the same.\n\nNexaDrip by Radixile Technology Solutions`);
 }
 
 // The business a user belongs to, for "Trial: N days left"

@@ -31,7 +31,7 @@ async function forwardToN8n(n8nWebhookUrl, payload) {
       headers: {
         'Content-Type': 'application/json',
         'X-Social-Nexus-Event': payload.event || 'lead.created',
-        'User-Agent': 'Social-Nexus/2.1 (LeadPipeline)',
+        'User-Agent': 'NexaDrip/2.1 (LeadPipeline)',
       },
     });
 
@@ -51,7 +51,7 @@ async function forwardToN8n(n8nWebhookUrl, payload) {
 }
 
 /**
- * One event in the shape every Social-Nexus → n8n call uses, so a workflow can
+ * One event in the shape every NexaDrip → n8n call uses, so a workflow can
  * switch on `event` (also sent as the X-Social-Nexus-Event header).
  */
 function buildEvent(event, workspaceId, data = {}) {

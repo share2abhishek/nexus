@@ -575,7 +575,7 @@ function renderLeadsTable(searchFilter = '') {
         <td style="padding:12px 16px;text-align:right">
           <div style="display:inline-flex;gap:6px;align-items:center">
             ${l.phone_number ? `
-              <button type="button" class="btn btn-sm btn-secondary" onclick="openInAppWhatsAppChat(${l.id})" title="Open WhatsApp Chat in Nexus" style="color:#10b981;font-weight:700;font-size:11.5px;border-color:rgba(16,185,129,0.3);display:inline-flex;align-items:center;gap:4px;cursor:pointer">
+              <button type="button" class="btn btn-sm btn-secondary" onclick="openInAppWhatsAppChat(${l.id})" title="Open WhatsApp Chat in NexaDrip" style="color:#10b981;font-weight:700;font-size:11.5px;border-color:rgba(16,185,129,0.3);display:inline-flex;align-items:center;gap:4px;cursor:pointer">
                 <svg style="width:13px;height:13px" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg> WhatsApp
               </button>
             ` : ''}

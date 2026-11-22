@@ -1,6 +1,6 @@
-# Connecting your social accounts to Social-Nexus
+# Connecting your social accounts to NexaDrip
 
-**Social-Nexus by Radixile Technology Solutions** · Support: info@radixile.com
+**NexaDrip by Radixile Technology Solutions** · Support: info@radixile.com
 
 This guide covers LinkedIn, Facebook + Instagram, Pinterest, X (Twitter), Google Business Profile, YouTube and TikTok.
 
@@ -10,7 +10,7 @@ This guide covers LinkedIn, Facebook + Instagram, Pinterest, X (Twitter), Google
 
 ## Before you start: how connecting works
 
-Social-Nexus runs **on your PC**, not on a Radixile website. So that Radixile never holds your social media logins, your PC talks to each network directly using a free **developer app** that you create on that network's developer website. You do this **once per network**. After that, connecting is a single **Connect** click.
+NexaDrip runs **on your PC**, not on a Radixile website. So that Radixile never holds your social media logins, your PC talks to each network directly using a free **developer app** that you create on that network's developer website. You do this **once per network**. After that, connecting is a single **Connect** click.
 
 For every network the steps are the same:
 
@@ -29,7 +29,7 @@ For every network the steps are the same:
 |---|---|---|
 | *(no badge)* | LinkedIn, Facebook, Instagram, Pinterest | Ready. Works fully. |
 | 🟠 **Works with limits** | X (Twitter), Google Business | Works, but the network's own rules may block posting (see each section). |
-| 🔴 **Not available yet** | YouTube, TikTok | Can't be posted to from Social-Nexus yet. |
+| 🔴 **Not available yet** | YouTube, TikTok | Can't be posted to from NexaDrip yet. |
 
 - The guide is open until the platform is connected. After that you'll find it folded under **📘 Setup guide**.
 
@@ -54,7 +54,7 @@ Normally the addresses look like this (yours are on the cards):
 
 > **The portals change often.** Developer websites are redesigned regularly, so the steps name what to look for. If a button on your screen looks different, look for the closest match.
 
-> **Keep your secrets secret.** A Client Secret works like a password. Don't post it in chats or screenshots. If it leaks, create a new one in the portal ("reset" or "regenerate") and paste the new one into Social-Nexus.
+> **Keep your secrets secret.** A Client Secret works like a password. Don't post it in chats or screenshots. If it leaks, create a new one in the portal ("reset" or "regenerate") and paste the new one into NexaDrip.
 
 ---
 
@@ -81,13 +81,13 @@ Normally the addresses look like this (yours are on the cards):
 
 ### Steps (same as the Setup guide on the card)
 1. Open the LinkedIn developer portal and click **"Create app"**. (**Open ↗** on the card goes to https://www.linkedin.com/developers/apps/new.)
-2. Fill in the app name (e.g. "My Social-Nexus"), choose your LinkedIn Page, upload a logo and accept the terms.
+2. Fill in the app name (e.g. "My NexaDrip"), choose your LinkedIn Page, upload a logo and accept the terms.
 3. Open the **"Products"** tab and add **"Sign In with LinkedIn using OpenID Connect"** and **"Share on LinkedIn"**. Both are approved straight away.
 4. Open the **"Auth"** tab. Under **"Authorized redirect URLs for your app"** add this exact address: click **📋 Copy** on the card and paste it.
 5. Still on **"Auth"**, copy the **Client ID** and the **Primary Client Secret** into the boxes below (under **🔑 API Credentials** on the card), then click **💾 Save Credentials**.
 6. Click **Connect** and sign in to LinkedIn when asked.
 
-You come back to Social-Nexus with "Linkedin connected successfully!", and the card shows your name.
+You come back to NexaDrip with "Linkedin connected successfully!", and the card shows your name.
 
 ### Good to know
 - **Posts appear on your personal LinkedIn profile.**
@@ -129,7 +129,7 @@ After connecting:
 
 **Agencies:** switch to the client's workspace first (🏢 in the top bar), then click Connect and choose **that client's** Page.
 
-Social-Nexus asks Facebook for these permissions when you connect: `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`, `business_management`, `public_profile` and `email`.
+NexaDrip asks Facebook for these permissions when you connect: `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`, `business_management`, `public_profile` and `email`.
 
 ### Good to know
 - While your Meta app is in **Development mode**, it works for you and anyone you add as a tester or admin on the app (**App roles → Roles**). That's enough for your own Pages.
@@ -175,7 +175,7 @@ Tokens from the Explorer are short-lived (often about 1 hour). Use this only as 
 ### Good to know
 - New Pinterest apps start with **Trial access**. Pins may only be visible to you until Pinterest grants **Standard access** (request it from your app page; Pinterest reviews it).
 - **Every pin needs an image.**
-- Social-Nexus asks for `boards:read`, `pins:write` and `user_accounts:read`.
+- NexaDrip asks for `boards:read`, `pins:write` and `user_accounts:read`.
 
 ### Common Pinterest errors
 | You see | What to do |
@@ -208,7 +208,7 @@ The card then shows your @username.
 ### Good to know
 - X changes its API plans and limits often. **If posting fails with a 403 error, your plan may not include posting.**
 - **Images are not attached to X posts yet; the text is posted.**
-- Posts are limited to **280 characters**. Social-Nexus warns you and won't post if you go over.
+- Posts are limited to **280 characters**. NexaDrip warns you and won't post if you go over.
 - If you changed App permissions to "Read and write" **after** connecting, disconnect and connect again. The old login keeps the old read-only permission.
 
 ### Common X errors
@@ -242,7 +242,7 @@ When you connect, Google may warn **"Google hasn't verified this app"**. That's 
 ### Good to know
 - **Until Google approves API access, posting returns a permission error.** Enabling the APIs isn't enough. Approval can take days to weeks.
 - In **Testing** mode Google ends the login after **7 days**, so you'll need to click **Disconnect → Connect** about once a week. Publishing the app "In production" avoids this but needs Google's app verification.
-- **Which location:** Social-Nexus looks through every account this Google login manages. With one location, posts go there. With several, the card says **Choose which location to post to**: click **Choose location** and pick one (you can change it any time with **Change location**). The card then shows **Posting to …**.
+- **Which location:** NexaDrip looks through every account this Google login manages. With one location, posts go there. With several, the card says **Choose which location to post to**: click **Choose location** and pick one (you can change it any time with **Change location**). The card then shows **Posting to …**.
 - Keep posts under **1,500 characters** (longer text is cut off, and you're told).
 - **Post types:** in Create post choose **Update**, **Offer** (dates, coupon code, link, terms) or **Event** (dates and times), with an optional button such as Book, Order online or Call now. One photo per post; Google doesn't take videos through its API.
 
@@ -264,7 +264,7 @@ When you connect, Google may warn **"Google hasn't verified this app"**. That's 
 
 🔴 **Not available yet**
 
-YouTube's public API can upload videos, but it can't create Community posts (text or image). Social-Nexus doesn't upload videos yet, so YouTube can be connected but not posted to.
+YouTube's public API can upload videos, but it can't create Community posts (text or image). NexaDrip doesn't upload videos yet, so YouTube can be connected but not posted to.
 
 **Publish to YouTube from YouTube Studio for now.** If you try to post to YouTube, you'll see: "Posting text or images to YouTube is not possible through the public YouTube API. Publish there from YouTube Studio for now."
 
@@ -282,12 +282,12 @@ TikTok only allows web apps with a public `https` redirect address, and posts fr
 
 ## Errors you might see on any platform
 
-| Message in Social-Nexus | Meaning | What to do |
+| Message in NexaDrip | Meaning | What to do |
 |---|---|---|
 | "Before connecting …, add your … app details in Settings → Social Platforms" | You clicked **Connect** before saving the credentials. | Open **🔑 API Credentials**, paste the details, and click **💾 Save Credentials**. |
 | "… authorization was denied" | You clicked **Cancel** or **Deny** on the network's page. | Connect again and approve. |
 | "… connection failed — check your app credentials" | The network didn't accept the app details or callback address. | Paste the ID and secret again, and paste the callback address again with **📋 Copy**. |
-| "Sign-in link expired or was not started from Social-Nexus — please try connecting again" | You took more than 10 minutes, or started the sign-in in a different window. | Click **Connect** again and finish within 10 minutes. |
+| "Sign-in link expired or was not started from NexaDrip — please try connecting again" | You took more than 10 minutes, or started the sign-in in a different window. | Click **Connect** again and finish within 10 minutes. |
 | "… rejected the connection (401/403) — the login has expired or lacks permission. Reconnect … in Settings." | The login expired or a permission was removed. | **Disconnect → Connect**, accept all permissions, then **🔁 Retry** the post. |
 | "… rate limit reached — try again later." | The network's limit for your app was hit. | Wait, then try again. |
 | "… is having problems (5xx) — try again later." | The network's servers had a problem. | Try again later. |
@@ -299,4 +299,4 @@ TikTok only allows web apps with a public `https` redirect address, and posts fr
 - Every platform uses `https://nexus.radixile.com`.
 - No space or `/` at the end.
 
-Still stuck? Email **info@radixile.com** with the platform name, a screenshot of the error, and your log file `%APPDATA%\Social-Nexus\logs\server.log`. **Never send us your Client Secret or passwords.**
+Still stuck? Email **info@radixile.com** with the platform name, a screenshot of the error, and your log file `%APPDATA%\NexaDrip\logs\server.log`. **Never send us your Client Secret or passwords.**

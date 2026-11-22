@@ -1,5 +1,5 @@
 // routes/leadPipeline.js
-// REST API routes for managing Meta Lead Ads & Messenger Ingestion Pipeline in Social-Nexus.
+// REST API routes for managing Meta Lead Ads & Messenger Ingestion Pipeline in NexaDrip.
 
 const express = require('express');
 const router = express.Router();
@@ -957,7 +957,7 @@ module.exports = (knex, permit) => {
           apiKey: config.evolution_api_key,
           instanceName: config.evolution_instance_name || 'social-nexus',
           number: to,
-          text: 'Test from Social-Nexus: WhatsApp (Evolution API) is connected.',
+          text: 'Test from NexaDrip: WhatsApp (Evolution API) is connected.',
         });
       } else {
         const token = config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN;
@@ -969,7 +969,7 @@ module.exports = (knex, permit) => {
           wabaId: targetWabaId,
           accessToken: token,
           to,
-          text: 'Test from Social-Nexus: WhatsApp is connected.',
+          text: 'Test from NexaDrip: WhatsApp is connected.',
           templateName: template_name,
           languageCode: language_code || 'en_US',
           templateParams: template_params,
@@ -1833,7 +1833,7 @@ module.exports = (knex, permit) => {
           apiKey: config.evolution_api_key,
           instanceName: config.evolution_instance_name || 'social-nexus',
           number: to,
-          text: 'Test from Social-Nexus: it works.',
+          text: 'Test from NexaDrip: it works.',
         });
       } else {
         const token = config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN;
@@ -1870,7 +1870,7 @@ module.exports = (knex, permit) => {
           wabaId: targetWabaId,
           accessToken: token,
           to,
-          text: 'Test from Social-Nexus: it works.',
+          text: 'Test from NexaDrip: it works.',
           templateName: chosenTemplate,
           languageCode: chosenLang,
           templateParams: resolvedParams,

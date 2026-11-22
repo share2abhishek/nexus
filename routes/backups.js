@@ -33,7 +33,7 @@ module.exports = (knex) => {
     try {
       await backup.exportTo(knex, tmp, { passphrase: req.body?.passphrase });
       const day = new Date().toISOString().slice(0, 10);
-      res.download(tmp, `Social-Nexus-backup-${day}.snbackup`, () => fs.unlink(tmp, () => {}));
+      res.download(tmp, `NexaDrip-backup-${day}.snbackup`, () => fs.unlink(tmp, () => {}));
     } catch (err) {
       fs.unlink(tmp, () => {});
       res.status(err.status || 500).json({ error: err.message });
@@ -49,7 +49,7 @@ module.exports = (knex) => {
       let passphrase = req.get('X-Backup-Passphrase') || '';
       try { passphrase = decodeURIComponent(passphrase); } catch {}
       const info = await backup.stageFromExportFile(tmp, { passphrase });
-      res.json({ success: true, ...info, message: 'Backup checked. Restart Social-Nexus to finish restoring.' });
+      res.json({ success: true, ...info, message: 'Backup checked. Restart NexaDrip to finish restoring.' });
     } catch (err) {
       res.status(400).json({ error: err.message, code: err.code });
     } finally {
@@ -60,7 +60,7 @@ module.exports = (knex) => {
   router.post('/:name/restore', (req, res) => {
     try {
       backup.stageFromBackup(req.params.name);
-      res.json({ success: true, message: 'Restart Social-Nexus to finish restoring.' });
+      res.json({ success: true, message: 'Restart NexaDrip to finish restoring.' });
     } catch (err) { res.status(400).json({ error: err.message }); }
   });
 
@@ -68,7 +68,7 @@ module.exports = (knex) => {
 
   // Desktop app: restart now to finish a restore (Electron relaunches on code 75)
   router.post('/restart', (req, res) => {
-    if (process.env.ELECTRON !== 'true') return res.status(400).json({ error: 'Close Social-Nexus and start it again.' });
+    if (process.env.ELECTRON !== 'true') return res.status(400).json({ error: 'Close NexaDrip and start it again.' });
     res.json({ success: true });
     setTimeout(() => process.exit(75), 300);
   });

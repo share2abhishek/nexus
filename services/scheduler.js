@@ -16,7 +16,7 @@ let isRunning = false;
 // automatically: "Happy Diwali" a week late does more harm than good. It is marked
 // failed with an explanation and the user can Retry it.
 const MISSED_AFTER = 6 * 3600;
-const missedNote = (at) => `Missed: it was due ${new Date(at * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} but Social-Nexus wasn't running or wasn't licensed then. Use Retry to post it now.`;
+const missedNote = (at) => `Missed: it was due ${new Date(at * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} but NexaDrip wasn't running or wasn't licensed then. Use Retry to post it now.`;
 
 // Why a platform can't be posted to: never connected, or saved without a usable login
 function notConnectedError(platform, account) {

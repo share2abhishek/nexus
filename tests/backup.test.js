@@ -65,7 +65,7 @@ test('export then restore brings back the database, settings and media', async (
 });
 
 test('damaged or foreign files are refused', async () => {
-  await expect(backup.stageFromExport(Buffer.from('PK zip file, not a backup'))).rejects.toThrow(/isn.t a Social-Nexus backup/);
+  await expect(backup.stageFromExport(Buffer.from('PK zip file, not a backup'))).rejects.toThrow(/isn.t a NexaDrip backup/);
   const evil = Buffer.concat([
     Buffer.from(backup.MAGIC + JSON.stringify({ files: [{ name: 'nexus.db', size: 1 }, { name: '../../evil.js', size: 1 }] }) + '\n'),
     Buffer.from('xy'),

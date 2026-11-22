@@ -1,4 +1,4 @@
-// Platforms Social-Nexus can post to today. YouTube (the public API can't create
+// Platforms NexaDrip can post to today. YouTube (the public API can't create
 // Community posts) and TikTok (needs video upload and TikTok's app audit) are left
 // out until they work end to end; the AI tools can still write for them.
 const PUBLISHABLE = ['linkedin', 'facebook', 'instagram', 'pinterest', 'twitter', 'google_business', 'threads', 'bluesky'];

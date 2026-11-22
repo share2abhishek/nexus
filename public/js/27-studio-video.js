@@ -46,7 +46,7 @@ function studioVidBuild() {
       <button type="button" class="btn btn-primary" id="studio-vid-save" onclick="studioVidSave()">Use this video</button>
     </div>
   </div>`;
-  box.onclick = (e) => { if (e.target === box) studioVidClose(); };
+  box.onclick = (e) => { if (e.target === box && !StudioVid.busy) studioVidClose(); };
   document.body.appendChild(box);
 }
 
@@ -62,6 +62,7 @@ async function studioEditVideo(src, post, name) {
   studioVidEl('studio-vid-save').disabled = true;
   studioVidEl('studio-vid').style.display = 'flex';
   v.onloadedmetadata = () => {
+    if (!isFinite(v.duration) || v.duration < 0.5) { toast('That video has no readable length, so it cannot be trimmed here. Try another MP4.', 'warning', 6000); studioVidClose(); return; }
     const d = Math.floor(v.duration * 10) / 10 || 0;
     ['s', 'e'].forEach((k) => { const r = studioVidEl(`studio-vid-${k}`); r.max = d; r.value = k === 's' ? 0 : d; });
     studioVidTrim(); studioVidLook();
@@ -116,12 +117,19 @@ async function studioVidSave() {
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d');
   const stream = cv.captureStream(30);
-  let actx = null;
+  let actx = null, dest = null;
   if (!mute) {
     try {
-      actx = new (window.AudioContext || window.webkitAudioContext)();
-      if (!StudioVid.aud || StudioVid.aud.el !== v) { StudioVid.aud = { el: v, node: actx.createMediaElementSource(v) }; }
-      const dest = actx.createMediaStreamDestination();
+      // One audio context for the video element for the whole session (an element can only be wired once)
+      if (!StudioVid.aud || StudioVid.aud.el !== v) {
+        const ctx0 = new (window.AudioContext || window.webkitAudioContext)();
+        const node0 = ctx0.createMediaElementSource(v);
+        node0.connect(ctx0.destination); // keeps the preview audible
+        StudioVid.aud = { el: v, ctx: ctx0, node: node0 };
+      }
+      actx = StudioVid.aud.ctx;
+      if (actx.state === 'suspended') await actx.resume();
+      dest = actx.createMediaStreamDestination();
       StudioVid.aud.node.connect(dest);
       dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
     } catch { /* no sound is better than no video */ }
@@ -164,7 +172,7 @@ async function studioVidSave() {
     StudioVid.busy = false; btn.disabled = false; btn.textContent = 'Use this video'; studioVidEl('studio-vid-cancel').textContent = 'Cancel';
     return toast('The video could not be recorded here: ' + (err.message || 'unknown problem'), 'error', 7000);
   }
-  v.pause(); stream.getTracks().forEach((t) => t.stop()); if (actx) actx.close().catch(() => {});
+  v.pause(); stream.getTracks().forEach((t) => t.stop()); if (dest) { try { StudioVid.aud.node.disconnect(dest); } catch {} }
   const cancelled = StudioVid.cancel;
   StudioVid.busy = false; btn.disabled = false; btn.textContent = 'Use this video'; studioVidEl('studio-vid-cancel').textContent = 'Cancel'; prog.style.display = 'none';
   if (cancelled) { StudioVid.cancel = false; return toast('Stopped. Nothing was saved.', 'info', 3000); }

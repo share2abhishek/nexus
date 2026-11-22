@@ -9,7 +9,7 @@ const GUIDES = {
     needs: ['A LinkedIn account', 'A LinkedIn Page for your business (LinkedIn asks for one when you create the app)'],
     steps: [
       { text: 'Open the LinkedIn developer portal and click "Create app".', link: 'https://www.linkedin.com/developers/apps/new' },
-      { text: 'Fill in the app name (e.g. "My Social-Nexus"), choose your LinkedIn Page, upload a logo and accept the terms.' },
+      { text: 'Fill in the app name (e.g. "My NexaDrip"), choose your LinkedIn Page, upload a logo and accept the terms.' },
       { text: 'Open the "Products" tab and add "Sign In with LinkedIn using OpenID Connect" and "Share on LinkedIn". Both are approved straight away.' },
       { text: 'Open the "Auth" tab. Under "Authorized redirect URLs for your app" add this exact address:', copy: '{callback}' },
       { text: 'Still on "Auth", copy the Client ID and the Primary Client Secret into the boxes below, then click Save.' },
@@ -86,7 +86,7 @@ const GUIDES = {
     time: '—',
     needs: ['A Google account and a YouTube channel'],
     steps: [
-      { text: 'YouTube\'s public API can upload videos, but it can\'t create Community posts (text or image). Social-Nexus doesn\'t upload videos yet, so YouTube can be connected but not posted to.' },
+      { text: 'YouTube\'s public API can upload videos, but it can\'t create Community posts (text or image). NexaDrip doesn\'t upload videos yet, so YouTube can be connected but not posted to.' },
     ],
     notes: ['Publish to YouTube from YouTube Studio for now.'],
   },

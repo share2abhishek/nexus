@@ -5,7 +5,7 @@ const ACTIVATE_HINT = 'Go to Settings → Licence to activate, or buy a licence 
 
 function messageFor(s) {
   if (s.state === 'unlicensed') return `Publishing needs an active licence. ${ACTIVATE_HINT}`;
-  if (s.state === 'checking') return 'Social-Nexus is still checking your licence (a few seconds after start-up). Please try again.';
+  if (s.state === 'checking') return 'NexaDrip is still checking your licence (a few seconds after start-up). Please try again.';
   if (s.state === 'offline') return s.message;
   return `${s.message} ${ACTIVATE_HINT}`;
 }
