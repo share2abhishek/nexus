@@ -6740,3 +6740,42 @@ body.is-saas [data-desktop-only],
   .nx-skel { animation: none !important; }
   .btn:hover:not(:disabled), .sb-primary-btn:hover:not(:disabled), .sb-secondary-btn:hover:not(:disabled) { transform: none; }
 }
+
+/* ── Content Studio: a colourful workspace look ─────────────────────────── */
+#studio-modal .modal, #studio-editor .modal { border: 0; overflow: hidden; box-shadow: 0 24px 70px rgba(80, 40, 200, .35); }
+#studio-modal .modal-header, #studio-editor .modal-header { background: linear-gradient(120deg, #7c3aed 0%, #db2777 55%, #f97316 100%); color: #fff; border: 0; }
+#studio-modal .modal-title, #studio-editor .modal-title { color: #fff; font-weight: 700; letter-spacing: .2px; }
+#studio-modal .modal-close, #studio-editor .modal-close { color: #fff; opacity: .9; }
+#studio-steps { padding: 4px 0 10px; }
+#studio-steps .studio-pill { padding: 5px 14px; border-radius: 999px; background: rgba(124, 58, 237, .10); border: 1px solid rgba(124, 58, 237, .25); transition: all .15s; }
+#studio-steps .studio-pill[style*="700"] { background: linear-gradient(120deg, #7c3aed, #db2777); color: #fff !important; border-color: transparent; box-shadow: 0 4px 14px rgba(124, 58, 237, .4); }
+#studio-modal .btn-primary, #studio-editor .btn-primary { background: linear-gradient(120deg, #7c3aed, #db2777); border: 0; color: #fff; box-shadow: 0 4px 14px rgba(219, 39, 119, .35); }
+#studio-modal .btn-primary:hover, #studio-editor .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+#studio-modal .btn-secondary, #studio-editor .btn-secondary { border-color: rgba(124, 58, 237, .35); }
+#studio-modal .btn-secondary:hover, #studio-editor .btn-secondary:hover { background: rgba(124, 58, 237, .10); }
+#studio-modal .modal-footer { background: rgba(124, 58, 237, .05); }
+#studio-paste { border: 2px dashed rgba(124, 58, 237, .45); border-radius: 12px; background: rgba(124, 58, 237, .04); }
+#studio-paste:focus { border-style: solid; outline: none; box-shadow: 0 0 0 3px rgba(124, 58, 237, .25); }
+#studio-platforms label { transition: all .15s; }
+#studio-platforms label:has(input:checked) { background: linear-gradient(120deg, rgba(124, 58, 237, .16), rgba(219, 39, 119, .14)); border-color: #7c3aed !important; font-weight: 600; }
+#studio-cards > div > div[style*="border-radius:10px"], #studio-cards .studio-card { border-left: 5px solid var(--studio-c, #7c3aed) !important; background: linear-gradient(90deg, color-mix(in srgb, var(--studio-c, #7c3aed) 7%, transparent), transparent 40%); }
+#studio-times input[type="datetime-local"] { border-color: rgba(124, 58, 237, .4); }
+#studio-ed-sel { padding: 8px 10px; border-radius: 10px; background: rgba(124, 58, 237, .08); }
+#studio-editor .modal-body > div:nth-of-type(3) { background: repeating-conic-gradient(#2a2a3c 0% 25%, #323247 0% 50%) 50% / 20px 20px !important; border-radius: 12px; }
+#studio-ed-canvas, #studio-editor .canvas-container { box-shadow: 0 10px 40px rgba(0, 0, 0, .5); }
+.studio-panel { padding: 14px 16px; overflow: auto; min-height: 0; }
+#studio-left { background: linear-gradient(180deg, rgba(124,58,237,.08), rgba(124,58,237,.02)); border-right: 1px solid rgba(124,58,237,.2); }
+#studio-centre { background: linear-gradient(180deg, rgba(219,39,119,.04), transparent 30%); }
+#studio-right { background: linear-gradient(180deg, rgba(249,115,22,.08), rgba(249,115,22,.02)); border-left: 1px solid rgba(249,115,22,.25); }
+.studio-h { font-weight: 800; font-size: 14px; margin-bottom: 8px; background: linear-gradient(120deg,#7c3aed,#db2777); -webkit-background-clip: text; background-clip: text; color: transparent; }
+@media (max-width: 1000px) { #studio-grid { grid-template-columns: 1fr !important; overflow: auto; } .studio-panel { overflow: visible; } }
+
+/* Content Studio: shown while the posts are being written */
+.studio-busy-msg{font-weight:700;font-size:15px;margin:6px 0 14px;color:#7c3aed}
+.studio-spark{display:inline-block;animation:studioSpin 1.6s ease-in-out infinite}
+@keyframes studioSpin{0%,100%{transform:rotate(-12deg) scale(1)}50%{transform:rotate(14deg) scale(1.3)}}
+.studio-skel{border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px}
+.studio-skel i,.studio-skel b{display:block;border-radius:6px;height:12px;background:linear-gradient(90deg,#7c3aed22 25%,#ec489944 50%,#f59e0b22 75%);background-size:200% 100%;animation:studioShimmer 1.3s linear infinite}
+.studio-skel i{width:30%;height:14px}
+@keyframes studioShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.studio-spark,.studio-skel i,.studio-skel b{animation:none}}

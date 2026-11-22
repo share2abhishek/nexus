@@ -41,23 +41,15 @@
         </a>
         <a class="nav-item" data-page="compose" id="nav-compose" title="Write a post, then publish or schedule it">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-square-pen"/></svg>
-          <span class="nav-label">Create post</span>
+          <span class="nav-label">Write a post</span>
         </a>
-        <a class="nav-item" data-page="generate" id="nav-generate" title="AI content generator">
-          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-sparkles"/></svg>
-          <span class="nav-label">AI writer</span>
-        </a>
-        <a class="nav-item nav-action" id="nav-content-studio" href="javascript:void(0)" onclick="openContentStudio()" title="Give it web pages, text files or pasted text: get a post for every network, with headings and hashtags, scheduled">
+        <a class="nav-item nav-action" id="nav-content-studio" href="javascript:void(0)" onclick="openContentStudio()" title="Write many posts with AI, add pictures, and schedule them all at the times you choose">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-sparkles"/></svg>
           <span class="nav-label">Content Studio</span>
         </a>
         <a class="nav-item" data-page="calendar" id="nav-calendar" title="Everything planned and published">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-calendar-days"/></svg>
           <span class="nav-label">Calendar</span>
-        </a>
-        <a class="nav-item nav-action" id="nav-bulk-schedule" href="javascript:void(0)" onclick="openBulkImport()" title="Upload an Excel or CSV file with one post per row">
-          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layers"/></svg>
-          <span class="nav-label">Schedule from Excel</span>
         </a>
         <a class="nav-item" data-page="history" id="nav-history" title="Published, queued and archived posts">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-history"/></svg>
@@ -66,10 +58,6 @@
         <a class="nav-item" data-page="media" id="nav-media" title="Generate AI images and videos">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-image"/></svg>
           <span class="nav-label">AI images &amp; video</span>
-        </a>
-        <a class="nav-item" data-page="tools-directory" id="nav-tools-directory" title="Other AI tools &amp; models">
-          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-blocks"/></svg>
-          <span class="nav-label">Other AI tools</span>
         </a>
         <a class="nav-item" data-page="library" id="nav-library" title="Organize image and video assets">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-folder-open"/></svg>
@@ -4175,50 +4163,162 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="studio-modal" style="display:none" onclick="if(event.target===this)closeContentStudio()">
-  <div class="modal modal-wide" onclick="event.stopPropagation()" style="max-width:860px">
+<div class="modal-overlay" id="studio-modal" style="display:none;padding:2vh 2vw" onclick="if(event.target===this)closeContentStudio()">
+  <div class="modal" onclick="event.stopPropagation()" style="width:96vw;max-width:1600px;height:94vh;max-height:94vh;display:flex;flex-direction:column">
     <div class="modal-header">
       <div class="modal-title">✨ Content Studio</div>
       <button class="modal-close" onclick="closeContentStudio()" aria-label="Close">✕</button>
     </div>
-    <div class="modal-body">
-      <div id="studio-step-1">
-        <p style="margin-top:0;color:var(--text-secondary);font-size:13px">
-          Give it web pages (.html), text files (.txt, .md) or paste your own text. AI turns each one into a post for every network you pick, with a heading and hashtags. You check them, then schedule.
-        </p>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-primary btn-sm" onclick="document.getElementById('studio-files').click()">Add files…</button>
-          <input type="file" id="studio-files" multiple accept=".html,.htm,.txt,.md,.markdown,.csv,text/html,text/plain" hidden onchange="studioAddFiles(this.files); this.value=''" />
-          <button class="btn btn-secondary btn-sm" onclick="studioAddPasted()">+ Add pasted text</button>
+    <div id="studio-grid" style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr) minmax(260px,330px);gap:0">
+      <aside class="studio-panel" id="studio-left">
+        <div class="studio-h">1 · Your content</div>
+        <textarea class="form-textarea" id="studio-paste" rows="5" placeholder="What are the posts about? Example: Diwali sale, 20% off all week. Or paste a web page." style="width:100%"></textarea>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('studio-files').click()">Add a file</button>
+          <input type="file" id="studio-files" multiple hidden onchange="studioAddFiles(this.files); this.value=''" />
+          <button class="btn btn-secondary btn-sm" onclick="closeContentStudio();openBulkImport()">Use a spreadsheet</button>
         </div>
-        <textarea class="form-textarea" id="studio-paste" rows="5" placeholder="Paste an application, article, announcement or HTML here, then press “Add pasted text”" style="margin-top:10px;width:100%"></textarea>
-        <div id="studio-sources" style="margin-top:10px"></div>
-        <div style="margin-top:12px;font-weight:600;font-size:13px">Post to</div>
-        <div id="studio-platforms" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"></div>
-        <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px">
-          <label>Language <input type="text" id="studio-language" class="form-input" placeholder="English" style="width:140px;display:inline-block" /></label>
+        <div id="studio-sources" style="margin-top:8px"></div>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px">
+          <b>How many posts?</b>
+          <span style="display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:8px">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="studioCountStep(-1)" aria-label="Fewer posts">−</button>
+            <input type="number" id="studio-count" min="1" max="30" value="1" class="form-input" style="width:52px;text-align:center;border:0" aria-label="Number of posts" onchange="studioCountStep(0)">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="studioCountStep(1)" aria-label="More posts">+</button>
+          </span>
         </div>
-      </div>
-      <div id="studio-step-2" style="display:none">
+        <div style="margin-top:10px;font-weight:600;font-size:13px">Post to</div>
+        <div id="studio-platforms" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
+        <label style="display:block;margin-top:10px;font-size:13px">Language <input type="text" id="studio-language" class="form-input" placeholder="English" style="width:130px;display:inline-block" /></label>
+        <button class="btn btn-primary" id="studio-generate-btn" style="width:100%;margin-top:14px" onclick="studioGenerate()">Write my posts</button>
+        <div class="studio-h" style="margin-top:18px">🎞 Media library</div>
+        <div id="studio-tray" ondragover="event.preventDefault()" ondrop="studioTrayDropFiles(event)" style="border:1px dashed rgba(124,58,237,.45);border-radius:10px;padding:8px">
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;font-size:12px;color:var(--text-muted)">
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('studio-tray-file').click()">Upload</button>
+            <input type="file" id="studio-tray-file" multiple accept="image/*,video/mp4,video/quicktime" hidden onchange="studioTrayUpload(this.files); this.value=''">
+            Drop files here, or drag any item onto a post.
+          </div>
+          <div id="studio-tray-items" style="display:flex;flex-wrap:wrap;gap:6px;max-height:34vh;overflow:auto"></div>
+        </div>
+      </aside>
+      <main class="studio-panel" id="studio-centre">
+        <div class="studio-h">2 · Your posts</div>
+        <div id="studio-empty" style="padding:40px 16px;text-align:center;color:var(--text-muted);font-size:14px">Your posts will appear here.<br>Type your topic on the left and press <b>Write my posts</b>.</div>
+        <div id="studio-busy" style="display:none">
+          <div class="studio-busy-msg"><span class="studio-spark">✨</span> <span id="studio-busy-text">Reading your content…</span></div>
+          <div class="studio-skel"><i></i><b></b><b></b><b style="width:60%"></b></div>
+          <div class="studio-skel"><i></i><b></b><b></b><b style="width:45%"></b></div>
+          <div class="studio-skel"><i></i><b></b><b></b><b style="width:70%"></b></div>
+        </div>
         <div id="studio-problems"></div>
-        <div id="studio-cards"></div>
-        <div style="margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:10px;display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;font-size:13px">
-          <label>First post at<br><input type="datetime-local" id="studio-start" class="form-input" /></label>
-          <label>Then one every<br><select id="studio-interval" class="form-select">
-            <option value="1">1 hour</option><option value="3">3 hours</option><option value="6">6 hours</option>
-            <option value="24" selected>day</option><option value="48">2 days</option><option value="72">3 days</option><option value="168">week</option>
-          </select></label>
-          <span id="studio-when" style="color:var(--text-muted)"></span>
+        <div id="studio-pic-tools" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 2px;font-size:13px">🖼️
+          <button class="btn btn-secondary btn-sm" onclick="studioPicAll(true)">Add a picture to every post</button>
+          <button class="btn btn-secondary btn-sm" onclick="studioPicAll(false)">Remove all pictures</button>
         </div>
-      </div>
+        <div id="studio-brand-note" style="font-size:12px;color:var(--text-muted);margin-bottom:6px"></div>
+        <div id="studio-cards"></div>
+      </main>
+      <aside class="studio-panel" id="studio-right">
+        <div class="studio-h">Preview</div>
+        <div id="studio-preview" style="margin-bottom:14px"><div style="font-size:12.5px;color:var(--text-muted)">Click a post to see how it will look.</div></div>
+        <div class="studio-h">3 · Choose when</div>
+        <p style="margin:0 0 8px;font-size:12.5px;color:var(--text-secondary)">Nothing goes out until you press a button below.</p>
+        <label style="font-size:13px">First post at<br><input type="datetime-local" id="studio-start" class="form-input" style="width:100%" onchange="studioReplan()" /></label>
+        <label style="font-size:13px;display:block;margin-top:8px">Then one every<br><select id="studio-interval" class="form-select" style="width:100%" onchange="studioReplan()">
+          <option value="1">1 hour</option><option value="3">3 hours</option><option value="6">6 hours</option>
+          <option value="24" selected>day</option><option value="weekdays">weekday (Mon to Fri)</option><option value="mwf">Mon, Wed and Fri</option><option value="48">2 days</option><option value="72">3 days</option><option value="168">week</option>
+        </select></label>
+        <div id="studio-when" style="font-size:12.5px;color:var(--text-muted);margin:8px 0"></div>
+        <div id="studio-check"></div>
+        <div id="studio-times" style="margin-top:8px"></div>
+        <div style="position:sticky;bottom:0;padding-top:10px;display:flex;flex-direction:column;gap:6px;background:var(--bg-card,var(--bg))">
+          <button class="btn btn-primary" id="studio-schedule-btn" onclick="studioSchedule('scheduled')">Schedule them</button>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary" id="studio-draft-btn" style="flex:1" onclick="studioSchedule('draft')">Save as drafts</button>
+            <button class="btn btn-secondary" id="studio-now-btn" style="flex:1" title="Start in one minute, then one every two minutes" onclick="studioPostNow()">Post now</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="studio-ai" style="display:none;z-index:1300" onclick="if(event.target===this)studioAiClose()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:520px">
+    <div class="modal-header">
+      <div class="modal-title">🤖 Set up AI</div>
+      <button class="modal-close" onclick="studioAiClose()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="studio-ai-msg" style="font-size:12.5px;white-space:pre-line;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:8px 10px;margin-bottom:10px"></div>
+      <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary)">Paste a free key from any one of these. It is saved to your account only and used just for your own posts.</p>
+      <label style="display:block;font-size:13px;margin-bottom:8px">Google Gemini (free) <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="font-size:12px">Get a key</a>
+        <input type="password" id="studio-ai-google" class="form-input" style="width:100%" placeholder="Starts with AIza…" autocomplete="off"></label>
+      <label style="display:block;font-size:13px;margin-bottom:8px">Groq (free) <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="font-size:12px">Get a key</a>
+        <input type="password" id="studio-ai-groq" class="form-input" style="width:100%" placeholder="gsk_…" autocomplete="off"></label>
+      <label style="display:block;font-size:13px;margin-bottom:8px">OpenRouter (free models) <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="font-size:12px">Get a key</a>
+        <input type="password" id="studio-ai-openrouter" class="form-input" style="width:100%" placeholder="sk-or-v1-…" autocomplete="off"></label>
+      <label style="display:block;font-size:13px;margin-bottom:8px">Mistral (free tier)
+        <input type="password" id="studio-ai-mistral" class="form-input" style="width:100%" placeholder="Paste key" autocomplete="off"></label>
+      <label style="display:block;font-size:13px">Claude (paid)
+        <input type="password" id="studio-ai-anthropic" class="form-input" style="width:100%" placeholder="sk-ant-…" autocomplete="off"></label>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" id="studio-back" style="display:none" onclick="studioBack()">← Back</button>
-      <button class="btn btn-secondary" onclick="closeContentStudio()">Close</button>
-      <button class="btn btn-primary" id="studio-generate-btn" onclick="studioGenerate()">Write the posts</button>
-      <button class="btn btn-secondary" id="studio-draft-btn" style="display:none" onclick="studioSchedule('draft')">Save as drafts</button>
-      <button class="btn btn-primary" id="studio-schedule-btn" style="display:none" onclick="studioSchedule('scheduled')">Schedule all</button>
+      <button class="btn btn-secondary" onclick="studioAiClose()">Not now</button>
+      <button class="btn btn-primary" id="studio-ai-save" onclick="studioAiSave()">Save and write my posts</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="studio-editor"style="display:none;z-index:1200" onclick="if(event.target===this)studioEdClose()">
+  <div class="modal modal-wide" onclick="event.stopPropagation()" style="max-width:720px">
+    <div class="modal-header">
+      <div class="modal-title">Edit picture</div>
+      <button class="modal-close" onclick="studioEdClose()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" style="max-height:calc(100vh - 170px);overflow-y:auto">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <button class="btn btn-secondary btn-sm" onclick="studioEdAddText()">Add text</button>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('studio-ed-file').click()">Add image</button>
+        <input type="file" id="studio-ed-file" accept="image/*" hidden onchange="studioEdAddFile(this.files[0]); this.value=''">
+        <button class="btn btn-secondary btn-sm" onclick="studioEdAddLogo()">Add my logo</button>
+        <button class="btn btn-secondary btn-sm" onclick="studioEdAddShape('rect')">Box</button>
+        <button class="btn btn-secondary btn-sm" onclick="studioEdAddShape('circle')">Circle</button>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px">Background <input type="color" id="studio-ed-bg" value="#1e3a8a" oninput="studioEdBg()" title="First colour"> <input type="color" id="studio-ed-bg2" value="#f59e0b" oninput="studioEdBg()" title="Second colour"></label>
+        <select id="studio-ed-bgmode" class="form-select" style="width:auto" onchange="studioEdBg()" aria-label="Background style">
+          <option value="solid">One colour</option><option value="diag">Two colours: blend corner to corner</option><option value="h">Two colours: blend left to right</option><option value="v">Two colours: blend top to bottom</option><option value="splith">Two colours: split left and right</option><option value="splitv">Two colours: split top and bottom</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="studioEdBg(null)">Clear background</button>
+      </div>
+      <div id="studio-ed-sel" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:13px;opacity:.4">
+        <label>Colour <input type="color" id="studio-ed-color" value="#ffffff" oninput="studioEdColor(this.value)"></label>
+        <label>Font <select id="studio-ed-font" class="form-select" style="width:auto;display:inline-block" onchange="studioEdFont(this.value)">
+          <option>Inter</option><option>Arial</option><option>Helvetica</option><option>Verdana</option><option>Tahoma</option><option>Trebuchet MS</option><option>Georgia</option><option>Times New Roman</option><option>Palatino Linotype</option><option>Courier New</option><option>Impact</option><option>Comic Sans MS</option>
+        </select></label>
+        <label>Text size <input type="number" id="studio-ed-size" min="8" max="400" value="40" class="form-input" style="width:70px;display:inline-block" onchange="studioEdSize(this.value)"></label>
+        <button class="btn btn-secondary btn-sm" onclick="studioEdOrder(1)">Bring forward</button>
+        <button class="btn btn-secondary btn-sm" onclick="studioEdOrder(-1)">Send back</button>
+        <button class="btn btn-secondary btn-sm" onclick="studioEdDelete()">Delete</button>
+      </div>
+      <div style="display:flex;justify-content:center;background:var(--bg-secondary,#0001);border-radius:8px;padding:8px;overflow:auto">
+        <canvas id="studio-ed-canvas"></canvas>
+      </div>
+      <div style="margin-top:8px;font-size:12px;font-weight:600">Your media (click a picture to add it)</div>
+      <div id="studio-ed-tray" style="display:flex;gap:6px;overflow-x:auto;padding:4px 0;min-height:64px;flex-shrink:0"></div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:6px">Click an item to move, resize or turn it. Double-click text to change the words.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="studioEdClose()">Cancel</button>
+      <button class="btn btn-secondary" onclick="studioEdPreview()">Preview</button>
+      <button class="btn btn-primary" id="studio-ed-save" onclick="studioEdSave()">Use this picture</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="studio-ed-preview" style="display:none;z-index:1300" onclick="this.style.display='none'">
+  <div style="max-width:92vw;max-height:92vh;text-align:center" onclick="event.stopPropagation()">
+    <img id="studio-ed-preview-img" alt="Preview of your picture" style="max-width:92vw;max-height:80vh;border-radius:10px;box-shadow:0 10px 40px #0008;background:#fff">
+    <div style="margin-top:10px"><button class="btn btn-primary" onclick="document.getElementById('studio-ed-preview').style.display='none'">Back to editing</button></div>
   </div>
 </div>
 
@@ -4638,6 +4738,7 @@
 <script src="js/14-whatsapp-bot.js?v=2.2.0"></script>
 <script src="js/15-post-designer.js?v=2.2.0"></script>
 <script src="js/25-content-studio.js?v=2.2.4"></script>
+<script src="js/26-studio-editor.js?v=2.2.4"></script>
 <script src="js/16-whatsapp-templates.js?v=2.2.0"></script>
 <script src="js/17-whatsapp-broadcast.js?v=2.2.0"></script>
 <script src="js/18-post-extras.js?v=2.2.0"></script>

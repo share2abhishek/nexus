@@ -65,6 +65,27 @@ module.exports = (knex, requirePermission) => {
   // ── Content Studio ────────────────────────────────────────────────────────
   // Step 1: pages, text files or pasted text in; a ready post (heading, text, hashtags) per platform out.
   // Nothing is saved here: the person reviews and edits first.
+  // Turns any file the person drops into the Studio into plain text: Excel and CSV become one line per row
+  router.post('/studio/read-file', requirePermission('content.create'), express.raw({ type: () => true, limit: '5mb' }), (req, res) => {
+    try {
+      const buf = req.body;
+      if (!Buffer.isBuffer(buf) || !buf.length) return res.status(400).json({ error: 'No file was sent.' });
+      let name = String(req.get('X-File-Name') || ''); try { name = decodeURIComponent(name); } catch {}
+      let text;
+      if (/\.xlsx$/i.test(name) || buf.slice(0, 2).toString() === 'PK') {
+        const rows = require('../services/bulkImport').readRows(buf, name).filter((r) => r.some((c) => String(c || '').trim()));
+        text = rows.map((r) => r.map((c) => String(c == null ? '' : c).trim()).filter(Boolean).join(' | ')).join('\n');
+      } else if (buf.includes(0) || /\.(xls|doc|docx|pdf|ppt|pptx|zip)$/i.test(name)) {
+        return res.status(400).json({ error: 'This file type cannot be read. Save it as Excel (.xlsx), CSV, text or HTML and add it again.' });
+      } else {
+        text = buf.toString('utf8').replace(/^﻿/, '');
+      }
+      text = text.trim();
+      if (!text) return res.status(400).json({ error: 'The file has no text in it.' });
+      res.json({ name, text: text.slice(0, 200000) });
+    } catch (err) { res.status(400).json({ error: `Could not read this file: ${err.message}` }); }
+  });
+
   router.post('/studio/generate', requirePermission('content.create'), async (req, res) => {
     try {
       const studio = require('../services/contentStudio');
@@ -80,16 +101,19 @@ module.exports = (knex, requirePermission) => {
       const ai = aiArgsFromReq(req);
       const brand = await brandContext(req.workspaceId);
       const language = String(req.body?.language || '').slice(0, 40);
+      const count = studio.cleanCount(req.body?.count, platforms.length);
       const posts = [];
       const problems = [];
       for (const src of sources) {
         try {
-          const { data } = await aiList(studio.buildPrompt(src, platforms, { brand, language }), ai.apiKey, 3000, ai.options, ai.model);
-          const made = studio.parsePosts(data, platforms, src.name);
+          const tokens = Math.min(16000, 1500 + 450 * count * platforms.length);
+          const { data } = await aiList(studio.buildPrompt(src, platforms, { brand, language, count }), ai.apiKey, tokens, ai.options, ai.model);
+          const made = studio.parsePosts(data, platforms, src.name, count);
           if (!made.length) problems.push({ source: src.name, error: 'The AI did not return usable posts. Try again.' });
           for (const p of made) posts.push({ ...p, text: studio.compose(p), limit: CHAR_LIMITS[p.platform] || null, can_post: isPublishable(p.platform) });
         } catch (err) {
-          problems.push({ source: src.name, error: String(err.message || 'AI error').split('\n')[0].slice(0, 200) });
+          // Keep the reason for each AI provider (the lines that start with a bullet), not just the first line
+          problems.push({ source: src.name, error: String(err.message || 'AI error').split('\n').filter((l) => !/^Try again in a minute/.test(l)).slice(0, 8).join('\n').slice(0, 700) });
           if (err.code === 'AI_QUOTA') break; // no point asking again
         }
       }
@@ -100,15 +124,42 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
+  // Bring a Studio session's drafts back together so they can be edited as one batch
+  router.get('/studio/series/:seriesId', requirePermission('content.create'), async (req, res) => {
+    try {
+      const { CHAR_LIMITS } = require('../services/brand');
+      const rows = await knex('content_items')
+        .where({ workspace_id: req.workspaceId, series_id: String(req.params.seriesId), series_every: 'studio', status: 'draft' })
+        .orderBy('series_index', 'asc').orderBy('id', 'asc');
+      if (!rows.length) return res.status(404).json({ error: 'These drafts are no longer there. They may have been scheduled or deleted.' });
+      const posts = rows.map(r => {
+        let platform = '';
+        try { platform = (JSON.parse(r.platforms || '[]') || [])[0] || ''; } catch { /* keep empty */ }
+        return { id: r.id, platform, title: r.title || '', text: r.body || '', media: r.image_url || null, at: r.scheduled_at || null, limit: CHAR_LIMITS[platform] || null };
+      });
+      res.json({ series_id: String(req.params.seriesId), posts });
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
+    }
+  });
+
   // Step 2: the reviewed posts are scheduled one after another (or saved as drafts)
   router.post('/studio/schedule', requirePermission('content.create'), async (req, res) => {
     try {
       const studio = require('../services/contentStudio');
       const { CHAR_LIMITS } = require('../services/brand');
-      const { posts, start_at, interval_hours = 24, status = 'scheduled' } = req.body || {};
+      const { posts, start_at, interval_hours = 24, status = 'scheduled', replace_series_id } = req.body || {};
       if (!Array.isArray(posts) || !posts.length) return res.status(400).json({ error: 'There are no posts to schedule.' });
       if (posts.length > 200) return res.status(400).json({ error: 'Schedule at most 200 posts at a time.' });
-      const clean = posts.map(p => ({ platform: String(p.platform || ''), text: String(p.text || '').trim(), title: String(p.title || '').slice(0, 120) }));
+      const clean = posts.map(p => ({ platform: String(p.platform || ''), text: String(p.text || '').trim(), title: String(p.title || '').slice(0, 120),
+        at: p.at == null || p.at === '' ? null : Number(p.at),
+        media: Array.isArray(p.media) ? p.media.map(String).filter(m => /^media:\d+$/.test(m)).slice(0, 1) : [] }));
+      // A picture must already be in this workspace's media library
+      const mediaIds = [...new Set(clean.flatMap(p => p.media).map(m => Number(m.slice(6))))];
+      if (mediaIds.length) {
+        const found = (await knex('media_assets').where({ workspace_id: req.workspaceId }).whereIn('id', mediaIds).select('id')).map(r => r.id);
+        if (mediaIds.some(id => !found.includes(id))) return res.status(400).json({ error: 'A picture was not found in your media library. Add it again.' });
+      }
       for (const p of clean) {
         const bad = checkPlatforms([p.platform]);
         if (bad) return res.status(400).json({ error: bad });
@@ -117,7 +168,12 @@ module.exports = (knex, requirePermission) => {
         if (lim && p.text.length > lim) return res.status(400).json({ error: `The ${p.platform} post is ${p.text.length - lim} characters over its limit of ${lim}. Shorten it.` });
       }
       const now = Math.floor(Date.now() / 1000);
-      const startNum = Number(start_at);
+      // Each post may carry its own time ("at"); otherwise they follow start_at and the gap
+      const ownTimes = clean.every(p => p.at != null);
+      if (ownTimes) {
+        if (clean.some(p => !Number.isFinite(p.at) || p.at < now - 300 || p.at > now + 366 * 86400)) return res.status(400).json({ error: 'Every post needs a time in the future, within a year.' });
+      }
+      const startNum = ownTimes ? Math.min(...clean.map(p => p.at)) : Number(start_at);
       if (!Number.isFinite(startNum) || startNum < now - 300) return res.status(400).json({ error: 'Pick a start date and time in the future.' });
 
       const shouldSchedule = status === 'scheduled' && can(req.role, 'content.schedule') && can(req.role, 'content.approve');
@@ -129,20 +185,27 @@ module.exports = (knex, requirePermission) => {
           .orderByRaw('(CASE WHEN access_token IS NOT NULL AND auth_error IS NULL THEN 0 ELSE 1 END)').orderBy('id', 'desc').first();
         accounts[p] = acc ? acc.id : null;
       }
-      const times = studio.planTimes(clean.length, startNum, interval_hours);
+      const times = ownTimes ? clean.map(p => Math.floor(p.at)) : studio.planTimes(clean.length, startNum, interval_hours);
       const seriesId = require('crypto').randomUUID();
       const rows = clean.map((p, i) => ({
         workspace_id: req.workspaceId, title: p.title || null, body: p.text, platforms: JSON.stringify([p.platform]),
         social_account_ids: JSON.stringify(accounts[p.platform] ? [accounts[p.platform]] : []),
+        image_url: p.media[0] || null, options: p.media.length ? JSON.stringify({ media: p.media }) : null,
         status: shouldSchedule ? 'scheduled' : 'draft', scheduled_at: times[i],
         submitted_by: req.session.userId, approved_by: shouldSchedule ? req.session.userId : null,
         series_id: seriesId, series_index: i + 1, series_total: clean.length, series_every: 'studio',
         created_at: now, updated_at: now,
       }));
-      await knex.transaction(async (trx) => { for (let b = 0; b < rows.length; b += 50) await trx('content_items').insert(rows.slice(b, b + 50)); });
+      await knex.transaction(async (trx) => {
+        // Saving an edited batch replaces its old drafts, so nothing is duplicated
+        if (replace_series_id) {
+          await trx('content_items').where({ workspace_id: req.workspaceId, series_id: String(replace_series_id), series_every: 'studio', status: 'draft' }).del();
+        }
+        for (let b = 0; b < rows.length; b += 50) await trx('content_items').insert(rows.slice(b, b + 50));
+      });
       res.json({
         success: true, total: rows.length, status: shouldSchedule ? 'scheduled' : 'draft',
-        first_at: times[0], last_at: times[times.length - 1],
+        first_at: Math.min(...times), last_at: Math.max(...times),
         no_account: Object.keys(accounts).filter(p => !accounts[p]),
       });
     } catch (err) {

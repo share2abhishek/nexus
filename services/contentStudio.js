@@ -67,12 +67,22 @@ function platformLines(platforms) {
   }).join('\n');
 }
 
-function buildPrompt(source, platforms, { brand = '', language = '' } = {}) {
+const MAX_POSTS_PER_PLATFORM = 30;
+const MAX_POSTS_PER_RUN = 60; // posts x networks, so one run stays quick
+function cleanCount(n, platformCount = 1) {
+  const c = Math.floor(Number(n)) || 1;
+  return Math.max(1, Math.min(MAX_POSTS_PER_PLATFORM, c, Math.floor(MAX_POSTS_PER_RUN / Math.max(1, platformCount))));
+}
+
+function buildPrompt(source, platforms, { brand = '', language = '', count = 1 } = {}) {
+  const n = cleanCount(count, platforms.length);
   const f = fence('SOURCE', `${source.title ? `Title: ${source.title}\n` : ''}${source.text}`, MAX_SOURCE_CHARS + 300);
-  return `You are a social media manager. Turn the source material below into one effective post for EACH of these platforms:
+  const many = n > 1;
+  return `You are a social media manager. Turn the source material below into ${many ? `${n} different posts` : 'one effective post'} for EACH of these platforms:
 ${platformLines(platforms)}
 
-Rules:
+Rules:${many ? `
+- Write exactly ${n} posts per platform. Each one takes a different angle (for example the offer, a tip, a short story, a question, a reminder, a behind-the-scenes look) so no two posts repeat each other. Order them so they can go out one after another.` : ''}
 - Base every post only on facts in the source. Do not invent prices, dates, offers, names or links.
 - Each post needs a short, strong "heading": a hook line of at most 90 characters.
 - "body" is the post text without the heading and without hashtags.
@@ -83,25 +93,26 @@ ${f.rule}
 
 ${f.block}
 
-Return ONLY a JSON array, one object per platform, with no commentary:
+Return ONLY a JSON array, one object per post (${many ? `${n} per platform` : 'one per platform'}), with no commentary:
 [{"platform":"${platforms[0]}","heading":"...","body":"...","hashtags":["...","..."]}]`;
 }
 
 const cleanTag = (t) => String(t || '').replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '').slice(0, 40);
 
 /** Checked posts from the AI's list: only the asked-for platforms, each once, tags tidied */
-function parsePosts(list, platforms, sourceName) {
+function parsePosts(list, platforms, sourceName, count = 1) {
   const out = [];
-  const seen = new Set();
+  const seen = {};
+  const per = cleanCount(count, platforms.length);
   for (const x of Array.isArray(list) ? list : []) {
     const platform = String(x?.platform || '').toLowerCase().replace(/[\s-]/g, '_');
-    if (!platforms.includes(platform) || seen.has(platform)) continue;
+    if (!platforms.includes(platform) || (seen[platform] || 0) >= per) continue;
     const heading = neutralize(x.heading || '', 120).replace(/\s+/g, ' ');
     const body = neutralize(x.body || x.text || '', 6000);
     if (!body) continue;
     const max = (STYLE[platform] || { hashtags: 3 }).hashtags;
     const hashtags = [...new Set((Array.isArray(x.hashtags) ? x.hashtags : String(x.hashtags || '').split(/[\s,]+/)).map(cleanTag).filter(Boolean))].slice(0, max);
-    seen.add(platform);
+    seen[platform] = (seen[platform] || 0) + 1;
     out.push({ platform, heading, body, hashtags, source: sourceName });
   }
   return out;
@@ -130,4 +141,4 @@ function planTimes(count, start, intervalHours = 24) {
   return Array.from({ length: count }, (_, i) => Math.floor(Number(start) + i * step));
 }
 
-module.exports = { readSource, prepareSources, buildPrompt, parsePosts, compose, planTimes, looksLikeInjection, STYLE, MAX_SOURCES };
+module.exports = { readSource, prepareSources, buildPrompt, parsePosts, compose, planTimes, cleanCount, looksLikeInjection, STYLE, MAX_SOURCES, MAX_POSTS_PER_PLATFORM };

@@ -67,6 +67,23 @@ describe('buildPrompt / parsePosts / compose', () => {
   test('planTimes spaces posts by the interval', () => {
     expect(studio.planTimes(3, 1000, 2)).toEqual([1000, 8200, 15400]);
   });
+  test('cleanCount keeps the number of posts between 1 and 30, and posts x networks within 60', () => {
+    expect(studio.cleanCount(undefined)).toBe(1);
+    expect(studio.cleanCount('abc')).toBe(1);
+    expect(studio.cleanCount(5, 2)).toBe(5);
+    expect(studio.cleanCount(500, 1)).toBe(30);
+    expect(studio.cleanCount(30, 4)).toBe(15);
+    expect(studio.cleanCount(30, 100)).toBe(1);
+  });
+  test('N posts per platform: the prompt asks for N and parsePosts keeps up to N each', () => {
+    const p = studio.buildPrompt({ name: 'a', title: '', text: 'Some real source text here.' }, ['linkedin', 'twitter'], { count: 3 });
+    expect(p).toMatch(/exactly 3 posts per platform/);
+    const list = [1, 2, 3, 4].flatMap((n) => ['linkedin', 'twitter'].map((platform) => ({ platform, heading: `H${n}`, body: `B${n}` })));
+    const out = studio.parsePosts(list, ['linkedin', 'twitter'], 's', 3);
+    expect(out.filter((x) => x.platform === 'linkedin')).toHaveLength(3);
+    expect(out.filter((x) => x.platform === 'twitter')).toHaveLength(3);
+    expect(studio.parsePosts(list, ['linkedin', 'twitter'], 's')).toHaveLength(2);
+  });
 });
 
 function makeApp(knex, wsId, role) {
@@ -140,6 +157,69 @@ describe('Content Studio routes', () => {
     ]);
   });
 
+  test('drafts from one session reopen together and saving replaces them', async () => {
+    const app = makeApp(knex, ws, 'manager');
+    const at = Math.floor(Date.now() / 1000) + 7200;
+    const first = await request(app).post('/api/content/studio/schedule').send({
+      posts: [{ platform: 'linkedin', text: 'Draft one', title: 'D1', at }, { platform: 'facebook', text: 'Draft two', title: 'D2', at: at + 60 }], status: 'draft',
+    });
+    expect(first.status).toBe(200);
+    const row = await knex('content_items').where({ workspace_id: ws, title: 'D1' }).first();
+    const got = await request(app).get(`/api/content/studio/series/${row.series_id}`);
+    expect(got.status).toBe(200);
+    expect(got.body.posts.map((p) => [p.platform, p.title, p.text])).toEqual([['linkedin', 'D1', 'Draft one'], ['facebook', 'D2', 'Draft two']]);
+    const again = await request(app).post('/api/content/studio/schedule').send({
+      posts: [{ platform: 'linkedin', text: 'Draft one edited', title: 'D1', at }], status: 'draft', replace_series_id: row.series_id,
+    });
+    expect(again.status).toBe(200);
+    expect(await knex('content_items').where({ workspace_id: ws, series_id: row.series_id }).count({ n: '*' }).first().then((r) => Number(r.n))).toBe(0);
+    expect(await knex('content_items').where({ workspace_id: ws, title: 'D1' }).count({ n: '*' }).first().then((r) => Number(r.n))).toBe(1);
+    expect((await request(app).get(`/api/content/studio/series/${row.series_id}`)).status).toBe(404);
+  });
+
+  test('schedule: each post can have its own time; a past or far-away time is refused', async () => {
+    const app = makeApp(knex, ws, 'manager');
+    const now = Math.floor(Date.now() / 1000);
+    const a = now + 7200, b = now + 3600;
+    const send = (posts) => request(app).post('/api/content/studio/schedule').send({ posts, status: 'scheduled' });
+    const ok = await send([{ platform: 'linkedin', text: 'Own time A', title: 'OwnA', at: a }, { platform: 'facebook', text: 'Own time B', title: 'OwnB', at: b }]);
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({ total: 2, first_at: b, last_at: a });
+    const rows = await knex('content_items').where({ workspace_id: ws }).whereIn('title', ['OwnA', 'OwnB']);
+    expect(Object.fromEntries(rows.map((r) => [r.title, r.scheduled_at]))).toEqual({ OwnA: a, OwnB: b });
+    expect((await send([{ platform: 'linkedin', text: 'x', at: 100 }])).status).toBe(400);
+    expect((await send([{ platform: 'linkedin', text: 'x', at: now + 400 * 86400 }])).status).toBe(400);
+  });
+
+  test('read-file: text, CSV and HTML come back as text; a binary file is refused', async () => {
+    const app = makeApp(knex, ws, 'manager');
+    const send = (name, body) => request(app).post('/api/content/studio/read-file').set('X-File-Name', encodeURIComponent(name)).set('Content-Type', 'application/octet-stream').send(body);
+    const csv = await send('offers.csv', Buffer.from('title,offer\nDiwali,20% off\n'));
+    expect(csv.status).toBe(200);
+    expect(csv.body.text).toContain('Diwali');
+    expect((await send('page.html', Buffer.from('<h1>Hi</h1>'))).body.text).toContain('<h1>Hi</h1>');
+    expect((await send('old.xls', Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0, 0, 1]))).status).toBe(400);
+  });
+
+  test('generate: when every AI provider fails, the reason for each one reaches the person', async () => {
+    mockAi.mockRejectedValue(new Error('All configured AI providers failed:\n• Gemini: API key rejected\n• Groq: rate limit reached (429)\nTry again in a minute, or add another free provider in Settings → AI.'));
+    const res = await request(makeApp(knex, ws, 'manager')).post('/api/content/studio/generate')
+      .send({ platforms: ['linkedin'], sources: [{ name: 'a', text: 'A sentence long enough to be a source of posts.' }] });
+    expect(res.status).toBe(502);
+    expect(res.body.error).toContain('Gemini: API key rejected');
+    expect(res.body.error).toContain('Groq: rate limit reached');
+  });
+
+  test('generate: passes the number of posts to the AI', async () => {
+    mockAi.mockResolvedValue({ data: [{ platform: 'linkedin', heading: 'A', body: 'a' }, { platform: 'linkedin', heading: 'B', body: 'b' }] });
+    const res = await request(makeApp(knex, ws, 'creator')).post('/api/content/studio/generate').send({
+      platforms: ['linkedin'], count: 2, sources: [{ name: 'a.txt', text: 'A real paragraph about our new product launch.' }],
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.posts).toHaveLength(2);
+    expect(JSON.stringify(mockAi.mock.calls[0])).toMatch(/exactly 2 posts per platform/);
+  });
+
   test('schedule: refuses a post over the platform limit, an empty one, a past start and a platform that cannot post', async () => {
     const app = makeApp(knex, ws, 'manager');
     const future = Math.floor(Date.now() / 1000) + 3600;
@@ -149,6 +229,27 @@ describe('Content Studio routes', () => {
     expect((await post({ platform: 'youtube', text: 'hi' })).status).toBe(400);
     const past = await request(app).post('/api/content/studio/schedule').send({ posts: [{ platform: 'linkedin', text: 'hi' }], start_at: 100 });
     expect(past.status).toBe(400);
+  });
+
+  test('schedule: a picture from the media library is attached; one from elsewhere is refused', async () => {
+    const [m] = await knex('media_assets').insert({ workspace_id: ws, stored_name: 'p.png', mime: 'image/png', kind: 'image', size: 10, created_at: Date.now() }).returning('id');
+    const id = m?.id ?? m;
+    const app = makeApp(knex, ws, 'manager');
+    const start = Math.floor(Date.now() / 1000) + 3600;
+    const ok = await request(app).post('/api/content/studio/schedule').send({
+      posts: [{ platform: 'instagram', text: 'With picture', title: 'Pic', media: [`media:${id}`] }, { platform: 'linkedin', text: 'No picture', title: 'NoPic' }],
+      start_at: start, status: 'draft',
+    });
+    expect(ok.status).toBe(200);
+    const rows = await knex('content_items').where({ workspace_id: ws }).whereIn('title', ['Pic', 'NoPic']).orderBy('series_index');
+    expect(rows[0].image_url).toBe(`media:${id}`);
+    expect(JSON.parse(rows[0].options)).toEqual({ media: [`media:${id}`] });
+    expect(rows[1].image_url).toBeNull();
+    const bad = await request(app).post('/api/content/studio/schedule').send({
+      posts: [{ platform: 'instagram', text: 'x', media: ['media:999999'] }], start_at: start,
+    });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error).toMatch(/media library/);
   });
 
   test('schedule: a creator who cannot approve gets drafts instead', async () => {

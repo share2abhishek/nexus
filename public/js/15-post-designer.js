@@ -197,6 +197,8 @@ function renderDesign(canvas, s) {
   } else if (photo) {
     drawCover(ctx, photo, W, H);
     ctx.fillStyle = rgba(s.c1, 0.72); ctx.fillRect(0, 0, W, H);
+  } else if (tpl === 'announce' && s.fullBg) {
+    ctx.fillStyle = s.c1; ctx.fillRect(0, 0, W, H);   // whole picture in the brand colour
   } else if (tpl === 'announce') {
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = s.c1; ctx.fillRect(0, 0, Math.round(pad * 0.45), H);
@@ -219,6 +221,7 @@ function renderDesign(canvas, s) {
   } else {
     ctx.fillStyle = s.c1; ctx.fillRect(0, 0, W, H);
   }
+  const lightCard = tpl === 'announce' && !s.fullBg && !photo;
   const ink = inkFor(bgForInk);
   const soft = ink === '#ffffff' ? 'rgba(255,255,255,0.85)' : 'rgba(17,24,39,0.75)';
 
@@ -257,15 +260,15 @@ function renderDesign(canvas, s) {
   if (tpl === 'photo') y = H - pad - footerH - blockH;
   else y = Math.max(top, top + ((H - footerH - pad) - top - blockH) / 2);
 
-  const headColor = s.headColor || (tpl === 'announce' ? '#111827' : ink);
+  const headColor = s.headColor || (lightCard ? '#111827' : ink);
   y = drawLines(ctx, head, x, y, { align, color: headColor, weight: headWeight, italic: headItalic });
-  if (det.lines.length) y = drawLines(ctx, det, x, y + gap, { align, color: tpl === 'announce' ? '#374151' : soft, weight: 500 });
-  if (ctaH) drawCta(ctx, s.cta, x, y + gap * 1.4, { bg: tpl === 'announce' ? s.c1 : s.c3, align, scale: k });
+  if (det.lines.length) y = drawLines(ctx, det, x, y + gap, { align, color: lightCard ? '#374151' : soft, weight: 500 });
+  if (ctaH) drawCta(ctx, s.cta, x, y + gap * 1.4, { bg: lightCard ? s.c1 : s.c3, align, scale: k });
 
   // Footer: business name
   if (s.footer) {
     ctx.font = designFont(600, 34 * k);
-    ctx.fillStyle = tpl === 'announce' ? s.c1 : soft;
+    ctx.fillStyle = lightCard ? s.c1 : soft;
     ctx.textAlign = centered ? 'center' : 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(s.footer, centered ? W / 2 : left, H - pad * 0.8, maxW);

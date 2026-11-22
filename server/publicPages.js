@@ -64,6 +64,8 @@ async function sendLanding(req, res) {
 
 const router = express.Router();
 
+router.use(require('./blog').router);
+
 // One address for the landing page (search engines shouldn't see two copies)
 router.get('/landing.html', (req, res) => res.redirect(301, '/'));
 
@@ -88,6 +90,7 @@ router.get('/robots.txt', (req, res) => {
     'User-agent: *',
     'Allow: /$',
     'Allow: /help.html',
+    'Allow: /blog',
     'Allow: /legal',
     // The app, sign-in and the private links are not for search results
     ...NOT_FOR_SEARCH.map((p) => `Disallow: ${p}`),
@@ -99,9 +102,11 @@ router.get('/robots.txt', (req, res) => {
 
 router.get('/sitemap.xml', (req, res) => {
   const url = siteUrl(req);
-  const pages = [['/', '1.0'], ['/help.html', '0.6'], ...LEGAL_PAGES.map(([p]) => [`/legal${p ? `/${p}` : ''}`, '0.3'])];
+  const posts = require('./blog').listPosts();
+  const pages = [['/', '1.0'], ['/help.html', '0.6'], ...(posts.length ? [['/blog', '0.6']] : []), ...posts.map((b) => [`/blog/${b.slug}`, '0.5']), ...LEGAL_PAGES.map(([p]) => [`/legal${p ? `/${p}` : ''}`, '0.3'])];
   const lastmod = (p) => {
-    const file = p === '/' ? path.join(PUBLIC, 'landing.html') : p.startsWith('/legal') ? path.join(LEGAL_DIR, `${p.slice(7) || 'index'}.html`) : path.join(PUBLIC, p);
+    if (p.startsWith('/blog/')) return posts.find((b) => `/blog/${b.slug}` === p)?.date || null;
+    const file =p === '/' ? path.join(PUBLIC, 'landing.html') : p.startsWith('/legal') ? path.join(LEGAL_DIR, `${p.slice(7) || 'index'}.html`) : path.join(PUBLIC, p);
     try { return new Date(fs.statSync(file).mtimeMs).toISOString().slice(0, 10); } catch { return null; }
   };
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>

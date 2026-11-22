@@ -168,6 +168,9 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
 // Chart library shipped with the app (works offline; no CDN)
 app.get('/vendor/chart.umd.js', (req, res) => res.sendFile(path.join(__dirname, '..', 'node_modules', 'chart.js', 'dist', 'chart.umd.js')));
 
+// Picture editor library (Fabric.js, MIT licence) shipped with the app: works offline, no CDN
+app.get('/vendor/fabric.min.js', (req, res) => res.sendFile(path.join(__dirname, '..', 'node_modules', 'fabric', 'dist', 'index.min.js')));
+
 // Ollama setup: reads (status/recommend) are public for the first-run wizard, but
 // changes (select model, pull model — which also write .env) need a logged-in user,
 // except on a brand-new install before the first account exists.

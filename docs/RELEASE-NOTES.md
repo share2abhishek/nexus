@@ -18,7 +18,24 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 
 ## Unreleased
 
+### Website (hosted edition)
+- **Blog:** the public website now has a `/blog` with a page per post, search-engine tags and an entry in the sitemap. Adding a file in `server/blog/posts/` publishes a post; posts marked draft or dated in the future stay hidden.
+
 ### Content Studio
+- **One simple Content Studio:** three steps: add your content (type a topic, paste a web page, add a file or use a spreadsheet), check your posts and pictures, then choose when. "AI writer" and "Schedule from Excel" are no longer separate menu items; "Create post" is now "Write a post". Nothing goes out until you press Schedule.
+- **Use your own image:** on any post, press "Use my own image" to send your photo instead of the made picture. It is saved to your Media library.
+- **Bring Studio drafts back to edit:** open a draft that came from the Content Studio and choose "Edit all in Studio" to reopen every post saved in that same session together. Saving replaces those drafts, so nothing is duplicated.
+- **Content Studio shows progress and a preview:** while your posts are being written you see moving placeholders and what is happening; the right side previews the post you click. Pictures can have a full-colour or two-colour background and a choice of fonts.
+- **Content Studio is now one screen:** write your topic, see every post, and choose the times side by side, with no steps to click through. Your Media library sits on the left: drag any picture or video onto a post to attach it, or drop new files there to upload them.
+- **Add any file to the Studio:** Excel, CSV, HTML, text and other text files can all be added (up to 5 MB). If the AI is not set up or fails, a pop-up in the Studio lets you paste a free key and the posts are written straight away.
+- **Edit the picture by dragging:** press "Edit picture" on any post to add text, your logo, a photo, a box or a circle, then drag, resize, recolour or delete them. It works offline and the result is saved to your Media library. (Uses the free, MIT-licensed Fabric.js library.)
+- **Pick an image from your Media library**, or upload one, on any post without leaving Content Studio.
+- **Check before you schedule:** step 3 tells you in plain words if a time has passed, a post is too long, or a network cannot be posted to yet, and can move late posts to a later time in one click. "Post now" sends the first post in a minute and the rest two minutes apart.
+- **Studio remembers your last choices** (networks, number of posts, language and spacing).
+- **Write any number of posts:** pick how many posts you want (1 to 30 for each network). AI gives each a different angle, so they do not repeat.
+- **Choose the time of every post:** set the first time and the gap, then change the time of any single post in the list before scheduling. You can also spread posts over weekdays only, or Monday, Wednesday and Friday, at the same time of day.
+- **A picture on every post by default:** each post starts with a picture in your brand colours; untick it on any post to send text only. There is an "Add my logo" option, and a link to update your Brand kit colours, font and logo (your posts are kept while you do).
+- **Pictures in detail:** the picture is on by default (or tick "Add a picture in your brand colours" and add one to every post at once). A picture is drawn from the post's heading and first sentence in your brand colours and logo, saved to your Media library, and goes out with the post. You can change its headline, style and colour look (three looks made from your Brand kit colours) before scheduling. Offer pictures show your Brand kit tagline.
 - **Web pages, text files or pasted text become posts:** add up to 10 items (.html, .txt, .md or pasted text) and AI writes a separate post for every network you pick, each with a heading and hashtags that suit that network. Check and edit them, then schedule them all in one go: the first at a time you choose, then one every hour, day or week. Posts that need review are saved as drafts instead.
 - **Contacts and company lists:** a new Export button on Contacts downloads a spreadsheet, and Find companies can now just list websites and emails for an area without writing outreach emails.
 

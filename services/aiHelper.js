@@ -68,20 +68,29 @@ async function groqGenerate(prompt, maxTokens = 1024, opts = {}) {
   const apiKey = opts.apiKey;
   if (!apiKey) throw new Error('GROQ_API_KEY not configured');
 
-  const model = opts.model || process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
-
-  const res = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-    model,
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: Math.min(maxTokens, 4096),
-    temperature: 0.7,
-  }, {
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    timeout: 30000,
-  });
+  // Some accounts have no access to the main model (404): try Groq's smaller models before giving up
+  const models = [...new Set([opts.model || process.env.GROQ_MODEL || 'llama-3.3-70b-versatile', ...(opts.model ? [] : ['llama-3.1-8b-instant', 'openai/gpt-oss-20b'])])];
+  let res, model, lastErr;
+  for (model of models) {
+    try {
+      res = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: Math.min(maxTokens, 4096),
+        temperature: 0.7,
+      }, {
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        timeout: maxTokens > 2500 ? 90000 : 30000,
+      });
+      break;
+    } catch (err) {
+      lastErr = err;
+      const st = err.response?.status;
+      if (st !== 404 && st !== 400) throw err;
+      lastErr.message = err.response?.data?.error?.message || err.message;
+    }
+  }
+  if (!res) throw lastErr;
 
   const text = res.data.choices?.[0]?.message?.content || '';
   return { text, model: `groq:${model}` };
@@ -227,14 +236,16 @@ function _resetCooldowns() { cooling.clear(); }
 
 // The main model can be overloaded (503) or hang for minutes; the lite alias is
 // almost always available, so it is the automatic backup (each tried for 10s).
-async function geminiGenerate(prompt, apiKey) {
+// Long answers (many posts at once) need longer than a short reply: 10s for short, 90s for long
+async function geminiGenerate(prompt, apiKey, maxTokens = 1024) {
+  const timeout = maxTokens > 2500 ? 90000 : 10000;
   const primary = process.env.GEMINI_MODEL || 'gemini-flash-latest';
   const candidates = [...new Set([primary, 'gemini-flash-lite-latest'])];
   const genAI = new GoogleGenerativeAI(apiKey);
   let lastErr;
   for (const modelId of candidates) {
     try {
-      const model = genAI.getGenerativeModel({ model: modelId }, { apiVersion: 'v1beta', timeout: 10000 });
+      const model = genAI.getGenerativeModel({ model: modelId }, { apiVersion: 'v1beta', timeout });
       const result = await model.generateContent(prompt);
       return { text: result.response.text(), model: `gemini:${modelId}` };
     } catch (err) {
@@ -301,7 +312,7 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
       // Gemini
       if (modelOverride === 'gemini' || modelOverride.startsWith('gemini:')) {
         if (!googleKey || googleKey.includes('your-key-here')) throw new Error('Google Gemini API key not configured.');
-        return await geminiGenerate(prompt, googleKey);
+        return await geminiGenerate(prompt, googleKey, maxTokens);
       }
       // Claude
       if (modelOverride === 'claude') {
@@ -347,7 +358,7 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
         return await groqGenerate(prompt, maxTokens, { apiKey: groqKey });
       }
       if (defaultModel === 'gemini' && googleKey && googleKey.length > 8 && !googleKey.includes('your-key-here')) {
-        return await geminiGenerate(prompt, googleKey);
+        return await geminiGenerate(prompt, googleKey, maxTokens);
       }
       if (defaultModel === 'openai' && openaiKey && openaiKey.length > 8) {
         return await openaiGenerate(prompt, maxTokens, { apiKey: openaiKey });
@@ -410,7 +421,7 @@ async function aiGenerate(prompt, apiKey, maxTokens = 1024, modelOverride = null
     } else {
       try {
         console.log('[AI] Using Google Gemini');
-        return await geminiGenerate(prompt, googleKey);
+        return await geminiGenerate(prompt, googleKey, maxTokens);
       } catch (err) {
         console.warn('[AI] Gemini failed:', err.message, '— trying next...');
         failures.push(`Gemini: ${shortReason(err)}`);

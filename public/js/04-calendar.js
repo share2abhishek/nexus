@@ -785,6 +785,9 @@ function renderDetailActionButtons(item) {
 
   // Edit / Delete
   if (canEdit) {
+    if (item.status === 'draft' && item.series_every === 'studio' && item.series_id) {
+      buttons.push(`<button class="btn btn-primary btn-sm" title="Opens every draft saved together in that Studio session" onclick="studioEditSeries(${jsAttr(item.series_id)})">🎨 Edit all in Studio${item.series_total > 1 ? ` (${item.series_total})` : ''}</button>`);
+    }
     if (['draft', 'in_review', 'failed'].includes(item.status)) {
       buttons.push(`<button class="btn btn-secondary btn-sm" onclick="openEditContentModal(${item.id})">✏️ Edit</button>`);
     }

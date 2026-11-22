@@ -115,6 +115,9 @@ function navigateTo(page) {
   // Close mobile sidebar if open
   if (typeof closeSidebar === 'function') closeSidebar();
 
+  // The old AI writer is now Content Studio
+  if (page === 'generate' && typeof openContentStudio === 'function') { openContentStudio(); return; }
+
   if (PAGE_REDIRECTS[page]) {
     const [to, tab] = PAGE_REDIRECTS[page];
     if (to === 'settings') {
