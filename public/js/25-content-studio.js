@@ -21,6 +21,8 @@ async function openContentStudio() {
   }
   Studio.posts = [];
   Studio.editSeries = null;
+  Studio.scopeAll = false;
+  { const sc = document.getElementById('studio-scope'); if (sc) sc.value = 'one'; }
   studioShowStep(1);
   const box = document.getElementById('studio-platforms');
   if (box && !box.children.length) {
@@ -244,7 +246,7 @@ function studioPicSettings(p) {
   const looks = [[a, b, c], [b, c, a], [c, a, b]];
   const [c1, c2, c3] = looks[p.pic.look] || looks[0];
   const tagline = String(Designer.brand?.tagline || '').slice(0, 30);
-  return { ...d, c1, c2, c3, fullBg: true, showLogo: !!p.pic.logo, size: STUDIO_PIC_SIZE[p.platform] || 'wide', template: p.pic.template, headline: p.pic.headline, details: studioPicDetails(p.text, p.pic.headline), cta: p.pic.template === 'offer' ? tagline : '' };
+  return { ...d, c1, c2, c3, fullBg: true, showLogo: !!p.pic.logo, size: STUDIO_PIC_SIZE[p.platform] || 'wide', template: p.pic.template, logoPos: p.pic.logoPos || undefined, line: String(p.pic.line || '').trim(), headline: p.pic.headline, details: studioPicDetails(p.text, p.pic.headline), cta: p.pic.template === 'offer' ? tagline : '' };
 }
 // ── Preview of the selected post, shown on the right ──
 function studioSelect(i) {
@@ -277,7 +279,22 @@ function studioPreview() {
     <div style="padding:10px;font-size:13px;white-space:pre-wrap;word-break:break-word;max-height:30vh;overflow:auto">${escapeHtml(p.text)}</div>
   </div>`;
 }
-function studioPicLogo(i, on) { Studio.posts[i].pic.logo = on; studioPicDraw(i); }
+// One place for every picture setting. With "All posts" chosen, the change goes to every post's picture
+// (the headline always stays with its own post).
+function studioPicApply(i, key, v) {
+  const all = Studio.scopeAll && key !== 'headline';
+  const targets = all ? Studio.posts.map((p, k) => k).filter((k) => Studio.posts[k].can_post && Studio.posts[k].pic) : [i];
+  targets.forEach((k) => { Studio.posts[k].pic[key] = v; });
+  if (targets.length > 1) { // many cards: wait until typing pauses before redrawing them all
+    clearTimeout(Studio.applyTimer);
+    Studio.applyTimer = setTimeout(() => studioRenderCards([]), 300);
+  } else studioPicDraw(i);
+}
+function studioPicLogo(i, on) { studioPicApply(i, 'logo', on); }
+function studioScope(v) {
+  Studio.scopeAll = v === 'all';
+  toast(Studio.scopeAll ? 'Picture changes now apply to all posts (headlines stay separate).' : 'Picture changes now apply to this post only.', 'info', 4000);
+}
 // Go to Brand kit to change colours, font or logo; the posts being reviewed are kept
 function studioOpenBrand() {
   Studio.resume = true;
@@ -301,9 +318,8 @@ function studioBackToStudio() {
   openContentStudio();
 }
 function studioPicLook(i, look) {
-  Studio.posts[i].pic.look = look;
   document.querySelectorAll(`#studio-picbox-${i} .studio-look`).forEach((b) => { b.style.outline = Number(b.dataset.look) === look ? '2px solid var(--text)' : 'none'; });
-  studioPicDraw(i);
+  studioPicApply(i, 'look', look);
 }
 function studioBrandNote() {
   const b = Designer.brand || {};
@@ -372,6 +388,18 @@ function studioAttachMedia(i, ref) {
   const m = (State.studioLib || {})[ref];
   const p = Studio.posts[i];
   if (!m || !p || !p.pic || !p.can_post) return;
+  // A picture goes on top of the post's picture in the editor, where it can be moved and resized.
+  // (Videos cannot be edited, so they still replace it.)
+  if (m.kind === 'image' && typeof studioEditPicture === 'function') {
+    p.pic.on = true;
+    studioEditPicture(i).then((ok) => {
+      if (ok && typeof studioEdAddUrl === 'function' && StudioEd.canvas && StudioEd.post === i) {
+        studioEdAddUrl(m.url);
+        toast('Drag the picture to move it, pull a corner to resize it, then press "Use this picture".', 'info', 7000);
+      }
+    });
+    return;
+  }
   p.pic.on = true;
   p.pic.own = { ref, url: m.url, kind: m.kind };
   studioRenderCards([]);
@@ -413,7 +441,7 @@ function studioPicToggle(i, on) {
   if (box) box.style.display = on ? 'flex' : 'none';
   studioPicDraw(i);
 }
-function studioPicSet(i, key, v) { Studio.posts[i].pic[key] = v; studioPicDraw(i); }
+function studioPicSet(i, key, v) { studioPicApply(i, key, v); }
 function studioPicAll(on) {
   Studio.posts.forEach((p, i) => {
     if (!p.can_post || !p.pic) return;
@@ -463,7 +491,11 @@ function studioRenderCards(problems) {
               </div>
               <input type="text" class="form-input" maxlength="90" value="${escapeHtml(p.pic.headline)}" aria-label="Picture headline" onchange="studioPicSet(${i},'headline',this.value)">
               <select class="form-select" aria-label="Picture style" onchange="studioPicSet(${i},'template',this.value)">${Object.keys(STUDIO_PIC_STYLES).map((k) => `<option value="${k}" ${p.pic.template === k ? 'selected' : ''}>${STUDIO_PIC_STYLES[k]}</option>`).join('')}</select>
-              <label style="display:inline-flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" ${p.pic.logo ? 'checked' : ''} onchange="studioPicLogo(${i},this.checked)"> Add my logo</label>
+              <label style="display:inline-flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" ${p.pic.logo ? 'checked' : ''} ${Designer.logo ? '' : 'disabled'} onchange="studioPicLogo(${i},this.checked)"> Add my logo</label>
+              <label style="display:inline-flex;gap:6px;align-items:center;font-size:12.5px">Logo position
+                <select class="form-select" style="width:auto;padding:3px 8px;font-size:12.5px" onchange="studioPicSet(${i},'logoPos',this.value)">${[['', 'Automatic'], ['tl', 'Top left'], ['tc', 'Top middle'], ['tr', 'Top right'], ['bl', 'Bottom left'], ['br', 'Bottom right']].map(([v, l]) => `<option value="${v}" ${(p.pic.logoPos || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+              <input type="text" class="form-input" maxlength="80" value="${escapeHtml(p.pic.line || '')}" placeholder="Line on every picture, e.g. Call +91 98765 43210" aria-label="Line shown on the picture" onchange="studioPicSet(${i},'line',this.value)">
+              ${Designer.logo ? '' : `<div style="font-size:12px;color:var(--warning,#b45309)">${escapeHtml(Designer.logoNote || (Designer.brand && Designer.brand.logo_url ? 'Your logo could not be loaded.' : 'No logo in your Brand kit yet.'))} <a href="#" onclick="studioOpenBrand();return false">Add or fix your logo</a></div>`}
               <div style="display:flex;gap:6px;align-items:center;font-size:12px" aria-label="Colour look">Colours
                 ${[0, 1, 2].map((n) => { const cs = studioBrandColors(); const l = [[0, 1], [1, 2], [2, 0]][n]; return `<button type="button" class="studio-look" data-look="${n}" title="Colour look ${n + 1}" onclick="studioPicLook(${i},${n})" style="width:30px;height:22px;border-radius:6px;border:1px solid var(--border);cursor:pointer;padding:0;background:linear-gradient(90deg,${escapeHtml(cs[l[0]])} 50%,${escapeHtml(cs[l[1]])} 50%);${p.pic.look === n ? 'outline:2px solid var(--text)' : ''}"></button>`; }).join('')}
               </div>
@@ -645,6 +677,7 @@ window.studioToWhen = studioToWhen;
 window.studioReplan = studioReplan;
 window.studioSetTime = studioSetTime;
 window.studioPicSet = studioPicSet;
+window.studioScope = studioScope;
 window.studioPicAll = studioPicAll;
 window.studioPicLook = studioPicLook;
 window.studioSelect = studioSelect;

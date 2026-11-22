@@ -225,22 +225,22 @@ function renderDesign(canvas, s) {
   const ink = inkFor(bgForInk);
   const soft = ink === '#ffffff' ? 'rgba(255,255,255,0.85)' : 'rgba(17,24,39,0.75)';
 
-  // Logo, top
+  // Logo: a corner or the top middle (s.logoPos: tl, tc, tr, bl, br); drawn once the bottom space is known
   const logoH = Math.round(96 * k);
   let top = pad;
-  if (s.showLogo && Designer.logo) {
-    const lw = Math.min(logoH * (Designer.logo.naturalWidth / Designer.logo.naturalHeight), W * 0.4);
-    const lx = tpl === 'tip' || tpl === 'festival' ? (W - lw) / 2 : (tpl === 'announce' ? pad * 1.2 : pad);
-    ctx.drawImage(Designer.logo, lx, top, lw, logoH);
-    top += logoH + pad * 0.4;
-  }
+  const hasLogo = !!(s.showLogo && Designer.logo);
+  const lpos = s.logoPos || (tpl === 'tip' || tpl === 'festival' ? 'tc' : 'tl');
+  const logoBottom = hasLogo && lpos[0] === 'b';
+  if (hasLogo && !logoBottom) top += logoH + pad * 0.4 + Math.round(logoH * 0.14);
 
   const centered = tpl === 'tip' || tpl === 'festival' || (tpl === 'offer' && !wide);
   const left = tpl === 'announce' ? Math.round(pad * 1.2) : pad;
   const x = centered ? W / 2 : left;
   const align = centered ? 'center' : 'left';
   const maxW = W - left - pad;
-  const footerH = s.footer ? Math.round(40 * k) + pad * 0.6 : 0;
+  const footerBase = s.footer ? Math.round(40 * k) + pad * 0.6 : 0;
+  const lineH = s.line ? Math.round(50 * k) + (s.footer ? 0 : pad * 0.6) : 0; // common line, e.g. a phone number
+  const footerH = footerBase + lineH + (logoBottom ? logoH + pad * 0.5 : 0);
 
   // Text block — headline style from the editor (size / bold / italic / colour)
   const headScale = HEAD_SCALES[s.headScale] || 1;
@@ -264,6 +264,32 @@ function renderDesign(canvas, s) {
   y = drawLines(ctx, head, x, y, { align, color: headColor, weight: headWeight, italic: headItalic });
   if (det.lines.length) y = drawLines(ctx, det, x, y + gap, { align, color: lightCard ? '#374151' : soft, weight: 500 });
   if (ctaH) drawCta(ctx, s.cta, x, y + gap * 1.4, { bg: lightCard ? s.c1 : s.c3, align, scale: k });
+
+  // Logo (placed now that the space under the text is known)
+  if (hasLogo) {
+    const lw = Math.min(logoH * (Designer.logo.naturalWidth / Designer.logo.naturalHeight), W * 0.4);
+    const edge = tpl === 'announce' ? pad * 1.2 : pad;
+    const lx = lpos[1] === 'c' ? (W - lw) / 2 : lpos[1] === 'r' ? W - lw - pad : edge;
+    const ly = logoBottom ? H - pad - footerBase - lineH - logoH : pad;
+    // On a coloured or photo background a logo can vanish, so it sits on a soft white plate
+    if (!lightCard) {
+      const ip = Math.round(logoH * 0.14);
+      ctx.save(); ctx.fillStyle = 'rgba(255,255,255,0.94)';
+      roundRect(ctx, lx - ip, ly - ip, lw + ip * 2, logoH + ip * 2, ip * 1.4); ctx.fill(); ctx.restore();
+    }
+    ctx.drawImage(Designer.logo, lx, ly, lw, logoH);
+  }
+
+  // Common line (phone number, website...) above the business name
+  if (s.line) {
+    ctx.save();
+    ctx.font = designFont(700, 38 * k);
+    ctx.fillStyle = lightCard ? '#111827' : ink;
+    ctx.textAlign = centered ? 'center' : 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(String(s.line).slice(0, 80), centered ? W / 2 : left, H - pad * 0.8 - (s.footer ? Math.round(46 * k) : 0), maxW);
+    ctx.restore();
+  }
 
   // Footer: business name
   if (s.footer) {

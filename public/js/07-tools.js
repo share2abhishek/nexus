@@ -1198,6 +1198,29 @@ function syncColorInput(type) {
   updateBrandPreview();
 }
 
+// Logo from a file or the clipboard: saved to the media library and used by its address
+async function brandLogoUpload(file) {
+  if (!file) return;
+  if (!/^image\//.test(file.type || '')) return toast('Pick a picture file for the logo.', 'warning');
+  try {
+    const asset = await uploadMediaFile(file);
+    if (!asset || !asset.url) throw new Error('The logo could not be saved.');
+    document.getElementById('brand-logo').value = asset.url;
+    updateBrandPreview();
+    toast('Logo added. Press Save to keep it.', 'success', 4000);
+  } catch (err) { toast(err.message || 'Could not add the logo.', 'error', 6000); }
+}
+function brandLogoPaste(ev) {
+  const items = Array.from((ev.clipboardData && ev.clipboardData.items) || []);
+  const it = items.find((i) => i.kind === 'file' && /^image\//.test(i.type));
+  if (!it) return; // pasted text (a web address) goes in as usual
+  ev.preventDefault();
+  const f = it.getAsFile();
+  if (f) brandLogoUpload(new File([f], f.name && f.name !== 'image.png' ? f.name : `logo-${Date.now()}.png`, { type: f.type }));
+}
+window.brandLogoUpload = brandLogoUpload;
+window.brandLogoPaste = brandLogoPaste;
+
 function updateBrandPreview() {
   const name = document.getElementById('brand-name')?.value || 'Your Brand';
   const tagline = document.getElementById('brand-tagline')?.value || 'Your tagline here';

@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg?v=2.3.0" />
   <link rel="alternate icon" type="image/png" href="icon.png?v=2.3.0" />
   <link rel="preload" href="fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="styles.css?v=2.3.2" />
+  <link rel="stylesheet" href="styles.css?v=2.5.0" />
   <script src="/vendor/chart.umd.js"></script>
 </head>
 <body class="light-mode">
@@ -2956,7 +2956,12 @@
             <div class="form-group"><label class="form-label">Brand Voice</label>
               <textarea class="form-textarea" id="brand-voice" placeholder="Describe your brand's tone and personality. e.g. Professional yet approachable. We use plain English, avoid jargon, and always focus on benefits over features…" style="min-height:100px"></textarea>
             </div>
-            <div class="form-group"><label class="form-label">Logo URL</label><input type="url" class="form-input" id="brand-logo" placeholder="https://yoursite.com/logo.png" /></div>
+            <div class="form-group"><label class="form-label">Logo URL</label><input type="text" class="form-input" id="brand-logo" placeholder="https://yoursite.com/logo.png" onpaste="brandLogoPaste(event)" />
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px">
+                <label class="btn btn-secondary btn-sm" style="margin:0">Upload logo… <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onchange="brandLogoUpload(this.files[0]); this.value=''"></label>
+                <span class="form-hint" style="margin:0">or copy a picture and paste it (Ctrl+V) into the box above</span>
+              </div>
+            </div>
           </div>
         </div>
         <div class="card"><div class="card-header"><div class="card-title">🎨 Colors & Typography</div></div>
@@ -4239,6 +4244,8 @@
         <div id="studio-pic-tools" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 2px;font-size:13px">🖼️
           <button class="btn btn-secondary btn-sm" onclick="studioPicAll(true)">Add a picture to every post</button>
           <button class="btn btn-secondary btn-sm" onclick="studioPicAll(false)">Remove all pictures</button>
+          <label style="display:inline-flex;gap:6px;align-items:center;margin-left:8px">Picture changes apply to
+            <select id="studio-scope" class="form-select" style="width:auto;padding:3px 8px;font-size:13px" onchange="studioScope(this.value)"><option value="one">This post only</option><option value="all">All posts</option></select></label>
         </div>
         <div id="studio-brand-note" style="font-size:12px;color:var(--text-muted);margin-bottom:6px"></div>
         <div id="studio-cards"></div>
@@ -4295,47 +4302,141 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="studio-editor"style="display:none;z-index:1200" onclick="if(event.target===this)studioEdClose()">
-  <div class="modal modal-wide" onclick="event.stopPropagation()" style="max-width:720px">
-    <div class="modal-header">
-      <div class="modal-title">Edit picture</div>
-      <button class="modal-close" onclick="studioEdClose()" aria-label="Close">✕</button>
+<div class="modal-overlay" id="studio-editor" style="display:none;z-index:1200" onclick="if(event.target===this)studioEdClose()">
+  <div class="modal sed" onclick="event.stopPropagation()">
+    <div class="sed-top">
+      <div class="modal-title" style="margin-right:6px">Edit picture</div>
+      <button class="btn btn-secondary btn-sm" id="studio-ed-undo" onclick="studioEdUndo()" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+      <button class="btn btn-secondary btn-sm" id="studio-ed-redo" onclick="studioEdRedo()" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
+      <select id="studio-ed-sizes" class="form-select" style="width:auto" onchange="studioEdResize(this.value)" aria-label="Picture size" title="Change the picture size. Everything on it is scaled to fit."></select>
+      <span class="sed-zoom">
+        <button class="btn btn-secondary btn-sm" onclick="studioEdZoom(-0.1)" title="Zoom out">−</button>
+        <span id="studio-ed-zoomval" style="min-width:42px;text-align:center;font-size:12px">100%</span>
+        <button class="btn btn-secondary btn-sm" onclick="studioEdZoom(0.1)" title="Zoom in">+</button>
+        <button class="btn btn-secondary btn-sm" onclick="studioEdZoom('fit')" title="Fit to the window">Fit</button>
+      </span>
+      <label class="sed-chk" title="Show a grid and snap to it"><input type="checkbox" id="studio-ed-grid" onchange="studioEdGrid(this.checked)"> Grid</label>
+      <span style="flex:1"></span>
+      <button class="btn btn-secondary btn-sm" onclick="studioEdPreview()">Preview</button>
+      <button class="btn btn-secondary btn-sm" onclick="studioEdDownload('png')" title="Download as PNG">⬇ PNG</button>
+      <button class="btn btn-secondary btn-sm" onclick="studioEdDownload('jpg')" title="Download as JPG">⬇ JPG</button>
+      <button class="btn btn-secondary btn-sm" onclick="studioEdClose()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="studio-ed-save" onclick="studioEdSave()">Use this picture</button>
     </div>
-    <div class="modal-body" style="max-height:calc(100vh - 170px);overflow-y:auto">
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-        <button class="btn btn-secondary btn-sm" onclick="studioEdAddText()">Add text</button>
-        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('studio-ed-file').click()">Add image</button>
-        <input type="file" id="studio-ed-file" accept="image/*" hidden onchange="studioEdAddFile(this.files[0]); this.value=''">
-        <button class="btn btn-secondary btn-sm" onclick="studioEdAddLogo()">Add my logo</button>
-        <button class="btn btn-secondary btn-sm" onclick="studioEdAddShape('rect')">Box</button>
-        <button class="btn btn-secondary btn-sm" onclick="studioEdAddShape('circle')">Circle</button>
-        <label style="display:flex;align-items:center;gap:4px;font-size:13px">Background <input type="color" id="studio-ed-bg" value="#1e3a8a" oninput="studioEdBg()" title="First colour"> <input type="color" id="studio-ed-bg2" value="#f59e0b" oninput="studioEdBg()" title="Second colour"></label>
-        <select id="studio-ed-bgmode" class="form-select" style="width:auto" onchange="studioEdBg()" aria-label="Background style">
-          <option value="solid">One colour</option><option value="diag">Two colours: blend corner to corner</option><option value="h">Two colours: blend left to right</option><option value="v">Two colours: blend top to bottom</option><option value="splith">Two colours: split left and right</option><option value="splitv">Two colours: split top and bottom</option>
-        </select>
-        <button class="btn btn-secondary btn-sm" onclick="studioEdBg(null)">Clear background</button>
+
+    <div class="sed-main">
+      <div class="sed-rail" role="tablist" aria-label="Tools">
+        <button class="on" data-tab="el" onclick="studioEdTab('el')"><span>🔷</span>Elements</button>
+        <button data-tab="tx" onclick="studioEdTab('tx')"><span>🔤</span>Text</button>
+        <button data-tab="ph" onclick="studioEdTab('ph')"><span>🖼</span>Photos</button>
+        <button data-tab="em" onclick="studioEdTab('em')"><span>😀</span>Stickers</button>
+        <button data-tab="dr" onclick="studioEdTab('dr')"><span>✏️</span>Draw</button>
+        <button data-tab="bg" onclick="studioEdTab('bg')"><span>🎨</span>Background</button>
       </div>
-      <div id="studio-ed-sel" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:13px;opacity:.4">
-        <label>Colour <input type="color" id="studio-ed-color" value="#ffffff" oninput="studioEdColor(this.value)"></label>
-        <label>Font <select id="studio-ed-font" class="form-select" style="width:auto;display:inline-block" onchange="studioEdFont(this.value)">
-          <option>Inter</option><option>Arial</option><option>Helvetica</option><option>Verdana</option><option>Tahoma</option><option>Trebuchet MS</option><option>Georgia</option><option>Times New Roman</option><option>Palatino Linotype</option><option>Courier New</option><option>Impact</option><option>Comic Sans MS</option>
-        </select></label>
-        <label>Text size <input type="number" id="studio-ed-size" min="8" max="400" value="40" class="form-input" style="width:70px;display:inline-block" onchange="studioEdSize(this.value)"></label>
-        <button class="btn btn-secondary btn-sm" onclick="studioEdOrder(1)">Bring forward</button>
-        <button class="btn btn-secondary btn-sm" onclick="studioEdOrder(-1)">Send back</button>
-        <button class="btn btn-secondary btn-sm" onclick="studioEdDelete()">Delete</button>
+
+      <div class="sed-panel" id="sed-panel">
+        <div data-pane="el">
+          <div class="sed-h">Shapes</div>
+          <div class="sed-grid" id="sed-shapes"></div>
+          <div class="sed-h">Lines and arrows</div>
+          <div class="sed-grid" id="sed-lines"></div>
+          <div class="sed-h">Your logo</div>
+          <button class="btn btn-secondary btn-sm" onclick="studioEdAddLogo()">Add my logo</button>
+        </div>
+        <div data-pane="tx" hidden>
+          <div class="sed-h">Add text</div>
+          <button class="sed-text-btn" style="font-size:24px;font-weight:800" onclick="studioEdAddText('h1')">Add a heading</button>
+          <button class="sed-text-btn" style="font-size:17px;font-weight:700" onclick="studioEdAddText('h2')">Add a subheading</button>
+          <button class="sed-text-btn" style="font-size:13px" onclick="studioEdAddText('body')">Add a little text</button>
+          <div class="sed-h">Ready-made styles</div>
+          <div id="sed-textstyles"></div>
+        </div>
+        <div data-pane="ph" hidden>
+          <div class="sed-h">Upload</div>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('studio-ed-file').click()">Upload a picture</button>
+          <input type="file" id="studio-ed-file" accept="image/*" hidden onchange="studioEdAddFile(this.files[0]); this.value=''">
+          <div class="sed-h">Your media (click one to add it)</div>
+          <div id="studio-ed-tray" class="sed-tray"></div>
+        </div>
+        <div data-pane="em" hidden>
+          <div class="sed-h">Stickers (click one to add it)</div>
+          <div id="sed-emojis" class="sed-emoji"></div>
+        </div>
+        <div data-pane="dr" hidden>
+          <div class="sed-h">Draw freely</div>
+          <button class="btn btn-secondary btn-sm" id="studio-ed-drawbtn" onclick="studioEdDraw()">Start drawing</button>
+          <div style="margin-top:10px;font-size:13px"><label>Colour <input type="color" id="studio-ed-pencol" value="#ffffff" oninput="studioEdPen()"></label></div>
+          <div style="margin-top:6px;font-size:13px"><label>Thickness <input type="range" id="studio-ed-penw" min="1" max="60" value="8" oninput="studioEdPen()"></label></div>
+          <div class="form-hint" style="margin-top:6px">Drag on the picture to draw. Press "Stop drawing" to move things again.</div>
+        </div>
+        <div data-pane="bg" hidden>
+          <div class="sed-h">Whole picture</div>
+          <label class="sed-row">Colour 1 <input type="color" id="studio-ed-bg" value="#1e3a8a" oninput="studioEdBg()"></label>
+          <label class="sed-row">Colour 2 <input type="color" id="studio-ed-bg2" value="#f59e0b" oninput="studioEdBg()"></label>
+          <select id="studio-ed-bgmode" class="form-select" onchange="studioEdBg()" aria-label="Background style">
+            <option value="solid">One colour</option><option value="diag">Blend corner to corner</option><option value="h">Blend left to right</option><option value="v">Blend top to bottom</option><option value="splith">Split left and right</option><option value="splitv">Split top and bottom</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="studioEdBg(null)">Clear background</button>
+          <div class="sed-h">Quick colours</div>
+          <div id="sed-swatches" class="sed-swatches"></div>
+        </div>
       </div>
-      <div style="display:flex;justify-content:center;background:var(--bg-secondary,#0001);border-radius:8px;padding:8px;overflow:auto">
-        <canvas id="studio-ed-canvas"></canvas>
+
+      <div class="sed-centre">
+        <div id="studio-ed-sel" class="sed-props">
+          <span class="sed-none" id="sed-none">Click something on the picture to change it.</span>
+          <span class="sed-g" data-for="fill"><label title="Colour">Colour <input type="color" id="studio-ed-color" value="#ffffff" oninput="studioEdColor(this.value)"></label></span>
+          <span class="sed-g" data-for="gradient"><label title="Blend two colours">Blend <input type="color" id="studio-ed-g1" value="#7c3aed" oninput="studioEdGradient()"> <input type="color" id="studio-ed-g2" value="#db2777" oninput="studioEdGradient()"></label> <button class="btn btn-secondary btn-sm" onclick="studioEdGradient(false)" title="Back to one colour">One colour</button></span>
+          <span class="sed-g" data-for="text">
+            <select id="studio-ed-font" class="form-select" style="width:130px" onchange="studioEdFont(this.value)" aria-label="Font"></select>
+            <input type="number" id="studio-ed-size" min="8" max="600" value="40" class="form-input" style="width:64px" onchange="studioEdSize(this.value)" aria-label="Text size" title="Text size">
+            <button class="btn btn-secondary btn-sm sed-t" id="sed-b" onclick="studioEdToggle('bold')" title="Bold"><b>B</b></button>
+            <button class="btn btn-secondary btn-sm sed-t" id="sed-i" onclick="studioEdToggle('italic')" title="Italic"><i>I</i></button>
+            <button class="btn btn-secondary btn-sm sed-t" id="sed-u" onclick="studioEdToggle('underline')" title="Underline"><u>U</u></button>
+            <button class="btn btn-secondary btn-sm sed-t" id="sed-s" onclick="studioEdToggle('linethrough')" title="Strike through"><s>S</s></button>
+            <button class="btn btn-secondary btn-sm" onclick="studioEdToggle('upper')" title="CAPITALS">Aa</button>
+            <button class="btn btn-secondary btn-sm" onclick="studioEdAlign('left')" title="Align left">⬅</button>
+            <button class="btn btn-secondary btn-sm" onclick="studioEdAlign('center')" title="Centre text">↔</button>
+            <button class="btn btn-secondary btn-sm" onclick="studioEdAlign('right')" title="Align right">➡</button>
+            <label title="Space between letters">Letters <input type="range" id="studio-ed-spacing" min="-100" max="800" value="0" oninput="studioEdProp('charSpacing',+this.value)"></label>
+            <label title="Space between lines">Lines <input type="range" id="studio-ed-lh" min="0.6" max="3" step="0.05" value="1.16" oninput="studioEdProp('lineHeight',+this.value)"></label>
+          </span>
+          <span class="sed-g" data-for="stroke">
+            <label title="Outline colour">Outline <input type="color" id="studio-ed-stroke" value="#000000" oninput="studioEdStroke()"></label>
+            <input type="range" id="studio-ed-strokew" min="0" max="40" value="0" oninput="studioEdStroke()" title="Outline thickness" aria-label="Outline thickness">
+          </span>
+          <span class="sed-g" data-for="radius"><label title="Round the corners">Corners <input type="range" id="studio-ed-radius" min="0" max="300" value="0" oninput="studioEdRadius(+this.value)"></label></span>
+          <span class="sed-g" data-for="image">
+            <label title="Brightness">Bright <input type="range" id="studio-ed-f-bright" min="-0.6" max="0.6" step="0.02" value="0" oninput="studioEdFilters()"></label>
+            <label title="Contrast">Contrast <input type="range" id="studio-ed-f-contrast" min="-0.6" max="0.6" step="0.02" value="0" oninput="studioEdFilters()"></label>
+            <label title="Colour strength">Colour <input type="range" id="studio-ed-f-sat" min="-1" max="1" step="0.05" value="0" oninput="studioEdFilters()"></label>
+            <label title="Blur">Blur <input type="range" id="studio-ed-f-blur" min="0" max="0.4" step="0.01" value="0" oninput="studioEdFilters()"></label>
+            <select id="studio-ed-f-look" class="form-select" style="width:auto" onchange="studioEdFilters()" aria-label="Photo look"><option value="">Normal</option><option value="gray">Black and white</option><option value="sepia">Old photo</option><option value="invert">Invert</option></select>
+            <select id="studio-ed-mask" class="form-select" style="width:auto" onchange="studioEdMask(this.value)" aria-label="Photo shape"><option value="">Normal shape</option><option value="round">Rounded</option><option value="circle">Circle</option></select>
+          </span>
+          <span class="sed-g" data-for="shadow"><label class="sed-chk" title="Soft shadow"><input type="checkbox" id="studio-ed-shadow" onchange="studioEdShadow(this.checked)"> Shadow</label></span>
+          <span class="sed-g" data-for="all">
+            <label title="See-through">Fade <input type="range" id="studio-ed-opacity" min="0.05" max="1" step="0.05" value="1" oninput="studioEdProp('opacity',+this.value)"></label>
+            <label title="Turn">Turn <input type="number" id="studio-ed-angle" min="-360" max="360" value="0" class="form-input" style="width:60px" onchange="studioEdProp('angle',+this.value)"></label>
+            <button class="btn btn-secondary btn-sm" onclick="studioEdFlip('X')" title="Flip left to right">⇋</button>
+            <button class="btn btn-secondary btn-sm" onclick="studioEdFlip('Y')" title="Flip top to bottom">⇅</button>
+            <select class="form-select" style="width:auto" onchange="studioEdPlace(this.value); this.value=''" aria-label="Place on the picture"><option value="">Place…</option><option value="left">Left edge</option><option value="centre">Centre across</option><option value="right">Right edge</option><option value="top">Top edge</option><option value="middle">Centre down</option><option value="bottom">Bottom edge</option><option value="full">Fill the picture</option></select>
+            <button class="btn btn-secondary btn-sm" onclick="studioEdOrder(1)" title="Bring forward">▲</button>
+            <button class="btn btn-secondary btn-sm" onclick="studioEdOrder(-1)" title="Send back">▼</button>
+            <button class="btn btn-secondary btn-sm" onclick="studioEdDuplicate()" title="Copy (Ctrl+D)">⧉ Copy</button>
+            <button class="btn btn-secondary btn-sm" onclick="studioEdGroup()" id="sed-group" title="Join selected items (Ctrl+G)">Join</button>
+            <button class="btn btn-secondary btn-sm" onclick="studioEdLock()" title="Lock so it cannot be moved by mistake" id="sed-lock">🔒</button>
+            <button class="btn btn-secondary btn-sm" onclick="studioEdDelete()" title="Delete">🗑</button>
+          </span>
+        </div>
+        <div id="studio-ed-stage" class="sed-stage"><canvas id="studio-ed-canvas"></canvas></div>
+        <div class="sed-hint">Click to select. Drag to move. Shift-click for several. Arrow keys nudge, Delete removes, Ctrl+C / V / D copy, double-click text to retype.</div>
       </div>
-      <div style="margin-top:8px;font-size:12px;font-weight:600">Your media (click a picture to add it)</div>
-      <div id="studio-ed-tray" style="display:flex;gap:6px;overflow-x:auto;padding:4px 0;min-height:64px;flex-shrink:0"></div>
-      <div style="font-size:12px;color:var(--text-muted);margin-top:6px">Click an item to move, resize or turn it. Double-click text to change the words.</div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="studioEdClose()">Cancel</button>
-      <button class="btn btn-secondary" onclick="studioEdPreview()">Preview</button>
-      <button class="btn btn-primary" id="studio-ed-save" onclick="studioEdSave()">Use this picture</button>
+
+      <div class="sed-layers">
+        <div class="sed-h" style="margin-top:0">Layers</div>
+        <div id="sed-layers"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -4762,8 +4863,8 @@
 <script src="js/13-lead-pipeline.js?v=2.2.3"></script>
 <script src="js/14-whatsapp-bot.js?v=2.2.0"></script>
 <script src="js/15-post-designer.js?v=2.2.0"></script>
-<script src="js/25-content-studio.js?v=2.2.4"></script>
-<script src="js/26-studio-editor.js?v=2.2.4"></script>
+<script src="js/25-content-studio.js?v=2.2.5"></script>
+<script src="js/26-studio-editor.js?v=2.5.3"></script>
 <script src="js/26-whats-new.js?v=2.3.0"></script>
 <script src="js/27-billing-admin.js?v=2.4.0"></script>
 <script src="js/16-whatsapp-templates.js?v=2.2.0"></script>
