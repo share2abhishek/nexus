@@ -5,11 +5,11 @@
 const express = require('express');
 const knowledgeBase = require('../services/knowledgeBase');
 
-module.exports = (knex, requirePermission) => {
+module.exports = (knex, permit) => {
   const router = express.Router();
 
   // GET /api/knowledge-base — Fetch active knowledge base
-  router.get('/', requirePermission('content.view'), async (req, res) => {
+  router.get('/', permit('content.view'), async (req, res) => {
     try {
       const data = await knowledgeBase.getKnowledgeBase(knex, req.workspaceId);
       res.json(data);
@@ -19,7 +19,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // POST /api/knowledge-base — Save and sync knowledge base
-  router.post('/', requirePermission('content.edit'), async (req, res) => {
+  router.post('/', permit('content.edit'), async (req, res) => {
     try {
       const saved = await knowledgeBase.saveKnowledgeBase(
         knex,
@@ -34,7 +34,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // POST /api/knowledge-base/simulate — Live test simulator
-  router.post('/simulate', requirePermission('content.view'), async (req, res) => {
+  router.post('/simulate', permit('content.view'), async (req, res) => {
     try {
       const { message, visitorName, history, model } = req.body || {};
       if (!message || !String(message).trim()) {
@@ -53,7 +53,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // POST /api/knowledge-base/generate-faqs — AI FAQ generator
-  router.post('/generate-faqs', requirePermission('content.create'), async (req, res) => {
+  router.post('/generate-faqs', permit('content.create'), async (req, res) => {
     try {
       const { topic, count, existingText } = req.body || {};
       const faqs = await knowledgeBase.aiGenerateFaqs(
@@ -70,13 +70,13 @@ module.exports = (knex, requirePermission) => {
 
   // POST /api/knowledge-base/split-notes — organise pasted notes into titled sections
   // (instant, no AI, nothing is saved: the caller shows the sections and saves them)
-  router.post('/split-notes', requirePermission('content.edit'), express.json({ limit: '200kb' }), (req, res) => {
+  router.post('/split-notes', permit('content.edit'), express.json({ limit: '200kb' }), (req, res) => {
     const sections = knowledgeBase.splitNotes((req.body || {}).text);
     res.json({ success: true, sections });
   });
 
   // POST /api/knowledge-base/format-notes — AI Text structuring
-  router.post('/format-notes', requirePermission('content.create'), async (req, res) => {
+  router.post('/format-notes', permit('content.create'), async (req, res) => {
     try {
       const { rawText } = req.body || {};
       const structured = await knowledgeBase.aiFormatNotes(
@@ -92,7 +92,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // POST /api/knowledge-base/import — Import FAQs from JSON or CSV
-  router.post('/import', requirePermission('content.edit'), async (req, res) => {
+  router.post('/import', permit('content.edit'), async (req, res) => {
     try {
       const { faqs = [], append = true } = req.body || {};
       const current = await knowledgeBase.getKnowledgeBase(knex, req.workspaceId);
@@ -123,7 +123,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // GET /api/knowledge-base/export — Export FAQs as JSON or CSV
-  router.get('/export', requirePermission('content.view'), async (req, res) => {
+  router.get('/export', permit('content.view'), async (req, res) => {
     try {
       const format = String(req.query.format || 'json').toLowerCase();
       const current = await knowledgeBase.getKnowledgeBase(knex, req.workspaceId);

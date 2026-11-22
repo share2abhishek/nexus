@@ -160,7 +160,7 @@ async function mayAutoSchedule(db, link) {
   if (!link.created_by) return false;
   const m = await db('memberships').where({ workspace_id: link.workspace_id, user_id: link.created_by, status: 'active' }).first('role')
     .catch(() => null);
-  const { can } = require('./rbac');
+  const { roleGrants: can } = require('../modules/access'); // role table only, as before A0
   let licensed = false;
   try { licensed = await require('./entitlements').canPublish(link.workspace_id); } catch {}
   return !!m && can(m.role, 'content.schedule') && can(m.role, 'content.approve') && licensed;

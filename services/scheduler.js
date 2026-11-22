@@ -212,6 +212,10 @@ async function recoverInterrupted(db) {
 
 function start() {
   console.log('[Scheduler] Running — checks every minute');
+  // Voice assistant recordings and transcripts past their retention (docs/platform/VOICE-AGENTS.md 4), daily 03:30 IST
+  cron.schedule('30 3 * * *', () => {
+    require('./voice/calls').purgeExpired(knex).catch((err) => console.error('[Scheduler] Voice retention failed:', err.message));
+  }, { timezone: 'Asia/Kolkata' });
   recoverInterrupted(knex).catch(err => console.error('[Scheduler] Recovery failed:', err.message));
 
   cron.schedule('* * * * *', async () => {

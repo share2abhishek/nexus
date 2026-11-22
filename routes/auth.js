@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const knexInstance = require('../services/knex');
 const socialAccountsRepo = require('../repos/socialAccountsRepo')(knexInstance);
 const membershipsRepo = require('../repos/membershipsRepo')(knexInstance);
-const { can } = require('../services/rbac');
+const { roleGrants: can } = require('../modules/access'); // role table only (no staff bypass), as before A0
 const { callbackUrl } = require('../services/platforms/callback');
 const { PUBLISHABLE } = require('../services/platforms/available');
 const { reconnectInDays } = require('../services/tokenRefresher');
@@ -642,14 +642,15 @@ router.post('/disconnect/:platform', async (req, res) => {
 // ── Manual Token Save (for platforms with strict OAuth) ──────────────────────
 
 router.post('/manual-token/:platform', async (req, res) => {
+  // Who is asking comes first (S0): nothing is read or checked for someone without access
+  const wsId = await workspaceId(req);
+  if (!wsId) return res.status(403).json({ error: 'You do not have permission to manage social accounts in this workspace.' });
+
   const { platform } = req.params;
   const { access_token, page_id, page_token } = req.body;
   if (!access_token) return res.status(400).json({ error: 'Paste the access token first.' });
   // Only Facebook offers this (Instagram comes with it); other platforms connect by signing in
   if (platform !== 'facebook') return res.status(400).json({ error: 'Pasting a token only works for Facebook. Use Connect for this platform.' });
-
-  const wsId = await workspaceId(req);
-  if (!wsId) return res.status(403).json({ error: 'You do not have permission to manage social accounts in this workspace.' });
 
   try {
     let profile = { id: 'manual', name: 'Manual Token' };

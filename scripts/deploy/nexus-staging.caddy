@@ -1,0 +1,17 @@
+# Staging (Q0) for the shared Caddy proxy (container bnslawyer-proxy, which imports ~/projects/caddy-sites.d/*.caddy).
+# NOT installed yet. Install only after DNS has an A record staging.nexus.radixile.com -> 13.235.255.185, otherwise
+# Caddy keeps failing to get a certificate. Then, on the server:
+#   1. hash a password:   docker exec bnslawyer-proxy caddy hash-password --plaintext '<staging password>'
+#   2. copy this file to ~/projects/caddy-sites.d/nexus-staging.caddy and put the hash below
+#   3. check and reload:  docker exec bnslawyer-proxy caddy validate --config /etc/caddy/Caddyfile \
+#                           && docker exec bnslawyer-proxy caddy reload --config /etc/caddy/Caddyfile
+# The password prompt keeps staging private (it allows sign-up and holds test data).
+staging.nexus.radixile.com {
+	encode gzip
+	log
+	basic_auth {
+		staging <PASTE_HASH_FROM_STEP_1>
+	}
+	header X-Robots-Tag "noindex, nofollow"
+	reverse_proxy 127.0.0.1:3301
+}

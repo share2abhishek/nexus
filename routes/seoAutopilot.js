@@ -26,7 +26,7 @@ function taskView(t) {
   };
 }
 
-module.exports = (knex, requirePermission) => {
+module.exports = (knex, permit) => {
   const router = express.Router();
 
   // Which features this install has (the screens hide server-only ones)
@@ -35,7 +35,7 @@ module.exports = (knex, requirePermission) => {
   // Everything else: server edition only
   router.use((req, res, next) => (edition.isServer() ? next() : res.status(403).json({ error: edition.SERVER_ONLY_MESSAGE, code: 'SERVER_ONLY' })));
 
-  router.get('/', requirePermission('content.view'), async (req, res) => {
+  router.get('/', permit('content.view'), async (req, res) => {
     const site = await knex('seo_sites').where({ workspace_id: req.workspaceId }).first();
     const tasks = await knex('seo_tasks').where({ workspace_id: req.workspaceId })
       .where((q) => q.where('status', 'open').orWhere('closed_at', '>=', now() - 14 * 86400))
@@ -46,14 +46,14 @@ module.exports = (knex, requirePermission) => {
   });
 
   // A short summary for the Home page
-  router.get('/summary', requirePermission('content.view'), async (req, res) => {
+  router.get('/summary', permit('content.view'), async (req, res) => {
     const site = await knex('seo_sites').where({ workspace_id: req.workspaceId }).first();
     if (!site) return res.json({ site: null, open: 0, urgent: 0, top: [] });
     const open = await knex('seo_tasks').where({ workspace_id: req.workspaceId, status: 'open' }).orderBy('priority').limit(50);
     res.json({ site: siteView(site), open: open.length, urgent: open.filter((t) => t.priority === 1).length, top: open.slice(0, 3).map(taskView) });
   });
 
-  router.put('/site', requirePermission('content.edit'), async (req, res) => {
+  router.put('/site', permit('content.edit'), async (req, res) => {
     const b = req.body || {};
     let url;
     try { url = normaliseUrl(b.url); new URL(url); } catch { return res.status(400).json({ error: 'Type your website’s address, e.g. yourbusiness.com' }); }
@@ -86,7 +86,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // Check now (in the background; the screen asks again for the result)
-  router.post('/run', requirePermission('content.edit'), async (req, res) => {
+  router.post('/run', permit('content.edit'), async (req, res) => {
     const site = await knex('seo_sites').where({ workspace_id: req.workspaceId }).first();
     if (!site) return res.status(400).json({ error: 'Add your website first.' });
     // Already checking (unless that run was cut off, e.g. by a restart, over 2 hours ago)
@@ -95,7 +95,7 @@ module.exports = (knex, requirePermission) => {
     res.json({ started: true });
   });
 
-  router.post('/tasks/:id/:action', requirePermission('content.edit'), async (req, res) => {
+  router.post('/tasks/:id/:action', permit('content.edit'), async (req, res) => {
     const task = await knex('seo_tasks').where({ id: Number(req.params.id), workspace_id: req.workspaceId }).first();
     if (!task) return res.status(404).json({ error: 'Not found' });
     const t = now();

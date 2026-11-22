@@ -454,6 +454,27 @@ Every release has release notes in `docs/RELEASE-NOTES.md` (the tests fail witho
 - **To release:** `npm run release -- <version>`. It moves Unreleased into a dated section for that version, sets the version in `package.json`, `package-lock.json`, the help page and the technical guide, commits and tags `v<version>`.
 - **Deploy:** with the hook installed (`scripts/deploy/install-hook.sh`, needs the prod SSH key), every commit on `master` pushes to Bitbucket and deploys to the hosted edition (nexus.radixile.com) in the background. The log is `.git/nexus-deploy.log` and a macOS notification shows the result. Skip once with `NEXUS_NO_DEPLOY=1 git commit ...`; deploy again by hand with `scripts/deploy/deploy-from-local.sh`. The server keeps a database backup per deploy and rolls back by itself if the new version doesn't start. Run `npm test` before committing: the hook does not run tests.
 
+## Branches, CI and staging
+
+Since Q0 (`docs/platform/ROADMAP.md`), work that takes more than one commit happens on a branch, because every commit on
+`master` deploys to production.
+
+1. **Branch:** `git checkout -b feature/<phase-or-topic>`. Commits on a branch never deploy.
+2. **CI:** pushing any branch runs `bitbucket-pipelines.yml` in Bitbucket Pipelines, with the full suite on SQLite and on
+   PostgreSQL 16. Pipelines must be enabled once in the Bitbucket repository settings.
+3. **Staging:** `scripts/deploy/deploy-from-local.sh --staging` pushes the current branch and deploys it to staging. Staging is a separate
+   copy on the same server (`docker-compose.staging.yml`, port 3301, its own empty database, no customer credentials).
+   - One-time setup: `scripts/deploy/staging-setup.sh`.
+   - Until DNS for `staging.nexus.radixile.com` exists, open it through an SSH tunnel:
+     `ssh -i <key> -L 3301:127.0.0.1:3301 ec2-user@<host>`, then http://localhost:3301.
+   - Make your staging account a super admin (staging sends no e-mail): `ssh ... '~/bin/nexus-staging-deploy make-admin you@example.com'`.
+   - Start over with an empty database: `ssh ... '~/bin/nexus-staging-deploy reset-db'`.
+4. **UAT:** the owner check from the phase card, done on staging and recorded in `docs/platform/UAT-LOG.md`.
+5. **Merge:** only with CI green on both databases. Then `git checkout master && git merge --ff-only feature/<x>` (or merge
+   the pull request and pull), which deploys.
+6. **Tests:** the suite must be green except the tests listed in `tests/QUARANTINE.md`, and that list must not grow
+   (`tests/quarantine.test.js` enforces it). Live tests that need the internet run only with `LIVE_TESTS=1`.
+
 ---
 
 ## Tech Stack

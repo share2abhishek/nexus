@@ -9,6 +9,12 @@
 # git bundle over SSH, then run the server's deploy script (~/bin/nexus-deploy, source in
 # scripts/deploy/nexus-deploy.sh): backup, Docker rebuild, health check, rollback if unhealthy.
 #
+# Staging (Q0): deploy the current branch (any branch) to staging instead, after pushing it to Bitbucket
+# (which also runs CI):
+#   scripts/deploy/deploy-from-local.sh --staging
+# Staging lives beside production on the same host, fully separate (docker-compose.staging.yml,
+# scripts/deploy/nexus-staging-deploy.sh). One-time setup: scripts/deploy/staging-setup.sh
+#
 # Settings (environment): NEXUS_DEPLOY_HOST, NEXUS_DEPLOY_KEY (path to the .pem).
 set -euo pipefail
 
@@ -17,8 +23,32 @@ KEY="${NEXUS_DEPLOY_KEY:-$HOME/radixile/mumbai-reserved-instance-key.pem}"
 SSH=(ssh -i "$KEY" -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=30)
 
 cd "$(git rev-parse --show-toplevel)"
-[ "$(git symbolic-ref --short HEAD 2>/dev/null || true)" = master ] || { echo "Not on master: nothing deployed."; exit 0; }
 [ -r "$KEY" ] || { echo "SSH key not found: $KEY (set NEXUS_DEPLOY_KEY)"; exit 1; }
+
+if [ "${1:-}" = "--staging" ]; then
+  BRANCH="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
+  [ -n "$BRANCH" ] || { echo "Not on a branch: check out the branch to deploy to staging."; exit 1; }
+  git diff --quiet HEAD -- . ':(exclude)nexus.iml' || echo "Note: uncommitted changes are NOT deployed; staging gets the last commit of $BRANCH."
+  SHA="$(git rev-parse HEAD)"
+  echo "=== $(date '+%Y-%m-%d %H:%M:%S') staging: deploying $BRANCH $(git log --oneline -1)"
+  git push -q -u origin "$BRANCH" || { echo "Push of $BRANCH to Bitbucket failed."; exit 1; }
+  STAGING_HEAD="$("${SSH[@]}" "$HOST" '~/bin/nexus-staging-deploy head' 2>/dev/null | tail -1 || true)"
+  [ -n "$STAGING_HEAD" ] || { echo "Could not reach staging (run scripts/deploy/staging-setup.sh first?)."; exit 1; }
+  BUNDLE="$(mktemp -t nexus-staging)"
+  trap 'rm -f "$BUNDLE"; git update-ref -d refs/heads/deploy 2>/dev/null || true' EXIT
+  git update-ref refs/heads/deploy "$SHA"
+  if [ "$STAGING_HEAD" = "$SHA" ]; then : > "$BUNDLE"
+  elif [[ "$STAGING_HEAD" =~ ^[0-9a-f]{40}$ ]] && git cat-file -e "$STAGING_HEAD^{commit}" 2>/dev/null; then
+    BASE="$(git merge-base "$STAGING_HEAD" "$SHA")"
+    git bundle create -q "$BUNDLE" "$BASE..refs/heads/deploy"
+  else
+    git bundle create -q "$BUNDLE" refs/heads/deploy   # staging has nothing we know: send the full history
+  fi
+  "${SSH[@]}" "$HOST" "~/bin/nexus-staging-deploy deploy $SHA" < "$BUNDLE"
+  exit $?
+fi
+
+[ "$(git symbolic-ref --short HEAD 2>/dev/null || true)" = master ] || { echo "Not on master: nothing deployed."; exit 0; }
 SHA="$(git rev-parse HEAD)"
 echo "=== $(date '+%Y-%m-%d %H:%M:%S') deploying $(git log --oneline -1)"
 

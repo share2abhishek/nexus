@@ -2,10 +2,10 @@
 const express = require('express');
 const inbox = require('../services/inbox');
 
-module.exports = (knex, requirePermission) => {
+module.exports = (knex, permit) => {
   const router = express.Router();
 
-  router.get('/', requirePermission('content.view'), async (req, res) => {
+  router.get('/', permit('content.view'), async (req, res) => {
     try {
       const q = knex('inbox_items as i').leftJoin('posts as p', 'p.id', 'i.post_id')
         .where('i.workspace_id', req.workspaceId).orderBy('i.created_at', 'desc').limit(200)
@@ -18,19 +18,19 @@ module.exports = (knex, requirePermission) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  router.get('/unread-count', requirePermission('content.view'), async (req, res) => {
+  router.get('/unread-count', permit('content.view'), async (req, res) => {
     try {
       const r = await knex('inbox_items').where({ workspace_id: req.workspaceId, is_read: 0 }).count('id as c').first();
       res.json({ unread: Number(r?.c || 0) });
     } catch { res.json({ unread: 0 }); }
   });
 
-  router.post('/refresh', requirePermission('content.view'), async (req, res) => {
+  router.post('/refresh', permit('content.view'), async (req, res) => {
     try { res.json({ added: await inbox.refresh(knex, { workspaceId: req.workspaceId }) }); }
     catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  router.post('/read', requirePermission('content.view'), express.json(), async (req, res) => {
+  router.post('/read', permit('content.view'), express.json(), async (req, res) => {
     try {
       const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number) : null;
       const q = knex('inbox_items').where({ workspace_id: req.workspaceId });
@@ -41,19 +41,19 @@ module.exports = (knex, requirePermission) => {
   });
 
   // A new comment on one of our own published posts (speaks for the business: same right as publishing)
-  router.post('/post-comment', requirePermission('content.publish'), express.json(), async (req, res) => {
+  router.post('/post-comment', permit('content.publish'), express.json(), async (req, res) => {
     try { res.json(await inbox.commentOnPost(knex, req.workspaceId, Number(req.body?.post_id), String(req.body?.platform || ''), req.body?.text)); }
     catch (err) { res.status(err.status || 500).json({ error: err.message }); }
   });
 
   // Replying speaks for the business in public: same right as publishing
-  router.post('/:id/reply', requirePermission('content.publish'), express.json(), async (req, res) => {
+  router.post('/:id/reply', permit('content.publish'), express.json(), async (req, res) => {
     try { res.json(await inbox.reply(knex, req.workspaceId, req.session.userId, Number(req.params.id), req.body?.text)); }
     catch (err) { res.status(err.status || 500).json({ error: err.message }); }
   });
 
   // AI: a short, friendly reply in the brand's voice (the person edits before sending)
-  router.post('/:id/suggest', requirePermission('content.view'), async (req, res) => {
+  router.post('/:id/suggest', permit('content.view'), async (req, res) => {
     try {
       const item = await knex('inbox_items as i').leftJoin('posts as p', 'p.id', 'i.post_id')
         .where({ 'i.id': Number(req.params.id), 'i.workspace_id': req.workspaceId }).first('i.*', 'p.content as post_content');

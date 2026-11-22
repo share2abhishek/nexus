@@ -101,6 +101,54 @@ describe('website chat webhook', () => {
     expect(other.body.avatar_url).toBeNull();
   });
 
+  test('the owner edits the chat look on the Auto-replies screen: saved for their business only', async () => {
+    const owner = express();
+    owner.use(express.json({ limit: '10mb' })); // as server/index.js
+    owner.use((req, res, next) => { req.workspaceId = ws2Id; req.session = { userId: 2 }; next(); });
+    owner.use('/api/lead-pipeline', require('../routes/leadPipeline')(knex, () => (req, res, next) => next()));
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+    const before = await knex('meta_lead_configs').where({ workspace_id: workspaceId }).first('webchat_profile');
+    const r = await request(owner).post('/api/lead-pipeline/webchat/profile')
+      .send({ name: '  Crumbs Bot ', description: 'Ask about *cakes*', color: '#112233', placeholder: 'Ask us', whatsapp: '+91 98765 43210', avatar: png });
+    expect(r.status).toBe(200);
+    expect(r.body.webchat_profile).toMatchObject({ name: 'Crumbs Bot', color: '#112233', whatsapp: '919876543210', avatar: png });
+
+    const got = await request(owner).get('/api/lead-pipeline/bot');
+    expect(got.body.webchat_profile).toMatchObject({ name: 'Crumbs Bot', description: 'Ask about *cakes*', placeholder: 'Ask us' });
+    const pub = await request(app).get(`/api/webhooks/webchat/${token2}/config`);
+    expect(pub.body).toMatchObject({ name: 'Crumbs Bot', color: '#112233', placeholder: 'Ask us' });
+    expect(pub.body.avatar_url).toBeTruthy();
+    // the other business is untouched
+    expect(await knex('meta_lead_configs').where({ workspace_id: workspaceId }).first('webchat_profile')).toEqual(before);
+
+    for (const bad of [{ color: 'red' }, { avatar: 'data:text/html;base64,PHA+' }, { avatar: 'data:image/png;base64,' + 'A'.repeat(310 * 1024) }, { whatsapp: '12' }]) {
+      expect((await request(owner).post('/api/lead-pipeline/webchat/profile').send(bad)).status).toBe(400);
+    }
+    // the bottom line and the privacy policy link
+    expect(pub.body).toMatchObject({ footer_text: 'Powered by Radixile Technology', footer_url: 'https://radixile.com', privacy_url: null });
+    await request(owner).post('/api/lead-pipeline/webchat/profile')
+      .send({ name: 'Crumbs Bot', footer_text: '  Baked   with love ', footer_url: 'https://crumbs.example/', privacy_url: 'https://crumbs.example/privacy', privacy_label: 'Our privacy promise' })
+      .expect(200);
+    expect((await request(app).get(`/api/webhooks/webchat/${token2}/config`)).body).toMatchObject({
+      footer_text: 'Baked with love', footer_url: 'https://crumbs.example/', privacy_url: 'https://crumbs.example/privacy', privacy_label: 'Our privacy promise',
+    });
+    // own text without a link is allowed; a privacy link gets a default label
+    await request(owner).post('/api/lead-pipeline/webchat/profile').send({ footer_text: 'Crumbs', privacy_url: 'https://crumbs.example/p' }).expect(200);
+    expect((await request(app).get(`/api/webhooks/webchat/${token2}/config`)).body).toMatchObject({ footer_text: 'Crumbs', footer_url: null, privacy_label: 'Privacy policy' });
+    // only real web addresses
+    for (const bad of [{ footer_url: 'javascript:alert(1)' }, { privacy_url: 'data:text/html,hi' }, { privacy_url: '/privacy' }, { privacy_label: 'Privacy' }]) {
+      expect((await request(owner).post('/api/lead-pipeline/webchat/profile').send(bad)).status).toBe(400);
+    }
+
+    // clearing everything goes back to the defaults
+    const cleared = await request(owner).post('/api/lead-pipeline/webchat/profile').send({});
+    expect(cleared.body.webchat_profile).toMatchObject({ name: '', avatar: '', footer_text: '', privacy_url: '' });
+    const reset = (await request(app).get(`/api/webhooks/webchat/${token2}/config`)).body;
+    expect(reset.avatar_url).toBeNull();
+    expect(reset).toMatchObject({ footer_text: 'Powered by Radixile Technology', footer_url: 'https://radixile.com', privacy_url: null });
+  });
+
   test('an unknown token is refused', async () => {
     const r = await request(app).post('/api/webhooks/webchat/not-a-real-token').send({ text: 'hi' });
     expect(r.status).toBe(404);

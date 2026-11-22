@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const { seal } = require('./secrets');
 const { encrypt, decrypt, b64url, unb64url } = require('./approvals');
-const { can } = require('./rbac');
+const { roleGrants: can } = require('../modules/access'); // role table only, as before A0
 
 const now = () => Math.floor(Date.now() / 1000);
 const base = () => require('./license').serverUrl();

@@ -1,0 +1,36 @@
+# Staging (Q0, docs/platform/ROADMAP.md): the same app as production, on the same EC2 host, fully separate.
+# Its own Compose project (nexus-staging), its own Postgres volume, its own .env.staging (server only, never in git),
+# and the app on 127.0.0.1:3301. Memory limits keep it from starving production and the other apps on this shared host.
+# Deployed by ~/bin/nexus-staging-deploy (scripts/deploy/nexus-staging-deploy.sh) from
+# scripts/deploy/deploy-from-local.sh --staging. Starts with an EMPTY database: no customer data, no customer secrets.
+name: nexus-staging
+services:
+  nexus-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${STAGING_DB_PASSWORD:?set STAGING_DB_PASSWORD in .env.staging}
+      POSTGRES_DB: nexus
+    volumes:
+      - nexus-staging-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d nexus"]
+      interval: 5s
+      retries: 10
+    mem_limit: 256m
+  nexus-app:
+    build: .
+    image: nexus-staging-app
+    restart: unless-stopped
+    depends_on:
+      nexus-db:
+        condition: service_healthy
+    env_file: .env.staging
+    environment:
+      NEXUS_ENV: staging
+    ports:
+      - "127.0.0.1:3301:3000"
+    mem_limit: 640m
+volumes:
+  nexus-staging-pgdata:

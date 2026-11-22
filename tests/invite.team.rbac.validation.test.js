@@ -1,7 +1,7 @@
 const request = require('supertest');
 const express = require('express');
 const { makeTestKnex } = require('./helpers/db');
-const { can, MATRIX, ROLES, ACTIONS } = require('../services/rbac');
+const { roleGrants: can, WORKSPACE_ROLES: MATRIX, WORKSPACE_ROLE_KEYS: ROLES } = require('../modules/access/permissions');
 const { makeWithWorkspace, requirePermission } = require('../middleware/tenancy');
 
 describe('Full Validation: Invitations, Team Formation, and RBAC', () => {
@@ -227,9 +227,11 @@ describe('Full Validation: Invitations, Team Formation, and RBAC', () => {
       expect(res.body.requiredPermission).toBe('members.manage');
     });
 
-    test('manager can successfully create invitation with workspaceId in body or header', async () => {
+    // The workspace comes from the header (as the app sends it), never from the body (S0)
+    test('manager can successfully create invitation for the workspace in the header', async () => {
       const res = await request(app)
         .post('/invitations')
+        .set('x-workspace-id', String(workspaceId))
         .set('x-test-user-id', String(managerUser.id))
         .set('x-test-user-email', managerUser.email)
         .set('x-test-user-role', managerUser.role)
@@ -251,6 +253,7 @@ describe('Full Validation: Invitations, Team Formation, and RBAC', () => {
 
       const res = await request(app)
         .post('/invitations')
+        .set('x-workspace-id', String(workspaceId))
         .set('x-test-user-id', String(superAdminUser.id))
         .set('x-test-user-email', superAdminUser.email)
         .set('x-test-user-role', superAdminUser.role)

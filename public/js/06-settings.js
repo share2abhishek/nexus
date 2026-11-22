@@ -902,6 +902,7 @@ function switchAdminTab(tab, btn) {
   if (tab === 'platform-ai') loadPlatformAiKeys();
   if (tab === 'help-chat') loadHelpAdmin();
   if (tab === 'client-setup') clientSetupInit();
+  if (tab === 'billing' && typeof window.loadBillingAdmin === 'function') window.loadBillingAdmin();
 }
 
 // Client onboarding checklist (Super Admin). Ticks live in this browser only.
@@ -940,6 +941,8 @@ async function loadAdminDashboard() {
   if (hcTab) hcTab.hidden = !(State.user?.is_super_admin || State.user?.role === 'superadmin');
   const csTab = document.getElementById('admin-tab-client-setup');
   if (csTab) csTab.hidden = !(State.user?.is_super_admin || State.user?.role === 'superadmin');
+  // Built-in billing (B0): the server answers only for staff with BILLING_ENABLED on
+  if (typeof window.initBillingAdminTab === 'function') window.initBillingAdminTab();
   try {
     const stats = await fetch('/admin/stats').then(r => r.json());
     setEl('adm-total-users', stats.total_users);

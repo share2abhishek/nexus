@@ -21,6 +21,11 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 ### Website (hosted edition)
 - **Blog:** the public website now has a `/blog` with a page per post, search-engine tags and an entry in the sitemap. Adding a file in `server/blog/posts/` publishes a post; posts marked draft or dated in the future stay hidden.
 
+### Super Admin
+- **Billing → Plans (staff only, off until switched on):** design plans by ticking features (ticking one ticks what it needs), set limits, put a plan on the price list or keep it private for one business, clone it, make it inactive, and see every saved version with who changed it and why. Changing a plan that businesses use asks for a reason. Today's plans are copied in with every feature on and today's limits and prices.
+- **Billing → Prices & tax and Coupons:** dated prices per plan (a new price starts today or later and never changes past bills), discounts per billing cycle, dated tax rates (GST 0% to start), coupons, and a "try a price" bill preview.
+- **Billing → Import:** a dry-run list of how each business would be brought into billing. Nothing is billed: importing is a separate step on the server and turns automatic invoicing off.
+
 ### Content Studio
 - **One simple Content Studio:** three steps: add your content (type a topic, paste a web page, add a file or use a spreadsheet), check your posts and pictures, then choose when. "AI writer" and "Schedule from Excel" are no longer separate menu items; "Create post" is now "Write a post". Nothing goes out until you press Schedule.
 - **Use your own image:** on any post, press "Use my own image" to send your photo instead of the made picture. It is saved to your Media library.
@@ -50,6 +55,8 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 ### Website chat
 - **New chat window:** the bot's avatar, name and a short description on the start screen, menu choices as buttons, voice typing where the browser supports it, a "start over" button, and full screen on phones. The name, avatar, description and colour are set per business on the server, so the website snippet needs only `data-token`.
 - **Share page:** `/webchat/<token>` opens the chat full-size on its own address, to try it or send the link.
+- **Edit the chat's look in the app:** Auto-replies → 7. Website chat now has the bot name, picture (upload, cropped to a square), welcome text, brand colour, message-box text and WhatsApp number, with a live preview of the start screen and of a real conversation. Saving updates every website using the chat at once; the embed code no longer needs `data-name` or `data-color`.
+- **Bottom line and privacy policy in the website chat:** set your own text and link for the small line at the bottom of the chat (blank keeps "Powered by Radixile Technology"), and add a link to your privacy policy, shown under it. Only full web addresses (https://…) are accepted.
 - Bot replies are no longer saved twice, and a visitor tapping through menus is no longer cut off after 6 replies in an hour.
 - A visitor who types their phone number now gets the "we have noted your number" answer instead of the general fallback.
 
@@ -72,6 +79,18 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 
 ### Ease of use
 - Short, purposeful animation (pop-ups, changed numbers, loading placeholders), switched off for people who ask for less motion. Clearer wording on the daily limit, the quick-log box, the notes organiser and the Amazon SES options.
+
+---
+
+## 2.4.0 — 20 November 2026
+
+### What’s new page
+- **See what changed in each release inside the app:** Settings → What’s new lists every release, newest first, with what each one added or fixed. A "New" tag appears in the menu after an update until you open the page.
+
+### Fixes
+- **Hosted service security:** only Radixile staff can use the administration screens that cover every business, and nobody is made an administrator automatically on the hosted service.
+- **No other company's name in your screens:** an example in the sales outreach setup and the fallback name for leads without a company named another business. They now use neutral wording ("Prospect", "Lead").
+- **Desktop app, local content folder:** file names containing a backslash are refused, so a name can never point outside the folder on Windows.
 
 ---
 

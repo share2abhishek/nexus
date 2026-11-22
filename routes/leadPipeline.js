@@ -30,11 +30,11 @@ function publicConfig(config) {
 }
 const unmask = (v, saved) => (typeof v === 'string' && v.includes('••') ? saved : v);
 
-module.exports = (knex, requirePermission) => {
+module.exports = (knex, permit) => {
   const repo = leadPipelineRepoFactory(knex);
 
   // ── Configuration & Status ──────────────────────────────────────────────────
-  router.get('/config', requirePermission('content.view'), async (req, res) => {
+  router.get('/config', permit('content.view'), async (req, res) => {
     try {
       let config = await repo.getOrCreateConfig(req.workspaceId);
 
@@ -89,11 +89,11 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Tunnel Status & Auto-Tunnel Management ──────────────────────────────────
-  router.get('/tunnel-status', requirePermission('content.view'), (req, res) => {
+  router.get('/tunnel-status', permit('content.view'), (req, res) => {
     res.json(tunnelManager.getStatus());
   });
 
-  router.post('/tunnel-restart', requirePermission('content.edit'), async (req, res) => {
+  router.post('/tunnel-restart', permit('content.edit'), async (req, res) => {
     try {
       const status = await tunnelManager.restart();
       res.json({ success: true, tunnel: status });
@@ -102,7 +102,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/config', requirePermission('content.edit'), async (req, res) => {
+  router.post('/config', permit('content.edit'), async (req, res) => {
     try {
       const updated = await repo.updateConfig(req.workspaceId, req.body || {});
       res.json(updated);
@@ -112,7 +112,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── 1-Click Page Subscription ───────────────────────────────────────────────
-  router.post('/subscribe-page', requirePermission('content.edit'), async (req, res) => {
+  router.post('/subscribe-page', permit('content.edit'), async (req, res) => {
     try {
       const fbAccount = await knex('social_accounts')
         .where({ workspace_id: req.workspaceId, platform: 'facebook' })
@@ -148,7 +148,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Test Chatwoot Connection ────────────────────────────────────────────────
-  router.post('/test-chatwoot', requirePermission('content.edit'), async (req, res) => {
+  router.post('/test-chatwoot', permit('content.edit'), async (req, res) => {
     try {
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const body = req.body || {};
@@ -166,7 +166,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Leads Management ────────────────────────────────────────────────────────
-  router.get('/leads', requirePermission('content.view'), async (req, res) => {
+  router.get('/leads', permit('content.view'), async (req, res) => {
     const { status, limit, offset } = req.query;
     try {
       const leads = await repo.listLeadEvents(req.workspaceId, {
@@ -189,7 +189,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/leads', requirePermission('content.create'), async (req, res) => {
+  router.post('/leads', permit('content.create'), async (req, res) => {
     try {
       const { full_name, phone_number, email, society, role, tag, source, lead_score, suggested_reply, deal_value, pipeline_stage } = req.body || {};
       if (!full_name || !String(full_name).trim()) {
@@ -222,7 +222,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.patch('/leads/:id', requirePermission('content.edit'), async (req, res) => {
+  router.patch('/leads/:id', permit('content.edit'), async (req, res) => {
     try {
       const updated = await repo.updateLeadEvent(req.workspaceId, Number(req.params.id), req.body || {});
       res.json(updated);
@@ -232,13 +232,13 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── CRM pipeline report ─────────────────────────────────────────────────────
-  router.get('/reports', requirePermission('content.view'), async (req, res) => {
+  router.get('/reports', permit('content.view'), async (req, res) => {
     try { res.json(await repo.pipelineReport(req.workspaceId)); }
     catch (err) { res.status(500).json({ error: err.message }); }
   });
 
   // ── CRM activities (notes & tasks) ──────────────────────────────────────────
-  router.get('/leads/:id/activities', requirePermission('content.view'), async (req, res) => {
+  router.get('/leads/:id/activities', permit('content.view'), async (req, res) => {
     try { res.json(await repo.listActivities(req.workspaceId, Number(req.params.id))); }
     catch (err) { res.status(500).json({ error: err.message }); }
   });
@@ -273,7 +273,7 @@ module.exports = (knex, requirePermission) => {
     return Number.isFinite(n) && n > 0 ? Math.min(Math.floor(n), now + 300) : now;
   };
 
-  router.get('/team', requirePermission('content.view'), async (req, res) => {
+  router.get('/team', permit('content.view'), async (req, res) => {
     try {
       const people = await workspaceTeam(req.workspaceId);
       const meId = req.session?.userId ? Number(req.session.userId) : null;
@@ -283,7 +283,7 @@ module.exports = (knex, requirePermission) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  router.post('/leads/:id/activities', requirePermission('content.edit'), async (req, res) => {
+  router.post('/leads/:id/activities', permit('content.edit'), async (req, res) => {
     try {
       const { kind, body, due_at, actor_user_id, acted_at } = req.body || {};
       if (!body || !String(body).trim()) return res.status(400).json({ error: 'Write something first.' });
@@ -294,7 +294,7 @@ module.exports = (knex, requirePermission) => {
     } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
   });
   // Edit an entry (what, type, who, when, due date)
-  router.put('/activities/:id', requirePermission('content.edit'), async (req, res) => {
+  router.put('/activities/:id', permit('content.edit'), async (req, res) => {
     try {
       const { kind, body, due_at, actor_user_id, acted_at } = req.body || {};
       if (body !== undefined && !String(body).trim()) return res.status(400).json({ error: 'Write something first.' });
@@ -306,16 +306,16 @@ module.exports = (knex, requirePermission) => {
       res.json(updated);
     } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
   });
-  router.patch('/activities/:id', requirePermission('content.edit'), async (req, res) => {
+  router.patch('/activities/:id', permit('content.edit'), async (req, res) => {
     try { res.json(await repo.setActivityDone(req.workspaceId, Number(req.params.id), !!req.body?.done)); }
     catch (err) { res.status(500).json({ error: err.message }); }
   });
-  router.delete('/activities/:id', requirePermission('content.edit'), async (req, res) => {
+  router.delete('/activities/:id', permit('content.edit'), async (req, res) => {
     try { res.json({ deleted: await repo.deleteActivity(req.workspaceId, Number(req.params.id)) }); }
     catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  router.put('/leads/:id', requirePermission('content.edit'), async (req, res) => {
+  router.put('/leads/:id', permit('content.edit'), async (req, res) => {
     try {
       const updated = await repo.updateLeadEvent(req.workspaceId, Number(req.params.id), req.body || {});
       res.json(updated);
@@ -324,7 +324,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.delete('/leads/:id', requirePermission('content.edit'), async (req, res) => {
+  router.delete('/leads/:id', permit('content.edit'), async (req, res) => {
     try {
       const success = await repo.deleteLeadEvent(req.workspaceId, Number(req.params.id));
       if (!success) {
@@ -337,7 +337,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Sync Real Meta Leads & Active Campaigns via Graph API ──────────────────
-  router.post('/sync-real', requirePermission('content.create'), async (req, res) => {
+  router.post('/sync-real', permit('content.create'), async (req, res) => {
     try {
       const fbAccount = await knex('social_accounts')
         .where({ workspace_id: req.workspaceId, platform: 'facebook' })
@@ -490,7 +490,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Clear Dummy Simulated Data Endpoint ─────────────────────────────────────
-  router.post('/clear-dummy', requirePermission('content.edit'), async (req, res) => {
+  router.post('/clear-dummy', permit('content.edit'), async (req, res) => {
     try {
       const count = await knex('meta_lead_events')
         .where({ workspace_id: req.workspaceId })
@@ -510,7 +510,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Non-Technical Simulator / Fallback ──────────────────────────────────────
-  router.post('/test-lead', requirePermission('content.create'), async (req, res) => {
+  router.post('/test-lead', permit('content.create'), async (req, res) => {
     const {
       full_name = 'Test Lead',
       email = 'test.lead@example.com',
@@ -604,7 +604,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Native In-App Workflow Engine (n8n-style) ─────────────────────────────
-  router.post('/workflow/trigger', requirePermission('content.create'), async (req, res) => {
+  router.post('/workflow/trigger', permit('content.create'), async (req, res) => {
     try {
       const { lead_id } = req.body || {};
       let lead = null;
@@ -712,7 +712,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.get('/workflow/logs', requirePermission('content.view'), async (req, res) => {
+  router.get('/workflow/logs', permit('content.view'), async (req, res) => {
     try {
       const logs = await repo.listWorkflowLogs(req.workspaceId, {
         leadId: req.query.lead_id ? Number(req.query.lead_id) : null,
@@ -725,7 +725,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── n8n Automation Nodes Management & Execution ──────────────────────────
-  router.get('/n8n/nodes', requirePermission('content.view'), async (req, res) => {
+  router.get('/n8n/nodes', permit('content.view'), async (req, res) => {
     try {
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const nodes = getWorkflowNodes(config);
@@ -735,7 +735,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/n8n/nodes', requirePermission('content.edit'), async (req, res) => {
+  router.post('/n8n/nodes', permit('content.edit'), async (req, res) => {
     try {
       const { nodes } = req.body || {};
       if (!Array.isArray(nodes)) {
@@ -748,7 +748,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/n8n/execute', requirePermission('content.create'), async (req, res) => {
+  router.post('/n8n/execute', permit('content.create'), async (req, res) => {
     try {
       const { lead_id } = req.body || {};
       let lead = null;
@@ -779,7 +779,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/n8n/test-node', requirePermission('content.create'), async (req, res) => {
+  router.post('/n8n/test-node', permit('content.create'), async (req, res) => {
     try {
       const { node_id, lead_id } = req.body || {};
       const leads = await repo.listLeadEvents(req.workspaceId, { limit: 1 });
@@ -802,7 +802,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Native In-App Live Takeover & Shared Inbox (Chatwoot-style) ───────────
-  router.get('/leads/:id/conversation', requirePermission('content.view'), async (req, res) => {
+  router.get('/leads/:id/conversation', permit('content.view'), async (req, res) => {
     try {
       const leadId = Number(req.params.id);
       const lead = await repo.getLeadEvent(req.workspaceId, leadId);
@@ -848,7 +848,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/leads/:id/messages', requirePermission('content.create'), async (req, res) => {
+  router.post('/leads/:id/messages', permit('content.create'), async (req, res) => {
     try {
       const leadId = Number(req.params.id);
       const { message_text, sender_type = 'agent', channel = 'internal', sender_name } = req.body || {};
@@ -878,7 +878,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── WhatsApp Dual Engine (Official Cloud API + Evolution API) ─────────────
-  router.post('/whatsapp/send', requirePermission('content.create'), async (req, res) => {
+  router.post('/whatsapp/send', permit('content.create'), async (req, res) => {
     try {
       const {
         to,
@@ -934,7 +934,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/whatsapp/test', requirePermission('content.create'), async (req, res) => {
+  router.post('/whatsapp/test', permit('content.create'), async (req, res) => {
     try {
       const {
         engine,
@@ -997,7 +997,7 @@ module.exports = (knex, requirePermission) => {
     return new Map(rows.map(r => [`${r.name}|${r.language}`, (() => { try { return JSON.parse(r.fields_json); } catch { return []; } })()]));
   };
 
-  router.get('/whatsapp/templates', requirePermission('content.view'), async (req, res) => {
+  router.get('/whatsapp/templates', permit('content.view'), async (req, res) => {
     try {
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const token = config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN;
@@ -1012,7 +1012,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/whatsapp/templates', requirePermission('content.edit'), async (req, res) => {
+  router.post('/whatsapp/templates', permit('content.edit'), async (req, res) => {
     try {
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const token = config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN;
@@ -1036,7 +1036,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.delete('/whatsapp/templates/:name', requirePermission('content.edit'), async (req, res) => {
+  router.delete('/whatsapp/templates/:name', permit('content.edit'), async (req, res) => {
     try {
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const token = config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN;
@@ -1054,7 +1054,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Evolution API Instance Management Endpoints ───────────────────────────
-  router.get('/evolution/status', requirePermission('content.view'), async (req, res) => {
+  router.get('/evolution/status', permit('content.view'), async (req, res) => {
     try {
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const statusRes = await evolutionApi.getConnectionState({
@@ -1072,7 +1072,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/evolution/connect', requirePermission('content.edit'), async (req, res) => {
+  router.post('/evolution/connect', permit('content.edit'), async (req, res) => {
     try {
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const { api_url, api_key, instance_name } = req.body || {};
@@ -1107,7 +1107,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.get('/evolution/qr', requirePermission('content.view'), async (req, res) => {
+  router.get('/evolution/qr', permit('content.view'), async (req, res) => {
     try {
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const qrRes = await evolutionApi.fetchQrCode({
@@ -1121,7 +1121,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/evolution/disconnect', requirePermission('content.edit'), async (req, res) => {
+  router.post('/evolution/disconnect', permit('content.edit'), async (req, res) => {
     try {
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const discRes = await evolutionApi.logoutInstance({
@@ -1174,9 +1174,9 @@ module.exports = (knex, requirePermission) => {
     }
   };
 
-  router.get('/meta/verification-status', requirePermission('content.view'), handleVerificationAudit);
-  router.get('/whatsapp/verification-audit', requirePermission('content.view'), handleVerificationAudit);
-  router.get('/whatsapp/oba-status', requirePermission('content.view'), handleVerificationAudit);
+  router.get('/meta/verification-status', permit('content.view'), handleVerificationAudit);
+  router.get('/whatsapp/verification-audit', permit('content.view'), handleVerificationAudit);
+  router.get('/whatsapp/oba-status', permit('content.view'), handleVerificationAudit);
 
   const handleRegisterPin = async (req, res) => {
     try {
@@ -1195,10 +1195,10 @@ module.exports = (knex, requirePermission) => {
     }
   };
 
-  router.post('/meta/register-pin', requirePermission('content.edit'), handleRegisterPin);
-  router.post('/whatsapp/register-pin', requirePermission('content.edit'), handleRegisterPin);
+  router.post('/meta/register-pin', permit('content.edit'), handleRegisterPin);
+  router.post('/whatsapp/register-pin', permit('content.edit'), handleRegisterPin);
 
-  router.get('/meta/profile', requirePermission('content.view'), async (req, res) => {
+  router.get('/meta/profile', permit('content.view'), async (req, res) => {
     try {
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const token = config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN;
@@ -1211,7 +1211,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/meta/update-profile', requirePermission('content.edit'), async (req, res) => {
+  router.post('/meta/update-profile', permit('content.edit'), async (req, res) => {
     try {
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const token = config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN;
@@ -1225,7 +1225,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── WhatsApp In-Chat UPI / Payments ───────────────────────────────────────
-  router.post('/whatsapp/send-payment', requirePermission('content.create'), async (req, res) => {
+  router.post('/whatsapp/send-payment', permit('content.create'), async (req, res) => {
     try {
       const { leadId, title, amount, upi_vpa, engine } = req.body || {};
       const lead = await repo.getLeadEvent(req.workspaceId, Number(leadId));
@@ -1287,7 +1287,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Team Assignment (6 Team Seats) ────────────────────────────────────────
-  router.post('/whatsapp/assign-agent', requirePermission('content.edit'), async (req, res) => {
+  router.post('/whatsapp/assign-agent', permit('content.edit'), async (req, res) => {
     try {
       const { leadId, agentId, agentName } = req.body || {};
       const updated = await repo.assignLeadAgent(req.workspaceId, leadId, agentId, agentName);
@@ -1298,7 +1298,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Bulk Contacts Upload (Drop CSV / Google Sheets) ───────────────────────
-  router.post('/whatsapp/import-contacts', requirePermission('content.create'), async (req, res) => {
+  router.post('/whatsapp/import-contacts', permit('content.create'), async (req, res) => {
     try {
       const { contacts = [] } = req.body || {};
       if (!contacts.length) return res.status(400).json({ error: 'No contacts provided' });
@@ -1315,7 +1315,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Campaign History & Credit Balances ────────────────────────────────────
-  router.get('/whatsapp/broadcasts', requirePermission('content.view'), async (req, res) => {
+  router.get('/whatsapp/broadcasts', permit('content.view'), async (req, res) => {
     try {
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const broadcasts = await repo.listBroadcasts(req.workspaceId);
@@ -1329,7 +1329,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── WhatsApp Conversations & Live Chat Endpoints ──────────────────────────
-  router.get('/whatsapp/conversations', requirePermission('content.view'), async (req, res) => {
+  router.get('/whatsapp/conversations', permit('content.view'), async (req, res) => {
     try {
       const leads = await repo.listLeadEvents(req.workspaceId, { limit: 100 });
       const chatLeads = leads.filter((l) => l.phone_number || (l.leadgen_id && l.leadgen_id.startsWith('web:')));
@@ -1397,7 +1397,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.get('/whatsapp/conversations/:leadId/messages', requirePermission('content.view'), async (req, res) => {
+  router.get('/whatsapp/conversations/:leadId/messages', permit('content.view'), async (req, res) => {
     try {
       const leadId = Number(req.params.leadId);
       const lead = await repo.getLeadEvent(req.workspaceId, leadId);
@@ -1419,7 +1419,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/whatsapp/conversations/:leadId/reply', requirePermission('content.create'), async (req, res) => {
+  router.post('/whatsapp/conversations/:leadId/reply', permit('content.create'), async (req, res) => {
     try {
       const leadId = Number(req.params.leadId);
       const { message_text, is_internal_note, engine, template_name, language_code } = req.body || {};
@@ -1492,7 +1492,7 @@ module.exports = (knex, requirePermission) => {
 
   // ── Broadcasts (background sending with progress) ─────────────────────────
   // What the screen needs: engine, connection, tags with counts
-  router.get('/whatsapp/broadcasts/setup', requirePermission('content.view'), async (req, res) => {
+  router.get('/whatsapp/broadcasts/setup', permit('content.view'), async (req, res) => {
     try {
       const config = await repo.getOrCreateConfig(req.workspaceId);
       const engine = config.delivery_engine === 'evolution' ? 'evolution' : 'cloud_api';
@@ -1505,7 +1505,7 @@ module.exports = (knex, requirePermission) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  router.post('/whatsapp/broadcasts/audience', requirePermission('content.view'), async (req, res) => {
+  router.post('/whatsapp/broadcasts/audience', permit('content.view'), async (req, res) => {
     try {
       const r = await broadcast.resolveAudience(knex, req.workspaceId, req.body?.audience || {});
       res.json({ count: r.recipients.length, skipped: r.skipped, too_many: r.too_many, sample: r.recipients.slice(0, 5).map(p => p.name || ('+' + p.phone)) });
@@ -1513,7 +1513,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // A spreadsheet of people (Excel or CSV): finds the name and phone columns
-  router.post('/whatsapp/broadcasts/read-file', requirePermission('content.create'), express.raw({ type: () => true, limit: '5mb' }), async (req, res) => {
+  router.post('/whatsapp/broadcasts/read-file', permit('content.create'), express.raw({ type: () => true, limit: '5mb' }), async (req, res) => {
     try {
       if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'No file was sent.' });
       let name = String(req.get('X-File-Name') || ''); try { name = decodeURIComponent(name); } catch {}
@@ -1539,7 +1539,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // Send the message to yourself first
-  router.post('/whatsapp/broadcasts/test', requirePermission('content.create'), async (req, res) => {
+  router.post('/whatsapp/broadcasts/test', permit('content.create'), async (req, res) => {
     try {
       if (!(await broadcast.licensed(req.workspaceId))) return res.status(402).json({ error: broadcast.LICENSE_ERROR, code: 'LICENSE_REQUIRED' });
       const config = await repo.getOrCreateConfig(req.workspaceId);
@@ -1560,14 +1560,14 @@ module.exports = (knex, requirePermission) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  router.post('/whatsapp/broadcasts', requirePermission('content.create'), async (req, res) => {
+  router.post('/whatsapp/broadcasts', permit('content.create'), async (req, res) => {
     try {
       const { title, audience, message } = req.body || {};
       res.json(await broadcast.start(knex, { workspaceId: req.workspaceId, userId: req.session?.userId, title, audience, message }));
     } catch (err) { res.status(err.status || 500).json({ error: err.message, code: err.code }); }
   });
 
-  router.get('/whatsapp/broadcasts/:id', requirePermission('content.view'), async (req, res) => {
+  router.get('/whatsapp/broadcasts/:id', permit('content.view'), async (req, res) => {
     try {
       const b = await broadcast.get(knex, req.workspaceId, Number(req.params.id));
       if (!b) return res.status(404).json({ error: 'Not found' });
@@ -1575,13 +1575,13 @@ module.exports = (knex, requirePermission) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  router.post('/whatsapp/broadcasts/:id/stop', requirePermission('content.create'), async (req, res) => {
+  router.post('/whatsapp/broadcasts/:id/stop', permit('content.create'), async (req, res) => {
     const b = await broadcast.get(knex, req.workspaceId, Number(req.params.id)).catch(() => null);
     if (!b) return res.status(404).json({ error: 'Not found' });
     res.json({ stopping: broadcast.cancel(b.id) });
   });
 
-  router.post('/whatsapp/broadcast', requirePermission('content.create'), async (req, res) => {
+  router.post('/whatsapp/broadcast', permit('content.create'), async (req, res) => {
     try {
       const {
         contacts = [],
@@ -1747,7 +1747,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/whatsapp/verify-connection', requirePermission('content.edit'), async (req, res) => {
+  router.post('/whatsapp/verify-connection', permit('content.edit'), async (req, res) => {
     try {
       const { phone_number_id, waba_id, test_recipient, delivery_engine } = req.body || {};
       const config = await repo.getOrCreateConfig(req.workspaceId);
@@ -1810,7 +1810,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/whatsapp/test-send', requirePermission('content.create'), async (req, res) => {
+  router.post('/whatsapp/test-send', permit('content.create'), async (req, res) => {
     try {
       const {
         to,
@@ -1885,7 +1885,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // ── Auto-replies (chatbot) ──────────────────────────────────────────────────
-  router.get('/bot', requirePermission('content.view'), async (req, res) => {
+  router.get('/bot', permit('content.view'), async (req, res) => {
     try {
       const settings = await chatbot.getSettings(knex, req.workspaceId);
       const config = await repo.getOrCreateConfig(req.workspaceId);
@@ -1895,17 +1895,30 @@ module.exports = (knex, requirePermission) => {
         : !!((config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN) && config.whatsapp_phone_number_id);
       const optedOut = (await chatbot.optedOutLeadIds(knex, req.workspaceId)).size;
       const base = (process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
-      res.json({ ...settings, licensed: await broadcast.licensed(req.workspaceId), whatsapp_connected: connected, engine, opted_out_count: optedOut, limits: chatbot.LIMITS, n8n_configured: !!config.n8n_webhook_url, webchat_token: config.webchat_token, webchat_base: base });
+      res.json({ ...settings, licensed: await broadcast.licensed(req.workspaceId), whatsapp_connected: connected, engine, opted_out_count: optedOut, limits: chatbot.LIMITS, n8n_configured: !!config.n8n_webhook_url, webchat_token: config.webchat_token, webchat_base: base, webchat_profile: require('../services/leadPipeline/webchatProfile').editable(config) });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
+  // The website chat's look (name, picture, description, colour): this workspace only
+  router.post('/webchat/profile', permit('content.edit'), async (req, res) => {
+    try {
+      const webchatProfile = require('../services/leadPipeline/webchatProfile');
+      const profile = webchatProfile.sanitize(req.body || {});
+      await repo.getOrCreateConfig(req.workspaceId);
+      await knex('meta_lead_configs').where({ workspace_id: req.workspaceId })
+        .update({ webchat_profile: JSON.stringify(profile), updated_at: Math.floor(Date.now() / 1000) });
+      const config = await repo.getOrCreateConfig(req.workspaceId);
+      res.json({ webchat_profile: webchatProfile.editable(config) });
+    } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+  });
+
   // New website-chat token (the old embed code stops working)
-  router.post('/webchat/regenerate', requirePermission('content.edit'), async (req, res) => {
+  router.post('/webchat/regenerate', permit('content.edit'), async (req, res) => {
     try { res.json({ webchat_token: await repo.regenerateWebchatToken(req.workspaceId) }); }
     catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  router.post('/bot', requirePermission('content.edit'), async (req, res) => {
+  router.post('/bot', permit('content.edit'), async (req, res) => {
     try {
       const { enabled, config } = req.body || {};
       if (config?.fallback?.mode === 'ai' && !req.session?.userId) return res.status(400).json({ error: 'Sign in again to use AI answers.' });
@@ -1914,7 +1927,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // "Try it": what the bot would answer, without sending anything
-  router.post('/bot/preview', requirePermission('content.view'), async (req, res) => {
+  router.post('/bot/preview', permit('content.view'), async (req, res) => {
     try {
       const { text, config, first_time = false, at } = req.body || {};
       const cfg = chatbot.normalizeConfig(config || (await chatbot.getSettings(knex, req.workspaceId)).config);
@@ -1939,7 +1952,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // n8n: send a sample event so the user can build their workflow against real data
-  router.post('/n8n/test-event', requirePermission('content.edit'), async (req, res) => {
+  router.post('/n8n/test-event', permit('content.edit'), async (req, res) => {
     try {
       const { buildEvent, replyFrom } = require('../services/leadPipeline/n8nForwarder');
       const config = await repo.getOrCreateConfig(req.workspaceId);
@@ -1963,14 +1976,14 @@ module.exports = (knex, requirePermission) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  router.post('/bot/resume/:leadId', requirePermission('content.edit'), async (req, res) => {
+  router.post('/bot/resume/:leadId', permit('content.edit'), async (req, res) => {
     try {
       await chatbot.resume(knex, req.workspaceId, Number(req.params.leadId));
       res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  router.post('/whatsapp/simulate-reply', requirePermission('content.create'), async (req, res) => {
+  router.post('/whatsapp/simulate-reply', permit('content.create'), async (req, res) => {
     try {
       const { leadId, text } = req.body || {};
       const lead = await repo.getLeadEvent(req.workspaceId, Number(leadId));

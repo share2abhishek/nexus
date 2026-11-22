@@ -67,6 +67,11 @@ module.exports = (knex) => {
         const wabaId = String(entry.id || '');
 
         for (const change of entry.changes || []) {
+          // WhatsApp calls (voice assistant): the business is found only by the registered phone-number id
+          if (change.field === 'calls' && change.value) {
+            await require('../services/voice/calls').onMetaCalls(knex, change.value).catch((e) => console.error('[Meta Webhook] calls:', e.message));
+            continue;
+          }
           if (change.field !== 'messages' || !change.value) continue;
           const phoneNumberId = change.value.metadata?.phone_number_id ? String(change.value.metadata.phone_number_id) : null;
 

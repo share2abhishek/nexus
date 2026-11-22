@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { requirePermission } = require('../middleware/tenancy');
+const { middleware: permit } = require('../modules/access'); // access.middleware (A0)
 // Sending mail to the whole list or deleting subscribers is a publishing action
 const { requirePublishLicense } = require('../middleware/license');
-const canPublish = requirePermission('content.publish');
+const canPublish = permit('content.publish');
 const { aiGenerate, aiJSON, aiArgsFromReq } = require('../services/aiHelper');
 const knexInstance = require('../services/knex');
 const emailRepo    = require('../repos/emailRepo')(knexInstance);

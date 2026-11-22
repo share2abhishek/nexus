@@ -42,11 +42,14 @@ const configRoutes = require('../routes/config');
 const ollamaRoutes = require('../routes/ollama');
 const scheduler    = require('../services/scheduler');
 const { requireAuth, injectUserKeys } = require('../middleware/auth');
-const { makeWithWorkspace, requirePermission } = require('../middleware/tenancy');
+const { makeWithWorkspace } = require('../middleware/tenancy');
+// The single decision point (A0): every permission guard is access.middleware(key)
+const access = require('../modules/access');
+const permit = access.middleware;
 const membershipsRepo = require('../repos/membershipsRepo')(knex);
 const platformAdmin = require('../services/platformAdmin');
 // Looks the user up on every request: a suspended or demoted account loses access at once
-const withWorkspace = makeWithWorkspace(membershipsRepo, { loadUser: platformAdmin.loadUser });
+const withWorkspace = makeWithWorkspace(membershipsRepo, { loadUser: platformAdmin.loadUser, loadOrg: require('../services/accessHost').workspaceOrg });
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -118,6 +121,8 @@ app.get('/__health', (req, res) => {
 // For the desktop app's tray and shutdown warning: when the next posts are due.
 // Counts and times only (no post text), and only for this PC (127.0.0.1).
 app.get('/__schedule', async (req, res) => {
+  // Desktop app only: on the hosted edition every business shares this process, so it is not served at all (S0)
+  if (require('../services/edition').isServer()) return res.status(404).end();
   const ip = req.socket.remoteAddress || '';
   if (!['::1', '127.0.0.1', '::ffff:127.0.0.1'].includes(ip)) return res.status(403).end();
   try {
@@ -152,7 +157,7 @@ app.get('/webchat/:token', (req, res) => {
   res.type('html').send(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
 <title>Chat</title><style>html,body{margin:0;height:100%;background:#f3f1ee}</style></head>
-<body><script src="/webchat-widget.js" data-token="${token}" data-open="true"></script></body></html>`);
+<body><script src="/webchat-widget.js" data-token="${token}" data-open="true"${req.query.preview === '1' ? ' data-preview="true"' : ''}></script></body></html>`);
 });
 
 // index: false, so "/" goes to the route below (app or landing page), not straight to index.html
@@ -195,6 +200,7 @@ app.use('/admin',      adminRoutes);  // super admin dashboard
 app.use('/ollama',     ollamaSetupGuard, ollamaRoutes); // guided AI setup (status / pull)
 const helpChat = require('../routes/assistant')(knex);
 app.use('/api/assistant/public', helpChat.pub); // landing-page chat: no sign-in
+app.use('/api/webhooks/voice-gateway', require('../routes/voiceGateway')(knex)); // voice gateway callbacks (signed)
 app.use('/api/webhooks', require('../routes/webhooks')(knex)); // Meta Lead Ads & Messenger Webhooks (HMAC-SHA256 verified)
 // Hosted edition: client approval links are served by this app (no relay or licence server)
 if (isHosted) {
@@ -215,12 +221,32 @@ app.use(['/api/knowledge-base', '/api/tools', '/api/media', '/api/seo', '/api/se
 // ── Protected Routes (require login) ─────────────────────────────────────────
 
 app.use('/api/license', requireAuth, require('../routes/license'));
+// What the signed-in person may do in the active workspace: role, permissions, features, plan and limits
+// (docs/platform/ACCESS-AND-ENTITLEMENTS.md 13.1). The app reads this instead of deciding on its own.
+app.get('/api/me/access', requireAuth, withWorkspace, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(await access.explain(access.context(req)));
+});
+// "What's new": released notes from docs/RELEASE-NOTES.md. Staff (and the desktop install's own people) also see
+// the Super Admin and upgrade sections.
+app.get('/api/release-notes', requireAuth, async (req, res) => {
+  const user = await platformAdmin.loadUser(req.session.userId);
+  const staff = !require('../services/edition').isServer() || platformAdmin.isPlatformAdmin(user);
+  const { version } = require('../package.json');
+  res.set('Cache-Control', 'private, max-age=300');
+  res.json({ version, releases: require('../services/releaseNotes').forViewer({ staff }) });
+});
 // Server edition: paying for the business's plan (billing service at BILLING_URL)
 const billingRoutes = require('../routes/billing');
 app.use('/billing', billingRoutes.pub);
+// Built-in billing, staff side (modules/billing, B0): plans, prices, tax, coupons. 404 unless BILLING_ENABLED=true on the
+// server edition; Radixile staff only (platform.billing.manage). Mounted before the old /api/billing routes.
+// AI voice assistant on WhatsApp calls (docs/platform/VOICE-AGENTS.md; PoC: staff only, off unless VOICE_ENABLED=true)
+app.use('/api/voice', requireAuth, withWorkspace, require('../routes/voice')(knex, permit));
+app.use('/api/billing/admin', requireAuth, withWorkspace, permit('platform.billing.manage'), require('../services/billingHost').billing().adminRouter());
 app.use('/api/billing', requireAuth, withWorkspace, billingRoutes.api);
 app.use('/api/backups', requireAuth, require('../routes/backups')(knex));
-app.use('/api/bio', requireAuth, withWorkspace, require('../routes/bio')(knex, requirePermission));
+app.use('/api/bio', requireAuth, withWorkspace, require('../routes/bio')(knex, permit));
 // Phone companion (per user, across workspaces)
 app.use('/api/companion', requireAuth, (() => {
   const r = require('express').Router();
@@ -243,30 +269,30 @@ app.use('/api/companion', requireAuth, (() => {
 })());
 app.use('/api/cloud/status', requireAuth, async (req, res) => res.json({ enabled: await require('../services/cloudPosting').enabled() }));
 app.use('/api/assistant', requireAuth, withWorkspace, injectUserKeys, helpChat.app); // in-app help chat
-app.use('/api/inbox', requireAuth, withWorkspace, injectUserKeys, require('../routes/inbox')(knex, requirePermission));
-app.use('/api/media-library', requireAuth, withWorkspace, require('../routes/mediaLibrary')(knex, requirePermission));
+app.use('/api/inbox', requireAuth, withWorkspace, injectUserKeys, require('../routes/inbox')(knex, permit));
+app.use('/api/media-library', requireAuth, withWorkspace, require('../routes/mediaLibrary')(knex, permit));
 app.use('/api',        requireAuth, withWorkspace, injectUserKeys, apiRoutes);
 // SEO autopilot (server edition): before /api/seo so its paths match first
-app.use('/api/seo/autopilot', requireAuth, withWorkspace, injectUserKeys, require('../routes/seoAutopilot')(knex, requirePermission));
+app.use('/api/seo/autopilot', requireAuth, withWorkspace, injectUserKeys, require('../routes/seoAutopilot')(knex, permit));
 app.use('/api/seo',    requireAuth, withWorkspace, injectUserKeys, seoRoutes);
 app.use('/api/email',  requireAuth, withWorkspace, injectUserKeys, emailRoutes);
 app.use('/api/tools',  requireAuth, withWorkspace, injectUserKeys, toolsRoutes);
 app.use('/api/media',  requireAuth, withWorkspace, injectUserKeys, mediaRoutes);
 app.use('/api/config', requireAuth, withWorkspace, injectUserKeys, configRoutes);
-app.use('/api/content', requireAuth, withWorkspace, injectUserKeys, require('../routes/content')(knex, requirePermission));
-app.use('/api/post-extras', requireAuth, withWorkspace, require('../routes/postExtras')(knex, requirePermission)); // signatures, post sets, RSS feeds
-app.use('/api/sellbird', requireAuth, withWorkspace, injectUserKeys, require('../routes/sellbird')(knex, requirePermission));
-app.use('/api/lead-pipeline', requireAuth, withWorkspace, injectUserKeys, require('../routes/leadPipeline')(knex, requirePermission));
-app.use('/api/meta-reports', requireAuth, withWorkspace, require('../routes/metaReports')(knex, requirePermission));
-app.use('/api/contact-sync', requireAuth, withWorkspace, require('../routes/contactSync')(knex, requirePermission));
-app.use('/api/knowledge-base', requireAuth, withWorkspace, injectUserKeys, require('../routes/knowledgeBase')(knex, requirePermission));
+app.use('/api/content', requireAuth, withWorkspace, injectUserKeys, require('../routes/content')(knex, permit));
+app.use('/api/post-extras', requireAuth, withWorkspace, require('../routes/postExtras')(knex, permit)); // signatures, post sets, RSS feeds
+app.use('/api/sellbird', requireAuth, withWorkspace, injectUserKeys, require('../routes/sellbird')(knex, permit));
+app.use('/api/lead-pipeline', requireAuth, withWorkspace, injectUserKeys, require('../routes/leadPipeline')(knex, permit));
+app.use('/api/meta-reports', requireAuth, withWorkspace, require('../routes/metaReports')(knex, permit));
+app.use('/api/contact-sync', requireAuth, withWorkspace, require('../routes/contactSync')(knex, permit));
+app.use('/api/knowledge-base', requireAuth, withWorkspace, injectUserKeys, require('../routes/knowledgeBase')(knex, permit));
 
 // ── Tenancy Routes ────────────────────────────────────────────────────────────
 
 app.use('/workspaces', requireAuth, require('../routes/workspaces')(knex));
-app.use('/workspaces/:workspaceId/members', requireAuth, require('../routes/members')(knex, withWorkspace, requirePermission));
-app.use('/workspaces/:workspaceId/social-accounts', requireAuth, require('../routes/social-accounts')(knex, withWorkspace, requirePermission));
-app.use('/invitations', requireAuth, require('../routes/invitations')(knex, withWorkspace, requirePermission));
+app.use('/workspaces/:workspaceId/members', requireAuth, require('../routes/members')(knex, withWorkspace, permit));
+app.use('/workspaces/:workspaceId/social-accounts', requireAuth, require('../routes/social-accounts')(knex, withWorkspace, permit));
+app.use('/invitations', requireAuth, require('../routes/invitations')(knex, withWorkspace, permit));
 
 app.post('/session/active-workspace', async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'Not authenticated' });
@@ -411,6 +437,7 @@ async function bootstrap() {
   });
 }
 
-bootstrap().catch(err => { console.error('[Startup] fatal', err); process.exit(1); });
+// NEXUS_NO_BOOT=1 (tests only): build the app without migrating, scheduling or listening
+if (process.env.NEXUS_NO_BOOT !== '1') bootstrap().catch(err => { console.error('[Startup] fatal', err); process.exit(1); });
 
 module.exports = app;

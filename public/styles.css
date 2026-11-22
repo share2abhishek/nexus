@@ -5396,6 +5396,22 @@ body:not(.light-mode) .state-error { color: #fca5a5; }
 .bot-editor .card-body { padding: 16px 20px; }
 .bot-editor code { background: var(--bg-tertiary); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
+/* 7. Website chat: look editor + live preview */
+.wc-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.wc-form { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.wc-form .form-label { margin-top: 8px; margin-bottom: 0; }
+.wc-avatar-row { display: flex; align-items: center; gap: 14px; }
+.wc-avatar { width: 64px; height: 64px; border-radius: 50%; flex: none; overflow: hidden; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 26px; font-weight: 600; }
+.wc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.wc-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.wc-color-row { display: flex; gap: 8px; align-items: center; }
+.wc-color-row input[type="color"] { width: 42px; height: 38px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; background: none; cursor: pointer; flex: none; }
+.wc-save { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+.wc-preview { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.wc-preview-tabs { display: flex; gap: 6px; }
+.wc-preview iframe { width: 340px; height: 600px; border: 1px solid var(--border); border-radius: 22px; background: #fcfcfb; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
+@media (max-width: 1400px) { .wc-layout { grid-template-columns: 1fr; } }
+
 .bot-hero {
   display: flex; align-items: center; gap: 16px; padding: 18px 20px; margin-bottom: 16px;
   background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-md);
@@ -6779,3 +6795,46 @@ body.is-saas [data-desktop-only],
 .studio-skel i{width:30%;height:14px}
 @keyframes studioShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){.studio-spark,.studio-skel i,.studio-skel b{animation:none}}
+/* ── What's new (release notes page) ───────────────────────────────────────── */
+.wn-list { display: flex; flex-direction: column; gap: 16px; max-width: 860px; }
+.wn-release { padding: 20px 22px; }
+.wn-latest { border-color: var(--border-active); }
+.wn-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.wn-version { font-size: 18px; font-weight: 700; margin: 0; color: var(--text-primary); }
+.wn-date { font-size: 13px; color: var(--text-muted); }
+.wn-current { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: rgba(16,185,129,0.15); color: var(--accent-green); }
+.wn-section { margin-top: 14px; }
+.wn-title { font-size: 14px; font-weight: 700; margin: 0 0 6px; color: var(--text-secondary); }
+.wn-items { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.wn-items li { font-size: 14px; line-height: 1.55; color: var(--text-primary); }
+.wn-items code { font-size: 12.5px; padding: 1px 5px; border-radius: 4px; background: var(--glass-hover); }
+@media (max-width: 600px) { .wn-release { padding: 16px; } .wn-items { padding-left: 16px; } }
+
+/* ── Super Admin → Billing (B0) ─────────────────────────────────────────────── */
+.bill-subtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.bill-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
+.bill-hint { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+.bill-card { padding: 16px 18px; margin-bottom: 14px; }
+.bill-card-title { font-weight: 700; margin-bottom: 10px; color: var(--text-primary); }
+.bill-card-title small, .bill-limit small, .bill-feature small { color: var(--text-muted); font-weight: 400; }
+.bill-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.bill-grid label, .bill-wide { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--text-secondary); }
+.bill-wide { grid-column: 1 / -1; }
+.bill-check { flex-direction: row !important; align-items: center; gap: 8px !important; }
+.bill-columns { display: grid; grid-template-columns: 3fr 2fr; gap: 14px; }
+.bill-group { margin-bottom: 10px; }
+.bill-group-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin: 6px 0; }
+.bill-feature { display: flex; gap: 8px; align-items: flex-start; padding: 3px 0; font-size: 13.5px; cursor: pointer; }
+.bill-feature small { display: block; font-size: 11.5px; }
+.bill-limit { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 0; font-size: 13.5px; }
+.bill-limit input { width: 110px; }
+.bill-row { font-size: 13px; padding: 4px 0; color: var(--text-secondary); }
+.bill-form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+.bill-form .form-input { width: auto; min-width: 120px; }
+.bill-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; }
+.bill-clone { display: flex; gap: 6px; flex-wrap: wrap; }
+.bill-clone .form-input { width: 140px; }
+.bill-error { color: #f87171; font-size: 13px; margin-top: 8px; min-height: 1em; }
+.bill-tag { font-size: 10.5px; padding: 1px 7px; border-radius: 9px; background: var(--glass-hover); color: var(--text-secondary); }
+.bill-table td, .bill-table th { font-size: 13px; }
+@media (max-width: 800px) { .bill-columns { grid-template-columns: 1fr; } .bill-limit input { width: 90px; } }

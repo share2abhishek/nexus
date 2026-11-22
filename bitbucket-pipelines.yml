@@ -1,0 +1,44 @@
+# CI for Nexus (Q0, docs/platform/ROADMAP.md). Runs the full test suite on every push to any branch,
+# on SQLite (the desktop database) and on PostgreSQL 16 (the server database).
+# Deployment is NOT done here: production deploys from a developer machine (scripts/deploy/deploy-from-local.sh)
+# after a branch is merged to master with both steps green.
+# Port of .github/workflows/test.yml (the repository moved to Bitbucket, so that workflow never runs).
+
+image: node:20
+
+definitions:
+  caches:
+    npm: ~/.npm
+  services:
+    postgres:
+      image: postgres:16
+      variables:
+        POSTGRES_USER: nexus_test
+        POSTGRES_PASSWORD: nexus_test
+        POSTGRES_DB: nexus_test
+  steps:
+    - step: &test-sqlite
+        name: Tests (SQLite)
+        caches:
+          - npm
+        script:
+          # The desktop app's Electron binary isn't needed to run the tests
+          - export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+          - npm ci --no-audit --no-fund
+          - npm test -- --ci
+    - step: &test-postgres
+        name: Tests (PostgreSQL 16)
+        caches:
+          - npm
+        services:
+          - postgres
+        script:
+          - export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+          - npm ci --no-audit --no-fund
+          - PG_TEST_URL=postgresql://nexus_test:nexus_test@localhost:5432/nexus_test npm test -- --ci
+
+pipelines:
+  default:
+    - parallel:
+        - step: *test-sqlite
+        - step: *test-postgres

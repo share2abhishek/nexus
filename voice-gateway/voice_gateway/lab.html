@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Voice lab: talk to the assistant</title>
+<style>
+ body{font-family:system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;background:#0d1421;color:#f0f4ff}
+ button{font-size:16px;padding:10px 18px;border-radius:10px;border:0;margin-right:8px;cursor:pointer}
+ #start{background:#10b981;color:#fff} #stop{background:#ef4444;color:#fff}
+ .turn{margin:8px 0;padding:8px 12px;border-radius:10px;line-height:1.45} .assistant{background:#1e293b} .caller{background:#164e63}
+ small{color:#94a3b8} #state{margin:12px 0;color:#94a3b8}
+</style></head><body>
+<h2>Voice lab</h2>
+<p>Talk to the assistant through your microphone. It uses the same audio path as a WhatsApp call. Use headphones, so the assistant doesn't hear itself.</p>
+<button id="start">Start call</button><button id="stop" disabled>End call</button>
+<div id="state">Not connected</div><div id="turns"></div>
+<audio id="remote" autoplay></audio>
+<script>
+let pc, id, poll;
+const $ = (q) => document.querySelector(q);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+$('#start').onclick = async () => {
+  $('#start').disabled = true; $('#state').textContent = 'Connecting…';
+  pc = new RTCPeerConnection();
+  const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  mic.getTracks().forEach((t) => pc.addTrack(t, mic));
+  pc.ontrack = (e) => { $('#remote').srcObject = e.streams[0] || new MediaStream([e.track]); };
+  pc.onconnectionstatechange = () => { $('#state').textContent = 'Connection: ' + pc.connectionState; };
+  await pc.setLocalDescription(await pc.createOffer());
+  await new Promise((r) => { if (pc.iceGatheringState === 'complete') r(); else pc.onicegatheringstatechange = () => pc.iceGatheringState === 'complete' && r(); });
+  const res = await fetch('/lab/offer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sdp: pc.localDescription.sdp }) });
+  const ans = await res.json(); id = ans.id;
+  await pc.setRemoteDescription({ type: 'answer', sdp: ans.sdp });
+  $('#stop').disabled = false;
+  poll = setInterval(async () => {
+    const r = await fetch(`/lab/${id}/events`); if (!r.ok) return;
+    const d = await r.json();
+    $('#turns').innerHTML = d.events.filter((e) => e.type === 'turn').map((e) => `<div class="turn ${e.speaker}"><b>${e.speaker === 'assistant' ? 'Sneha' : 'You'}</b>
+      <small>${[e.stt_ms && `speech-to-text ${e.stt_ms} ms`, e.llm_ms && `AI first sentence ${e.llm_ms} ms`, e.tts_ms && `first audio ${e.tts_ms} ms`].filter(Boolean).join(' · ')}</small><br>${esc(e.text)}</div>`).join('')
+      + d.events.filter((e) => e.type !== 'turn').map((e) => `<div class="turn"><small>${esc(JSON.stringify(e))}</small></div>`).join('');
+    if (d.ended) { clearInterval(poll); $('#state').textContent = 'Call ended'; }
+  }, 1000);
+};
+$('#stop').onclick = async () => { await fetch(`/lab/${id}/end`, { method: 'POST' }); pc && pc.close(); $('#stop').disabled = true; $('#start').disabled = false; };
+</script></body></html>

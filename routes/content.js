@@ -2,7 +2,7 @@ const express = require('express');
 const { checkPlatforms } = require('../services/platforms/available');
 const { cleanOptions } = require('../services/postOptions');
 const contentRepoFactory = require('../repos/contentRepo');
-const { can } = require('../services/rbac');
+const { roleGrants: can } = require('../modules/access'); // role table only (no staff bypass), as before A0
 
 const STATUSES = ['draft', 'in_review', 'approved', 'scheduled', 'published', 'failed'];
 const EDITABLE_STATUSES = ['draft', 'in_review', 'failed'];
@@ -20,13 +20,13 @@ const TRANSITION_PERMISSIONS = {
   'draft->scheduled': ['content.approve', 'content.schedule'],
 };
 
-module.exports = (knex, requirePermission) => {
+module.exports = (knex, permit) => {
   const router = express.Router();
   const contentRepo = contentRepoFactory(knex);
 
   // Bulk scheduling from a CSV or Excel file (raw upload, file name in X-File-Name).
   // ?dry_run=1 only checks the rows and shows what would happen.
-  router.post('/bulk', requirePermission('content.create'), express.raw({ type: () => true, limit: '10mb' }), async (req, res) => {
+  router.post('/bulk', permit('content.create'), express.raw({ type: () => true, limit: '10mb' }), async (req, res) => {
     try {
       if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'No file was sent.' });
       let name = String(req.get('X-File-Name') || '');
@@ -66,7 +66,7 @@ module.exports = (knex, requirePermission) => {
   // Step 1: pages, text files or pasted text in; a ready post (heading, text, hashtags) per platform out.
   // Nothing is saved here: the person reviews and edits first.
   // Turns any file the person drops into the Studio into plain text: Excel and CSV become one line per row
-  router.post('/studio/read-file', requirePermission('content.create'), express.raw({ type: () => true, limit: '5mb' }), (req, res) => {
+  router.post('/studio/read-file', permit('content.create'), express.raw({ type: () => true, limit: '5mb' }), (req, res) => {
     try {
       const buf = req.body;
       if (!Buffer.isBuffer(buf) || !buf.length) return res.status(400).json({ error: 'No file was sent.' });
@@ -86,7 +86,7 @@ module.exports = (knex, requirePermission) => {
     } catch (err) { res.status(400).json({ error: `Could not read this file: ${err.message}` }); }
   });
 
-  router.post('/studio/generate', requirePermission('content.create'), async (req, res) => {
+  router.post('/studio/generate', permit('content.create'), async (req, res) => {
     try {
       const studio = require('../services/contentStudio');
       const { aiList, aiArgsFromReq } = require('../services/aiHelper');
@@ -125,7 +125,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // Bring a Studio session's drafts back together so they can be edited as one batch
-  router.get('/studio/series/:seriesId', requirePermission('content.create'), async (req, res) => {
+  router.get('/studio/series/:seriesId', permit('content.create'), async (req, res) => {
     try {
       const { CHAR_LIMITS } = require('../services/brand');
       const rows = await knex('content_items')
@@ -144,7 +144,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // Step 2: the reviewed posts are scheduled one after another (or saved as drafts)
-  router.post('/studio/schedule', requirePermission('content.create'), async (req, res) => {
+  router.post('/studio/schedule', permit('content.create'), async (req, res) => {
     try {
       const studio = require('../services/contentStudio');
       const { CHAR_LIMITS } = require('../services/brand');
@@ -214,7 +214,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // Bulk scheduling with custom interval and loop / repeat queue options
-  router.post('/bulk-schedule', requirePermission('content.create'), async (req, res) => {
+  router.post('/bulk-schedule', permit('content.create'), async (req, res) => {
     try {
       const { posts, start_at, interval_hours = 24, platforms = ['facebook'], loop_count = 1, status = 'scheduled', auto_restart = false } = req.body || {};
 
@@ -316,7 +316,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.post('/', requirePermission('content.create'), async (req, res) => {
+  router.post('/', permit('content.create'), async (req, res) => {
     const { title, body, platforms, social_account_ids } = req.body;
     let image_url = req.body.image_url;
     let options;
@@ -345,7 +345,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.get('/', requirePermission('content.view'), async (req, res) => {
+  router.get('/', permit('content.view'), async (req, res) => {
     const { status, limit, offset } = req.query;
     if (status && !STATUSES.includes(status)) {
       return res.status(400).json({ error: `status must be one of: ${STATUSES.join(', ')}` });
@@ -362,7 +362,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.get('/calendar', requirePermission('content.view'), async (req, res) => {
+  router.get('/calendar', permit('content.view'), async (req, res) => {
     const from = Number(req.query.from);
     const to = Number(req.query.to);
     if (!from || !to) {
@@ -376,7 +376,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.get('/:id', requirePermission('content.view'), async (req, res) => {
+  router.get('/:id', permit('content.view'), async (req, res) => {
     try {
       const item = await contentRepo.getById(req.workspaceId, req.params.id);
       if (!item) return res.status(404).json({ error: 'Not found' });
@@ -390,7 +390,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.patch('/:id', requirePermission('content.edit'), async (req, res) => {
+  router.patch('/:id', permit('content.edit'), async (req, res) => {
     try {
       const item = await contentRepo.getById(req.workspaceId, req.params.id);
       if (!item) return res.status(404).json({ error: 'Not found' });
@@ -450,7 +450,7 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.delete('/:id', requirePermission('content.edit'), async (req, res) => {
+  router.delete('/:id', permit('content.edit'), async (req, res) => {
     try {
       const item = await contentRepo.getById(req.workspaceId, req.params.id);
       if (!item) return res.status(404).json({ error: 'Not found' });
@@ -517,7 +517,7 @@ module.exports = (knex, requirePermission) => {
   const mayDecide = (role, item) => item.status === 'approved' || can(role, 'content.approve');
 
   // Publish now
-  router.post('/:id/publish', requirePermission('content.publish'), async (req, res) => {
+  router.post('/:id/publish', permit('content.publish'), async (req, res) => {
     try {
       const item = await contentRepo.getById(req.workspaceId, req.params.id);
       if (!item) return res.status(404).json({ error: 'Not found' });
@@ -540,7 +540,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // Schedule (once, or repeating every day/week/month)
-  router.post('/:id/schedule', requirePermission('content.schedule'), async (req, res) => {
+  router.post('/:id/schedule', permit('content.schedule'), async (req, res) => {
     try {
       const item = await contentRepo.getById(req.workspaceId, req.params.id);
       if (!item) return res.status(404).json({ error: 'Not found' });
@@ -591,7 +591,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // Client approval by link (or WhatsApp): needs the right to send for review
-  router.post('/:id/approval-link', requirePermission('content.submit'), async (req, res) => {
+  router.post('/:id/approval-link', permit('content.submit'), async (req, res) => {
     try {
       const r = await require('../services/approvals').share(knex, { workspaceId: req.workspaceId, userId: req.session.userId, itemId: Number(req.params.id), baseUrl: `${req.protocol}://${req.get('host')}` });
       const text = `Please review this post before it goes out: ${r.url}`;
@@ -602,7 +602,7 @@ module.exports = (knex, requirePermission) => {
   });
 
   // One link for several posts (e.g. the month's plan): the client answers each
-  router.post('/approval-set', requirePermission('content.submit'), async (req, res) => {
+  router.post('/approval-set', permit('content.submit'), async (req, res) => {
     try {
       const ids = Array.isArray(req.body?.item_ids) ? req.body.item_ids : [];
       const r = await require('../services/approvals').share(knex, { workspaceId: req.workspaceId, userId: req.session.userId, itemIds: ids, baseUrl: `${req.protocol}://${req.get('host')}` });
@@ -613,14 +613,14 @@ module.exports = (knex, requirePermission) => {
     }
   });
 
-  router.get('/:id/approval-links', requirePermission('content.view'), async (req, res) => {
+  router.get('/:id/approval-links', permit('content.view'), async (req, res) => {
     try {
       const rows = await knex('approval_links').where({ workspace_id: req.workspaceId, content_item_id: Number(req.params.id) }).orderBy('id', 'desc').limit(10);
       res.json(rows.map(l => ({ id: l.id, status: l.status, url: l.status === 'open' ? l.url : null, created_at: l.created_at, expires_at: l.expires_at, response_name: l.response_name, response_comment: l.response_comment, responded_at: l.responded_at, set_size: l.set_size })));
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  router.delete('/approval-links/:linkId', requirePermission('content.submit'), async (req, res) => {
+  router.delete('/approval-links/:linkId', permit('content.submit'), async (req, res) => {
     try {
       const link = await knex('approval_links').where({ id: Number(req.params.linkId), workspace_id: req.workspaceId }).first();
       if (!link) return res.status(404).json({ error: 'Not found' });
@@ -629,7 +629,7 @@ module.exports = (knex, requirePermission) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  router.post('/:id/comments', requirePermission('content.comment'), async (req, res) => {
+  router.post('/:id/comments', permit('content.comment'), async (req, res) => {
     try {
       const item = await contentRepo.getById(req.workspaceId, req.params.id);
       if (!item) return res.status(404).json({ error: 'Not found' });

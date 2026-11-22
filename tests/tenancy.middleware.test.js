@@ -26,10 +26,10 @@ describe('tenancy middleware', () => {
   test('requirePermission gates by role', () => {
     const guard = requirePermission('content.publish');
     const res1 = mockRes();
-    guard({ role: 'creator' }, res1, () => { throw new Error('no'); });
+    guard({ session: { userId: 1 }, workspaceId: 5, role: 'creator' }, res1, () => { throw new Error('no'); });
     expect(res1.code).toBe(403);
     let ok = false;
-    guard({ role: 'manager' }, mockRes(), () => { ok = true; });
+    guard({ session: { userId: 1 }, workspaceId: 5, role: 'manager' }, mockRes(), () => { ok = true; });
     expect(ok).toBe(true);
   });
 });

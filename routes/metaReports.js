@@ -3,7 +3,7 @@
 const express = require('express');
 const metaReports = require('../services/metaReports');
 
-module.exports = (knex, requirePermission) => {
+module.exports = (knex, permit) => {
   const router = express.Router();
 
   // The workspace's own Facebook connection and WhatsApp settings; nothing shared
@@ -34,7 +34,7 @@ module.exports = (knex, requirePermission) => {
   const needFacebook = res => res.status(400).json({ error: 'Connect Facebook first (Settings → Connected accounts).', code: 'not_connected' });
 
   // GET /status — what is connected, which permissions are missing, and how to add them
-  router.get('/status', requirePermission('content.view'), wrap(async (req, res) => {
+  router.get('/status', permit('content.view'), wrap(async (req, res) => {
     const c = await context(req.workspaceId);
     const out = {
       guide: metaReports.GUIDE,
@@ -65,7 +65,7 @@ module.exports = (knex, requirePermission) => {
   }));
 
   // GET /ad-accounts — the ad accounts this Facebook connection can see
-  router.get('/ad-accounts', requirePermission('content.view'), wrap(async (req, res) => {
+  router.get('/ad-accounts', permit('content.view'), wrap(async (req, res) => {
     const c = await context(req.workspaceId);
     if (!c.fbToken) return needFacebook(res);
     const accounts = await metaReports.cached(req.workspaceId, 'adaccounts', req.query.refresh === '1', () => metaReports.listAdAccounts(c.fbToken));
@@ -73,7 +73,7 @@ module.exports = (knex, requirePermission) => {
   }));
 
   // POST /ad-accounts {ids:[...]} — choose which ad accounts to report on (this workspace only)
-  router.post('/ad-accounts', requirePermission('content.edit'), express.json(), wrap(async (req, res) => {
+  router.post('/ad-accounts', permit('content.edit'), express.json(), wrap(async (req, res) => {
     const c = await context(req.workspaceId);
     if (!c.fbToken) return needFacebook(res);
     const ids = [...new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).map(String))].filter(x => /^act_\d+$/.test(x)).slice(0, 10);
@@ -88,7 +88,7 @@ module.exports = (knex, requirePermission) => {
   }));
 
   // GET /ads?range=7d|30d|90d|month  or  ?since=YYYY-MM-DD&until=YYYY-MM-DD
-  router.get('/ads', requirePermission('content.view'), wrap(async (req, res) => {
+  router.get('/ads', permit('content.view'), wrap(async (req, res) => {
     const c = await context(req.workspaceId);
     if (!c.fbToken) return needFacebook(res);
     if (!c.adIds.length) return res.json({ accounts: [], needs_selection: true });
@@ -103,7 +103,7 @@ module.exports = (knex, requirePermission) => {
   }));
 
   // GET /whatsapp?range=...
-  router.get('/whatsapp', requirePermission('content.view'), wrap(async (req, res) => {
+  router.get('/whatsapp', permit('content.view'), wrap(async (req, res) => {
     const c = await context(req.workspaceId);
     if (!c.waToken || !c.wabaId) {
       return res.status(400).json({ error: 'Add your WhatsApp access token and Business Account ID in WhatsApp · Setup first.', code: 'not_connected' });

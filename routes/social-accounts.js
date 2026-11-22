@@ -1,6 +1,6 @@
 const express = require('express');
 
-module.exports = (knex, withWorkspace, requirePermission) => {
+module.exports = (knex, withWorkspace, permit) => {
   const router = express.Router({ mergeParams: true });
   const socialAccountsRepo = require('../repos/socialAccountsRepo')(knex);
 
@@ -24,7 +24,7 @@ module.exports = (knex, withWorkspace, requirePermission) => {
   });
 
   // DELETE /:id — remove a social account by id (requires social.manage permission)
-  router.delete('/:id', withWorkspace, requirePermission('social.manage'), async (req, res, next) => {
+  router.delete('/:id', withWorkspace, permit('social.manage'), async (req, res, next) => {
     try {
       const id = Number(req.params.id);
       const deleted = await socialAccountsRepo.remove(req.workspaceId, id);
