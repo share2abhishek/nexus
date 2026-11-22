@@ -1221,7 +1221,7 @@ select option {
 
 .calendar-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 4px;
 }
 
@@ -1240,6 +1240,7 @@ select option {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   min-height: 80px;
+  min-width: 0;
   padding: 6px;
   position: relative;
   transition: var(--transition);
@@ -1557,6 +1558,8 @@ select option {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-bottom: 20px;
 }
 
@@ -1703,7 +1706,7 @@ select option {
     gap: 10px;
   }
   .calendar-grid {
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
   .calendar-day {
     min-height: 48px;
@@ -1951,10 +1954,10 @@ video {
 
 /* ─── Unified Content lifecycle & Calendar Styles ───────────────────────────── */
 .calendar-grid.week-view {
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 .calendar-grid.month-view {
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 .calendar-grid.agenda-view {
   display: flex;
@@ -6882,3 +6885,9 @@ body.is-saas [data-desktop-only],
 .sed-layer button{background:none;border:0;cursor:pointer;font-size:13px;padding:0 2px;color:inherit}
 @media (max-width:900px){.sed-layers{display:none}.sed-panel{width:190px}}
 .sed-top .modal-title{color:inherit;background:none;-webkit-text-fill-color:currentColor;font-weight:800}
+
+/* Calendar: select several posts to remove */
+.cal-selecting .calendar-event-card, .cal-selecting .scheduled-item { cursor: copy; }
+.cal-picked { position: relative; outline: 2px solid #ef4444; outline-offset: -2px; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2); }
+.cal-picked::after { content: '✓'; position: absolute; right: 6px; bottom: 4px; font-size: 11px; font-weight: 800; color: #ef4444; }
+.cal-select-bar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 1100; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; max-width: calc(100vw - 32px); background: var(--bg-card, #fff); color: var(--text-primary, #111827); border: 1px solid var(--border, #e5e7eb); border-radius: 14px; padding: 10px 14px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25); font-size: 13.5px; }

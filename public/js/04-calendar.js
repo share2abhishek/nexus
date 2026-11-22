@@ -186,7 +186,71 @@ function calWsDot(e) {
 }
 
 // Opening a post from another calendar switches to that workspace first
+// ── Select several posts and remove them together ──
+// Published posts stay (they are already out); everything else in this calendar can be removed.
+const CAL_REMOVABLE = ['draft', 'in_review', 'approved', 'scheduled', 'failed'];
+function calSelectToggle(on) {
+  State.calSelect = on === undefined ? !State.calSelect : !!on;
+  State.calPicked = new Set();
+  const b = document.getElementById('cal-select-btn');
+  if (b) { b.classList.toggle('btn-primary', State.calSelect); b.classList.toggle('btn-secondary', !State.calSelect); b.textContent = State.calSelect ? '✕ Stop selecting' : '☑ Select to remove'; }
+  document.getElementById('calendar-grid')?.classList.toggle('cal-selecting', State.calSelect);
+  calSelectBar();
+  if (State.calSelect) toast('Click posts to pick them, then press "Remove selected".', 'info', 5000);
+}
+function calMarkPicked() {
+  document.querySelectorAll('[data-ev]').forEach(el => el.classList.toggle('cal-picked', !!State.calPicked && State.calPicked.has(+el.dataset.ev)));
+}
+function calSelectBar() {
+  let bar = document.getElementById('cal-select-bar');
+  if (!State.calSelect) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'cal-select-bar';
+    bar.className = 'cal-select-bar';
+    document.body.appendChild(bar);
+  }
+  const n = State.calPicked.size;
+  bar.innerHTML = `<span><b>${n}</b> selected</span>
+    <button class="btn btn-secondary btn-sm" onclick="calPickAll('scheduled')">All scheduled shown</button>
+    <button class="btn btn-secondary btn-sm" onclick="calPickAll('all')">All shown</button>
+    <button class="btn btn-secondary btn-sm" onclick="calPickAll('none')" ${n ? '' : 'disabled'}>Clear</button>
+    <button class="btn btn-danger btn-sm" onclick="calRemovePicked()" ${n ? '' : 'disabled'}>🗑 Remove selected</button>`;
+}
+function calVisibleEvents() {
+  const active = Array.from(document.querySelectorAll('#calendar-filters input:checked')).map(el => el.value);
+  const hidden = State.calendarHiddenPlatforms;
+  return (State.calendarEvents || []).filter(e => active.includes(e.status) && (!(e.platforms || []).length || e.platforms.some(p => !hidden.has(p)))
+    && (!e._ws || String(e._ws) === String(currentWorkspaceId)) && CAL_REMOVABLE.includes(e.status));
+}
+function calPickAll(what) {
+  State.calPicked = new Set(what === 'none' ? [] : calVisibleEvents().filter(e => what === 'all' || e.status === what).map(e => e.id));
+  if (what !== 'none' && !State.calPicked.size) toast('No such posts are shown on this calendar.', 'info');
+  calMarkPicked(); calSelectBar();
+}
+async function calRemovePicked() {
+  const ids = [...State.calPicked];
+  if (!ids.length) return;
+  const sched = (State.calendarEvents || []).filter(e => State.calPicked.has(e.id) && e.status === 'scheduled').length;
+  if (!confirm(`Remove ${ids.length} post${ids.length === 1 ? '' : 's'} for good?${sched ? `\n\n${sched} of them ${sched === 1 ? 'is' : 'are'} scheduled and will not be posted.` : ''}\n\nThis cannot be undone.`)) return;
+  try {
+    const r = await api('POST', '/api/content/bulk-delete', { ids });
+    toast(`Removed ${r.deleted} post${r.deleted === 1 ? '' : 's'}${r.skipped ? `. ${r.skipped} could not be removed (already posted or not allowed for you).` : '.'}`, r.skipped ? 'warning' : 'success', 6000);
+    State.calPicked = new Set();
+    calSelectBar();
+    renderCalendar(State.calendarDate);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
 async function openCalendarEvent(id, wsId) {
+  if (State.calSelect) { // select mode: a click picks the post instead of opening it
+    const e = (State.calendarEvents || []).find(x => x.id === id);
+    if (!e || !CAL_REMOVABLE.includes(e.status)) return toast('Posts that are already published stay on the calendar.', 'info');
+    if (wsId && String(wsId) !== String(currentWorkspaceId)) return toast('Switch to that calendar to remove its posts.', 'info');
+    if (State.calPicked.has(id)) State.calPicked.delete(id); else State.calPicked.add(id);
+    calMarkPicked(); calSelectBar();
+    return;
+  }
   if (wsId && String(wsId) !== String(currentWorkspaceId)) {
     const w = (State.userWorkspaces || []).find(x => String(x.workspace_id) === String(wsId));
     await switchWorkspace(Number(wsId), w?.workspace_name || '', false);
@@ -273,6 +337,7 @@ function renderCalendarData() {
   else if (view === 'year') renderYearView(State.calendarDate, filteredEvents);
   else renderAgendaView(State.calendarDate, filteredEvents);
   if (view !== 'year') markCalendarFestivals();
+  if (State.calSelect) calMarkPicked();
 }
 
 const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -314,7 +379,7 @@ function calEventChip(e, { compact = false } = {}) {
     const snippet = escapeHtml(e.title || String(e.body || '').substring(0, 15) + (String(e.body || '').length > 15 ? '…' : ''));
     const timeLabel = e.scheduled_at ? new Date(e.scheduled_at * 1000).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false }) : 'D';
     return `
-      <div class="calendar-event-card event-status-${e.status}" onclick="${open}" style="padding:3px 6px;margin-bottom:2px;border-radius:4px;font-size:10px">
+      <div class="calendar-event-card event-status-${e.status}" data-ev="${e.id}" onclick="${open}" style="padding:3px 6px;margin-bottom:2px;border-radius:4px;font-size:10px">
         <span style="font-weight:700;opacity:0.8">${calWsDot(e)}${timeLabel}: ${snippet}</span>
       </div>`;
   }
@@ -322,7 +387,7 @@ function calEventChip(e, { compact = false } = {}) {
   const body = String(e.body || '');
   const snippet = escapeHtml(e.title || body.substring(0, 35) + (body.length > 35 ? '…' : ''));
   return `
-    <div class="calendar-event-card event-status-${e.status}" onclick="${open}">
+    <div class="calendar-event-card event-status-${e.status}" data-ev="${e.id}" onclick="${open}">
       <div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between">
         <span>${calWsDot(e)}${timeLabel}</span>
         <span>${platformIcons}</span>
@@ -396,7 +461,7 @@ function renderDayView(date, events) {
     const platformsText = (e.platforms || []).map(p => `${PLATFORMS[p]?.icon || ''} ${escapeHtml(PLATFORMS[p]?.label || p)}`).join(', ');
     const time = e.scheduled_at ? new Date(e.scheduled_at * 1000).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' }) : 'No time set';
     return `
-      <div class="calendar-event-card event-status-${e.status}" onclick="openCalendarEvent(${e.id},${e._ws || 0})">
+      <div class="calendar-event-card event-status-${e.status}" data-ev="${e.id}" onclick="openCalendarEvent(${e.id},${e._ws || 0})">
         <div style="display:flex;justify-content:space-between;gap:8px;font-size:10.5px;font-weight:700">
           <span>${calWsDot(e)}${time}${calendarMulti() ? ` · ${escapeHtml(e._wsName || '')}` : ''}</span>
           <span>${statusLabel(e.status)}</span>
@@ -519,7 +584,7 @@ function renderAgendaView(date, events) {
             const platformsText = (e.platforms || []).map(p => (PLATFORMS[p]?.icon || '') + ' ' + (PLATFORMS[p]?.label || p)).join(', ');
             const open = `openCalendarEvent(${e.id},${e._ws || 0})`;
             return `
-              <div class="scheduled-item" style="cursor:pointer" onclick="${open}">
+              <div class="scheduled-item" data-ev="${e.id}" style="cursor:pointer" onclick="${open}">
                 <div class="scheduled-time" style="min-width: 100px">
                   <div style="font-size:12px;font-weight:700;color:#a78bfa">${timeLabel}</div>
                 </div>

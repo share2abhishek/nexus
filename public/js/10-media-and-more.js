@@ -123,6 +123,8 @@ function mediaTile(a, mode) {
       <div class="media-tile-info"><span>${name}</span><small>${size}${a.source === 'ai' ? ' · AI' : ''}</small></div>
       ${mode === 'manage' ? `<div class="media-tile-actions">
         <button class="btn btn-secondary btn-sm" onclick="useMediaInCompose('${a.ref}', '${a.kind}')">Use in a post</button>
+        ${a.kind === 'image' ? `<button class="btn btn-secondary btn-sm" onclick="studioEditPhoto(${jsAttr(a.url)})" title="Add text, crop, filters and more">✏️ Edit</button>` : ''}
+        ${a.kind === 'video' ? `<button class="btn btn-secondary btn-sm" onclick="studioEditVideo(${jsAttr(a.url)},-1,${jsAttr(a.original_name || 'video')})" title="Trim, crop, add words">✂️ Edit video</button>` : ''}
         <button class="btn btn-secondary btn-sm" onclick="deleteMediaAsset(${a.id})" aria-label="Delete ${name}">🗑</button>
       </div>` : ''}
     </div>`;
@@ -200,13 +202,43 @@ async function deleteMediaAsset(id) {
   loadMediaLibrary();
 }
 
+// Save the generated picture to the media library once; later buttons reuse that copy
+async function importGeneratedImage() {
+  const key = State.lastImageBase64 ? State.lastImageBase64.length + ':' + State.lastImageBase64.slice(-40) : State.lastImageUrl;
+  if (State.lastImageAsset && State.lastImageAsset.key === key) return State.lastImageAsset.asset;
+  const asset = await api('POST', '/api/media-library/import',
+    State.lastImageBase64 ? { base64: State.lastImageBase64, name: `ai-image-${Date.now()}.png` } : { url: State.lastImageUrl });
+  State.lastImageAsset = { key, asset };
+  return asset;
+}
+
 // AI image → library → Create Post (platforms need the file, not a data: link)
 async function useImageInCompose() {
   if (!State.lastImageBase64 && !State.lastImageUrl) return;
   try {
-    const asset = await api('POST', '/api/media-library/import',
-      State.lastImageBase64 ? { base64: State.lastImageBase64, name: `ai-image-${Date.now()}.png` } : { url: State.lastImageUrl });
+    const asset = await importGeneratedImage();
     useMediaInCompose(asset.ref, 'image');
+  } catch (err) {
+    toast(err.message, 'error', 7000);
+  }
+}
+
+// Open the generated picture in the editor (it is saved to the media library first)
+async function editGeneratedImage() {
+  if (!State.lastImageBase64 && !State.lastImageUrl) return;
+  try {
+    const asset = await importGeneratedImage();
+    await studioEditPhoto(asset.url || mediaSrc(asset.ref));
+  } catch (err) { toast(err.message, 'error', 7000); }
+}
+
+// Save the generated picture to the media library and open Content Studio, where it shows in the picture tray
+async function useImageInStudio() {
+  if ((!State.lastImageBase64 && !State.lastImageUrl) || typeof openContentStudio !== 'function') return;
+  try {
+    await importGeneratedImage();
+    await openContentStudio();
+    toast('Picture saved to your media library. Write your posts, then click it in the picture tray to put it on a post.', 'success', 7000);
   } catch (err) {
     toast(err.message, 'error', 7000);
   }

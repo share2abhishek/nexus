@@ -62,31 +62,34 @@ function studioEdTab(name) {
 }
 
 // Returns true once the editor is open, false if it could not be opened
-async function studioEditPicture(i) {
-  const p = Studio.posts[i];
-  if (!p || !p.pic) return false;
+// With `src` it opens any photo on its own (not tied to a post) and saving puts the result in the media library
+async function studioEditPicture(i, src) {
+  const standalone = !!src;
+  const p = standalone ? null : Studio.posts[i];
+  if (!standalone && (!p || !p.pic)) return false;
   try {
     await studioEdLoadLib();
     studioEdInit();
     // Start from the picture as it is now: the person's own image, or the made one
     const base = document.createElement('canvas');
     let url;
-    if (p.pic.own) { url = p.pic.own.url; }
+    if (standalone) { url = src; }
+    else if (p.pic.own) { url = p.pic.own.url; }
     let words = [];
-    if (!p.pic.own) {
+    if (!standalone && !p.pic.own) {
       if (typeof ensureBrandFont === 'function') { try { await ensureBrandFont(); } catch {} }
       words = studioEdDrawDesign(base, studioPicSettings(p));
       url = base.toDataURL('image/png');
     }
     // A made picture only exists in this screen, so the version before the edit is kept to save beside the new one
-    StudioEd.prevMade = p.pic.own ? null : url;
+    StudioEd.prevMade = (standalone || p.pic.own) ? null : url;
     const img = await fabric.FabricImage.fromURL(url, { crossOrigin: 'anonymous' });
-    StudioEd.w = img.width; StudioEd.h = img.height; StudioEd.post = i;
+    StudioEd.w = img.width; StudioEd.h = img.height; StudioEd.post = standalone ? -1 : i;
     StudioEd.hist = null;
     document.getElementById('studio-editor').style.display = 'flex';
     if (typeof studioRenderTray === 'function') studioRenderTray();
     if (StudioEd.canvas) StudioEd.canvas.dispose();
-    const c = new fabric.Canvas('studio-ed-canvas', { width: img.width, height: img.height, preserveObjectStacking: true, enableRetinaScaling: false, fireRightClick: false });
+    const c = new fabric.Canvas('studio-ed-canvas', { width: img.width, height: img.height, preserveObjectStacking: true, enableRetinaScaling: true, fireRightClick: false });
     img.set({ left: 0, top: 0, originX: 'left', originY: 'top', selectable: false, evented: false });
     img.studioBase = true; img.studioName = 'Picture';
     c.add(img);
@@ -112,7 +115,7 @@ async function studioEditPicture(i) {
     studioEdSync();
     studioEdLayers();
     // A picture saved from this editor earlier opens as it was, with its text and items still separate
-    const ed = p.pic.own && p.pic.own.edit;
+    const ed = p && p.pic.own && p.pic.own.edit;
     if (ed) {
       try { await studioEdLoadSnap(ed); StudioEd.hist = [studioEdSnapshot()]; StudioEd.hi = 0; studioEdHistButtons(); } catch { /* falls back to the flat picture */ }
     }
@@ -215,7 +218,8 @@ function studioEdDrawOverlay(e) {
   const c = StudioEd.canvas, ctx = (e && e.ctx) || c.getContext(), z = StudioEd.zoom || 1;
   if (!StudioEd.grid && !StudioEd.guides) return;
   ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const rs = (c.getRetinaScaling && c.getRetinaScaling()) || 1;
+  ctx.setTransform(rs, 0, 0, rs, 0, 0);
   if (StudioEd.grid) {
     ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 1; ctx.beginPath();
     const s = studioEdGridStep();
@@ -466,7 +470,7 @@ function studioEdBg(clear) {
   }
   const r = new fabric.Rect({ originX: 'left', originY: 'top', left: 0, top: 0, width: W, height: H, fill, selectable: false, evented: false });
   r.studioBg = true; r.studioName = 'Background';
-  c.add(r); c.moveObjectTo(r, 1); StudioEd.bg = r;
+  c.add(r); c.moveObjectTo(r, c.getObjects().some((o) => o.studioBase) ? 1 : 0); StudioEd.bg = r;
   c.requestRenderAll(); c.renderAll();
 }
 function studioEdSwatch(col) {
@@ -570,7 +574,7 @@ function studioEdPlace(where) {
 function studioEdOrder(dir) {
   const c = StudioEd.canvas; if (!c) return;
   const objs = c.getActiveObjects(); if (!objs.length) return;
-  const min = StudioEd.bg ? 2 : 1, idx = (o) => c.getObjects().indexOf(o);
+  const min = c.getObjects().filter((o) => o.studioBase || o.studioBg).length, idx = (o) => c.getObjects().indexOf(o);
   const sorted = objs.slice().sort((a, b) => (dir > 0 ? idx(b) - idx(a) : idx(a) - idx(b)));
   sorted.forEach((o) => { if (dir > 0) c.bringObjectForward(o); else if (idx(o) > min) c.sendObjectBackwards(o); });
   c.requestRenderAll(); studioEdSnap(); studioEdLayersSoon();
@@ -579,6 +583,17 @@ function studioEdDelete() {
   const c = StudioEd.canvas; if (!c) return;
   c.getActiveObjects().forEach((o) => { if (!o.studioBase) c.remove(o); });
   c.discardActiveObject(); c.requestRenderAll();
+  studioEdLayersSoon();
+}
+// Take the starting picture off the page (undo brings it back); a plain background keeps the page from being see-through
+function studioEdRemovePicture() {
+  const c = StudioEd.canvas; if (!c) return;
+  const base = c.getObjects().find((o) => o.studioBase); if (!base) return;
+  c.discardActiveObject();
+  c.remove(base);
+  if (!StudioEd.bg) studioEdBg();
+  c.requestRenderAll(); studioEdSnap(); studioEdLayersSoon();
+  toast('Picture removed. You now have a plain page to build on. Undo brings it back.', 'info', 4000);
 }
 function studioEdApplyLock(o, on) {
   o.studioLocked = !!on;
@@ -654,7 +669,15 @@ function studioEdResize(v) {
   studioEdSnap();
   studioEdSizeSelect();
 }
+// Any width and height, from the two number boxes beside the size list
+function studioEdCustomSize() {
+  const w = parseInt(document.getElementById('studio-ed-cw').value, 10), h = parseInt(document.getElementById('studio-ed-ch').value, 10);
+  if (!w || !h || w < 100 || h < 100 || w > 4096 || h > 4096) return toast('Pick a width and height between 100 and 4096 pixels.', 'info', 4000);
+  studioEdResize(`${w}x${h}`);
+}
 function studioEdSizeSelect() {
+  const cw = document.getElementById('studio-ed-cw'), ch = document.getElementById('studio-ed-ch');
+  if (cw && ch) { cw.value = StudioEd.w; ch.value = StudioEd.h; }
   const sel = document.getElementById('studio-ed-sizes'); if (!sel) return;
   const v = `${StudioEd.w}x${StudioEd.h}`;
   [...sel.querySelectorAll('option[data-cur]')].forEach((o) => o.remove());
@@ -753,6 +776,7 @@ function studioEdLayers() {
       <span>${base ? '🖼' : o.studioBg ? '🎨' : studioEdLayerIcon(o)}</span>
       <span class="nm">${escapeHtml(base ? 'Picture' : studioEdLayerName(o))}</span>
       <button title="${o.visible === false ? 'Show' : 'Hide'}" onclick="event.stopPropagation();studioEdLayerVis(${studioEdId(o)})">${o.visible === false ? '🚫' : '👁'}</button>
+      ${base ? `<button title="Remove this picture" onclick="event.stopPropagation();studioEdRemovePicture()">🗑</button>` : ''}
       ${base || o.studioBg ? '' : `<button title="${o.studioLocked ? 'Unlock' : 'Lock'}" onclick="event.stopPropagation();studioEdLayerLock(${studioEdId(o)})">${o.studioLocked ? '🔒' : '🔓'}</button>`}
     </div>`);
   }
@@ -827,6 +851,15 @@ async function studioEdSave() {
     const asset = await uploadMediaFile(new File([blob], `studio-edit-${Date.now()}.png`, { type: 'image/png' }));
     if (!asset || !asset.ref) throw new Error('The picture could not be saved to your media library.');
     const i = StudioEd.post;
+    if (i < 0) { // a photo edited on its own: it now sits in the media library
+      studioEdClose();
+      State.studioMediaItems = null;
+      if (typeof studioLoadTray === 'function' && document.getElementById('studio-modal')?.style.display === 'flex') studioLoadTray(true);
+      const lg = document.getElementById('library-grid');
+      if (lg && lg.offsetParent && typeof loadMediaLibrary === 'function') loadMediaLibrary();
+      toast('Saved to your media library as a new picture. The original is untouched.', 'success', 5000);
+      return;
+    }
     Studio.posts[i].pic.on = true;
     Studio.posts[i].pic.own = { ref: asset.ref, url: URL.createObjectURL(blob), edit: studioEdSnapshot() }; // edit: reopen with every item still separate
     studioEdClose();
@@ -836,10 +869,13 @@ async function studioEdSave() {
   } finally { btn.disabled = false; }
 }
 
+// Open any photo (a library link, or a picture from AI Media Creator) in the editor
+function studioEditPhoto(src) { return src ? studioEditPicture(-1, src) : false; }
+window.studioEditPhoto = studioEditPhoto;
 window.studioEdAddUrl = (u) => studioEdAddImageUrl(u).catch(() => toast('Could not add that image.', 'error'));
 Object.assign(window, {
   studioEditPicture, studioEdClose, studioEdTab, studioEdAddText, studioEdAddEmoji, studioEdAddShape, studioEdAddFile, studioEdAddLogo,
-  studioEdColor, studioEdBg, studioEdSwatch, studioEdPreview, studioEdDownload, studioEdSize, studioEdFont, studioEdOrder, studioEdDelete, studioEdSave,
+  studioEdRemovePicture, studioEdCustomSize, studioEdColor, studioEdBg, studioEdSwatch, studioEdPreview, studioEdDownload, studioEdSize, studioEdFont, studioEdOrder, studioEdDelete, studioEdSave,
   studioEdUndo, studioEdRedo, studioEdZoom, studioEdGrid, studioEdResize, studioEdToggle, studioEdAlign, studioEdProp, studioEdStroke, studioEdRadius,
   studioEdShadow, studioEdGradient, studioEdFilters, studioEdMask, studioEdFlip, studioEdPlace, studioEdLock, studioEdGroup, studioEdDuplicate,
   studioEdDraw, studioEdPen, studioEdLayerSel, studioEdLayerVis, studioEdLayerLock

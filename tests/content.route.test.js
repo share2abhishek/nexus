@@ -273,6 +273,32 @@ describe('content routes — edit and delete', () => {
     });
   });
 
+  describe('POST /api/content/bulk-delete', () => {
+    const mk = async (app, status) => {
+      const c = await request(app).post('/api/content').send({ body: `bulk ${status}`, platforms: [] });
+      await knex('content_items').where({ id: c.body.id }).update({ status, scheduled_at: status === 'scheduled' ? Math.floor(Date.now() / 1000) + 3600 : null });
+      return c.body.id;
+    };
+    test('a manager removes drafts and scheduled posts, never published ones', async () => {
+      const app = makeApp(knex, workspaceId, 'manager');
+      const ids = [await mk(app, 'draft'), await mk(app, 'scheduled'), await mk(app, 'published')];
+      const res = await request(app).post('/api/content/bulk-delete').send({ ids });
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ deleted: 2, skipped: 1 });
+      expect(await knex('content_items').whereIn('id', ids).pluck('status')).toEqual(['published']);
+    });
+    test('a creator cannot remove a scheduled post', async () => {
+      const app = makeApp(knex, workspaceId, 'creator');
+      const ids = [await mk(app, 'draft'), await mk(app, 'scheduled')];
+      const res = await request(app).post('/api/content/bulk-delete').send({ ids });
+      expect(res.body).toMatchObject({ deleted: 1, skipped: 1 });
+    });
+    test('asks for at least one post', async () => {
+      const res = await request(makeApp(knex, workspaceId, 'manager')).post('/api/content/bulk-delete').send({ ids: [] });
+      expect(res.status).toBe(400);
+    });
+  });
+
   describe('DELETE /api/content/:id', () => {
     test('removes a draft', async () => {
       const app = makeApp(knex, workspaceId, 'creator');

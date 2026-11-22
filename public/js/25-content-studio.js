@@ -32,7 +32,38 @@ async function openContentStudio() {
   studioRenderSources();
   studioLoadChoices();
   if (typeof studioLoadTray === 'function') studioLoadTray(true);
+  studioLoadTemplates();
   document.getElementById('studio-modal').style.display = 'flex';
+}
+
+// Saved templates: pick one to start from, or save a finished post as a template
+async function studioLoadTemplates() {
+  const sel = document.getElementById('studio-templates');
+  if (!sel) return;
+  try {
+    const list = await api('GET', '/api/tools/templates');
+    Studio.templates = list;
+    sel.innerHTML = '<option value="">Start from a saved template…</option>' + list.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+    sel.style.display = list.length ? '' : 'none';
+  } catch { sel.style.display = 'none'; }
+}
+function studioUseTemplate(sel) {
+  const t = (Studio.templates || []).find((x) => String(x.id) === sel.value);
+  sel.value = '';
+  if (!t) return;
+  const ta = document.getElementById('studio-paste');
+  ta.value = (ta.value.trim() ? ta.value.trim() + '\n\n' : '') + t.content;
+  ta.focus();
+}
+async function studioSaveTemplate(i) {
+  const p = Studio.posts[i]; if (!p || !String(p.text || '').trim()) return;
+  const name = String(await askText({ title: 'Save as template', message: 'Name this template', value: String(p.heading || p.title || p.text).replace(/\s+/g, ' ').slice(0, 50), ok: 'Save' }) || '').trim();
+  if (!name) return;
+  try {
+    await api('POST', '/api/tools/templates', { name, content: p.text.trim(), type: 'social_post', tags: p.platform || '' });
+    toast('Saved as a template. Find it under Templates.', 'success');
+    studioLoadTemplates();
+  } catch (err) { toast(err.message, 'error'); }
 }
 function closeContentStudio() { document.getElementById('studio-modal').style.display = 'none'; }
 
@@ -212,6 +243,33 @@ async function studioGenerate() {
   }
 }
 
+const studioAsk = async (msg) => (typeof askConfirm === 'function' ? askConfirm(msg) : confirm(msg));
+// Write the posts yourself: one post per ticked network with your own text, no AI needed
+async function studioWriteMyself() {
+  const platforms = Array.from(document.querySelectorAll('.studio-plat:checked')).map((c) => c.value);
+  if (!platforms.length) return toast('Pick at least one platform.', 'info');
+  const ta = document.getElementById('studio-paste');
+  const text = (ta.value || '').trim();
+  if ((Studio.posts || []).some((p) => String(p.text || '').trim() || (p.pic && p.pic.own)) && !(await studioAsk('This replaces the posts you have now. Continue?'))) return;
+  Studio.editSeries = null;
+  Studio.posts = platforms.map((platform) => {
+    const p = { platform, text, title: '', heading: '', limit: (typeof PLATFORM_CHAR_LIMITS !== 'undefined' && PLATFORM_CHAR_LIMITS[platform]) || null, can_post: true, keep: true };
+    studioPicInit(p);
+    p.pic.on = false; // no made picture unless you ask for one
+    return p;
+  });
+  studioSaveChoices();
+  await studioLoadBrand();
+  studioRenderCards([]);
+  const d = new Date(Date.now() + 3600 * 1000);
+  d.setMinutes(0, 0, 0);
+  document.getElementById('studio-start').value = studioLocalInput(d.getTime() / 1000);
+  studioShowStep(2);
+  studioLoadTray();
+  studioReplan();
+  if (!text) toast('Type your post in each box. You can add a picture too.', 'info', 5000);
+}
+
 // ── Pictures: a branded image per post, drawn on this PC by the Post designer ──
 const STUDIO_PIC_SIZE = { instagram: 'square', facebook: 'square', threads: 'square', pinterest: 'portrait' };
 const STUDIO_COLORS = { linkedin: '#0a66c2', facebook: '#1877f2', instagram: '#e1306c', twitter: '#111827', threads: '#6b7280', bluesky: '#0085ff', pinterest: '#e60023', google_business: '#34a853', youtube: '#ff0000', tiktok: '#14b8a6' };
@@ -360,7 +418,7 @@ function studioTrayItems(clickJs) {
     const thumb = a.kind === 'video'
       ? `<video src="${escapeHtml(a.url)}" muted preload="metadata" style="width:100%;height:100%;object-fit:contain"></video><span style="position:absolute;right:3px;bottom:3px;background:#000a;color:#fff;font-size:10px;border-radius:4px;padding:0 4px">▶</span>`
       : `<img src="${escapeHtml(a.url)}" alt="${name}" loading="lazy" style="width:100%;height:100%;object-fit:contain;display:block">`;
-    return `<div draggable="true" title="${name}" ondragstart="studioTrayDrag(event,'${escapeHtml(a.ref)}')" onclick="${clickJs}('${escapeHtml(a.ref)}')" style="position:relative;width:74px;height:60px;flex:none;border-radius:8px;overflow:hidden;border:2px solid transparent;cursor:grab;background:repeating-conic-gradient(#8883 0 25%,#fff3 0 50%) 0 0/10px 10px" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='transparent'">${thumb}</div>`;
+    return `<div draggable="true" title="${name}" ondragstart="studioTrayDrag(event,'${escapeHtml(a.ref)}')" onclick="${clickJs}('${escapeHtml(a.ref)}')" style="position:relative;width:74px;height:60px;flex:none;border-radius:8px;overflow:hidden;border:2px solid transparent;cursor:grab;background:repeating-conic-gradient(#8883 0 25%,#fff3 0 50%) 0 0/10px 10px" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='transparent'">${thumb}${clickJs === 'studioTrayClick' ? `<button type="button" title="${a.kind === 'video' ? 'Edit this video' : 'Edit this picture'}" aria-label="${a.kind === 'video' ? 'Edit this video' : 'Edit this picture'}" onclick="event.stopPropagation();${a.kind === 'video' ? `studioEditVideo(${jsAttr(a.url)},-1,${jsAttr(a.original_name || 'video')})` : `studioEditPhoto(${jsAttr(a.url)})`}" style="position:absolute;left:3px;top:3px;border:0;border-radius:4px;background:#000a;color:#fff;font-size:11px;padding:0 4px;cursor:pointer">✏️</button>` : ''}</div>`;
   }).join('');
 }
 function studioRenderTray() {
@@ -417,6 +475,15 @@ function studioDropOnPost(ev, i) {
   const f = ev.dataTransfer.files && ev.dataTransfer.files[0];
   if (f) studioOwnImage(i, f);
 }
+// No posts yet: dropping a library item here starts posts for the ticked networks and puts it on the first one
+async function studioDropStart(ev) {
+  ev.preventDefault();
+  const ref = ev.dataTransfer.getData('text/studio-media');
+  if (!ref) return;
+  await studioWriteMyself();
+  const i = Studio.posts.findIndex((p) => p.can_post && p.pic);
+  if (i >= 0) studioAttachMedia(i, ref);
+}
 function studioEdTrayClick(ref) {
   const m = (State.studioLib || {})[ref];
   if (m && m.kind === 'image' && typeof studioEdAddUrl === 'function') studioEdAddUrl(m.url);
@@ -429,7 +496,7 @@ async function studioOwnImage(i, file) {
     const asset = await uploadMediaFile(file);
     if (!asset || !asset.ref) throw new Error('The file could not be saved to your media library.');
     Studio.posts[i].pic.on = true;
-    Studio.posts[i].pic.own = { ref: asset.ref, url: URL.createObjectURL(file), kind: asset.kind || (/^video/.test(file.type) ? 'video' : 'image') };
+    Studio.posts[i].pic.own = { ref: asset.ref, url: asset.url || URL.createObjectURL(file), kind: asset.kind || (/^video/.test(file.type) ? 'video' : 'image') };
     studioLoadTray(true);
     studioRenderCards([]);
   } catch (err) { toast(err.message || 'Could not add the file.', 'error', 6000); }
@@ -473,7 +540,7 @@ function studioRenderCards(problems) {
       return `<div class="studio-card" onclick="studioSelect(${i})" onfocusin="studioSelect(${i})" ondragover="event.preventDefault();this.style.outline='2px dashed #7c3aed'" ondragleave="this.style.outline='none'" ondrop="this.style.outline='none';studioDropOnPost(event,${i})" style="--studio-c:${STUDIO_COLORS[p.platform] || '#7c3aed'};border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
           <label style="display:flex;gap:6px;align-items:center;font-weight:600;font-size:13px"><input type="checkbox" ${p.keep ? 'checked' : ''} ${p.can_post ? '' : 'disabled'} onchange="studioToggle(${i},this.checked)"> ${escapeHtml(pm.label)}</label>
-          <span id="studio-count-${i}" style="font-size:11.5px"></span>
+          <span style="display:flex;gap:10px;align-items:center"><a href="#" onclick="event.stopPropagation();studioSaveTemplate(${i});return false" style="font-size:11.5px" title="Keep this text to reuse later">💾 Save as template</a><span id="studio-count-${i}" style="font-size:11.5px"></span></span>
         </div>
         ${p.can_post ? '' : '<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Posting here is not available yet. Copy the text instead.</div>'}
         <textarea class="form-textarea" rows="6" style="width:100%" oninput="studioEdit(${i},this.value)">${escapeHtml(p.text)}</textarea>
@@ -484,9 +551,9 @@ function studioRenderCards(problems) {
             <canvas id="studio-pic-${i}" style="width:${vid ? 0 : 160}px;height:auto;border-radius:8px;border:1px solid var(--border);${vid ? 'display:none' : ''}"></canvas>
             <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:200px">
               <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-                <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('studio-own-${i}').click()">${p.pic.own ? 'Change my image' : 'Use my own image'}</button>
-                <input type="file" id="studio-own-${i}" accept="image/*" hidden onchange="studioOwnImage(${i},this.files[0])">
-                ${vid ? '' : `<button type="button" class="btn btn-primary btn-sm" onclick="studioEditPicture(${i})">Edit picture</button>`}
+                <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('studio-own-${i}').click()">${p.pic.own ? 'Change my picture or video' : 'Use my own picture or video'}</button>
+                <input type="file" id="studio-own-${i}" accept="image/*,video/mp4,video/quicktime" hidden onchange="studioOwnImage(${i},this.files[0])">
+                ${vid ? `<button type="button" class="btn btn-primary btn-sm" onclick="studioEditVideo(${jsAttr(p.pic.own.url)},${i},'video')">✂️ Edit video</button>` : `<button type="button" class="btn btn-primary btn-sm" onclick="studioEditPicture(${i})">Edit picture</button>`}
                 ${p.pic.own ? `<a href="#" onclick="studioOwnClear(${i});return false" style="font-size:12px">Use the made picture instead</a>` : ''}
               </div>
               <input type="text" class="form-input" maxlength="90" value="${escapeHtml(p.pic.headline)}" aria-label="Picture headline" onchange="studioPicSet(${i},'headline',this.value)">
@@ -568,6 +635,8 @@ function studioPreflight() {
   if (past) notes.push({ text: `${past} post${past === 1 ? ' has' : 's have'} a time that has passed or is missing.`, fix: 'Move them to later', fn: 'studioFixTimes()' });
   const over = chosen.filter((p) => p.limit && p.text.length > p.limit).length;
   if (over) notes.push({ text: `${over} post${over === 1 ? ' is' : 's are'} over the network's length limit. Go back and shorten ${over === 1 ? 'it' : 'them'}.` });
+  const needMedia = (typeof PLATFORM_NEEDS_MEDIA !== 'undefined') ? chosen.filter((p) => PLATFORM_NEEDS_MEDIA[p.platform] && !(p.pic && p.pic.on)) : [];
+  if (needMedia.length) notes.push({ text: `${needMedia.map((p) => (PLATFORMS[p.platform] || { label: p.platform }).label).join(', ')} need${needMedia.length === 1 ? 's' : ''} a picture or video. Tick "Add a picture" on ${needMedia.length === 1 ? 'that post' : 'those posts'} or they will fail to publish.` });
   const skipped = Studio.posts.filter((p) => !p.can_post).length;
   if (skipped) notes.push({ text: `${skipped} post${skipped === 1 ? ' is' : 's are'} for networks that cannot be posted to yet. ${skipped === 1 ? 'It is' : 'They are'} left out.` });
   const el = document.getElementById('studio-check');
@@ -659,6 +728,9 @@ async function studioSchedule(status) {
 
 window.openContentStudio = openContentStudio;
 window.studioEditSeries = studioEditSeries;
+window.studioUseTemplate = studioUseTemplate;
+window.studioWriteMyself = studioWriteMyself;
+window.studioSaveTemplate = studioSaveTemplate;
 window.closeContentStudio = closeContentStudio;
 window.studioPicToggle = studioPicToggle;
 window.studioOwnImage = studioOwnImage;
@@ -667,6 +739,7 @@ window.studioTrayClick = studioTrayClick;
 window.studioTrayDropFiles = studioTrayDropFiles;
 window.studioTrayUpload = studioTrayUpload;
 window.studioDropOnPost = studioDropOnPost;
+window.studioDropStart = studioDropStart;
 window.studioEdTrayClick = studioEdTrayClick;
 window.studioAttachMedia = studioAttachMedia;
 window.studioPostNow = studioPostNow;

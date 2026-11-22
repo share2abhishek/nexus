@@ -97,7 +97,7 @@ Return ONLY a JSON array, one object per post (${many ? `${n} per platform` : 'o
 [{"platform":"${platforms[0]}","heading":"...","body":"...","hashtags":["...","..."]}]`;
 }
 
-const cleanTag = (t) => String(t || '').replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '').slice(0, 40);
+const cleanTag = (t) => String(t || '').replace(/^#+/, '').replace(/[^\p{L}\p{M}\p{N}_]/gu, '').slice(0, 40);
 
 /** Checked posts from the AI's list: only the asked-for platforms, each once, tags tidied */
 function parsePosts(list, platforms, sourceName, count = 1) {

@@ -136,6 +136,7 @@ async function loadWorkspaces() {
 }
 
 async function switchWorkspace(wsId, wsName, closeDropdown = true) {
+  if (State.calSelect && typeof calSelectToggle === 'function') calSelectToggle(false);
   // Create Post belongs to the current workspace (client): never carry it over
   if (String(wsId) !== String(currentWorkspaceId) && typeof composeHasUnsaved === 'function') {
     if (composeHasUnsaved() && !confirm('Create Post has changes you haven’t saved. Switch workspace and discard them?')) return;

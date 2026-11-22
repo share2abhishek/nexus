@@ -660,6 +660,8 @@ async function enhanceImagePrompt() {
 async function generateImage() {
   const btn = document.getElementById('btn-gen-image');
   const out = document.getElementById('image-output');
+  ['btn-dl-image', 'btn-use-image', 'btn-use-image-studio', 'btn-edit-image'].forEach((id) => { const e = document.getElementById(id); if (e) e.disabled = true; });
+  State.lastImageBase64 = null; State.lastImageUrl = null; State.lastImageAsset = null;
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Generating…';
   out.innerHTML = '<div style="text-align:center;padding:60px"><span class="spinner lg"></span><div style="margin-top:16px;color:var(--text-muted);font-size:13px">Generating image (10-30s)…</div></div>';
   try {
@@ -681,6 +683,8 @@ async function generateImage() {
     out.innerHTML = imgEl || '<div style="color:#ef4444">No image returned</div>';
     document.getElementById('btn-dl-image').disabled = false;
     document.getElementById('btn-use-image').disabled = false;
+    const bis = document.getElementById('btn-use-image-studio'); if (bis) bis.disabled = false;
+    const bed = document.getElementById('btn-edit-image'); if (bed) bed.disabled = false;
     toast('Image generated!', 'success');
   } catch (err) {
     out.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`;
@@ -809,9 +813,19 @@ async function generateCaption() {
       <div class="seo-result-group"><div class="seo-result-label">Hashtags</div><div style="font-size:12px;color:var(--accent-blue)">${escapeHtml(data.hashtags || '')}</div></div>
       <div class="seo-result-group"><div class="seo-result-label">CTA</div><div style="font-size:12px">${escapeHtml(data.cta || '')}</div></div>`;
     useBtn.disabled = false;
+    const cs = document.getElementById('btn-caption-to-studio'); if (cs) cs.disabled = false;
     toast('Caption generated!', 'success');
   } catch (err) { out.innerHTML = `<div style="color:#ef4444;padding:16px">${escapeHtml(err.message)}</div>`; toast(err.message, 'error'); }
   finally { btn.disabled = false; btn.innerHTML = '💬 Write Caption'; }
+}
+
+// The caption becomes the idea in Content Studio
+async function sendCaptionToStudio() {
+  if (!State.lastCaption || typeof openContentStudio !== 'function') return;
+  await openContentStudio();
+  const ta = document.getElementById('studio-paste');
+  if (ta) { ta.value = State.lastCaption; ta.focus(); }
+  toast('Caption is in Content Studio. Pick the networks and press "Write my posts".', 'success', 5000);
 }
 
 function sendCaptionToCompose() {
@@ -968,7 +982,17 @@ function previewTemplate(t) {
   document.getElementById('tmpl-preview-title').textContent = `📋 ${t.name}`;
   document.getElementById('tmpl-preview-content').textContent = t.content;
   document.getElementById('btn-use-tmpl').disabled = false;
+  const bs = document.getElementById('btn-use-tmpl-studio'); if (bs) bs.disabled = false;
   State.selectedTemplate = t.content;
+}
+
+// The template becomes the idea in Content Studio; AI writes a post for each network from it
+async function useTemplateInStudio() {
+  if (!State.selectedTemplate || typeof openContentStudio !== 'function') return;
+  await openContentStudio();
+  const ta = document.getElementById('studio-paste');
+  if (ta) { ta.value = State.selectedTemplate; ta.focus(); }
+  toast('Template is in Content Studio. Pick the networks and press "Write my posts".', 'success', 5000);
 }
 
 function useTemplate() {

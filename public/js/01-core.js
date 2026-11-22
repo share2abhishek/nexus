@@ -204,6 +204,7 @@ function navigateTo(page) {
   document.getElementById('header-title').textContent = meta.title || page;
   document.getElementById('header-subtitle').textContent = meta.subtitle || '';
 
+  if (State.calSelect && page !== 'calendar' && typeof calSelectToggle === 'function') calSelectToggle(false);
   State.currentPage = page;
 
   // Page-specific load hooks (safely checking existence so no ReferenceError is thrown)

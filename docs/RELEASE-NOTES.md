@@ -18,6 +18,12 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 
 ## Unreleased
 
+### Fixes after a full review
+- **Contacts:** the "Added" date filters and the CSV "Added on" column now read dates correctly, you can search a phone number with or without spaces and dashes, and untagged contacts have their own filter.
+- **Studio:** before scheduling, you are warned when Instagram, Pinterest or TikTok posts have no picture or video. Hashtags keep accents in Hindi and other scripts.
+- **AI Media Creator:** the "Use" and "Edit" buttons switch off while a new picture is being made, so an old picture is never used by mistake.
+- **App updates:** several screens now refresh straight after an update instead of showing an older copy.
+
 ### Website (hosted edition)
 - **Blog:** the public website now has a `/blog` with a page per post, search-engine tags and an entry in the sitemap. Adding a file in `server/blog/posts/` publishes a post; posts marked draft or dated in the future stay hidden.
 
@@ -27,6 +33,14 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 - **Billing → Import:** a dry-run list of how each business would be brought into billing. Nothing is billed: importing is a separate step on the server and turns automatic invoicing off.
 
 ### Content Studio
+- **Templates and AI Media Creator now connect to Content Studio:** "✨ Use in Studio" on a template or a caption sends it to Studio as your idea, and on a generated picture it saves the picture to your media library and opens Studio. In Studio, "Start from a saved template…" fills the idea box, and "💾 Save as template" on any post keeps it for later.
+- **Write posts without AI in Content Studio:** press "✍️ I'll write them myself (no AI)" to get one post per network with your own text, then add pictures, schedule or save as usual. No AI key needed.
+- **Edit any photo, not just generated posts:** press "✏️ Edit" on a photo in your Media library, on a picture in the Content Studio tray, or on an AI-generated image. Add text, crop, apply filters and more. Saving puts the edited copy in your media library and leaves the original untouched.
+- **Edit a video and post it:** press "🎬 Start with a video" in Content Studio, or "✂️ Edit video" on any video, to trim it, crop it for Reels, Shorts or Stories, add words and remove the sound. It is done on your PC and saved to your media library as a new MP4. Then schedule or post it like any other post.
+- **Filter and export contacts:** narrow the Contacts list by source, tag, interest (hot or warm) and the date added; the count shows how many match. Export downloads exactly what you see, or only the rows you tick.
+- **Drag a picture to start a post:** drop a picture or video from the Media library onto the empty posts area and a post is started for each network you ticked, with it attached.
+- **Remove the picture and set any page size:** in the picture editor, the 🗑 on the Picture layer removes the starting picture so you can build on a plain page (Undo brings it back), and the width × height boxes let you set any size from 100 to 4096 pixels.
+- **Remove many posts at once from the Calendar:** press "Select to remove", click the posts you want (or "All scheduled shown"), then "Remove selected". Scheduled posts are removed too and will not be posted; published posts stay. Removing scheduled posts needs permission to schedule.
 - **One simple Content Studio:** three steps: add your content (type a topic, paste a web page, add a file or use a spreadsheet), check your posts and pictures, then choose when. "AI writer" and "Schedule from Excel" are no longer separate menu items; "Create post" is now "Write a post". Nothing goes out until you press Schedule.
 - **Use your own image:** on any post, press "Use my own image" to send your photo instead of the made picture. It is saved to your Media library.
 - **Bring Studio drafts back to edit:** open a draft that came from the Content Studio and choose "Edit all in Studio" to reopen every post saved in that same session together. Saving replaces those drafts, so nothing is duplicated.

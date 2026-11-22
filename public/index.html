@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg?v=2.3.0" />
   <link rel="alternate icon" type="image/png" href="icon.png?v=2.3.0" />
   <link rel="preload" href="fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="styles.css?v=2.5.0" />
+  <link rel="stylesheet" href="styles.css?v=2.5.1" />
   <script src="/vendor/chart.umd.js"></script>
 </head>
 <body class="light-mode">
@@ -919,8 +919,9 @@
           <div class="section-title">Calendar</div>
           <div class="section-desc">Plan, review and schedule your posts by date.</div>
         </div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-secondary" onclick="shareMonthForApproval(this)" title="One link for your client to approve all draft and waiting posts shown">🔗 Client approval</button>
+          <button class="btn btn-secondary" id="cal-select-btn" onclick="calSelectToggle()" title="Pick several posts and remove them together">☑ Select to remove</button>
           <button class="btn btn-secondary" onclick="openBulkImport()">📥 Bulk schedule</button>
           <button class="btn btn-primary" onclick="openNewContentModal()">✏️ New Post</button>
         </div>
@@ -2721,6 +2722,8 @@
           <div class="card"><div class="card-header"><div class="card-title">🖼️ Generated Image</div>
             <div style="display:flex;gap:6px">
               <button class="btn btn-secondary btn-sm" onclick="downloadMedia('image')" id="btn-dl-image" disabled>⬇️ Download</button>
+              <button class="btn btn-secondary btn-sm" onclick="editGeneratedImage()" id="btn-edit-image" disabled title="Add text, crop, filters and more">✏️ Edit</button>
+              <button class="btn btn-secondary btn-sm" onclick="useImageInStudio()" id="btn-use-image-studio" disabled title="Save it to your media library and open Content Studio, where you can edit it and put it on your posts">✨ Use in Studio</button>
               <button class="btn btn-primary btn-sm" onclick="useImageInCompose()" id="btn-use-image" disabled>→ Use in Post</button>
             </div>
           </div>
@@ -2823,6 +2826,7 @@
             </div>
           </div>
           <div class="card"><div class="card-header"><div class="card-title">💬 Generated Caption</div>
+            <button class="btn btn-secondary btn-sm" onclick="sendCaptionToStudio()" id="btn-caption-to-studio" disabled title="Use this caption as the idea in Content Studio">✨ Studio</button>
             <button class="btn btn-primary btn-sm" onclick="sendCaptionToCompose()" id="btn-caption-to-compose" disabled>→ Compose</button>
           </div>
             <div class="card-body" id="caption-output">
@@ -2932,7 +2936,10 @@
           </div>
         </div>
         <div class="card"><div class="card-header"><div class="card-title" id="tmpl-preview-title">📋 Template Preview</div>
-          <button class="btn btn-primary btn-sm" onclick="useTemplate()" id="btn-use-tmpl" disabled>→ Use in Compose</button>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" onclick="useTemplateInStudio()" id="btn-use-tmpl-studio" disabled title="Open Content Studio with this template as your idea; AI writes a post for each network">✨ Use in Studio</button>
+            <button class="btn btn-primary btn-sm" onclick="useTemplate()" id="btn-use-tmpl" disabled>→ Use in Compose</button>
+          </div>
         </div>
           <div class="card-body">
             <div id="tmpl-preview-content" style="font-size:13px;color:var(--text-secondary);white-space:pre-wrap;line-height:1.7;min-height:200px">Select a template to preview.</div>
@@ -3471,7 +3478,7 @@
             <button class="btn btn-secondary" onclick="openAddContactModal()" id="btn-add-contact-modal" style="height:40px;padding:0 18px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">
               <span>+ Add Contact</span>
             </button>
-            <button class="btn btn-secondary" onclick="exportContactsCsv()" id="btn-export-contacts" title="Download these contacts as a spreadsheet. Tick rows to export only those." style="height:40px;padding:0 18px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">
+            <button class="btn btn-secondary" onclick="exportContactsCsv()" id="btn-export-contacts" title="Download the contacts you are looking at (after filters) as a spreadsheet. Tick rows to export only those." style="height:40px;padding:0 18px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">
               <span>⬇ Export</span>
             </button>
             <div class="dropdown" style="position:relative">
@@ -3492,6 +3499,16 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <div id="contacts-filters" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:-6px 0 16px;font-size:12.5px">
+          <select id="cf-source" class="form-select" style="width:auto;height:34px" aria-label="Filter by source" onchange="contactsSetFilter('source',this.value)"></select>
+          <select id="cf-tag" class="form-select" style="width:auto;height:34px" aria-label="Filter by tag" onchange="contactsSetFilter('tag',this.value)"></select>
+          <select id="cf-heat" class="form-select" style="width:auto;height:34px" aria-label="Filter by interest" onchange="contactsSetFilter('heat',this.value)"><option value="">Any interest</option><option value="hot">🔥 Hot (75+)</option><option value="warm">🟡 Warm (under 75)</option></select>
+          <label style="display:flex;align-items:center;gap:4px;color:var(--text-muted)">Added from <input type="date" id="cf-from" class="form-input" style="height:34px;width:auto" onchange="contactsSetFilter('from',this.value)"></label>
+          <label style="display:flex;align-items:center;gap:4px;color:var(--text-muted)">to <input type="date" id="cf-to" class="form-input" style="height:34px;width:auto" onchange="contactsSetFilter('to',this.value)"></label>
+          <button class="btn btn-secondary btn-sm" id="cf-clear" onclick="contactsClearFilters()" style="display:none">Clear filters</button>
+          <span id="cf-count" style="color:var(--text-muted);margin-left:auto"></span>
         </div>
 
         <!-- Contacts Table (Matching Image 2: Checkbox, Name, Mobile Number, Tags, Source) -->
@@ -4202,6 +4219,7 @@
     <div id="studio-grid" style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr) minmax(260px,330px);gap:0">
       <aside class="studio-panel" id="studio-left">
         <div class="studio-h">1 · Your content</div>
+        <select class="form-select" id="studio-templates" style="width:100%;margin-bottom:8px;font-size:13px;display:none" onchange="studioUseTemplate(this)" aria-label="Start from a saved template"></select>
         <textarea class="form-textarea" id="studio-paste" rows="5" placeholder="What are the posts about? Example: Diwali sale, 20% off all week. Or paste a web page." style="width:100%"></textarea>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
           <button class="btn btn-secondary btn-sm" onclick="document.getElementById('studio-files').click()">Add a file</button>
@@ -4221,6 +4239,9 @@
         <div id="studio-platforms" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
         <label style="display:block;margin-top:10px;font-size:13px">Language <input type="text" id="studio-language" class="form-input" placeholder="English" style="width:130px;display:inline-block" /></label>
         <button class="btn btn-primary" id="studio-generate-btn" style="width:100%;margin-top:14px" onclick="studioGenerate()">Write my posts</button>
+        <button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="studioWriteMyself()" title="Skip AI: one post per network with your own text, which you can still edit, add a picture to and schedule">✍️ I'll write them myself (no AI)</button>
+        <button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="document.getElementById('studio-start-video').click()" title="Pick a video, trim it, add words and crop it for Reels or Shorts, then schedule or post it">🎬 Start with a video</button>
+        <input type="file" id="studio-start-video" accept="video/mp4,video/quicktime" hidden onchange="studioStartWithVideo(this.files[0]);this.value=''">
         <div class="studio-h" style="margin-top:18px">🎞 Media library</div>
         <div id="studio-tray" ondragover="event.preventDefault()" ondrop="studioTrayDropFiles(event)" style="border:1px dashed rgba(124,58,237,.45);border-radius:10px;padding:8px">
           <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;font-size:12px;color:var(--text-muted)">
@@ -4233,7 +4254,7 @@
       </aside>
       <main class="studio-panel" id="studio-centre">
         <div class="studio-h">2 · Your posts</div>
-        <div id="studio-empty" style="padding:40px 16px;text-align:center;color:var(--text-muted);font-size:14px">Your posts will appear here.<br>Type your topic on the left and press <b>Write my posts</b>.</div>
+        <div id="studio-empty" ondragover="event.preventDefault();this.style.outline='2px dashed #7c3aed'" ondragleave="this.style.outline='none'" ondrop="this.style.outline='none';studioDropStart(event)" style="padding:40px 16px;text-align:center;color:var(--text-muted);font-size:14px">Your posts will appear here.<br>Type your topic on the left and press <b>Write my posts</b>.</div>
         <div id="studio-busy" style="display:none">
           <div class="studio-busy-msg"><span class="studio-spark">✨</span> <span id="studio-busy-text">Reading your content…</span></div>
           <div class="studio-skel"><i></i><b></b><b></b><b style="width:60%"></b></div>
@@ -4309,6 +4330,12 @@
       <button class="btn btn-secondary btn-sm" id="studio-ed-undo" onclick="studioEdUndo()" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
       <button class="btn btn-secondary btn-sm" id="studio-ed-redo" onclick="studioEdRedo()" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
       <select id="studio-ed-sizes" class="form-select" style="width:auto" onchange="studioEdResize(this.value)" aria-label="Picture size" title="Change the picture size. Everything on it is scaled to fit."></select>
+      <span class="sed-zoom" title="Or type any size, in pixels">
+        <input type="number" id="studio-ed-cw" class="form-input" style="width:72px;padding:4px 6px" min="100" max="4096" aria-label="Width in pixels" onkeydown="if(event.key==='Enter')studioEdCustomSize()">
+        <span>×</span>
+        <input type="number" id="studio-ed-ch" class="form-input" style="width:72px;padding:4px 6px" min="100" max="4096" aria-label="Height in pixels" onkeydown="if(event.key==='Enter')studioEdCustomSize()">
+        <button class="btn btn-secondary btn-sm" onclick="studioEdCustomSize()" title="Apply this size">Set</button>
+      </span>
       <span class="sed-zoom">
         <button class="btn btn-secondary btn-sm" onclick="studioEdZoom(-0.1)" title="Zoom out">−</button>
         <span id="studio-ed-zoomval" style="min-width:42px;text-align:center;font-size:12px">100%</span>
@@ -4848,23 +4875,24 @@
   </div>
 </div>
 
-<script src="js/01-core.js"></script>
+<script src="js/01-core.js?v=2.1.0"></script>
 <script src="js/02-dashboard.js"></script>
 <script src="js/03-compose.js"></script>
-<script src="js/04-calendar.js"></script>
+<script src="js/04-calendar.js?v=2.6.1"></script>
 <script src="js/05-analytics.js"></script>
 <script src="js/06-settings.js"></script>
-<script src="js/07-tools.js"></script>
-<script src="js/08-account.js"></script>
+<script src="js/07-tools.js?v=2.1.0"></script>
+<script src="js/08-account.js?v=2.1.0"></script>
 <script src="js/09-features.js"></script>
-<script src="js/10-media-and-more.js"></script>
+<script src="js/10-media-and-more.js?v=2.1.0"></script>
 <script src="js/12-sellbird.js?v=2.2.3"></script>
 
-<script src="js/13-lead-pipeline.js?v=2.2.3"></script>
+<script src="js/13-lead-pipeline.js?v=2.2.5"></script>
 <script src="js/14-whatsapp-bot.js?v=2.2.0"></script>
 <script src="js/15-post-designer.js?v=2.2.0"></script>
-<script src="js/25-content-studio.js?v=2.2.5"></script>
-<script src="js/26-studio-editor.js?v=2.5.3"></script>
+<script src="js/25-content-studio.js?v=2.3.4"></script>
+<script src="js/26-studio-editor.js?v=2.5.7"></script>
+<script src="js/27-studio-video.js?v=1.0.0"></script>
 <script src="js/26-whats-new.js?v=2.3.0"></script>
 <script src="js/27-billing-admin.js?v=2.4.0"></script>
 <script src="js/16-whatsapp-templates.js?v=2.2.0"></script>

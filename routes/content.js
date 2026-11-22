@@ -316,6 +316,22 @@ module.exports = (knex, permit) => {
     }
   });
 
+  // Remove several posts at once (calendar "Select to remove"). Published posts are never removed here.
+  // Scheduled and approved posts need the same permission as scheduling them.
+  router.post('/bulk-delete', permit('content.edit'), async (req, res) => {
+    try {
+      const ids = [...new Set((Array.isArray(req.body && req.body.ids) ? req.body.ids : []).map(Number).filter(Number.isInteger))];
+      if (!ids.length) return res.status(400).json({ error: 'Pick at least one post to remove.' });
+      if (ids.length > 500) return res.status(400).json({ error: 'Remove up to 500 posts at a time.' });
+      const allowed = ['draft', 'in_review', 'failed'];
+      if (can(req.role, 'content.schedule')) allowed.push('approved', 'scheduled');
+      const deleted = await knex('content_items').where({ workspace_id: req.workspaceId }).whereIn('id', ids).whereIn('status', allowed).del();
+      res.json({ ok: true, deleted, skipped: ids.length - deleted });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   router.post('/', permit('content.create'), async (req, res) => {
     const { title, body, platforms, social_account_ids } = req.body;
     let image_url = req.body.image_url;

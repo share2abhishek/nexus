@@ -452,6 +452,61 @@ function filterLeadsStatus(status, btn) {
    Leads Table Rendering
    ───────────────────────────────────────────────────────────────────────────── */
 
+// ── Contact filters: search + source + tag + heat + date range. The table and the export share them. ──
+function contactsFiltered(searchFilter) {
+  const f = LeadPipelineState.cf || {};
+  const query = (searchFilter || LeadPipelineState.contactSearchQuery || '').toLowerCase().trim();
+  const from = f.from ? new Date(f.from + 'T00:00:00').getTime() : null;
+  const to = f.to ? new Date(f.to + 'T23:59:59.999').getTime() : null;
+  return (LeadPipelineState.leads || []).filter((l) => {
+    if (query && !((l.full_name || '').toLowerCase().includes(query) || (l.phone_number || '').includes(query) || (query.replace(/\D/g, '').length >= 4 && (l.phone_number || '').replace(/\D/g, '').includes(query.replace(/\D/g, ''))) ||
+      (l.society || '').toLowerCase().includes(query) || (l.tag || '').toLowerCase().includes(query))) return false;
+    if (f.source && (l.source || 'AD') !== f.source) return false;
+    if (f.tag && (l.tag || 'Untagged') !== f.tag) return false;
+    if (f.heat) { const hot = Number(l.lead_score ?? 50) >= 75; if ((f.heat === 'hot') !== hot) return false; }
+    if (from || to) {
+      const t = toMs(l.created_at);
+      if (!t || (from && t < from) || (to && t > to)) return false;
+    }
+    return true;
+  });
+}
+function contactsFilterUi() {
+  const f = LeadPipelineState.cf || {};
+  const leads = LeadPipelineState.leads || [];
+  const fill = (id, vals, cur, all) => {
+    const el = document.getElementById(id); if (!el) return;
+    const list = [...new Set(vals)].filter(Boolean).sort();
+    el.innerHTML = `<option value="">${all}</option>` + list.map((v) => `<option value="${escapeHtml(v)}"${v === cur ? ' selected' : ''}>${escapeHtml(v)}</option>`).join('');
+  };
+  if (f.source && !leads.some((l) => (l.source || 'AD') === f.source)) delete f.source;
+  if (f.tag && !leads.some((l) => (l.tag || 'Untagged') === f.tag)) delete f.tag;
+  fill('cf-source', leads.map((l) => l.source || 'AD'), f.source, 'All sources');
+  fill('cf-tag', leads.map((l) => l.tag || 'Untagged'), f.tag, 'All tags');
+  const setv = (id, v) => { const el = document.getElementById(id); if (el && el.value !== (v || '')) el.value = v || ''; };
+  setv('cf-heat', f.heat); setv('cf-from', f.from); setv('cf-to', f.to);
+  const n = contactsFiltered().length;
+  const info = document.getElementById('cf-count');
+  if (info) info.textContent = `Showing ${n} of ${leads.length}`;
+  const clr = document.getElementById('cf-clear');
+  if (clr) clr.style.display = (f.source || f.tag || f.heat || f.from || f.to || LeadPipelineState.contactSearchQuery) ? '' : 'none';
+}
+function contactsSetFilter(key, val) {
+  const nf = Object.assign({}, LeadPipelineState.cf, { [key]: val });
+  if (nf.from && nf.to && nf.from > nf.to) { toast('"Added from" is after "to". Swap the dates.', 'info', 4000); }
+  LeadPipelineState.cf = nf;
+  renderLeadsTable();
+}
+function contactsClearFilters() {
+  LeadPipelineState.cf = {};
+  LeadPipelineState.contactSearchQuery = '';
+  const si = document.getElementById('contact-search-input'); if (si) si.value = '';
+  ['cf-heat', 'cf-from', 'cf-to'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+  renderLeadsTable();
+}
+window.contactsSetFilter = contactsSetFilter;
+window.contactsClearFilters = contactsClearFilters;
+
 function renderLeadsTable(searchFilter = '') {
   const container = document.getElementById('pipeline-leads-table-body');
   if (!container) return;
@@ -460,14 +515,8 @@ function renderLeadsTable(searchFilter = '') {
 
 
 
-  const query = (searchFilter || LeadPipelineState.contactSearchQuery || '').toLowerCase().trim();
-  const filtered = leads.filter((l) => {
-    if (!query) return true;
-    return (l.full_name || '').toLowerCase().includes(query) ||
-      (l.phone_number || '').includes(query) ||
-      (l.society || '').toLowerCase().includes(query) ||
-      (l.tag || '').toLowerCase().includes(query);
-  });
+  const filtered = contactsFiltered(searchFilter);
+  contactsFilterUi();
 
   if (!filtered.length) {
     container.innerHTML = `
@@ -475,7 +524,7 @@ function renderLeadsTable(searchFilter = '') {
         <td colspan="8" style="text-align:center;padding:48px 16px;color:var(--text-muted)">
           <div style="font-size:32px;margin-bottom:8px">🔍</div>
           <div style="font-weight:700;font-size:15px;color:var(--text-primary)">No Matching Contacts Found</div>
-          <div style="font-size:13px;margin-top:4px">Try adjusting your search query or click "+ Add Contact" to create one.</div>
+          <div style="font-size:13px;margin-top:4px">Try changing the search or filters, or click "+ Add Contact" to create one.</div>
         </td>
       </tr>
     `;
@@ -709,19 +758,12 @@ function onSearchContacts(val) {
   renderLeadsTable(val);
 }
 
-// Contacts as a spreadsheet (CSV opens in Excel). Ticked rows if any, else everything the search shows.
+// Contacts as a spreadsheet (CSV opens in Excel). Ticked rows if any, else everything the search and filters show.
 function exportContactsCsv() {
   const all = LeadPipelineState.leads || [];
   const ticked = Array.from(document.querySelectorAll('.contact-row-check:checked')).map((cb) => Number(cb.value));
-  const query = (LeadPipelineState.contactSearchQuery || '').toLowerCase().trim();
-  const rows = ticked.length
-    ? all.filter((l) => ticked.includes(Number(l.id)))
-    : all.filter((l) => !query ||
-        (l.full_name || '').toLowerCase().includes(query) ||
-        (l.phone_number || '').includes(query) ||
-        (l.society || '').toLowerCase().includes(query) ||
-        (l.tag || '').toLowerCase().includes(query));
-  if (!rows.length) return toast('No contacts to export yet.', 'info');
+  const rows = ticked.length ? all.filter((l) => ticked.includes(Number(l.id))) : contactsFiltered();
+  if (!rows.length) return toast(all.length ? 'No contacts match the filters.' : 'No contacts to export yet.', 'info');
   // Quote every cell; a leading = + - @ would run as a formula in Excel, so keep it as plain text
   const cell = (v) => {
     let s = String(v ?? '');
@@ -729,7 +771,7 @@ function exportContactsCsv() {
     return `"${s.replace(/"/g, '""')}"`;
   };
   const csv = ['Name,Mobile number,Society,Tag,Score,Stage,Deal value,Owner,Added on']
-    .concat(rows.map((l) => [l.full_name, l.phone_number, l.society, l.tag, l.lead_score, l.pipeline_stage, l.deal_value, l.assigned_agent_name, l.created_at ? String(l.created_at).slice(0, 10) : ''].map(cell).join(',')))
+    .concat(rows.map((l) => [l.full_name, l.phone_number, l.society, l.tag, l.lead_score, l.pipeline_stage, l.deal_value, l.assigned_agent_name, toMs(l.created_at) ? new Date(toMs(l.created_at)).toLocaleDateString('en-CA') : ''].map(cell).join(',')))
     .join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })); // BOM so Excel reads accents
