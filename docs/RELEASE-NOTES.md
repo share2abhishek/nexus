@@ -19,6 +19,7 @@ that commit pushes the tag and deploys the hosted edition. Paste the section int
 ## Unreleased
 
 ### Fixes after a full review
+- **Studio:** a new "AI keys" button lets you add or replace a Claude, Gemini, Groq, OpenRouter or Mistral key any time, not only after an error.
 - **Contacts:** the "Added" date filters and the CSV "Added on" column now read dates correctly, you can search a phone number with or without spaces and dashes, and untagged contacts have their own filter.
 - **Studio:** before scheduling, you are warned when Instagram, Pinterest or TikTok posts have no picture or video. Hashtags keep accents in Hindi and other scripts.
 - **AI Media Creator:** the "Use" and "Edit" buttons switch off while a new picture is being made, so an old picture is never used by mistake.

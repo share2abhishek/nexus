@@ -129,7 +129,10 @@ function studioRenderSources() {
 const STUDIO_AI_FIELDS = { 'studio-ai-google': 'google_ai_key', 'studio-ai-groq': 'groq_key', 'studio-ai-openrouter': 'openrouter_key', 'studio-ai-mistral': 'mistral_key', 'studio-ai-anthropic': 'anthropic_key' };
 async function studioAiOpen(msg) {
   const failed = /providers failed/i.test(msg || '');
-  document.getElementById('studio-ai-msg').textContent = String(msg || '').replace(/\n?Try again in a minute.*$/s, '').trim()
+  Studio.aiManual = !msg;
+  const msgEl = document.getElementById('studio-ai-msg');
+  msgEl.style.display = msg ? '' : 'none';
+  msgEl.textContent = String(msg || '').replace(/\n?Try again in a minute.*$/s, '').trim()
     + (failed ? '\nYour saved keys are listed below. A key that was rejected needs replacing; a busy or rate-limited one just needs a minute, or add a second provider.' : '');
   Object.keys(STUDIO_AI_FIELDS).forEach((id) => { const el = document.getElementById(id); el.value = ''; el.placeholder = el.dataset.ph || (el.dataset.ph = el.placeholder); });
   document.getElementById('studio-ai').style.display = 'flex';
@@ -152,8 +155,8 @@ async function studioAiSave() {
     await api('POST', '/users/settings', body);
     studioAiClose();
     if (typeof refreshAiStatus === 'function') refreshAiStatus();
-    toast('AI key saved. Writing your posts…', 'success', 3000);
-    studioGenerate();
+    if (Studio.aiManual) toast('AI key saved.', 'success', 3000);
+    else { toast('AI key saved. Writing your posts…', 'success', 3000); studioGenerate(); }
   } catch (err) { toast(err.message || 'Could not save the key.', 'error', 6000); }
   finally { btn.disabled = false; }
 }
