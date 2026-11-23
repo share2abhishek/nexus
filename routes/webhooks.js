@@ -79,7 +79,28 @@ module.exports = (knex) => {
           // fallback to waba_id. Only fallback to single config if strictly 1 workspace exists.
           let config = null;
           if (phoneNumberId) {
-            config = await knex('meta_lead_configs').where({ whatsapp_phone_number_id: phoneNumberId }).first();
+            config = await knex('meta_lead_configs')
+              .where({ whatsapp_phone_number_id: phoneNumberId })
+              .orWhere(function () {
+                this.where({ broadcast_whatsapp_phone_number_id: phoneNumberId }).andWhereNot({ broadcast_track_replies: 0 });
+              })
+              .first();
+
+            if (!config) {
+              const matchedSender = await knex('whatsapp_sender_numbers')
+                .where({ phone_number_id: phoneNumberId })
+                .andWhereNot({ track_replies: 0 })
+                .first();
+              if (matchedSender) {
+                config = await knex('meta_lead_configs').where({ workspace_id: matchedSender.workspace_id }).first();
+              }
+            }
+          }
+          let matchedSender = null;
+          if (config && phoneNumberId) {
+            matchedSender = await knex('whatsapp_sender_numbers')
+              .where({ workspace_id: config.workspace_id, phone_number_id: phoneNumberId })
+              .first();
           }
           if (!config && wabaId) {
             config = await knex('meta_lead_configs').where({ whatsapp_business_account_id: wabaId }).first();
@@ -93,6 +114,19 @@ module.exports = (knex) => {
           if (!config) {
             console.warn(`[Meta Webhook] No matching workspace found for WhatsApp message (phone_number_id: ${phoneNumberId}, waba_id: ${wabaId}). Discarded to prevent cross-tenant data leakage.`);
             continue;
+          }
+
+          // Identify the exact number the customer replied to
+          const metaDisplay = change.value.metadata?.display_phone_number ? String(change.value.metadata.display_phone_number) : null;
+          let recipientLabel = 'Primary Inbound Line';
+          let recipientDisplay = metaDisplay || config.meta_registered_phone || phoneNumberId;
+
+          if (matchedSender) {
+            recipientLabel = matchedSender.label || matchedSender.display_number || 'Outreach Line';
+            recipientDisplay = matchedSender.display_number || metaDisplay || phoneNumberId;
+          } else if (config.broadcast_phone_mode === 'custom' && config.broadcast_whatsapp_phone_number_id === phoneNumberId) {
+            recipientLabel = 'Dedicated Broadcast Line';
+            recipientDisplay = config.broadcast_phone_number || metaDisplay || phoneNumberId;
           }
 
           const contacts = change.value.contacts || [];
@@ -121,7 +155,17 @@ module.exports = (knex) => {
               : msg.type === 'interactive' ? (msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title)
               : '';
             try {
-              await handleInboundWhatsApp(knex, { config, phone: msg.from, name: contact.profile?.name, text: text || '', source: 'cloud_api' });
+              await handleInboundWhatsApp(knex, {
+                config,
+                phone: msg.from,
+                name: contact.profile?.name,
+                text: text || '',
+                source: 'cloud_api',
+                recipientPhoneId: phoneNumberId,
+                recipientDisplay,
+                recipientLabel,
+                autoReplyText: matchedSender?.auto_reply_text || null,
+              });
             } catch (err) {
               console.error('[Meta WhatsApp Webhook] Could not save a message:', err.message);
             }

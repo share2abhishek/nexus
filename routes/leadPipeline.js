@@ -237,6 +237,29 @@ module.exports = (knex, permit) => {
     catch (err) { res.status(500).json({ error: err.message }); }
   });
 
+  // ── WhatsApp Outreach & Conversion Report ──────────────────────────────────
+  router.get('/whatsapp/outreach-reports', permit('content.view'), async (req, res) => {
+    try { res.json(await repo.whatsappOutreachReport(req.workspaceId)); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // Re-opt in or toggle opt-out status for a contact
+  router.post('/whatsapp/opt-out/toggle', permit('content.edit'), async (req, res) => {
+    try {
+      const { lead_id, opted_out } = req.body || {};
+      if (!lead_id) return res.status(400).json({ error: 'lead_id is required' });
+      if (await knex.schema.hasTable('whatsapp_bot_state')) {
+        const existing = await knex('whatsapp_bot_state').where({ workspace_id: req.workspaceId, lead_id: Number(lead_id) }).first();
+        if (existing) {
+          await knex('whatsapp_bot_state').where({ id: existing.id }).update({ opted_out: Boolean(opted_out), updated_at: Math.floor(Date.now() / 1000) });
+        } else {
+          await knex('whatsapp_bot_state').insert({ workspace_id: req.workspaceId, lead_id: Number(lead_id), opted_out: Boolean(opted_out), updated_at: Math.floor(Date.now() / 1000) });
+        }
+      }
+      res.json({ success: true, lead_id: Number(lead_id), opted_out: Boolean(opted_out) });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
   // ── CRM activities (notes & tasks) ──────────────────────────────────────────
   router.get('/leads/:id/activities', permit('content.view'), async (req, res) => {
     try { res.json(await repo.listActivities(req.workspaceId, Number(req.params.id))); }
@@ -1372,6 +1395,8 @@ module.exports = (knex, permit) => {
           society,
           role,
           tag,
+          replied_to_number: lead.raw_answers?.replied_to_number || null,
+          replied_to_label: lead.raw_answers?.replied_to_label || null,
           category,
           payment,
           status: lead.status,
@@ -1450,7 +1475,10 @@ module.exports = (knex, permit) => {
           });
         } else {
           const token = config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN;
-          const phoneNumberId = config.whatsapp_phone_number_id || whatsappCloud.DEFAULT_PHONE_NUMBER_ID;
+          const phoneNumberId = req.body?.sender_phone_number_id
+            || lead.raw_answers?.last_phone_number_id
+            || config.whatsapp_phone_number_id
+            || whatsappCloud.DEFAULT_PHONE_NUMBER_ID;
 
           dispatchResult = await whatsappCloud.sendWhatsAppMessage({
             phoneNumberId,
@@ -1501,7 +1529,140 @@ module.exports = (knex, permit) => {
       const rows = await knex('meta_lead_events').where({ workspace_id: req.workspaceId }).whereNotNull('phone_number').select('tags_json');
       const tags = {};
       for (const r of rows) { let t = []; try { t = JSON.parse(r.tags_json || '[]'); } catch {} for (const x of (Array.isArray(t) ? t : [])) tags[x] = (tags[x] || 0) + 1; }
-      res.json({ engine, connected, licensed: await broadcast.licensed(req.workspaceId), contacts_with_phone: rows.length, tags: Object.entries(tags).map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count), test_recipient: config.whatsapp_test_recipient || '' });
+      res.json({
+        engine,
+        connected,
+        licensed: await broadcast.licensed(req.workspaceId),
+        contacts_with_phone: rows.length,
+        tags: Object.entries(tags).map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count),
+        test_recipient: config.whatsapp_test_recipient || '',
+        inbound_phone: config.meta_registered_phone || config.whatsapp_phone_number_id || '',
+        broadcast_phone_mode: config.broadcast_phone_mode || 'same',
+        broadcast_whatsapp_phone_number_id: config.broadcast_whatsapp_phone_number_id || '',
+        broadcast_phone_number: config.broadcast_phone_number || '',
+        broadcast_evolution_instance_name: config.broadcast_evolution_instance_name || '',
+        broadcast_track_replies: config.broadcast_track_replies !== 0 && config.broadcast_track_replies !== false,
+      });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  router.post('/whatsapp/broadcasts/phone-settings', permit('content.edit'), async (req, res) => {
+    try {
+      const {
+        broadcast_phone_mode,
+        broadcast_whatsapp_phone_number_id,
+        broadcast_phone_number,
+        broadcast_evolution_instance_name,
+        broadcast_track_replies
+      } = req.body || {};
+
+      const updated = await repo.updateConfig(req.workspaceId, {
+        broadcast_phone_mode: broadcast_phone_mode === 'custom' ? 'custom' : 'same',
+        broadcast_whatsapp_phone_number_id: broadcast_whatsapp_phone_number_id ? String(broadcast_whatsapp_phone_number_id).trim() : null,
+        broadcast_phone_number: broadcast_phone_number ? String(broadcast_phone_number).trim() : null,
+        broadcast_evolution_instance_name: broadcast_evolution_instance_name ? String(broadcast_evolution_instance_name).trim() : null,
+        broadcast_track_replies: broadcast_track_replies !== false ? 1 : 0,
+      });
+
+      res.json({ success: true, config: updated });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ── Manage multiple WhatsApp sender numbers for broadcasts ─────────────
+  router.get('/whatsapp/broadcasts/numbers', permit('content.view'), async (req, res) => {
+    try {
+      const config = await repo.getOrCreateConfig(req.workspaceId);
+      const rows = await knex('whatsapp_sender_numbers')
+        .where({ workspace_id: req.workspaceId })
+        .orderBy('id', 'asc');
+      
+      const numbers = [];
+      // Always include primary inbound number as default choice
+      if (config.whatsapp_phone_number_id) {
+        numbers.push({
+          id: 'inbound',
+          phone_number_id: config.whatsapp_phone_number_id,
+          display_number: config.meta_registered_phone || config.whatsapp_phone_number_id,
+          label: 'Primary Inbound Number',
+          is_inbound: true,
+          track_replies: true,
+          is_default: config.broadcast_phone_mode !== 'custom',
+        });
+      }
+      for (const r of rows) {
+        numbers.push({
+          ...r,
+          is_inbound: false,
+          is_default: config.broadcast_phone_mode === 'custom' && config.broadcast_whatsapp_phone_number_id === r.phone_number_id,
+        });
+      }
+      res.json({ numbers });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  router.post('/whatsapp/broadcasts/numbers', permit('content.edit'), async (req, res) => {
+    try {
+      const { phone_number_id, display_number, label, track_replies = true, is_default = false, auto_reply_text = null } = req.body || {};
+      if (!phone_number_id || !String(phone_number_id).trim()) {
+        return res.status(400).json({ error: 'Phone Number ID is required.' });
+      }
+      if (!display_number || !String(display_number).trim()) {
+        return res.status(400).json({ error: 'Display Phone Number is required.' });
+      }
+
+      const cleanId = String(phone_number_id).trim();
+      const cleanNum = String(display_number).trim();
+      const cleanLabel = String(label || cleanNum).trim();
+      const cleanReply = auto_reply_text !== undefined ? (String(auto_reply_text || '').trim() || null) : null;
+
+      const existing = await knex('whatsapp_sender_numbers')
+        .where({ workspace_id: req.workspaceId, phone_number_id: cleanId })
+        .first();
+
+      let row = null;
+      if (existing) {
+        await knex('whatsapp_sender_numbers')
+          .where({ id: existing.id })
+          .update({
+            display_number: cleanNum,
+            label: cleanLabel,
+            track_replies: track_replies !== false ? 1 : 0,
+            auto_reply_text: auto_reply_text !== undefined ? cleanReply : existing.auto_reply_text,
+            updated_at: Math.floor(Date.now() / 1000),
+          });
+        row = await knex('whatsapp_sender_numbers').where({ id: existing.id }).first();
+      } else {
+        const [insertedId] = await knex('whatsapp_sender_numbers').insert({
+          workspace_id: req.workspaceId,
+          phone_number_id: cleanId,
+          display_number: cleanNum,
+          label: cleanLabel,
+          track_replies: track_replies !== false ? 1 : 0,
+          auto_reply_text: cleanReply,
+          is_default: is_default ? 1 : 0,
+        });
+        row = await knex('whatsapp_sender_numbers').where({ id: insertedId }).first();
+      }
+
+      if (is_default) {
+        await repo.updateConfig(req.workspaceId, {
+          broadcast_phone_mode: 'custom',
+          broadcast_whatsapp_phone_number_id: cleanId,
+          broadcast_phone_number: cleanNum,
+          broadcast_track_replies: track_replies !== false ? 1 : 0,
+        });
+      }
+
+      res.status(201).json({ success: true, number: row });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  router.delete('/whatsapp/broadcasts/numbers/:id', permit('content.edit'), async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!id) return res.status(400).json({ error: 'Invalid number ID' });
+      await knex('whatsapp_sender_numbers').where({ id, workspace_id: req.workspaceId }).delete();
+      res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
@@ -1551,9 +1712,15 @@ module.exports = (knex, permit) => {
       const problem = broadcast.validateMessage(engine, req.body?.message || {});
       if (problem) return res.status(400).json({ error: problem });
       const msg = req.body.message;
+      const inst = (config.broadcast_phone_mode === 'custom' && config.broadcast_evolution_instance_name)
+        || config.evolution_instance_name || 'social-nexus';
+      const pid = req.body?.sender_phone_number_id || msg.sender_phone_number_id
+        || (config.broadcast_phone_mode === 'custom' && config.broadcast_whatsapp_phone_number_id)
+        || config.whatsapp_phone_number_id;
+
       const result = engine === 'evolution'
-        ? await evolutionApi.sendTextMessage({ apiUrl: config.evolution_api_url, apiKey: config.evolution_api_key, instanceName: config.evolution_instance_name || 'social-nexus', number: person.phone, text: String(msg.text).replace(/\{\{\s*name\s*\}\}/gi, 'there') })
-        : await whatsappCloud.sendWhatsAppMessage({ phoneNumberId: config.whatsapp_phone_number_id, wabaId: config.whatsapp_business_account_id, accessToken: config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN, to: person.phone, templateName: msg.template.name, languageCode: msg.template.language, templateParams: broadcast.paramsFor(msg.template.params, person) });
+        ? await evolutionApi.sendTextMessage({ apiUrl: config.evolution_api_url, apiKey: config.evolution_api_key, instanceName: inst, number: person.phone, text: String(msg.text).replace(/\{\{\s*name\s*\}\}/gi, 'there') })
+        : await whatsappCloud.sendWhatsAppMessage({ phoneNumberId: pid, wabaId: config.whatsapp_business_account_id, accessToken: config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN, to: person.phone, templateName: msg.template.name, languageCode: msg.template.language, templateParams: broadcast.paramsFor(msg.template.params, person) });
       if (!result.success) return res.status(400).json({ error: result.error || 'Not sent' });
       if (!config.whatsapp_test_recipient) await repo.updateConfig(req.workspaceId, { whatsapp_test_recipient: person.phone });
       res.json({ success: true, to: '+' + person.phone });
@@ -1895,7 +2062,21 @@ module.exports = (knex, permit) => {
         : !!((config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN) && config.whatsapp_phone_number_id);
       const optedOut = (await chatbot.optedOutLeadIds(knex, req.workspaceId)).size;
       const base = (process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
-      res.json({ ...settings, licensed: await broadcast.licensed(req.workspaceId), whatsapp_connected: connected, engine, opted_out_count: optedOut, limits: chatbot.LIMITS, n8n_configured: !!config.n8n_webhook_url, webchat_token: config.webchat_token, webchat_base: base, webchat_profile: require('../services/leadPipeline/webchatProfile').editable(config) });
+      const senderNumbers = await knex('whatsapp_sender_numbers').where({ workspace_id: req.workspaceId });
+      res.json({
+        ...settings,
+        sender_numbers: senderNumbers,
+        primary_phone: config.meta_registered_phone || config.whatsapp_phone_number_id,
+        licensed: await broadcast.licensed(req.workspaceId),
+        whatsapp_connected: connected,
+        engine,
+        opted_out_count: optedOut,
+        limits: chatbot.LIMITS,
+        n8n_configured: !!config.n8n_webhook_url,
+        webchat_token: config.webchat_token,
+        webchat_base: base,
+        webchat_profile: require('../services/leadPipeline/webchatProfile').editable(config),
+      });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 

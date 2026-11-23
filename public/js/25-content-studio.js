@@ -8,6 +8,14 @@ function studioPlatformList() {
 }
 
 async function openContentStudio() {
+  if (typeof navigateTo === 'function' && State.currentPage !== 'studio') {
+    navigateTo('studio');
+    return;
+  }
+  await setupContentStudioPage();
+}
+
+async function setupContentStudioPage() {
   // Coming back from Brand kit: keep the posts that were being reviewed, with the new colours
   if (Studio.resume && Studio.posts.length) {
     Studio.resume = false;
@@ -16,24 +24,24 @@ async function openContentStudio() {
     studioShowStep(2);
     studioLoadTray();
     studioReplan();
-    document.getElementById('studio-modal').style.display = 'flex';
     return;
   }
-  Studio.posts = [];
-  Studio.editSeries = null;
-  Studio.scopeAll = false;
-  { const sc = document.getElementById('studio-scope'); if (sc) sc.value = 'one'; }
-  studioShowStep(1);
+  if (!Studio.posts || !Studio.posts.length) {
+    Studio.posts = [];
+    Studio.editSeries = null;
+    Studio.scopeAll = false;
+    const sc = document.getElementById('studio-scope'); if (sc) sc.value = 'one';
+    studioShowStep(1);
+  }
   const box = document.getElementById('studio-platforms');
   if (box && !box.children.length) {
     box.innerHTML = studioPlatformList().map((k) =>
-      `<label style="display:inline-flex;gap:5px;align-items:center;font-size:13px;border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer"><input type="checkbox" class="studio-plat" value="${k}" checked> ${escapeHtml(PLATFORMS[k].label)}</label>`).join('');
+      `<label class="studio-plat-label"><input type="checkbox" class="studio-plat" value="${k}" checked> <span class="studio-plat-name">${escapeHtml(PLATFORMS[k].label)}</span></label>`).join('');
   }
   studioRenderSources();
   studioLoadChoices();
   if (typeof studioLoadTray === 'function') studioLoadTray(true);
   studioLoadTemplates();
-  document.getElementById('studio-modal').style.display = 'flex';
 }
 
 // Saved templates: pick one to start from, or save a finished post as a template
@@ -65,7 +73,10 @@ async function studioSaveTemplate(i) {
     studioLoadTemplates();
   } catch (err) { toast(err.message, 'error'); }
 }
-function closeContentStudio() { document.getElementById('studio-modal').style.display = 'none'; }
+function closeContentStudio() {
+  const m = document.getElementById('studio-modal');
+  if (m) m.style.display = 'none';
+}
 
 // "Edit in Studio" on a draft: every draft saved together in that session comes back as one batch
 async function studioEditSeries(seriesId) {
@@ -87,11 +98,11 @@ async function studioEditSeries(seriesId) {
       return p;
     });
     if (typeof closeContentDetail === 'function') closeContentDetail();
+    if (typeof navigateTo === 'function' && State.currentPage !== 'studio') navigateTo('studio');
     studioRenderCards([]);
     studioShowStep(2);
     if (typeof studioRenderTimes === 'function') studioRenderTimes();
     studioPreflight();
-    document.getElementById('studio-modal').style.display = 'flex';
     toast(`${Studio.posts.length} draft${Studio.posts.length === 1 ? '' : 's'} from one session are open together. Saving replaces them.`, 'info', 6000);
   } catch (err) { toast(err.message || 'Could not open these drafts.', 'error', 7000); }
 }
@@ -103,10 +114,19 @@ function studioShowStep(n) {
   const set = (id, d) => { const el = document.getElementById(id); if (el) el.style.display = d; };
   set('studio-empty', has ? 'none' : '');
   set('studio-pic-tools', has ? 'flex' : 'none');
+  const countBadge = document.getElementById('studio-posts-count-badge');
+  if (countBadge) {
+    countBadge.style.display = has ? 'inline-flex' : 'none';
+    countBadge.textContent = `${Studio.posts.length} post${Studio.posts.length === 1 ? '' : 's'}`;
+  }
+  const mobBadge = document.getElementById('studio-mob-count');
+  if (mobBadge) mobBadge.textContent = String(Studio.posts.length || 0);
   if (!has) {
     const t = document.getElementById('studio-times'); if (t) t.innerHTML = '';
     const c = document.getElementById('studio-check'); if (c) c.innerHTML = '';
     const k = document.getElementById('studio-cards'); if (k) k.innerHTML = '';
+    const p = document.getElementById('studio-preview');
+    if (p) p.innerHTML = '<div class="studio-preview-empty">Click a post to see how it will look.</div>';
   }
 }
 
@@ -729,7 +749,47 @@ async function studioSchedule(status) {
   }
 }
 
+function studioResetWorkspace() {
+  Studio.posts = [];
+  Studio.sources = [];
+  Studio.editSeries = null;
+  const ta = document.getElementById('studio-paste'); if (ta) ta.value = '';
+  studioRenderSources();
+  studioShowStep(1);
+  toast('Content Studio reset. Ready for a new batch.', 'info', 3000);
+}
+
+function studioToggleAllPlatforms() {
+  const boxes = document.querySelectorAll('.studio-plat');
+  if (!boxes.length) return;
+  const anyUnchecked = Array.from(boxes).some((b) => !b.checked);
+  boxes.forEach((b) => { b.checked = anyUnchecked; });
+}
+
+function studioSwitchMobileStep(step) {
+  const left = document.getElementById('studio-left');
+  const centre = document.getElementById('studio-centre');
+  const right = document.getElementById('studio-right');
+  const buttons = document.querySelectorAll('.studio-mob-step');
+  buttons.forEach((b) => b.classList.remove('active'));
+
+  if (step === 'left') {
+    if (left) left.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    buttons[0]?.classList.add('active');
+  } else if (step === 'centre') {
+    if (centre) centre.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    buttons[1]?.classList.add('active');
+  } else if (step === 'right') {
+    if (right) right.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    buttons[2]?.classList.add('active');
+  }
+}
+
 window.openContentStudio = openContentStudio;
+window.setupContentStudioPage = setupContentStudioPage;
+window.studioResetWorkspace = studioResetWorkspace;
+window.studioToggleAllPlatforms = studioToggleAllPlatforms;
+window.studioSwitchMobileStep = studioSwitchMobileStep;
 window.studioEditSeries = studioEditSeries;
 window.studioUseTemplate = studioUseTemplate;
 window.studioWriteMyself = studioWriteMyself;

@@ -172,6 +172,52 @@ module.exports = (knex, permit) => {
       res.status(201).json(saved);
     } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
   });
+  router.get('/attachments/:id/download', permit('content.view'), async (req, res) => {
+    try {
+      const a = await repo.getAttachment(req.workspaceId, Number(req.params.id));
+      if (!a) return res.status(404).json({ error: 'Attachment not found' });
+      res.setHeader('Content-Type', a.content_type || 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(a.filename)}"`);
+      res.send(Buffer.from(a.data));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+  router.post('/campaigns/:id/attach-proposal', permit('content.edit'), async (req, res) => {
+    try {
+      const camp = await repo.getCampaign(req.workspaceId, Number(req.params.id));
+      if (!camp) return res.status(404).json({ error: 'Campaign not found' });
+      const fs = require('fs');
+      const path = require('path');
+      const pdfPath = path.join(__dirname, '../public/NexaDrip-Business-Growth-Proposal.pdf');
+      if (!fs.existsSync(pdfPath)) {
+        const { generateAll } = require('../scripts/generate-proposal');
+        await generateAll(req.workspaceId);
+      }
+      const pdfBuffer = fs.readFileSync(pdfPath);
+      const existing = await knex('sellbird_attachments').where({
+        workspace_id: req.workspaceId,
+        campaign_id: camp.id,
+        filename: 'NexaDrip-Business-Growth-Proposal.pdf'
+      }).first();
+      let saved;
+      if (existing) {
+        await knex('sellbird_attachments').where({ id: existing.id }).update({
+          data: pdfBuffer,
+          size: pdfBuffer.length,
+          send_with: 'all'
+        });
+        saved = await repo.getAttachment(req.workspaceId, existing.id);
+      } else {
+        saved = await repo.addAttachment(req.workspaceId, camp.id, {
+          filename: 'NexaDrip-Business-Growth-Proposal.pdf',
+          content_type: 'application/pdf',
+          size: pdfBuffer.length,
+          data: pdfBuffer,
+          send_with: 'all'
+        });
+      }
+      res.json({ success: true, attachment: saved });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
   router.patch('/attachments/:id', permit('content.edit'), async (req, res) => {
     try {
       const updated = await repo.setAttachmentSendWith(req.workspaceId, Number(req.params.id), (req.body || {}).send_with);
@@ -917,6 +963,79 @@ Important rules:
       res.json({ success: true, reply: updated });
     } catch (err) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Proposal Editor & AI Suggestions ──────────────────────────────────────
+  const proposalGen = require('../scripts/generate-proposal');
+
+  router.get('/proposal/presets', permit('content.view'), (req, res) => {
+    res.json(proposalGen.INDUSTRY_PRESETS);
+  });
+
+  router.post('/proposal/suggest', permit('content.create'), async (req, res) => {
+    const { industry = '', city = 'Pune', cost_per_lead = '2.00' } = req.body || {};
+    const norm = industry.toLowerCase();
+
+    // Check if matching preset exists
+    let matchedPreset = proposalGen.INDUSTRY_PRESETS.general;
+    for (const [k, p] of Object.entries(proposalGen.INDUSTRY_PRESETS)) {
+      if (norm.includes(k) || norm.includes(p.name.toLowerCase()) || norm.includes(p.id)) {
+        matchedPreset = p;
+        break;
+      }
+    }
+
+    // Try AI generation if available, fallback to customized smart preset
+    try {
+      const ai = require('../services/aiHelper');
+      const { promptKeys } = ai.aiArgsFromReq ? ai.aiArgsFromReq(req) : {};
+      const aiPrompt = `You are a B2B growth marketing director. Generate tailored pitch elements for an executive business proposal about NexaDrip (an autonomous AI marketing machine capturing leads at ~Rs ${cost_per_lead}/lead).
+Target Industry / Niche: ${industry || 'Local Business'}
+Target City: ${city || 'Pune'}
+
+Return strictly JSON format:
+{
+  "headline": "concise punchy headline with ~Rs ${cost_per_lead} lead cost",
+  "subtitle": "2-sentence value proposition for business owners in ${city}",
+  "chat_query": "realistic customer question on WhatsApp at night (e.g. 10:42 PM)",
+  "chat_reply": "how NexaDrip AI instantly answers, quotes pricing, and offers appointment",
+  "chat_customer_confirm": "customer agreeing and sharing phone number",
+  "chat_bot_lock": "AI locking calendar slot and showing ~Rs ${cost_per_lead} cost",
+  "industry_summary": "one-line proof point for this industry"
+}`;
+
+      const aiRes = await ai.aiJSON(aiPrompt, promptKeys, 500, { model: 'fast' });
+      if (aiRes && aiRes.headline) {
+        return res.json(aiRes);
+      }
+    } catch (err) {
+      // Fallback seamlessly to customized preset
+    }
+
+    // Customize matched preset with requested city and cost
+    res.json({
+      ...matchedPreset,
+      city,
+      cost: cost_per_lead,
+      headline: matchedPreset.headline.replace(/Rs 2/g, `Rs ${cost_per_lead}`).replace(/Pune/g, city),
+      subtitle: matchedPreset.subtitle.replace(/Pune/g, city),
+      chat_query: matchedPreset.chat_query.replace(/Pune/g, city),
+      chat_reply: matchedPreset.chat_reply.replace(/Pune/g, city),
+    });
+  });
+
+  router.post('/proposal/generate', permit('content.create'), async (req, res) => {
+    try {
+      const result = await proposalGen.generateAll(req.body || {}, req.workspaceId);
+      res.json({
+        success: true,
+        pdfUrl: '/NexaDrip-Business-Growth-Proposal.pdf',
+        htmlUrl: '/nexadrip-proposal.html',
+        updated_at: Date.now()
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message || 'Could not compile proposal.' });
     }
   });
 

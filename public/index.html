@@ -43,7 +43,7 @@
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-square-pen"/></svg>
           <span class="nav-label">Write a post</span>
         </a>
-        <a class="nav-item nav-action" id="nav-content-studio" href="javascript:void(0)" onclick="openContentStudio()" title="Write many posts with AI, add pictures, and schedule them all at the times you choose">
+        <a class="nav-item" data-page="studio" id="nav-studio" title="Write many posts with AI, add pictures, and schedule them all at the times you choose">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-sparkles"/></svg>
           <span class="nav-label">Content Studio</span>
         </a>
@@ -133,6 +133,11 @@
           <span class="nav-label">Email &amp; Outreach</span>
           <span class="nav-badge sellbird-badge" id="sellbird-nav-badge" style="display:none">0</span>
         </a>
+        <a class="nav-item" data-page="leads-broadcast" id="nav-whatsapp-outreach" title="Bulk WhatsApp outreach, broadcast campaigns &amp; templates" href="javascript:void(0)" onclick="navigateTo('leads-broadcast')">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg>
+          <span class="nav-label">WhatsApp Outreach</span>
+          <span class="nav-badge" id="wa-outreach-nav-badge" style="display:none">0</span>
+        </a>
         <a class="nav-item" data-page="email" id="nav-email" style="display:none" aria-hidden="true"></a>
         <a class="nav-item" data-page="adcopy" id="nav-adcopy" title="Ad copy generator and press releases">
           <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-megaphone"/></svg>
@@ -146,47 +151,41 @@
         <svg class="nav-group-chevron" aria-hidden="true"><use href="icons/sprite.svg#i-chevron-down"/></svg>
       </button>
       <div class="nav-group-items" id="nav-group-inbound">
-        <div class="nav-group-parent" id="group-lead-ads">
-          <a class="nav-item has-subnav" data-page="leads-inbox" id="nav-lead-ads" title="Chat with customers, send broadcasts, manage contacts">
-            <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg>
-            <span class="nav-label">WhatsApp</span>
-            <span class="nav-badge" id="wa-unread-badge" style="display:none"></span>
-            <span class="nav-chevron-wrap" onclick="toggleLeadSubmenu(event)" title="Show or hide">
-              <svg class="nav-chevron" id="chevron-lead-ads" aria-hidden="true"><use href="icons/sprite.svg#i-chevron-down"/></svg>
-            </span>
-          </a>
-          <div class="nav-sub-menu" id="sub-nav-lead-ads" style="display:none">
-            <a class="nav-sub-item" data-page="leads-inbox" id="nav-sub-leads-inbox" href="javascript:void(0)" onclick="navigateTo('leads-inbox')">
-              <span class="nav-label">Chats</span>
-            </a>
-            <a class="nav-sub-item" data-page="leads-bot" id="nav-sub-leads-bot" href="javascript:void(0)" onclick="navigateTo('leads-bot')">
-              <span class="nav-label">Auto-replies</span>
-              <span class="status-dot-sm" id="nav-bot-dot" style="margin-left:auto"></span>
-            </a>
-            <a class="nav-sub-item" data-page="ai-knowledge-base" id="nav-sub-ai-knowledge-base" href="javascript:void(0)" onclick="navigateTo('ai-knowledge-base')">
-              <span class="nav-label">AI Knowledge Base</span>
-              <span class="nav-badge-ai" style="margin-left:auto;font-size:10px;padding:1px 6px;background:rgba(124,58,237,0.18);color:#a855f7;border-radius:10px;font-weight:700">AI</span>
-            </a>
-            <a class="nav-sub-item" data-page="contact-sync" id="nav-sub-contact-sync" href="javascript:void(0)" onclick="navigateTo('contact-sync')">
-              <span class="nav-label">Contact Sync</span>
-            </a>
-            <a class="nav-sub-item" data-page="meta-reports" id="nav-sub-meta-reports" href="javascript:void(0)" onclick="navigateTo('meta-reports')">
-              <span class="nav-label">Meta Reports</span>
-            </a>
-            <a class="nav-sub-item" data-page="leads-broadcast" id="nav-sub-leads-broadcast" href="javascript:void(0)" onclick="navigateTo('leads-broadcast')">
-              <span class="nav-label">Broadcasts</span>
-            </a>
-            <a class="nav-sub-item" data-page="leads-templates" id="nav-sub-leads-templates" href="javascript:void(0)" onclick="navigateTo('leads-templates')">
-              <span class="nav-label">Templates</span>
-            </a>
-            <a class="nav-sub-item" data-page="lead-ads" id="nav-sub-leads-contacts" href="javascript:void(0)" onclick="navigateTo('lead-ads')">
-              <span class="nav-label">Contacts</span>
-            </a>
-            <a class="nav-sub-item" data-page="leads-settings" id="nav-sub-leads-settings" href="javascript:void(0)" onclick="navigateTo('leads-settings')">
-              <span class="nav-label">Setup</span>
-            </a>
-          </div>
-        </div>
+        <a class="nav-item" data-page="leads-inbox" id="nav-leads-inbox" title="Live Chat &amp; Conversations" href="javascript:void(0)" onclick="navigateTo('leads-inbox')">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-message-square"/></svg>
+          <span class="nav-label">Chat</span>
+          <span class="nav-badge" id="wa-unread-badge" style="display:none"></span>
+        </a>
+        <a class="nav-item" data-page="leads-bot" id="nav-leads-bot" title="WhatsApp Chatbot &amp; Auto-replies" href="javascript:void(0)" onclick="navigateTo('leads-bot')">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-bot"/></svg>
+          <span class="nav-label">Auto-replies</span>
+          <span class="status-dot-sm" id="nav-bot-dot" style="margin-left:auto"></span>
+        </a>
+        <a class="nav-item" data-page="ai-knowledge-base" id="nav-ai-knowledge-base" title="AI Knowledge Base" href="javascript:void(0)" onclick="navigateTo('ai-knowledge-base')">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-sparkles"/></svg>
+          <span class="nav-label">AI Knowledge Base</span>
+          <span class="nav-badge-ai" style="margin-left:auto;font-size:10px;padding:1px 6px;background:rgba(124,58,237,0.18);color:#a855f7;border-radius:10px;font-weight:700">AI</span>
+        </a>
+        <a class="nav-item" data-page="contact-sync" id="nav-contact-sync" title="Sync Contacts" href="javascript:void(0)" onclick="navigateTo('contact-sync')">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-refresh-cw"/></svg>
+          <span class="nav-label">Contact Sync</span>
+        </a>
+        <a class="nav-item" data-page="meta-reports" id="nav-meta-reports" title="Meta Reports &amp; Analytics" href="javascript:void(0)" onclick="navigateTo('meta-reports')">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-chart-column"/></svg>
+          <span class="nav-label">Meta Reports</span>
+        </a>
+        <a class="nav-item" data-page="leads-templates" id="nav-leads-templates" title="WhatsApp Message Templates" href="javascript:void(0)" onclick="navigateTo('leads-templates')">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-layout-template"/></svg>
+          <span class="nav-label">Templates</span>
+        </a>
+        <a class="nav-item" data-page="lead-ads" id="nav-lead-ads" title="Meta &amp; WhatsApp Contacts" href="javascript:void(0)" onclick="navigateTo('lead-ads')">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-users"/></svg>
+          <span class="nav-label">Contacts</span>
+        </a>
+        <a class="nav-item" data-page="leads-settings" id="nav-leads-settings" title="WhatsApp API &amp; Integration Setup" href="javascript:void(0)" onclick="navigateTo('leads-settings')">
+          <svg class="nav-icon" aria-hidden="true"><use href="icons/sprite.svg#i-settings"/></svg>
+          <span class="nav-label">Setup</span>
+        </a>
       </div>
 
       <!-- ── 5. SETTINGS ─────────────────────────────────────────────────────── -->
@@ -241,7 +240,7 @@
   <main class="main">
     <header class="header">
       <div style="display:flex;align-items:center;gap:10px;min-width:0">
-        <button class="btn btn-secondary btn-sm mobile-nav-toggle" id="btn-mobile-menu" onclick="toggleSidebar()" aria-label="Open navigation menu">☰</button>
+        <button class="btn btn-secondary btn-sm mobile-nav-toggle nav-sidebar-toggle" id="btn-mobile-menu" onclick="toggleSidebar()" aria-label="Toggle navigation sidebar" title="Toggle sidebar to create more space (Ctrl+B)">☰</button>
         <div style="min-width:0;overflow:hidden">
           <div class="header-title" id="header-title">Dashboard</div>
           <div class="header-subtitle" id="header-subtitle">Overview of your NexaDrip platform</div>
@@ -504,139 +503,227 @@
       </div>
     </section>
 
-    <!-- ── AI Generate ───────────────────────────────────────────────────── -->
-    <section class="page" id="page-generate">
-      <div class="section-header">
-        <div>
-          <div class="section-title">✨ AI Content Generator</div>
-          <div class="section-desc" id="gen-model-desc">Select a model below to generate content.</div>
+    <!-- ── Content Studio (Main Screen) ─────────────────────────────────── -->
+    <section class="page" id="page-studio">
+      <div id="page-generate" style="display:none" aria-hidden="true"></div>
+
+      <!-- Studio Header / Action Bar -->
+      <div class="studio-topbar">
+        <div class="studio-topbar-left">
+          <span class="studio-badge-pill">AI MULTI-CHANNEL</span>
+          <span class="studio-topbar-hint">Turn raw thoughts, articles, videos &amp; files into scheduled social campaigns</span>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="loadAIHistory()">📋 View History</button>
+        <div class="studio-topbar-actions">
+          <button type="button" class="btn btn-secondary btn-xs studio-action-btn" onclick="studioAiOpen('')" title="Configure AI keys (Claude, Gemini, Groq, Mistral, OpenRouter)">
+            <svg style="width:12px;height:12px" aria-hidden="true"><use href="icons/sprite.svg#i-sparkles"/></svg>
+            AI Keys
+          </button>
+          <button type="button" class="btn btn-secondary btn-xs studio-action-btn" onclick="studioOpenBrand()" title="Customize brand colors, font and logo">
+            <svg style="width:12px;height:12px" aria-hidden="true"><use href="icons/sprite.svg#i-palette"/></svg>
+            Brand Kit
+          </button>
+          <button type="button" class="btn btn-secondary btn-xs studio-action-btn" onclick="navigateTo('calendar')" title="View social calendar">
+            <svg style="width:12px;height:12px" aria-hidden="true"><use href="icons/sprite.svg#i-calendar-days"/></svg>
+            Calendar
+          </button>
+          <button type="button" class="btn btn-ghost btn-xs" onclick="studioResetWorkspace()" title="Reset workspace for a fresh batch" style="color:var(--text-muted)">
+            ✕ Clear
+          </button>
+        </div>
       </div>
 
-      <!-- Model Selector Bar -->
-      <div id="gen-model-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:20px">
-        <span style="font-size:12px;font-weight:600;color:var(--text-muted);flex-shrink:0">🤖 Model:</span>
-        <div id="gen-model-chips" style="display:flex;gap:6px;flex-wrap:wrap;flex:1">
-          <span style="font-size:12px;color:var(--text-muted)">Loading models…</span>
-        </div>
-        <span id="gen-active-model-badge" class="badge badge-purple" style="font-size:11px;flex-shrink:0"></span>
+      <!-- Mobile Step Switcher Bar -->
+      <div class="studio-mobile-nav" id="studio-mobile-nav">
+        <button type="button" class="studio-mob-step active" onclick="studioSwitchMobileStep('left')">1. Content &amp; Distribution</button>
+        <button type="button" class="studio-mob-step" onclick="studioSwitchMobileStep('centre')" id="studio-mob-step-posts">2. Posts <span class="studio-mob-count" id="studio-mob-count">0</span></button>
+        <button type="button" class="studio-mob-step" onclick="studioSwitchMobileStep('right')">3. Schedule &amp; Publish</button>
       </div>
 
-      <div class="generate-layout">
-        <!-- Input Panel -->
-        <div>
-          <div class="card" style="margin-bottom:16px">
-            <div class="card-header">
-              <div class="card-title">📝 Prompt</div>
+      <!-- Studio 3-Column Responsive Workspace -->
+      <div id="studio-grid" class="studio-grid">
+        <!-- ── Column 1: Source & Generation ── -->
+        <aside class="studio-panel" id="studio-left">
+          <div class="studio-col-header">
+            <span class="studio-step-tag">STEP 1</span>
+            <div class="studio-h">Your Content &amp; Distribution</div>
+          </div>
+          
+          <select class="form-select studio-select" id="studio-templates" style="width:100%;margin-bottom:6px;font-size:12.5px;display:none" onchange="studioUseTemplate(this)" aria-label="Start from a saved template"></select>
+          
+          <textarea class="form-textarea studio-textarea" id="studio-paste" rows="3" placeholder="What are the posts about? Example: Diwali sale, 20% off all week. Or paste a web page or article." style="width:100%"></textarea>
+          
+          <div class="studio-import-row">
+            <button type="button" class="btn btn-secondary btn-xs studio-pill-btn" onclick="document.getElementById('studio-files').click()">
+              <svg style="width:12px;height:12px" aria-hidden="true"><use href="icons/sprite.svg#i-folder-open"/></svg>
+              Add a file
+            </button>
+            <input type="file" id="studio-files" multiple hidden onchange="studioAddFiles(this.files); this.value=''" />
+            <button type="button" class="btn btn-secondary btn-xs studio-pill-btn" onclick="openBulkImport()">
+              <svg style="width:12px;height:12px" aria-hidden="true"><use href="icons/sprite.svg#i-layout-template"/></svg>
+              Use spreadsheet
+            </button>
+          </div>
+          
+          <div id="studio-sources" class="studio-sources-box"></div>
+          
+          <div class="studio-meta-row">
+            <div class="studio-stepper-wrap">
+              <span class="studio-field-label">Count</span>
+              <div class="studio-stepper">
+                <button type="button" class="studio-stepper-btn" onclick="studioCountStep(-1)" aria-label="Fewer posts">−</button>
+                <input type="number" id="studio-count" min="1" max="30" value="1" class="form-input studio-stepper-input" aria-label="Number of posts" onchange="studioCountStep(0)">
+                <button type="button" class="studio-stepper-btn" onclick="studioCountStep(1)" aria-label="More posts">+</button>
+              </div>
             </div>
-            <div class="card-body">
-              <div class="form-group">
-                <label class="form-label">What do you want to post about?</label>
-                <textarea class="form-textarea" id="gen-prompt" placeholder="e.g. Announce our new product launch with excitement. Highlight the key features and include a call to action." style="min-height:120px"></textarea>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Target Platforms</label>
-                <div class="platform-selector" id="gen-platforms">
-                  <label class="platform-toggle linkedin selected" data-platform="linkedin">🔵 LinkedIn</label>
-                  <label class="platform-toggle facebook" data-platform="facebook">📘 Facebook</label>
-                  <label class="platform-toggle instagram" data-platform="instagram">📸 Instagram</label>
-                  <label class="platform-toggle pinterest" data-platform="pinterest">📌 Pinterest</label>
-                  <label class="platform-toggle twitter" data-platform="twitter">🐦 Twitter/X</label>
-                  <label class="platform-toggle youtube" data-platform="youtube">▶️ YouTube</label>
-                  <label class="platform-toggle google_business" data-platform="google_business">🏢 Google Biz</label>
-                  <label class="platform-toggle tiktok" data-platform="tiktok">🎵 TikTok</label>
-                  <label class="platform-toggle whatsapp" data-platform="whatsapp" style="background:rgba(37,211,102,0.12);border-color:rgba(37,211,102,0.3);color:#25d366;display:inline-flex;align-items:center;gap:6px"><svg style="width:14px;height:14px" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg> WhatsApp</label>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Tone</label>
-                <div class="tone-grid">
-                  <button class="tone-btn active" data-tone="professional" onclick="selectTone(this)">💼 Professional</button>
-                  <button class="tone-btn" data-tone="casual" onclick="selectTone(this)">😊 Casual</button>
-                  <button class="tone-btn" data-tone="witty" onclick="selectTone(this)">😄 Witty</button>
-                  <button class="tone-btn" data-tone="inspirational" onclick="selectTone(this)">🌟 Inspirational</button>
-                  <button class="tone-btn" data-tone="educational" onclick="selectTone(this)">📚 Educational</button>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Language 🇮🇳</label>
-                <select class="form-select" id="gen-language" style="width:100%">
-                  <option value="en">🇬🇧 English</option>
-                  <option value="hi">🇮🇳 हिंदी (Hindi)</option>
-                  <option value="ta">🇮🇳 தமிழ் (Tamil)</option>
-                  <option value="te">🇮🇳 తెలుగు (Telugu)</option>
-                  <option value="mr">🇮🇳 मराठी (Marathi)</option>
-                  <option value="bn">🇮🇳 বাংলা (Bengali)</option>
-                  <option value="pa">🇮🇳 ਪੰਜਾਬੀ (Punjabi)</option>
-                  <option value="kn">🇮🇳 ಕನ್ನಡ (Kannada)</option>
-                  <option value="gu">🇮🇳 ગુજરાતી (Gujarati)</option>
-                </select>
-              </div>
-
-              <div class="form-group" id="gen-holiday-bar" style="display:none">
-                <label class="form-label">🎉 Today's Festival</label>
-                <div id="gen-holiday-badge" style="padding:10px 14px;background:linear-gradient(135deg,rgba(251,191,36,0.15),rgba(239,68,68,0.1));border:1px solid rgba(251,191,36,0.3);border-radius:8px;display:flex;align-items:center;justify-content:space-between">
-                  <span id="gen-holiday-name" style="font-size:13px;font-weight:600;color:#fbbf24"></span>
-                  <button class="btn btn-sm" style="background:rgba(251,191,36,0.2);color:#fbbf24;border:1px solid rgba(251,191,36,0.3)" onclick="generateHolidayContent()">✨ Generate Festival Post</button>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Max Length</label>
-                <select class="form-select" id="gen-max-tokens">
-                  <option value="256">Short (~150 words)</option>
-                  <option value="512" selected>Medium (~300 words)</option>
-                  <option value="1024">Long (~600 words)</option>
-                </select>
-              </div>
-
-              <button class="btn btn-primary btn-lg" onclick="generateContent()" id="btn-generate" style="width:100%">
-                ✨ Generate Content
+            <div class="studio-lang-wrap">
+              <span class="studio-field-label">Language</span>
+              <input type="text" id="studio-language" class="form-input studio-lang-input" placeholder="English" />
+            </div>
+          </div>
+          
+          <div class="studio-control-group">
+            <div class="studio-label-row">
+              <span class="studio-field-label">Post to Networks</span>
+              <button type="button" class="studio-link-action" onclick="studioToggleAllPlatforms()">Toggle all</button>
+            </div>
+            <div id="studio-platforms" class="studio-platforms-grid"></div>
+          </div>
+          
+          <div class="studio-action-stack">
+            <button class="btn btn-primary studio-generate-btn" id="studio-generate-btn" onclick="studioGenerate()">
+              ✨ Write my posts
+            </button>
+            <div class="studio-sub-actions">
+              <button type="button" class="btn btn-secondary btn-xs" onclick="studioWriteMyself()" title="Skip AI: one post per network with your own text">
+                ✍️ Write myself (no AI)
               </button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="document.getElementById('studio-start-video').click()" title="Pick a video, trim it, add words and crop it for Reels or Shorts">
+                🎬 Start with a video
+              </button>
+              <input type="file" id="studio-start-video" accept="video/mp4,video/quicktime" hidden onchange="studioStartWithVideo(this.files[0]);this.value=''">
+            </div>
+            <button type="button" class="studio-keys-link" onclick="studioAiOpen('')" title="Add or replace your Claude, Gemini, Groq, OpenRouter or Mistral key">
+              🔑 AI keys (Claude, Gemini, Groq, OpenRouter, Mistral)
+            </button>
+          </div>
+          
+          <!-- Media Library Tray -->
+          <div class="studio-tray-section">
+            <div class="studio-tray-header">
+              <span class="studio-tray-title">🎞 Media library</span>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="document.getElementById('studio-tray-file').click()">
+                + Upload
+              </button>
+              <input type="file" id="studio-tray-file" multiple accept="image/*,video/mp4,video/quicktime" hidden onchange="studioTrayUpload(this.files); this.value=''">
+            </div>
+            <div id="studio-tray" class="studio-tray-dropzone" ondragover="event.preventDefault()" ondrop="studioTrayDropFiles(event)">
+              <div class="studio-tray-hint">Drop files here, or drag any item onto a post.</div>
+              <div id="studio-tray-items" class="studio-tray-items"></div>
             </div>
           </div>
-        </div>
+        </aside>
 
-        <!-- Output Panel -->
-        <div>
-          <div class="card" style="margin-bottom:16px">
-            <div class="card-header">
-              <div class="card-title">💬 Generated Content</div>
-              <div style="display:flex;gap:8px">
-                <button class="btn btn-secondary btn-sm" onclick="copyGenerated()" id="btn-copy" disabled>📋 Copy</button>
-                <button class="btn btn-primary btn-sm" onclick="sendToCompose()" id="btn-to-compose" disabled>→ Compose</button>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="generate-output" id="gen-output" style="min-height:240px">
-                <div style="text-align:center;color:var(--text-muted);margin-top:60px">
-                  <div style="font-size:48px;margin-bottom:16px">✨</div>
-                  <div>Your generated content will appear here</div>
-                </div>
-              </div>
-              <div class="char-count" id="gen-char-count"></div>
-              <div style="display:flex;gap:8px;margin-top:12px" id="gen-actions" style="display:none">
-                <button class="btn btn-secondary btn-sm" onclick="regenerateContent()" id="btn-regenerate" disabled>🔄 Regenerate</button>
-                <button class="btn btn-secondary btn-sm" onclick="editGenerated()" id="btn-edit" disabled>✏️ Edit</button>
-              </div>
+        <!-- ── Column 2: Post Review & Card Feed ── -->
+        <main class="studio-panel" id="studio-centre">
+          <div class="studio-col-header">
+            <span class="studio-step-tag">STEP 2</span>
+            <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+              <div class="studio-h">Generated Posts</div>
+              <span id="studio-posts-count-badge" class="studio-count-badge" style="display:none">0 posts</span>
             </div>
           </div>
+          
+          <div id="studio-empty" class="studio-empty-state" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="this.classList.remove('dragover');studioDropStart(event)">
+            <div class="studio-empty-icon">✨</div>
+            <div class="studio-empty-title">Your posts will appear here</div>
+            <div class="studio-empty-sub">Type your topic on the left and click <b>Write my posts</b>, or drag an image/video to start.</div>
+          </div>
+          
+          <div id="studio-busy" style="display:none">
+            <div class="studio-busy-msg"><span class="studio-spark">✨</span> <span id="studio-busy-text">Reading your content…</span></div>
+            <div class="studio-skel"><i></i><b></b><b></b><b style="width:60%"></b></div>
+            <div class="studio-skel"><i></i><b></b><b></b><b style="width:45%"></b></div>
+            <div class="studio-skel"><i></i><b></b><b></b><b style="width:70%"></b></div>
+          </div>
+          
+          <div id="studio-problems"></div>
+          
+          <div id="studio-pic-tools" class="studio-pic-tools" style="display:none">
+            <div class="studio-pic-tools-btns">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="studioPicAll(true)">🖼️ Picture for all</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="studioPicAll(false)">Remove all pictures</button>
+            </div>
+            <div class="studio-pic-scope-wrap">
+              <label class="studio-scope-label">Apply changes to:
+                <select id="studio-scope" class="form-select studio-scope-select" onchange="studioScope(this.value)">
+                  <option value="one">This post only</option>
+                  <option value="all">All posts</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          
+          <div id="studio-brand-note" class="studio-brand-note"></div>
+          <div id="studio-cards" class="studio-cards-stream"></div>
+        </main>
 
-          <!-- AI History -->
-          <div class="card" id="ai-history-card" style="display:none">
-            <div class="card-header">
-              <div class="card-title">📋 Recent Generations</div>
-              <button class="btn btn-secondary btn-sm" onclick="closeAIHistory()" aria-label="Close">✕</button>
-            </div>
-            <div class="card-body" style="max-height:300px;overflow-y:auto;padding:0 24px">
-              <div class="activity-feed" id="ai-history-list"></div>
+        <!-- ── Column 3: Preview & Schedule ── -->
+        <aside class="studio-panel" id="studio-right">
+          <div class="studio-col-header">
+            <span class="studio-step-tag">STEP 3</span>
+            <div class="studio-h">Preview &amp; Schedule</div>
+          </div>
+          
+          <div class="studio-preview-section">
+            <div class="studio-section-label">Feed Preview</div>
+            <div id="studio-preview" class="studio-preview-card">
+              <div class="studio-preview-empty">Click a post to see how it will look.</div>
             </div>
           </div>
-        </div>
+          
+          <div class="studio-schedule-section">
+            <div class="studio-section-label">Scheduling Cadence</div>
+            <p class="studio-schedule-help">Nothing goes out until you press a button below.</p>
+            
+            <div class="studio-control-group">
+              <label class="studio-field-label" for="studio-start">First post at</label>
+              <input type="datetime-local" id="studio-start" class="form-input studio-dt-input" onchange="studioReplan()" />
+            </div>
+            
+            <div class="studio-control-group">
+              <label class="studio-field-label" for="studio-interval">Then one every</label>
+              <select id="studio-interval" class="form-select studio-select" onchange="studioReplan()">
+                <option value="1">1 hour</option>
+                <option value="3">3 hours</option>
+                <option value="6">6 hours</option>
+                <option value="24" selected>day</option>
+                <option value="weekdays">weekday (Mon to Fri)</option>
+                <option value="mwf">Mon, Wed and Fri</option>
+                <option value="48">2 days</option>
+                <option value="72">3 days</option>
+                <option value="168">week</option>
+              </select>
+            </div>
+            
+            <div id="studio-when" class="studio-when-summary"></div>
+            <div id="studio-check"></div>
+            <div id="studio-times" class="studio-timeline-slots"></div>
+            
+            <div class="studio-dock">
+              <button class="btn btn-primary studio-schedule-btn" id="studio-schedule-btn" onclick="studioSchedule('scheduled')">
+                🚀 Schedule them
+              </button>
+              <div class="studio-dock-row">
+                <button class="btn btn-secondary studio-draft-btn" id="studio-draft-btn" onclick="studioSchedule('draft')">
+                  Save as drafts
+                </button>
+                <button class="btn btn-secondary studio-now-btn" id="studio-now-btn" title="Start in one minute, then one every two minutes" onclick="studioPostNow()">
+                  Post now
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
     </section>
 
@@ -1774,6 +1861,10 @@
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span>Subscribers</span>
           </button>
+          <button class="sb-floating-tab" id="floating-tab-wa-outreach" onclick="navigateTo('leads-broadcast')" title="Open Bulk WhatsApp Outreach &amp; Broadcast Studio" style="display:inline-flex;align-items:center;gap:6px">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg>
+            <span>WhatsApp Outreach</span>
+          </button>
         </div>
 
         <!-- Hidden legacy tabs & metric containers for complete backwards-compatibility with test suites -->
@@ -1921,6 +2012,15 @@
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
                   How sending works
                 </span>
+              </div>
+
+              <div class="sb-nav-section-title" style="margin-top:16px">Multi-Channel Outreach</div>
+              <div class="sb-subnav-item" onclick="navigateTo('leads-broadcast')" style="cursor:pointer">
+                <span class="sb-subnav-label-wrap">
+                  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="icons/sprite.svg#i-whatsapp-color"/></svg>
+                  WhatsApp Outreach
+                </span>
+                <span class="sb-subnav-badge" style="background:#dcfce7;color:#15803d;font-weight:700">Broadcasts</span>
               </div>
             </aside>
 
@@ -2380,6 +2480,17 @@
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">Outreach Campaign *</label>
               <select class="form-select sellbird-select" id="discover-type-campaign-id"></select>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.25);border-radius:8px;padding:8px 12px;margin-top:2px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:15px">📄</span>
+                <div style="font-size:12px;color:var(--text-primary)">
+                  <strong>Outreach Attachment:</strong> <span style="color:var(--text-secondary)">NexaDrip-Business-Growth-Proposal.pdf</span> (~₹2/lead)
+                </div>
+              </div>
+              <a href="/nexadrip-proposal.html?edit=1" target="_blank" class="btn btn-secondary btn-xs" style="color:#a855f7;border-color:rgba(168,85,247,0.4)" title="Customize pitch, city, pricing and AI suggestions">
+                ✏️ Edit &amp; Suggest Changes
+              </a>
             </div>
             <div class="sellbird-grid-2col">
               <div class="form-group" style="margin-bottom:0">
@@ -3734,6 +3845,7 @@
                   </div>
                   <div style="font-size:11px;color:#8696a0;display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">
                     <span id="chat-header-phone"></span>
+                    <span id="chat-header-replied-to" class="badge" style="display:none;background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);font-size:9.5px;white-space:nowrap;font-weight:600"></span>
                     <span id="chat-header-society" style="color:#53bdeb"></span>
                     <span id="chat-header-window" class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e;font-size:9.5px;white-space:nowrap">Active (24h left)</span>
                     <span id="chat-header-agent" class="badge" onclick="openTeamSeatsModal()" style="background:rgba(99,102,241,0.15);color:#a5b4fc;cursor:pointer;font-size:9.5px;white-space:nowrap" title="Click to assign team seat">👤 <span id="chat-header-agent-name">Not assigned</span></span>
@@ -4210,92 +4322,7 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="studio-modal" style="display:none;padding:2vh 2vw" onclick="if(event.target===this)closeContentStudio()">
-  <div class="modal" onclick="event.stopPropagation()" style="width:96vw;max-width:1600px;height:94vh;max-height:94vh;display:flex;flex-direction:column">
-    <div class="modal-header">
-      <div class="modal-title">✨ Content Studio</div>
-      <button class="modal-close" onclick="closeContentStudio()" aria-label="Close">✕</button>
-    </div>
-    <div id="studio-grid" style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr) minmax(260px,330px);gap:0">
-      <aside class="studio-panel" id="studio-left">
-        <div class="studio-h">1 · Your content</div>
-        <select class="form-select" id="studio-templates" style="width:100%;margin-bottom:8px;font-size:13px;display:none" onchange="studioUseTemplate(this)" aria-label="Start from a saved template"></select>
-        <textarea class="form-textarea" id="studio-paste" rows="5" placeholder="What are the posts about? Example: Diwali sale, 20% off all week. Or paste a web page." style="width:100%"></textarea>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
-          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('studio-files').click()">Add a file</button>
-          <input type="file" id="studio-files" multiple hidden onchange="studioAddFiles(this.files); this.value=''" />
-          <button class="btn btn-secondary btn-sm" onclick="closeContentStudio();openBulkImport()">Use a spreadsheet</button>
-        </div>
-        <div id="studio-sources" style="margin-top:8px"></div>
-        <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px">
-          <b>How many posts?</b>
-          <span style="display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:8px">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="studioCountStep(-1)" aria-label="Fewer posts">−</button>
-            <input type="number" id="studio-count" min="1" max="30" value="1" class="form-input" style="width:52px;text-align:center;border:0" aria-label="Number of posts" onchange="studioCountStep(0)">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="studioCountStep(1)" aria-label="More posts">+</button>
-          </span>
-        </div>
-        <div style="margin-top:10px;font-weight:600;font-size:13px">Post to</div>
-        <div id="studio-platforms" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
-        <label style="display:block;margin-top:10px;font-size:13px">Language <input type="text" id="studio-language" class="form-input" placeholder="English" style="width:130px;display:inline-block" /></label>
-        <button class="btn btn-primary" id="studio-generate-btn" style="width:100%;margin-top:14px" onclick="studioGenerate()">Write my posts</button>
-        <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px" onclick="studioAiOpen('')" title="Add or replace your Claude, Gemini, Groq, OpenRouter or Mistral key">🔑 AI keys (Claude, Gemini and more)</button>
-        <button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="studioWriteMyself()" title="Skip AI: one post per network with your own text, which you can still edit, add a picture to and schedule">✍️ I'll write them myself (no AI)</button>
-        <button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="document.getElementById('studio-start-video').click()" title="Pick a video, trim it, add words and crop it for Reels or Shorts, then schedule or post it">🎬 Start with a video</button>
-        <input type="file" id="studio-start-video" accept="video/mp4,video/quicktime" hidden onchange="studioStartWithVideo(this.files[0]);this.value=''">
-        <div class="studio-h" style="margin-top:18px">🎞 Media library</div>
-        <div id="studio-tray" ondragover="event.preventDefault()" ondrop="studioTrayDropFiles(event)" style="border:1px dashed rgba(124,58,237,.45);border-radius:10px;padding:8px">
-          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;font-size:12px;color:var(--text-muted)">
-            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('studio-tray-file').click()">Upload</button>
-            <input type="file" id="studio-tray-file" multiple accept="image/*,video/mp4,video/quicktime" hidden onchange="studioTrayUpload(this.files); this.value=''">
-            Drop files here, or drag any item onto a post.
-          </div>
-          <div id="studio-tray-items" style="display:flex;flex-wrap:wrap;gap:6px;max-height:34vh;overflow:auto"></div>
-        </div>
-      </aside>
-      <main class="studio-panel" id="studio-centre">
-        <div class="studio-h">2 · Your posts</div>
-        <div id="studio-empty" ondragover="event.preventDefault();this.style.outline='2px dashed #7c3aed'" ondragleave="this.style.outline='none'" ondrop="this.style.outline='none';studioDropStart(event)" style="padding:40px 16px;text-align:center;color:var(--text-muted);font-size:14px">Your posts will appear here.<br>Type your topic on the left and press <b>Write my posts</b>.</div>
-        <div id="studio-busy" style="display:none">
-          <div class="studio-busy-msg"><span class="studio-spark">✨</span> <span id="studio-busy-text">Reading your content…</span></div>
-          <div class="studio-skel"><i></i><b></b><b></b><b style="width:60%"></b></div>
-          <div class="studio-skel"><i></i><b></b><b></b><b style="width:45%"></b></div>
-          <div class="studio-skel"><i></i><b></b><b></b><b style="width:70%"></b></div>
-        </div>
-        <div id="studio-problems"></div>
-        <div id="studio-pic-tools" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 2px;font-size:13px">🖼️
-          <button class="btn btn-secondary btn-sm" onclick="studioPicAll(true)">Add a picture to every post</button>
-          <button class="btn btn-secondary btn-sm" onclick="studioPicAll(false)">Remove all pictures</button>
-          <label style="display:inline-flex;gap:6px;align-items:center;margin-left:8px">Picture changes apply to
-            <select id="studio-scope" class="form-select" style="width:auto;padding:3px 8px;font-size:13px" onchange="studioScope(this.value)"><option value="one">This post only</option><option value="all">All posts</option></select></label>
-        </div>
-        <div id="studio-brand-note" style="font-size:12px;color:var(--text-muted);margin-bottom:6px"></div>
-        <div id="studio-cards"></div>
-      </main>
-      <aside class="studio-panel" id="studio-right">
-        <div class="studio-h">Preview</div>
-        <div id="studio-preview" style="margin-bottom:14px"><div style="font-size:12.5px;color:var(--text-muted)">Click a post to see how it will look.</div></div>
-        <div class="studio-h">3 · Choose when</div>
-        <p style="margin:0 0 8px;font-size:12.5px;color:var(--text-secondary)">Nothing goes out until you press a button below.</p>
-        <label style="font-size:13px">First post at<br><input type="datetime-local" id="studio-start" class="form-input" style="width:100%" onchange="studioReplan()" /></label>
-        <label style="font-size:13px;display:block;margin-top:8px">Then one every<br><select id="studio-interval" class="form-select" style="width:100%" onchange="studioReplan()">
-          <option value="1">1 hour</option><option value="3">3 hours</option><option value="6">6 hours</option>
-          <option value="24" selected>day</option><option value="weekdays">weekday (Mon to Fri)</option><option value="mwf">Mon, Wed and Fri</option><option value="48">2 days</option><option value="72">3 days</option><option value="168">week</option>
-        </select></label>
-        <div id="studio-when" style="font-size:12.5px;color:var(--text-muted);margin:8px 0"></div>
-        <div id="studio-check"></div>
-        <div id="studio-times" style="margin-top:8px"></div>
-        <div style="position:sticky;bottom:0;padding-top:10px;display:flex;flex-direction:column;gap:6px;background:var(--bg-card,var(--bg))">
-          <button class="btn btn-primary" id="studio-schedule-btn" onclick="studioSchedule('scheduled')">Schedule them</button>
-          <div style="display:flex;gap:6px">
-            <button class="btn btn-secondary" id="studio-draft-btn" style="flex:1" onclick="studioSchedule('draft')">Save as drafts</button>
-            <button class="btn btn-secondary" id="studio-now-btn" style="flex:1" title="Start in one minute, then one every two minutes" onclick="studioPostNow()">Post now</button>
-          </div>
-        </div>
-      </aside>
-    </div>
-  </div>
-</div>
+<div id="studio-modal" style="display:none" aria-hidden="true"></div>
 
 <div class="modal-overlay" id="studio-ai" style="display:none;z-index:1300" onclick="if(event.target===this)studioAiClose()">
   <div class="modal" onclick="event.stopPropagation()" style="max-width:520px">
@@ -4348,6 +4375,8 @@
       <button class="btn btn-secondary btn-sm" onclick="studioEdPreview()">Preview</button>
       <button class="btn btn-secondary btn-sm" onclick="studioEdDownload('png')" title="Download as PNG">⬇ PNG</button>
       <button class="btn btn-secondary btn-sm" onclick="studioEdDownload('jpg')" title="Download as JPG">⬇ JPG</button>
+      <button class="btn btn-secondary btn-sm" onclick="studioEdDownload('pdf')" title="Download as PDF document">⬇ PDF</button>
+      <button class="btn btn-secondary btn-sm" onclick="studioEdTab('cr')" title="Crop picture or canvas">✂️ Crop</button>
       <button class="btn btn-secondary btn-sm" onclick="studioEdClose()">Cancel</button>
       <button class="btn btn-primary btn-sm" id="studio-ed-save" onclick="studioEdSave()">Use this picture</button>
     </div>
@@ -4358,7 +4387,10 @@
         <button data-tab="tx" onclick="studioEdTab('tx')"><span>🔤</span>Text</button>
         <button data-tab="ph" onclick="studioEdTab('ph')"><span>🖼</span>Photos</button>
         <button data-tab="em" onclick="studioEdTab('em')"><span>😀</span>Stickers</button>
-        <button data-tab="dr" onclick="studioEdTab('dr')"><span>✏️</span>Draw</button>
+        <button data-tab="dr" onclick="studioEdTab('dr')" title="Draw freely on picture or PDF"><span>✏️</span>Draw</button>
+        <button data-tab="cr" onclick="studioEdTab('cr')" title="Crop picture to any size or ratio"><span>✂️</span>Crop</button>
+        <button data-tab="wm" onclick="studioEdTab('wm')" title="Add or remove watermarks"><span>💧</span>Watermark</button>
+        <button data-tab="pdf" onclick="studioEdTab('pdf')" title="Import, edit, sign and export PDF"><span>📄</span>PDF</button>
         <button data-tab="bg" onclick="studioEdTab('bg')"><span>🎨</span>Background</button>
       </div>
 
@@ -4382,7 +4414,7 @@
         <div data-pane="ph" hidden>
           <div class="sed-h">Upload</div>
           <button class="btn btn-secondary btn-sm" onclick="document.getElementById('studio-ed-file').click()">Upload a picture</button>
-          <input type="file" id="studio-ed-file" accept="image/*" hidden onchange="studioEdAddFile(this.files[0]); this.value=''">
+          <input type="file" id="studio-ed-file" accept="image/*,application/pdf" hidden onchange="studioEdAddFile(this.files[0]); this.value=''">
           <div class="sed-h">Your media (click one to add it)</div>
           <div id="studio-ed-tray" class="sed-tray"></div>
         </div>
@@ -4391,11 +4423,138 @@
           <div id="sed-emojis" class="sed-emoji"></div>
         </div>
         <div data-pane="dr" hidden>
-          <div class="sed-h">Draw freely</div>
-          <button class="btn btn-secondary btn-sm" id="studio-ed-drawbtn" onclick="studioEdDraw()">Start drawing</button>
-          <div style="margin-top:10px;font-size:13px"><label>Colour <input type="color" id="studio-ed-pencol" value="#ffffff" oninput="studioEdPen()"></label></div>
-          <div style="margin-top:6px;font-size:13px"><label>Thickness <input type="range" id="studio-ed-penw" min="1" max="60" value="8" oninput="studioEdPen()"></label></div>
-          <div class="form-hint" style="margin-top:6px">Drag on the picture to draw. Press "Stop drawing" to move things again.</div>
+          <div class="sed-h">Freehand Drawing</div>
+          <div style="display:flex;gap:4px;margin-bottom:10px">
+            <button type="button" class="btn btn-primary btn-sm sed-brush-btn active" data-brush="pencil" onclick="studioEdPen('pencil')" style="flex:1">✏️ Pen</button>
+            <button type="button" class="btn btn-secondary btn-sm sed-brush-btn" data-brush="highlighter" onclick="studioEdPen('highlighter')" style="flex:1">🖍 Marker</button>
+            <button type="button" class="btn btn-secondary btn-sm sed-brush-btn" data-brush="spray" onclick="studioEdPen('spray')" style="flex:1">💨 Spray</button>
+          </div>
+          <div class="sed-h" style="margin-top:6px">Colour</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <input type="color" id="studio-ed-pencol" value="#7c3aed" oninput="studioEdPen()" style="width:36px;height:32px;padding:2px;border-radius:6px;cursor:pointer">
+            <span style="font-size:12px;color:var(--text-secondary)">Pick custom colour</span>
+          </div>
+          <div class="sed-swatches" style="margin-bottom:10px">
+            <button type="button" class="sed-swatch" style="background:#7c3aed" onclick="studioEdPenColor('#7c3aed')" title="Purple"></button>
+            <button type="button" class="sed-swatch" style="background:#ec4899" onclick="studioEdPenColor('#ec4899')" title="Pink"></button>
+            <button type="button" class="sed-swatch" style="background:#3b82f6" onclick="studioEdPenColor('#3b82f6')" title="Blue"></button>
+            <button type="button" class="sed-swatch" style="background:#10b981" onclick="studioEdPenColor('#10b981')" title="Green"></button>
+            <button type="button" class="sed-swatch" style="background:#f59e0b" onclick="studioEdPenColor('#f59e0b')" title="Yellow"></button>
+            <button type="button" class="sed-swatch" style="background:#ef4444" onclick="studioEdPenColor('#ef4444')" title="Red"></button>
+            <button type="button" class="sed-swatch" style="background:#ffffff;border:1px solid #ccc" onclick="studioEdPenColor('#ffffff')" title="White"></button>
+            <button type="button" class="sed-swatch" style="background:#0f172a" onclick="studioEdPenColor('#0f172a')" title="Dark"></button>
+          </div>
+          <div class="sed-h" style="margin-top:6px">Thickness</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <input type="range" id="studio-ed-penw" min="1" max="50" value="8" oninput="studioEdPen()" style="flex:1">
+            <span id="studio-ed-penw-val" style="min-width:28px;font-size:12px;font-weight:700">8px</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:12px;flex-direction:column">
+            <button type="button" class="btn btn-secondary btn-sm" id="studio-ed-drawbtn" onclick="studioEdToggleDraw()">✏️ Drawing Active</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="studioEdClearDrawings()" style="color:#ef4444">🗑️ Clear All Drawings</button>
+          </div>
+          <div class="form-hint" style="margin-top:8px">Draw directly on the picture or PDF. Select any other tool to move items.</div>
+        </div>
+
+        <div data-pane="cr" hidden>
+          <div class="sed-h">Crop Picture</div>
+          <p class="form-hint" style="margin-bottom:10px">Crop the entire canvas or picture to standard social sizes or custom bounds.</p>
+          <div class="sed-h" style="margin-top:6px">Aspect Ratio</div>
+          <select id="studio-ed-crop-ratio" class="form-select" onchange="studioEdCropSetRatio(this.value)" style="margin-bottom:10px;width:100%">
+            <option value="free">Freeform (Custom)</option>
+            <option value="1:1">1:1 Square (Instagram 1080×1080)</option>
+            <option value="4:5">4:5 Portrait (Feed 1080×1350)</option>
+            <option value="16:9">16:9 Landscape (YouTube/X 1920×1080)</option>
+            <option value="9:16">9:16 Vertical (Story / Reels 1080×1920)</option>
+            <option value="4:3">4:3 Standard</option>
+            <option value="3:2">3:2 Classic Photo</option>
+          </select>
+          <div class="sed-h">Crop Dimensions</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+            <label style="font-size:12px">Width (px)<input type="number" id="studio-ed-crop-w" class="form-input" style="padding:4px" onchange="studioEdCropSyncFromInputs()"></label>
+            <label style="font-size:12px">Height (px)<input type="number" id="studio-ed-crop-h" class="form-input" style="padding:4px" onchange="studioEdCropSyncFromInputs()"></label>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:12px">
+            <button type="button" class="btn btn-primary btn-sm" style="flex:1" onclick="studioEdApplyCrop()">✓ Apply Crop</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="studioEdCancelCrop()">Cancel</button>
+          </div>
+        </div>
+
+        <div data-pane="wm" hidden>
+          <div class="sed-h">Watermark Options</div>
+          <p class="form-hint" style="margin-bottom:10px">Add a branded watermark or remove existing watermarks.</p>
+          <div style="display:flex;gap:4px;margin-bottom:10px">
+            <button type="button" class="btn btn-primary btn-sm sed-wm-tab active" data-wm="text" onclick="studioEdWmMode('text')" style="flex:1">Text</button>
+            <button type="button" class="btn btn-secondary btn-sm sed-wm-tab" data-wm="logo" onclick="studioEdWmMode('logo')" style="flex:1">Logo</button>
+          </div>
+          <div id="sed-wm-text-box">
+            <label class="sed-row" style="margin-bottom:6px;flex-direction:column;align-items:flex-start;gap:4px">
+              <span style="font-size:12px;font-weight:600">Watermark Text</span>
+              <input type="text" id="studio-ed-wm-text" class="form-input" placeholder="Brand or Copyright" value="Urban Society" style="width:100%">
+            </label>
+            <label class="sed-row" style="margin-bottom:6px;flex-direction:column;align-items:flex-start;gap:4px">
+              <span style="font-size:12px;font-weight:600">Style &amp; Layout</span>
+              <select id="studio-ed-wm-style" class="form-select" style="width:100%">
+                <option value="tiled">Repeating Diagonal (Grid Pattern)</option>
+                <option value="center">Large Center Diagonal</option>
+                <option value="br">Bottom Right Corner</option>
+                <option value="bl">Bottom Left Corner</option>
+                <option value="tr">Top Right Corner</option>
+              </select>
+            </label>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <label style="font-size:12px">Colour <input type="color" id="studio-ed-wm-color" value="#ffffff" style="vertical-align:middle"></label>
+              <label style="font-size:12px">Size <input type="number" id="studio-ed-wm-size" value="28" min="10" max="100" class="form-input" style="width:55px;padding:3px;display:inline-block"></label>
+            </div>
+          </div>
+          <div id="sed-wm-logo-box" style="display:none">
+            <label class="sed-row" style="margin-bottom:6px;flex-direction:column;align-items:flex-start;gap:4px">
+              <span style="font-size:12px;font-weight:600">Logo Position</span>
+              <select id="studio-ed-wm-logo-pos" class="form-select" style="width:100%">
+                <option value="br">Bottom Right Corner</option>
+                <option value="bl">Bottom Left Corner</option>
+                <option value="tr">Top Right Corner</option>
+                <option value="center">Center</option>
+              </select>
+            </label>
+            <button type="button" class="btn btn-secondary btn-xs" onclick="document.getElementById('studio-ed-wm-logofile').click()" style="margin-bottom:6px">+ Upload Logo File</button>
+            <input type="file" id="studio-ed-wm-logofile" accept="image/*" hidden onchange="studioEdWmLoadLogo(this.files[0]); this.value=''">
+          </div>
+          <label class="sed-row" style="margin-bottom:10px">
+            <span style="font-size:12px">Opacity</span>
+            <input type="range" id="studio-ed-wm-opacity" min="5" max="90" value="25" oninput="document.getElementById('studio-ed-wm-opval').textContent=this.value+'%'">
+            <span id="studio-ed-wm-opval" style="font-size:11px;min-width:30px">25%</span>
+          </label>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
+            <button type="button" class="btn btn-primary btn-sm" onclick="studioEdAddWatermark()">💧 Apply Watermark</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="studioEdRemoveWatermark()" style="color:#ef4444" title="Remove all watermark layers">🗑️ Remove Watermark</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="studioEdAddWhiteout()" title="Add a solid white/colour patch to cover up any existing watermark or text">⬜ Add Whiteout / Cover Patch</button>
+          </div>
+        </div>
+
+        <div data-pane="pdf" hidden>
+          <div class="sed-h">PDF Editor</div>
+          <p class="form-hint" style="margin-bottom:10px">Import a PDF to view, edit, annotate, sign, add watermarks, and export back to PDF.</p>
+          <button type="button" class="btn btn-primary btn-sm" style="width:100%;margin-bottom:12px" onclick="document.getElementById('studio-ed-pdffile').click()">
+            📄 Open PDF to Edit
+          </button>
+          <input type="file" id="studio-ed-pdffile" accept="application/pdf" hidden onchange="studioEdOpenPdf(this.files[0]); this.value=''">
+          <div id="sed-pdf-controls" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px">
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="sed-pdf-name">Document.pdf</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+              <button type="button" class="btn btn-secondary btn-xs" onclick="studioEdPdfPageNav(-1)">◀ Prev</button>
+              <span style="font-size:12px">Page <select id="studio-ed-pdfpagesel" onchange="studioEdSwitchPdfPage(+this.value)" class="form-select" style="width:auto;display:inline-block;padding:2px 6px"></select> of <span id="sed-pdf-total">1</span></span>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="studioEdPdfPageNav(1)">Next ▶</button>
+            </div>
+          </div>
+          <div class="sed-h">PDF Actions</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="studioEdAddText('body')">🔤 Add Text / Form Fill</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="studioEdTab('dr')">✍️ Sign / Freehand Draw</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="studioEdTab('wm')">💧 Add Watermark</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="studioEdTab('cr')">✂️ Crop PDF Page</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="studioEdDownload('pdf')">⬇ Export as PDF</button>
+          </div>
         </div>
         <div data-pane="bg" hidden>
           <div class="sed-h">Whole picture</div>
@@ -4876,20 +5035,20 @@
   </div>
 </div>
 
-<script src="js/01-core.js?v=2.1.0"></script>
+<script src="js/01-core.js?v=2.4.5"></script>
 <script src="js/02-dashboard.js"></script>
 <script src="js/03-compose.js"></script>
 <script src="js/04-calendar.js?v=2.6.1"></script>
 <script src="js/05-analytics.js"></script>
-<script src="js/06-settings.js"></script>
-<script src="js/07-tools.js?v=2.1.0"></script>
-<script src="js/08-account.js?v=2.1.0"></script>
+<script src="js/06-settings.js?v=2.3.0"></script>
+<script src="js/07-tools.js?v=2.3.0"></script>
+<script src="js/08-account.js?v=2.3.0"></script>
 <script src="js/09-features.js"></script>
 <script src="js/10-media-and-more.js?v=2.1.0"></script>
-<script src="js/12-sellbird.js?v=2.2.3"></script>
+<script src="js/12-sellbird.js?v=2.3.0"></script>
 
-<script src="js/13-lead-pipeline.js?v=2.2.5"></script>
-<script src="js/14-whatsapp-bot.js?v=2.2.0"></script>
+<script src="js/13-lead-pipeline.js?v=2.4.6"></script>
+<script src="js/14-whatsapp-bot.js?v=2.4.4"></script>
 <script src="js/15-post-designer.js?v=2.2.0"></script>
 <script src="js/25-content-studio.js?v=2.3.5"></script>
 <script src="js/26-studio-editor.js?v=2.5.7"></script>
@@ -4897,7 +5056,7 @@
 <script src="js/26-whats-new.js?v=2.3.0"></script>
 <script src="js/27-billing-admin.js?v=2.4.0"></script>
 <script src="js/16-whatsapp-templates.js?v=2.2.0"></script>
-<script src="js/17-whatsapp-broadcast.js?v=2.2.0"></script>
+<script src="js/17-whatsapp-broadcast.js?v=2.4.6"></script>
 <script src="js/18-post-extras.js?v=2.2.0"></script>
 <script src="js/19-seo-autopilot.js?v=2.2.3"></script>
 <script src="js/20-ai-knowledge-base.js?v=2.2.3"></script>

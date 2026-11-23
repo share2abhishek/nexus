@@ -2,8 +2,8 @@
 // Text (fonts, styles, outline, shadow), shapes, lines, stickers, photos with filters, free drawing,
 // layers, zoom, grid and snap guides, picture sizes, undo/redo, copy/paste and keyboard shortcuts.
 // Built on Fabric.js (MIT licence), loaded from /vendor/fabric.min.js only when opened.
-const StudioEd = { canvas: null, post: -1, w: 0, h: 0, bg: null, zoom: 1, grid: false, guides: null, clip: null, ready: false };
-const STUDIO_ED_EXTRA = ['studioBg', 'studioBase', 'studioLocked', 'studioName', 'studioMask', 'studioOrig'];
+const StudioEd = { canvas: null, post: -1, w: 0, h: 0, bg: null, zoom: 1, grid: false, guides: null, clip: null, ready: false, crop: null, pdfDoc: null, pdfTotal: 0, pdfCurPage: 1, pdfName: '', brushType: 'pencil', wmLogoUrl: null };
+const STUDIO_ED_EXTRA = ['studioBg', 'studioBase', 'studioLocked', 'studioName', 'studioMask', 'studioOrig', 'studioWatermark'];
 const STUDIO_ED_FONTS = ['Inter', 'Arial', 'Arial Black', 'Helvetica', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Segoe UI', 'Century Gothic', 'Candara', 'Georgia', 'Times New Roman', 'Palatino Linotype', 'Garamond', 'Copperplate', 'Courier New', 'Lucida Console', 'Impact', 'Comic Sans MS', 'Brush Script MT'];
 const STUDIO_ED_SIZES = [['1080x1080', 'Square 1080×1080'], ['1080x1350', 'Portrait 1080×1350 (Instagram)'], ['1080x1920', 'Story 1080×1920'], ['1200x630', 'Wide 1200×630 (Facebook, LinkedIn)'], ['1600x900', 'X post 1600×900'], ['1000x1500', 'Pinterest 1000×1500'], ['1500x500', 'Banner 1500×500']];
 const STUDIO_ED_SHAPES = [['rect', '▬', 'Box'], ['round', '▢', 'Rounded box'], ['circle', '●', 'Circle'], ['oval', '⬭', 'Oval'], ['triangle', '▲', 'Triangle'], ['diamond', '◆', 'Diamond'], ['star', '★', 'Star'], ['heart', '♥', 'Heart'], ['hexagon', '⬢', 'Hexagon'], ['pentagon', '⬟', 'Pentagon'], ['bubble', '💬', 'Speech bubble'], ['plus', '✚', 'Plus']];
@@ -37,6 +37,34 @@ function studioEdLoadLib() {
   });
 }
 
+function studioEdLoadPdfLib() {
+  const promises = [];
+  if (!window.pdfjsLib) {
+    promises.push(new Promise((ok) => {
+      const s = document.createElement('script');
+      s.src = '/vendor/pdf.min.js';
+      s.onload = () => {
+        if (window.pdfjsLib) {
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js';
+        }
+        ok();
+      };
+      s.onerror = () => ok();
+      document.head.appendChild(s);
+    }));
+  }
+  if (!window.PDFLib) {
+    promises.push(new Promise((ok) => {
+      const s = document.createElement('script');
+      s.src = '/vendor/pdf-lib.min.js';
+      s.onload = ok;
+      s.onerror = () => ok();
+      document.head.appendChild(s);
+    }));
+  }
+  return Promise.all(promises);
+}
+
 // Fills the side panels once
 function studioEdInit() {
   if (StudioEd.ready) return;
@@ -58,7 +86,16 @@ function studioEdInit() {
 function studioEdTab(name) {
   document.querySelectorAll('.sed-rail button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
   document.querySelectorAll('#sed-panel [data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== name; });
-  if (name !== 'dr') studioEdStopDraw();
+  if (name === 'dr') {
+    studioEdStartDraw();
+  } else {
+    studioEdStopDraw();
+  }
+  if (name === 'cr') {
+    studioEdStartCrop();
+  } else if (StudioEd.crop && StudioEd.crop.active) {
+    studioEdCancelCrop();
+  }
 }
 
 // Returns true once the editor is open, false if it could not be opened
@@ -100,9 +137,24 @@ async function studioEditPicture(i, src) {
     c.on('selection:updated', studioEdSync);
     c.on('selection:cleared', studioEdSync);
     c.on('object:moving', studioEdSnapMove);
-    c.on('mouse:up', () => { if (StudioEd.guides) { StudioEd.guides = null; c.requestRenderAll(); } });
+    c.on('mouse:down', (e) => {
+      if (StudioEd.crop && StudioEd.crop.active) studioEdCropMouseDown(e);
+    });
+    c.on('mouse:move', (e) => {
+      if (StudioEd.crop && StudioEd.crop.active) studioEdCropMouseMove(e);
+    });
+    c.on('mouse:up', (e) => {
+      if (StudioEd.crop && StudioEd.crop.active) studioEdCropMouseUp(e);
+      if (StudioEd.guides) { StudioEd.guides = null; c.requestRenderAll(); }
+    });
     c.on('after:render', studioEdDrawOverlay);
-    c.on('path:created', (e) => { if (e.path) { e.path.studioName = 'Drawing'; } });
+    c.on('path:created', (e) => {
+      if (e.path) {
+        e.path.studioName = 'Drawing';
+        studioEdSnap();
+        studioEdLayersSoon();
+      }
+    });
     ['object:added', 'object:removed', 'object:modified'].forEach((ev) => c.on(ev, studioEdLayersSoon));
     // Sizes list: the original first
     const sel = document.getElementById('studio-ed-sizes');
@@ -216,7 +268,7 @@ function studioEdSnapMove(e) {
 function studioEdDrawOverlay(e) {
   if (StudioEd.exporting || !StudioEd.canvas) return;
   const c = StudioEd.canvas, ctx = (e && e.ctx) || c.getContext(), z = StudioEd.zoom || 1;
-  if (!StudioEd.grid && !StudioEd.guides) return;
+  if (!StudioEd.grid && !StudioEd.guides && !(StudioEd.crop && StudioEd.crop.active)) return;
   ctx.save();
   const rs = (c.getRetinaScaling && c.getRetinaScaling()) || 1;
   ctx.setTransform(rs, 0, 0, rs, 0, 0);
@@ -231,6 +283,29 @@ function studioEdDrawOverlay(e) {
     ctx.strokeStyle = '#ff2d95'; ctx.lineWidth = 1; ctx.beginPath();
     if (StudioEd.guides.v) { ctx.moveTo(StudioEd.w / 2 * z, 0); ctx.lineTo(StudioEd.w / 2 * z, StudioEd.h * z); }
     if (StudioEd.guides.h) { ctx.moveTo(0, StudioEd.h / 2 * z); ctx.lineTo(StudioEd.w * z, StudioEd.h / 2 * z); }
+    ctx.stroke();
+  }
+  if (StudioEd.crop && StudioEd.crop.active) {
+    const cr = StudioEd.crop;
+    const cw = StudioEd.w * z, ch = StudioEd.h * z;
+    const cx = cr.x * z, cy = cr.y * z, rw = cr.w * z, rh = cr.h * z;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.fillRect(0, 0, cw, cy);
+    ctx.fillRect(0, cy + rh, cw, ch - (cy + rh));
+    ctx.fillRect(0, cy, cx, rh);
+    ctx.fillRect(cx + rw, cy, cw - (cx + rw), rh);
+
+    ctx.strokeStyle = '#a855f7';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cx, cy, rw, rh);
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx + rw / 3, cy); ctx.lineTo(cx + rw / 3, cy + rh);
+    ctx.moveTo(cx + (rw * 2) / 3, cy); ctx.lineTo(cx + (rw * 2) / 3, cy + rh);
+    ctx.moveTo(cx, cy + rh / 3); ctx.lineTo(cx + rw, cy + rh / 3);
+    ctx.moveTo(cx, cy + (rh * 2) / 3); ctx.lineTo(cx + rw, cy + (rh * 2) / 3);
     ctx.stroke();
   }
   ctx.restore();
@@ -418,7 +493,10 @@ async function studioEdAddImageUrl(url) {
 }
 async function studioEdAddFile(file) {
   if (!file) return;
-  if (!/^image\//.test(file.type)) return toast('Pick an image file.', 'warning');
+  if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+    return studioEdOpenPdf(file);
+  }
+  if (!/^image\//.test(file.type)) return toast('Pick an image or PDF file.', 'warning');
   try { await studioEdAddImageUrl(URL.createObjectURL(file)); } catch { toast('Could not add that image.', 'error'); }
 }
 async function studioEdAddLogo() {
@@ -431,26 +509,582 @@ async function studioEdAddLogo() {
   catch { toast('The logo could not be loaded. Use "Upload a picture" with the logo file instead.', 'warning', 6000); }
 }
 
-// ── Free drawing ──
-function studioEdPen() {
-  const c = StudioEd.canvas; if (!c || !fabric.PencilBrush) return;
-  const b = c.freeDrawingBrush || new fabric.PencilBrush(c);
-  b.color = document.getElementById('studio-ed-pencol').value;
-  b.width = Math.max(1, +document.getElementById('studio-ed-penw').value * Math.max(1, Math.min(StudioEd.w, StudioEd.h) / 540));
-  b.strokeLineCap = 'round'; b.strokeLineJoin = 'round';
-  c.freeDrawingBrush = b;
+// ── Color and pointer utilities ──
+function hexToRgba(hex, alpha) {
+  let c = (hex || '#7c3aed').replace('#', '');
+  if (c.length === 3) c = c.split('').map((x) => x + x).join('');
+  const num = parseInt(c, 16);
+  if (isNaN(num)) return `rgba(124, 58, 237, ${alpha})`;
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
-function studioEdDraw() {
+
+function studioEdGetPointer(e) {
+  if (e && e.scenePoint) return e.scenePoint;
+  const c = StudioEd.canvas;
+  if (c && typeof c.getScenePoint === 'function' && e && e.e) return c.getScenePoint(e.e);
+  if (c && typeof c.getPointer === 'function' && e && e.e) return c.getPointer(e.e);
+  const z = StudioEd.zoom || 1;
+  const upper = c ? c.upperCanvasEl : null;
+  if (upper && e && e.e) {
+    const r = upper.getBoundingClientRect();
+    return { x: (e.e.clientX - r.left) / z, y: (e.e.clientY - r.top) / z };
+  }
+  return { x: 0, y: 0 };
+}
+
+// ── Freehand drawing ──
+function studioEdPen(type) {
+  const c = StudioEd.canvas; if (!c || !window.fabric) return;
+  if (type) StudioEd.brushType = type;
+  const brushType = StudioEd.brushType || 'pencil';
+  document.querySelectorAll('.sed-brush-btn').forEach((b) => b.classList.toggle('active', b.dataset.brush === brushType));
+
+  const colInput = document.getElementById('studio-ed-pencol');
+  const wInput = document.getElementById('studio-ed-penw');
+  const col = (colInput && colInput.value) || '#7c3aed';
+  const rawW = wInput ? +wInput.value : 8;
+  const valSpan = document.getElementById('studio-ed-penw-val');
+  if (valSpan) valSpan.textContent = rawW + 'px';
+
+  const scale = Math.max(1, Math.min(StudioEd.w, StudioEd.h) / 540);
+  const w = Math.max(1, Math.round(rawW * scale));
+
+  let brush;
+  if (brushType === 'spray' && fabric.SprayBrush) {
+    brush = new fabric.SprayBrush(c);
+    brush.width = Math.max(10, w * 2.5);
+    brush.density = 25;
+    brush.dotWidth = Math.max(1, Math.round(w / 4));
+    brush.color = col;
+  } else if (brushType === 'highlighter' && fabric.PencilBrush) {
+    brush = new fabric.PencilBrush(c);
+    brush.width = Math.max(8, Math.round(w * 2.2));
+    brush.strokeLineCap = 'square';
+    brush.strokeLineJoin = 'miter';
+    brush.color = hexToRgba(col, 0.45);
+  } else if (fabric.PencilBrush) {
+    brush = new fabric.PencilBrush(c);
+    brush.width = w;
+    brush.strokeLineCap = 'round';
+    brush.strokeLineJoin = 'round';
+    brush.color = col;
+  }
+  if (brush) c.freeDrawingBrush = brush;
+}
+
+function studioEdStartDraw() {
   const c = StudioEd.canvas; if (!c) return;
-  if (c.isDrawingMode) return studioEdStopDraw();
+  if (StudioEd.crop && StudioEd.crop.active) studioEdCancelCrop();
   c.discardActiveObject();
-  c.isDrawingMode = true; studioEdPen();
-  document.getElementById('studio-ed-drawbtn').textContent = 'Stop drawing';
+  c.isDrawingMode = true;
+  studioEdPen();
+  const btn = document.getElementById('studio-ed-drawbtn');
+  if (btn) {
+    btn.textContent = '✏️ Drawing Active (Click to pause)';
+    btn.classList.add('btn-primary');
+    btn.classList.remove('btn-secondary');
+  }
+  c.defaultCursor = 'crosshair';
+  c.freeDrawingCursor = 'crosshair';
+  c.requestRenderAll();
 }
+
 function studioEdStopDraw() {
   const c = StudioEd.canvas;
   if (c && c.isDrawingMode) c.isDrawingMode = false;
-  const b = document.getElementById('studio-ed-drawbtn'); if (b) b.textContent = 'Start drawing';
+  const btn = document.getElementById('studio-ed-drawbtn');
+  if (btn) {
+    btn.textContent = '✏️ Start Drawing';
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-secondary');
+  }
+  if (c) {
+    c.defaultCursor = 'default';
+    c.requestRenderAll();
+  }
+}
+
+function studioEdToggleDraw() {
+  const c = StudioEd.canvas; if (!c) return;
+  if (c.isDrawingMode) studioEdStopDraw();
+  else studioEdStartDraw();
+}
+
+function studioEdDraw() {
+  studioEdToggleDraw();
+}
+
+function studioEdPenColor(hex) {
+  const inp = document.getElementById('studio-ed-pencol');
+  if (inp) inp.value = hex;
+  studioEdPen();
+}
+
+function studioEdClearDrawings() {
+  const c = StudioEd.canvas; if (!c) return;
+  const toRemove = c.getObjects().filter((o) => o.studioName === 'Drawing' || (o.type === 'path' && !o.studioBase));
+  if (!toRemove.length) return toast('No drawings to clear.', 'info', 2000);
+  toRemove.forEach((o) => c.remove(o));
+  studioEdDone();
+  toast('Drawings cleared.', 'info', 3000);
+}
+
+// ── Crop tool ──
+function studioEdStartCrop() {
+  const c = StudioEd.canvas; if (!c) return;
+  if (c.isDrawingMode) studioEdStopDraw();
+  c.discardActiveObject();
+  c.selection = false;
+  c.defaultCursor = 'crosshair';
+
+  const selRatio = (document.getElementById('studio-ed-crop-ratio') || {}).value || 'free';
+  StudioEd.crop = {
+    active: true,
+    ratio: selRatio,
+    x: 0,
+    y: 0,
+    w: StudioEd.w,
+    h: StudioEd.h,
+    dragging: false,
+    startX: 0,
+    startY: 0
+  };
+  studioEdCropSetRatio(selRatio);
+  c.requestRenderAll();
+}
+
+function studioEdCropSetRatio(ratio) {
+  if (!StudioEd.crop) return;
+  StudioEd.crop.ratio = ratio;
+  const sel = document.getElementById('studio-ed-crop-ratio');
+  if (sel && sel.value !== ratio) sel.value = ratio;
+  const W = StudioEd.w, H = StudioEd.h;
+  if (ratio === 'free') {
+    const cw = Math.round(W * 0.9), ch = Math.round(H * 0.9);
+    StudioEd.crop.x = Math.round((W - cw) / 2);
+    StudioEd.crop.y = Math.round((H - ch) / 2);
+    StudioEd.crop.w = cw;
+    StudioEd.crop.h = ch;
+  } else {
+    const parts = ratio.split(':').map(Number);
+    const r = (parts[0] && parts[1]) ? (parts[0] / parts[1]) : 1;
+    let cw = W * 0.9, ch = cw / r;
+    if (ch > H * 0.9) {
+      ch = H * 0.9;
+      cw = ch * r;
+    }
+    cw = Math.round(cw); ch = Math.round(ch);
+    StudioEd.crop.x = Math.round((W - cw) / 2);
+    StudioEd.crop.y = Math.round((H - ch) / 2);
+    StudioEd.crop.w = cw;
+    StudioEd.crop.h = ch;
+  }
+  const wi = document.getElementById('studio-ed-crop-w'), hi = document.getElementById('studio-ed-crop-h');
+  if (wi) wi.value = StudioEd.crop.w;
+  if (hi) hi.value = StudioEd.crop.h;
+  if (StudioEd.canvas) StudioEd.canvas.requestRenderAll();
+}
+
+function studioEdCropSyncFromInputs() {
+  if (!StudioEd.crop) return;
+  const wi = document.getElementById('studio-ed-crop-w'), hi = document.getElementById('studio-ed-crop-h');
+  let nw = wi ? Math.max(20, Math.min(StudioEd.w, +wi.value || 100)) : StudioEd.crop.w;
+  let nh = hi ? Math.max(20, Math.min(StudioEd.h, +hi.value || 100)) : StudioEd.crop.h;
+  StudioEd.crop.w = nw;
+  StudioEd.crop.h = nh;
+  if (StudioEd.crop.x + nw > StudioEd.w) StudioEd.crop.x = Math.max(0, StudioEd.w - nw);
+  if (StudioEd.crop.y + nh > StudioEd.h) StudioEd.crop.y = Math.max(0, StudioEd.h - nh);
+  if (StudioEd.canvas) StudioEd.canvas.requestRenderAll();
+}
+
+function studioEdCancelCrop() {
+  StudioEd.crop = null;
+  const c = StudioEd.canvas;
+  if (c) {
+    c.selection = true;
+    c.defaultCursor = 'default';
+    c.requestRenderAll();
+  }
+}
+
+function studioEdApplyCrop() {
+  const c = StudioEd.canvas;
+  if (!c || !StudioEd.crop || !StudioEd.crop.active) return;
+  const cr = StudioEd.crop;
+  let { x, y, w, h } = cr;
+  x = Math.round(Math.max(0, x));
+  y = Math.round(Math.max(0, y));
+  w = Math.round(Math.min(StudioEd.w - x, w));
+  h = Math.round(Math.min(StudioEd.h - y, h));
+  if (w < 20 || h < 20) return toast('Crop area is too small.', 'warning');
+
+  c.getObjects().forEach((o) => {
+    o.set({ left: o.left - x, top: o.top - y });
+    o.setCoords();
+  });
+
+  if (StudioEd.bg) {
+    StudioEd.bg.set({ left: 0, top: 0, width: w, height: h });
+    StudioEd.bg.setCoords();
+  }
+
+  StudioEd.w = w;
+  StudioEd.h = h;
+  StudioEd.crop = null;
+  c.selection = true;
+  c.defaultCursor = 'default';
+
+  studioEdApplyZoom(StudioEd.zoom);
+  studioEdZoom('fit');
+  studioEdSizeSelect();
+  studioEdSnap();
+  studioEdLayersSoon();
+  toast(`Picture cropped to ${w}×${h}px.`, 'success', 3000);
+  studioEdTab('el');
+}
+
+function studioEdCropMouseDown(e) {
+  if (!StudioEd.crop || !StudioEd.crop.active) return;
+  const pt = studioEdGetPointer(e);
+  StudioEd.crop.startX = Math.max(0, Math.min(StudioEd.w, pt.x));
+  StudioEd.crop.startY = Math.max(0, Math.min(StudioEd.h, pt.y));
+  StudioEd.crop.dragging = true;
+}
+
+function studioEdCropMouseMove(e) {
+  if (!StudioEd.crop || !StudioEd.crop.active || !StudioEd.crop.dragging) return;
+  const pt = studioEdGetPointer(e);
+  const curX = Math.max(0, Math.min(StudioEd.w, pt.x));
+  const curY = Math.max(0, Math.min(StudioEd.h, pt.y));
+  let x = Math.min(StudioEd.crop.startX, curX);
+  let y = Math.min(StudioEd.crop.startY, curY);
+  let w = Math.abs(curX - StudioEd.crop.startX);
+  let h = Math.abs(curY - StudioEd.crop.startY);
+
+  const ratio = StudioEd.crop.ratio || 'free';
+  if (ratio !== 'free') {
+    const parts = ratio.split(':').map(Number);
+    const r = (parts[0] && parts[1]) ? (parts[0] / parts[1]) : 1;
+    h = Math.round(w / r);
+    if (y + h > StudioEd.h) {
+      h = StudioEd.h - y;
+      w = Math.round(h * r);
+    }
+  }
+
+  if (w > 5 && h > 5) {
+    StudioEd.crop.x = Math.round(x);
+    StudioEd.crop.y = Math.round(y);
+    StudioEd.crop.w = Math.round(w);
+    StudioEd.crop.h = Math.round(h);
+    const wi = document.getElementById('studio-ed-crop-w'), hi = document.getElementById('studio-ed-crop-h');
+    if (wi) wi.value = StudioEd.crop.w;
+    if (hi) hi.value = StudioEd.crop.h;
+    if (StudioEd.canvas) StudioEd.canvas.requestRenderAll();
+  }
+}
+
+function studioEdCropMouseUp() {
+  if (!StudioEd.crop || !StudioEd.crop.active) return;
+  StudioEd.crop.dragging = false;
+}
+
+// ── Watermark tool ──
+function studioEdWmMode(mode) {
+  document.querySelectorAll('.sed-wm-tab').forEach((b) => b.classList.toggle('active', b.dataset.wm === mode));
+  const textBox = document.getElementById('sed-wm-text-box');
+  const logoBox = document.getElementById('sed-wm-logo-box');
+  if (textBox) textBox.style.display = mode === 'text' ? 'block' : 'none';
+  if (logoBox) logoBox.style.display = mode === 'logo' ? 'block' : 'none';
+}
+
+function studioEdWmLoadLogo(file) {
+  if (!file) return;
+  if (!/^image\//.test(file.type)) return toast('Pick an image file for the logo.', 'warning');
+  StudioEd.wmLogoUrl = URL.createObjectURL(file);
+  toast('Logo loaded! Click "Apply Watermark" to place it.', 'success', 3000);
+}
+
+async function studioEdAddWatermark() {
+  const c = StudioEd.canvas; if (!c) return;
+  const isLogo = document.querySelector('.sed-wm-tab[data-wm="logo"]')?.classList.contains('active');
+  const opInp = document.getElementById('studio-ed-wm-opacity');
+  const opacity = Math.max(0.05, Math.min(1, (+((opInp && opInp.value) || 25)) / 100));
+
+  if (isLogo) {
+    const logoUrl = StudioEd.wmLogoUrl || (typeof Designer !== 'undefined' && Designer.brand && Designer.brand.logo_url);
+    if (!logoUrl) return toast('Please select or upload a logo file first.', 'warning', 4000);
+    try {
+      const im = await fabric.FabricImage.fromURL(logoUrl, { crossOrigin: 'anonymous' });
+      const targetW = StudioEd.w * 0.22;
+      const k = targetW / im.width;
+      const pos = document.getElementById('studio-ed-wm-logo-pos')?.value || 'br';
+      let left = StudioEd.w - targetW - 24, top = StudioEd.h - (im.height * k) - 24;
+      if (pos === 'bl') { left = 24; top = StudioEd.h - (im.height * k) - 24; }
+      else if (pos === 'tr') { left = StudioEd.w - targetW - 24; top = 24; }
+      else if (pos === 'center') { left = (StudioEd.w - targetW) / 2; top = (StudioEd.h - (im.height * k)) / 2; }
+
+      im.set({ left, top, scaleX: k, scaleY: k, opacity, selectable: true, evented: true });
+      im.studioWatermark = true;
+      im.studioName = 'Watermark Logo';
+      studioEdPut(im, 'Watermark Logo');
+      toast('Logo watermark added.', 'success', 3000);
+    } catch { toast('Could not load that logo image.', 'error'); }
+  } else {
+    const textInp = document.getElementById('studio-ed-wm-text');
+    const text = (textInp && textInp.value.trim()) || 'Watermark';
+    const style = document.getElementById('studio-ed-wm-style')?.value || 'tiled';
+    const color = document.getElementById('studio-ed-wm-color')?.value || '#ffffff';
+    const baseSize = +((document.getElementById('studio-ed-wm-size') || {}).value || 28);
+    const sz = Math.round(baseSize * Math.max(0.8, Math.min(StudioEd.w, StudioEd.h) / 600));
+
+    if (style === 'tiled') {
+      const items = [];
+      const stepX = Math.max(120, sz * 7);
+      const stepY = Math.max(80, sz * 4);
+      for (let x = -stepX; x < StudioEd.w + stepX * 2; x += stepX) {
+        for (let y = -stepY; y < StudioEd.h + stepY * 2; y += stepY) {
+          const shift = ((Math.floor(y / stepY) % 2) * (stepX / 2));
+          const t = new fabric.IText(text, {
+            left: x + shift, top: y, fontSize: sz, fill: color, opacity,
+            angle: -28, originX: 'center', originY: 'center',
+            fontFamily: 'Inter', fontWeight: '700'
+          });
+          items.push(t);
+        }
+      }
+      const group = new fabric.Group(items, { selectable: true, evented: true });
+      group.studioWatermark = true;
+      group.studioName = 'Watermark (Tiled)';
+      studioEdPut(group, 'Watermark (Tiled)');
+      toast('Tiled watermark added.', 'success', 3000);
+    } else {
+      let left = StudioEd.w - 30, top = StudioEd.h - 30, originX = 'right', originY = 'bottom', angle = 0, fontSize = sz;
+      if (style === 'bl') { left = 30; top = StudioEd.h - 30; originX = 'left'; originY = 'bottom'; }
+      else if (style === 'center') {
+        left = StudioEd.w / 2; top = StudioEd.h / 2; originX = 'center'; originY = 'center';
+        angle = -25; fontSize = Math.round(sz * 2.2);
+      }
+      const t = new fabric.IText(text, {
+        left, top, originX, originY, fontSize, fill: color, opacity, angle,
+        fontFamily: 'Inter', fontWeight: '800',
+        stroke: '#000000', strokeWidth: Math.max(1, Math.round(fontSize / 30)),
+        paintFirst: 'stroke', strokeLineJoin: 'round'
+      });
+      t.studioWatermark = true;
+      t.studioName = 'Watermark';
+      studioEdPut(t, 'Watermark');
+      toast('Watermark added.', 'success', 3000);
+    }
+  }
+}
+
+function studioEdRemoveWatermark() {
+  const c = StudioEd.canvas; if (!c) return;
+  const wms = c.getObjects().filter((o) => o.studioWatermark || /watermark/i.test(o.studioName || ''));
+  if (!wms.length) {
+    return toast('No watermark layers found to remove. Use "Add Whiteout / Cover Patch" to hide baked-in marks.', 'info', 5000);
+  }
+  wms.forEach((o) => c.remove(o));
+  studioEdDone();
+  toast(`Removed ${wms.length} watermark layer${wms.length > 1 ? 's' : ''}.`, 'info', 3000);
+}
+
+function studioEdAddWhiteout() {
+  const c = StudioEd.canvas; if (!c) return;
+  const w = Math.round(StudioEd.w * 0.35), h = Math.round(Math.max(36, StudioEd.h * 0.08));
+  const r = new fabric.Rect({
+    left: Math.round((StudioEd.w - w) / 2),
+    top: Math.round(StudioEd.h * 0.8),
+    width: w,
+    height: h,
+    fill: '#ffffff',
+    stroke: '#cbd5e1',
+    strokeWidth: 1,
+    strokeUniform: true,
+    cornerColor: '#7c3aed',
+    cornerSize: 10,
+    transparentCorners: false
+  });
+  r.studioName = 'Whiteout Patch';
+  studioEdPut(r, 'Whiteout Patch');
+  toast('Whiteout patch added. Move and resize it over any watermark to cover it up.', 'info', 6000);
+}
+
+// ── PDF editing and generation ──
+async function studioEdOpenPdf(file) {
+  if (!file) return;
+  try {
+    toast('Loading PDF document...', 'info', 3000);
+    await studioEdLoadPdfLib();
+    if (!window.pdfjsLib) throw new Error('PDF viewer library could not be loaded.');
+
+    const buf = await file.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+    StudioEd.pdfDoc = pdf;
+    StudioEd.pdfRawBuf = buf;
+    StudioEd.pdfTotal = pdf.numPages;
+    StudioEd.pdfCurPage = 1;
+    StudioEd.pdfName = file.name || 'Document.pdf';
+    StudioEd.pdfPageModifications = {};
+
+    const ctrl = document.getElementById('sed-pdf-controls');
+    if (ctrl) ctrl.style.display = 'block';
+    const nm = document.getElementById('sed-pdf-name');
+    if (nm) nm.textContent = StudioEd.pdfName;
+    const tot = document.getElementById('sed-pdf-total');
+    if (tot) tot.textContent = String(StudioEd.pdfTotal);
+
+    const sel = document.getElementById('studio-ed-pdfpagesel');
+    if (sel) {
+      sel.innerHTML = Array.from({ length: StudioEd.pdfTotal }, (_, i) => `<option value="${i + 1}">Page ${i + 1}</option>`).join('');
+      sel.value = '1';
+    }
+
+    await studioEdRenderPdfPage(1);
+    studioEdTab('pdf');
+    toast(`Loaded "${StudioEd.pdfName}" (${StudioEd.pdfTotal} page${StudioEd.pdfTotal > 1 ? 's' : ''}).`, 'success', 4000);
+  } catch (err) {
+    console.error(err);
+    toast(err.message || 'Could not open PDF file.', 'error', 5000);
+  }
+}
+
+async function studioEdRenderPdfPage(num) {
+  if (!StudioEd.pdfDoc) return;
+  const page = await StudioEd.pdfDoc.getPage(num);
+  const viewport = page.getViewport({ scale: 2.0 });
+  const offscreen = document.createElement('canvas');
+  offscreen.width = viewport.width;
+  offscreen.height = viewport.height;
+  const ctx = offscreen.getContext('2d');
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  const pageUrl = offscreen.toDataURL('image/png');
+
+  if (!StudioEd.canvas || StudioEd.post === null) {
+    await studioEditPicture(-1, pageUrl);
+    return;
+  }
+
+  const c = StudioEd.canvas;
+  StudioEd.w = viewport.width;
+  StudioEd.h = viewport.height;
+
+  const oldBase = c.getObjects().find((o) => o.studioBase);
+  if (oldBase) c.remove(oldBase);
+
+  const im = await fabric.FabricImage.fromURL(pageUrl);
+  im.set({ left: 0, top: 0, originX: 'left', originY: 'top', selectable: false, evented: false });
+  im.studioBase = true;
+  im.studioName = `PDF Page ${num}`;
+  c.add(im);
+  c.moveObjectTo(im, 0);
+
+  studioEdApplyZoom(StudioEd.zoom);
+  studioEdZoom('fit');
+  studioEdSizeSelect();
+  c.requestRenderAll();
+  studioEdSnap();
+  studioEdLayersSoon();
+}
+
+async function studioEdSwitchPdfPage(num) {
+  if (!StudioEd.pdfDoc || num < 1 || num > StudioEd.pdfTotal || num === StudioEd.pdfCurPage) return;
+  const c = StudioEd.canvas;
+  if (c) {
+    StudioEd.pdfPageModifications[StudioEd.pdfCurPage] = studioEdSnapshot();
+    c.getObjects().slice().forEach((o) => {
+      if (!o.studioBase && !o.studioBg) c.remove(o);
+    });
+  }
+  StudioEd.pdfCurPage = num;
+  const sel = document.getElementById('studio-ed-pdfpagesel');
+  if (sel) sel.value = String(num);
+
+  await studioEdRenderPdfPage(num);
+
+  const saved = StudioEd.pdfPageModifications[num];
+  if (saved && saved.j) {
+    try {
+      const snapObj = JSON.parse(saved.j);
+      if (snapObj && snapObj.objects) {
+        for (const objData of snapObj.objects) {
+          if (!objData.studioBase && !objData.studioBg) {
+            const restored = (await fabric.util.enlivenObjects([objData]))[0];
+            if (restored) c.add(restored);
+          }
+        }
+      }
+    } catch {}
+  }
+  c.requestRenderAll();
+  studioEdLayersSoon();
+}
+
+function studioEdPdfPageNav(delta) {
+  studioEdSwitchPdfPage(StudioEd.pdfCurPage + delta);
+}
+
+function studioEdDirectCanvasToPdf(canvas) {
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+  const base64 = dataUrl.split(',')[1];
+  const binary = atob(base64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+
+  const w = canvas.width, h = canvas.height;
+  const enc = new TextEncoder();
+  const header = `%PDF-1.4\n`;
+  const obj1 = `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`;
+  const obj2 = `2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n`;
+  const obj3 = `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${w} ${h}] /Resources << /XObject << /Im 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`;
+  const obj4Header = `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${len} >>\nstream\n`;
+  const obj4End = `\nendstream\nendobj\n`;
+  const streamContent = `q ${w} 0 0 ${h} 0 0 cm /Im Do Q`;
+  const obj5 = `5 0 obj\n<< /Length ${streamContent.length} >>\nstream\n${streamContent}\nendstream\nendobj\n`;
+
+  const pHeader = enc.encode(header);
+  const p1 = enc.encode(obj1);
+  const p2 = enc.encode(obj2);
+  const p3 = enc.encode(obj3);
+  const p4H = enc.encode(obj4Header);
+  const p4E = enc.encode(obj4End);
+  const p5 = enc.encode(obj5);
+
+  const pos1 = pHeader.length;
+  const pos2 = pos1 + p1.length;
+  const pos3 = pos2 + p2.length;
+  const pos4 = pos3 + p3.length;
+  const pos5 = pos4 + p4H.length + bytes.length + p4E.length;
+  const xrefOffset = pos5 + p5.length;
+
+  const xref = `xref\n0 6\n0000000000 65535 f \n` +
+    `${String(pos1).padStart(10, '0')} 00000 n \n` +
+    `${String(pos2).padStart(10, '0')} 00000 n \n` +
+    `${String(pos3).padStart(10, '0')} 00000 n \n` +
+    `${String(pos4).padStart(10, '0')} 00000 n \n` +
+    `${String(pos5).padStart(10, '0')} 00000 n \n` +
+    `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  const pXref = enc.encode(xref);
+
+  const totalLen = xrefOffset + pXref.length;
+  const outBytes = new Uint8Array(totalLen);
+  let off = 0;
+  outBytes.set(pHeader, off); off += pHeader.length;
+  outBytes.set(p1, off); off += p1.length;
+  outBytes.set(p2, off); off += p2.length;
+  outBytes.set(p3, off); off += p3.length;
+  outBytes.set(p4H, off); off += p4H.length;
+  outBytes.set(bytes, off); off += bytes.length;
+  outBytes.set(p4E, off); off += p4E.length;
+  outBytes.set(p5, off); off += p5.length;
+  outBytes.set(pXref, off);
+
+  return new Blob([outBytes], { type: 'application/pdf' });
 }
 
 // One colour over the whole picture (sits just above the base picture, under everything else)
@@ -816,6 +1450,40 @@ function studioEdPreview() {
 async function studioEdDownload(kind) {
   if (!StudioEd.canvas) return;
   try {
+    if (kind === 'pdf') {
+      toast('Generating PDF document...', 'info', 3000);
+      await studioEdLoadPdfLib();
+      const out = studioEdRender();
+      let pdfBlob = null;
+      if (window.PDFLib) {
+        try {
+          const { PDFDocument } = window.PDFLib;
+          const pdfDoc = await PDFDocument.create();
+          const page = pdfDoc.addPage([out.width, out.height]);
+          const imgData = out.toDataURL('image/jpeg', 0.95);
+          const imgBytes = await (await fetch(imgData)).arrayBuffer();
+          const embeddedImg = await pdfDoc.embedJpg(imgBytes);
+          page.drawImage(embeddedImg, { x: 0, y: 0, width: out.width, height: out.height });
+          const pdfBytes = await pdfDoc.save();
+          pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
+        } catch (e) {
+          console.warn('PDFLib failed, falling back to direct PDF generator:', e);
+        }
+      }
+      if (!pdfBlob) {
+        pdfBlob = studioEdDirectCanvasToPdf(out);
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(pdfBlob);
+      a.download = `${StudioEd.pdfName ? StudioEd.pdfName.replace(/\.pdf$/i, '') + '-edited' : 'document'}-${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      toast('PDF downloaded successfully.', 'success', 3000);
+      return;
+    }
+
     let out = studioEdRender(), mime = 'image/png';
     if (kind === 'jpg') { // JPG has no see-through parts: put the picture on white
       const f = document.createElement('canvas'); f.width = out.width; f.height = out.height;
@@ -828,7 +1496,7 @@ async function studioEdDownload(kind) {
     a.href = URL.createObjectURL(blob); a.download = `picture-${Date.now()}.${kind === 'jpg' ? 'jpg' : 'png'}`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  } catch (err) { toast(err.message || 'Could not download the picture.', 'error', 5000); }
+  } catch (err) { toast(err.message || 'Could not download the file.', 'error', 5000); }
 }
 
 // Saves the edited picture to the media library and uses it for this post
@@ -854,7 +1522,7 @@ async function studioEdSave() {
     if (i < 0) { // a photo edited on its own: it now sits in the media library
       studioEdClose();
       State.studioMediaItems = null;
-      if (typeof studioLoadTray === 'function' && document.getElementById('studio-modal')?.style.display === 'flex') studioLoadTray(true);
+      if (typeof studioLoadTray === 'function' && (State.currentPage === 'studio' || document.getElementById('page-studio')?.classList.contains('active') || document.getElementById('studio-modal')?.style.display === 'flex')) studioLoadTray(true);
       const lg = document.getElementById('library-grid');
       if (lg && lg.offsetParent && typeof loadMediaLibrary === 'function') loadMediaLibrary();
       toast('Saved to your media library as a new picture. The original is untouched.', 'success', 5000);
@@ -878,5 +1546,9 @@ Object.assign(window, {
   studioEdRemovePicture, studioEdCustomSize, studioEdColor, studioEdBg, studioEdSwatch, studioEdPreview, studioEdDownload, studioEdSize, studioEdFont, studioEdOrder, studioEdDelete, studioEdSave,
   studioEdUndo, studioEdRedo, studioEdZoom, studioEdGrid, studioEdResize, studioEdToggle, studioEdAlign, studioEdProp, studioEdStroke, studioEdRadius,
   studioEdShadow, studioEdGradient, studioEdFilters, studioEdMask, studioEdFlip, studioEdPlace, studioEdLock, studioEdGroup, studioEdDuplicate,
-  studioEdDraw, studioEdPen, studioEdLayerSel, studioEdLayerVis, studioEdLayerLock
+  studioEdDraw, studioEdStartDraw, studioEdStopDraw, studioEdToggleDraw, studioEdPen, studioEdPenColor, studioEdClearDrawings,
+  studioEdStartCrop, studioEdCropSetRatio, studioEdCropSyncFromInputs, studioEdCancelCrop, studioEdApplyCrop,
+  studioEdWmMode, studioEdAddWatermark, studioEdRemoveWatermark, studioEdAddWhiteout, studioEdWmLoadLogo,
+  studioEdOpenPdf, studioEdRenderPdfPage, studioEdSwitchPdfPage, studioEdPdfPageNav,
+  studioEdLayerSel, studioEdLayerVis, studioEdLayerLock
 });

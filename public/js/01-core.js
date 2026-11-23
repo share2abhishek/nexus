@@ -34,7 +34,8 @@ if (typeof window !== 'undefined') window.State = State;
 // ── Page Titles ───────────────────────────────────────────────────────────────
 const PAGE_META = {
   dashboard: { title: 'Home',                   subtitle: 'Your posts, schedule and next steps' },
-  generate:  { title: 'AI writer',              subtitle: 'Describe your idea; get a version for each platform' },
+  studio:    { title: 'Content Studio',          subtitle: 'Turn ideas, articles and media into posts for every network' },
+  generate:  { title: 'Content Studio',          subtitle: 'Turn ideas, articles and media into posts for every network' },
   compose:   { title: 'Create post',            subtitle: 'Write (or let AI write), add a picture, then publish or schedule' },
   calendar:  { title: 'Calendar',               subtitle: 'Everything planned and published. Drag a post to move it' },
   history:   { title: 'Post history',           subtitle: 'What went out, and what didn’t' },
@@ -53,7 +54,8 @@ const PAGE_META = {
   'contact-sync':    { title: 'Contact Sync', subtitle: 'Send your contacts automatically to a Google Sheet and Salesforce' },
   'meta-reports':    { title: 'Meta Reports', subtitle: 'Ad account balance, ad spend and WhatsApp analytics from Meta' },
   'leads-templates': { title: 'WhatsApp · Templates', subtitle: 'Approved messages for broadcasts and first contact' },
-  'leads-broadcast': { title: 'WhatsApp · Broadcasts', subtitle: 'Send one message to many contacts' },
+  'leads-broadcast': { title: 'WhatsApp Outreach', subtitle: 'Bulk WhatsApp outreach campaigns, audience broadcasts & templates' },
+  'whatsapp-outreach': { title: 'WhatsApp Outreach', subtitle: 'Bulk WhatsApp outreach campaigns, audience broadcasts & templates' },
   'leads-settings':  { title: 'WhatsApp · Setup',      subtitle: 'Connect your WhatsApp Business number' },
   adcopy:    { title: 'Ads & press releases',   subtitle: 'Ad text for Google and Meta, and press releases' },
   media:     { title: 'AI images & video',      subtitle: 'Make pictures and short videos with AI' },
@@ -110,26 +112,61 @@ const PLATFORMS = {
 const PAGE_REDIRECTS = {
   'user-settings': ['settings', 'ai'],
   'email': ['sellbird', 'newsletters'],
+  'generate': ['studio'],
+  'content-studio': ['studio'],
+  'whatsapp-outreach': ['leads-broadcast'],
 };
 
-function navigateTo(page) {
+function navigateTo(page, subtab, options = {}) {
+  // Support slash/colon formatted target, e.g. "sellbird/outbox" or "settings/ai"
+  if (typeof page === 'string') {
+    if (page.includes('/')) {
+      const parts = page.split('/');
+      page = parts[0];
+      if (!subtab) subtab = parts[1];
+    } else if (page.includes(':')) {
+      const parts = page.split(':');
+      page = parts[0];
+      if (!subtab) subtab = parts[1];
+    }
+  }
+
   // Close mobile sidebar if open
   if (typeof closeSidebar === 'function') closeSidebar();
 
-  // The old AI writer is now Content Studio
-  if (page === 'generate' && typeof openContentStudio === 'function') { openContentStudio(); return; }
+  if (page === 'generate' || page === 'content-studio') page = 'studio';
 
   if (PAGE_REDIRECTS[page]) {
     const [to, tab] = PAGE_REDIRECTS[page];
     if (to === 'settings') {
-      State.pendingSettingsTab = tab;
+      State.pendingSettingsTab = subtab || tab;
     } else if (to === 'sellbird') {
+      subtab = subtab || tab;
       setTimeout(() => {
-        if (typeof switchSellbirdTab === 'function') switchSellbirdTab(tab);
+        if (typeof switchSellbirdTab === 'function') switchSellbirdTab(subtab);
       }, 50);
     }
     page = to;
   }
+
+  // Handle specific subtabs
+  if (subtab) {
+    if (page === 'settings') {
+      State.pendingSettingsTab = subtab;
+      setTimeout(() => {
+        if (typeof switchSettingsTab === 'function') switchSettingsTab(subtab);
+      }, 50);
+    } else if (page === 'sellbird') {
+      setTimeout(() => {
+        if (typeof switchSellbirdTab === 'function') switchSellbirdTab(subtab);
+      }, 50);
+    } else if (page === 'seo') {
+      setTimeout(() => {
+        if (typeof switchSeoTab === 'function') switchSeoTab(subtab);
+      }, 50);
+    }
+  }
+
   // Reset scroll position so new page always starts cleanly at the top
   try {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -141,10 +178,41 @@ function navigateTo(page) {
     if (mainContent) mainContent.scrollTop = 0;
   } catch (e) {}
 
+  // Persist current page and subtab in session and local storage for browser refresh retention
+  try {
+    sessionStorage.setItem('nexus_current_page', page);
+    if (subtab) sessionStorage.setItem('nexus_current_subtab', subtab);
+    else sessionStorage.removeItem('nexus_current_subtab');
+    localStorage.setItem('nexus_last_page', page);
+  } catch (e) {}
+
+  // Sync URL hash without reloading page
+  try {
+    const targetHash = '#' + page + (subtab ? '/' + subtab : '');
+    if (window.location.hash !== targetHash) {
+      if (options.replaceState !== false && window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', targetHash);
+      } else {
+        window.location.hash = targetHash;
+      }
+    }
+  } catch (e) {}
+
   // Update nav items
   document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => el.classList.remove('active'));
   const navEl = document.getElementById(`nav-${page}`);
   if (navEl) navEl.classList.add('active');
+  if (page === 'leads-broadcast' || page === 'whatsapp-outreach') {
+    const waOutreachNav = document.getElementById('nav-whatsapp-outreach');
+    if (waOutreachNav) {
+      waOutreachNav.classList.add('active');
+      const parentGroup = waOutreachNav.closest('.nav-group-items');
+      if (parentGroup && parentGroup.classList.contains('collapsed')) {
+        const groupId = parentGroup.id.replace('nav-group-', '');
+        if (typeof toggleNavGroup === 'function') toggleNavGroup(groupId, true);
+      }
+    }
+  }
 
   // Update pages
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
@@ -165,32 +233,9 @@ function navigateTo(page) {
     }
   }
 
-  // Keep Ad Leads & CRM submenu open when on any of its split screens
-  const isLeadPage = ['lead-ads', 'leads-contacts', 'leads-inbox', 'leads-bot', 'ai-knowledge-base', 'meta-reports', 'contact-sync', 'leads-templates', 'leads-broadcast', 'leads-settings'].includes(page);
-  const submenu = document.getElementById('sub-nav-lead-ads');
-  const chevron = document.getElementById('chevron-lead-ads');
-  if (isLeadPage) {
-    if (submenu) submenu.style.display = 'flex';
-    if (chevron) chevron.style.transform = 'rotate(180deg)';
-    const parentNav = document.getElementById('nav-lead-ads');
-    if (parentNav) parentNav.classList.add('active');
-
-    // Highlight active submenu item
-    document.querySelectorAll('#sub-nav-lead-ads .nav-sub-item').forEach(el => el.classList.remove('active'));
-    const subMap = {
-      'lead-ads': 'nav-sub-leads-contacts',
-      'leads-contacts': 'nav-sub-leads-contacts',
-      'leads-inbox': 'nav-sub-leads-inbox',
-      'leads-bot': 'nav-sub-leads-bot',
-      'ai-knowledge-base': 'nav-sub-ai-knowledge-base',
-      'meta-reports': 'nav-sub-meta-reports',
-      'contact-sync': 'nav-sub-contact-sync',
-      'leads-templates': 'nav-sub-leads-templates',
-      'leads-broadcast': 'nav-sub-leads-broadcast',
-      'leads-settings': 'nav-sub-leads-settings',
-    };
-    const activeSub = document.getElementById(subMap[page]);
-    if (activeSub) activeSub.classList.add('active');
+  if (page === 'leads-contacts') {
+    const contactsNav = document.getElementById('nav-lead-ads');
+    if (contactsNav) contactsNav.classList.add('active');
   }
 
   // Compose opens in "Schedule" mode with a time 1 hour ahead (unless one is already picked)
@@ -209,6 +254,7 @@ function navigateTo(page) {
 
   // Page-specific load hooks (safely checking existence so no ReferenceError is thrown)
   const hooks = {
+    studio:    () => (typeof setupContentStudioPage === 'function' ? setupContentStudioPage() : (typeof openContentStudio === 'function' ? openContentStudio() : null)),
     dashboard: () => (typeof window.loadDashboard === 'function' ? window.loadDashboard() : (typeof loadDashboard === 'function' ? loadDashboard() : null)),
     calendar:  () => (typeof window.renderCalendar === 'function' ? window.renderCalendar(State.calendarDate) : (typeof renderCalendar === 'function' ? renderCalendar(State.calendarDate) : null)),
     history:   () => (typeof window.loadHistory === 'function' ? window.loadHistory() : (typeof loadHistory === 'function' ? loadHistory() : null)),
@@ -281,11 +327,23 @@ function navigateTo(page) {
 }
 
 // Attach nav click handlers
-document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+document.querySelectorAll('.nav-item[data-page], .nav-sub-item[data-page]').forEach(el => {
   el.addEventListener('click', e => {
     e.preventDefault();
     navigateTo(el.dataset.page);
   });
+});
+
+// Handle browser Back / Forward buttons & direct hash navigation
+window.addEventListener('hashchange', () => {
+  const hash = (window.location.hash || '').replace(/^#\/?/, '').trim();
+  if (!hash) return;
+  const parts = hash.split('/');
+  const targetPage = parts[0];
+  const targetSubtab = parts[1] || '';
+  if (targetPage && (targetPage !== State.currentPage || (targetSubtab && targetSubtab !== sessionStorage.getItem('nexus_current_subtab')))) {
+    navigateTo(targetPage, targetSubtab, { replaceState: true });
+  }
 });
 
 // Collapsible Group Navigation
@@ -349,28 +407,88 @@ window.toggleLeadSubmenu = toggleLeadSubmenu;
 window.navigateToLeadTab = navigateToLeadTab;
 
 function toggleSidebar(force) {
+  const isMobile = window.innerWidth <= 900;
   const sidebar = document.querySelector('.sidebar');
   const backdrop = document.getElementById('sidebar-backdrop');
   if (!sidebar) return;
-  const isOpen = force !== undefined ? force : !sidebar.classList.contains('open');
-  sidebar.classList.toggle('open', isOpen);
-  if (backdrop) backdrop.classList.toggle('active', isOpen);
-  document.body.classList.toggle('sidebar-mobile-open', isOpen);
+
+  if (isMobile) {
+    const isOpen = force !== undefined ? force : !sidebar.classList.contains('open');
+    sidebar.classList.toggle('open', isOpen);
+    if (backdrop) backdrop.classList.toggle('active', isOpen);
+    document.body.classList.toggle('sidebar-mobile-open', isOpen);
+  } else {
+    const isCollapsed = force !== undefined ? !force : !document.body.classList.contains('sidebar-collapsed');
+    document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+    try {
+      localStorage.setItem('nexus_sidebar_collapsed', isCollapsed ? '1' : '0');
+    } catch {}
+    updateSidebarToggleState();
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 260);
+  }
+}
+
+function updateSidebarToggleState() {
+  const btn = document.getElementById('btn-mobile-menu');
+  if (!btn) return;
+  const isMobile = window.innerWidth <= 900;
+  if (isMobile) {
+    const open = document.querySelector('.sidebar')?.classList.contains('open');
+    btn.setAttribute('title', open ? 'Close navigation' : 'Open navigation');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.classList.remove('active');
+  } else {
+    const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+    btn.setAttribute('title', isCollapsed ? 'Show sidebar (Ctrl+B)' : 'Hide sidebar to expand workspace (Ctrl+B)');
+    btn.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+    btn.classList.toggle('active', isCollapsed);
+  }
 }
 
 function closeSidebar() {
-  toggleSidebar(false);
+  if (window.innerWidth <= 900) {
+    toggleSidebar(false);
+  }
+}
+
+function initSidebarState() {
+  try {
+    if (window.innerWidth > 900 && localStorage.getItem('nexus_sidebar_collapsed') === '1') {
+      document.body.classList.add('sidebar-collapsed');
+    }
+  } catch {}
+  updateSidebarToggleState();
 }
 
 window.toggleSidebar = toggleSidebar;
 window.closeSidebar = closeSidebar;
+window.updateSidebarToggleState = updateSidebarToggleState;
+window.initSidebarState = initSidebarState;
 
-// Close mobile sidebar on Escape key or desktop resize
+// Initialize state
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initSidebarState);
+} else {
+  initSidebarState();
+}
+
+// Close mobile sidebar on Escape key or toggle on Ctrl+B
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeSidebar();
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+    e.preventDefault();
+    toggleSidebar();
+  }
 });
 window.addEventListener('resize', () => {
-  if (window.innerWidth > 900) closeSidebar();
+  if (window.innerWidth > 900) {
+    const sidebar = document.querySelector('.sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (sidebar) sidebar.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('active');
+    document.body.classList.remove('sidebar-mobile-open');
+  }
+  updateSidebarToggleState();
 });
 
 function escapeHtml(str) {

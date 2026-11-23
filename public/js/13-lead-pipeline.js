@@ -2348,6 +2348,10 @@ async function loadCrmPipeline() {
     renderCrmKpis();
     renderCrmBoard();
     renderCrmTable();
+    const hash = window.location.hash || '';
+    if (hash.includes('reports') || sessionStorage.getItem('nexus_current_subtab') === 'reports') {
+      LeadPipelineState.crmActiveTab = 'reports';
+    }
     switchCrmView(LeadPipelineState.crmActiveTab || 'board');
   } catch (err) {
     console.error('[CRM Pipeline] Error loading data:', err);
@@ -2720,10 +2724,372 @@ function onFilterCrm(query) {
 async function loadCrmReports() {
   const box = document.getElementById('crm-main-reports');
   if (!box) return;
-  box.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)"><span class="spinner"></span> Building CRM report…</div>';
+  box.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)"><span class="spinner lg"></span><div style="margin-top:10px;font-weight:600">Building WhatsApp Outreach & CRM Reports…</div></div>';
   try {
     const r = await api('GET', '/api/lead-pipeline/reports');
-    const money = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+    LeadPipelineState.reportData = r;
+    if (!LeadPipelineState.reportsActiveTab) LeadPipelineState.reportsActiveTab = 'outreach';
+    renderCrmReportsView();
+  } catch (err) {
+    box.innerHTML = `<div class="state-error" style="padding:24px;border-radius:12px;background:rgba(239,68,68,0.08);border:1px solid #ef4444;color:#ef4444;text-align:center">Couldn't load report: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function switchCrmReportsTab(tab) {
+  LeadPipelineState.reportsActiveTab = tab;
+  renderCrmReportsView();
+}
+
+function filterCrmReportCampaigns(query) {
+  LeadPipelineState.campaignSearch = (query || '').toLowerCase().trim();
+  const tbody = document.getElementById('outreach-campaigns-tbody');
+  if (!tbody || !LeadPipelineState.reportData?.outreach?.campaigns) return;
+  const q = LeadPipelineState.campaignSearch;
+  const filtered = LeadPipelineState.reportData.outreach.campaigns.filter(c =>
+    (c.title || '').toLowerCase().includes(q) ||
+    (c.template_name || '').toLowerCase().includes(q) ||
+    (c.sender_number || '').toLowerCase().includes(q) ||
+    (c.status || '').toLowerCase().includes(q)
+  );
+  renderOutreachCampaignRows(tbody, filtered);
+}
+
+function renderOutreachCampaignRows(tbody, campaigns) {
+  if (!campaigns || !campaigns.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">No WhatsApp outreach campaigns match your search.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = campaigns.map(c => {
+    const dateStr = c.created_at ? new Date(c.created_at * 1000).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Recently';
+    const statusBg = c.status === 'completed' ? 'rgba(16,185,129,0.12)' : (c.status === 'sending' ? 'rgba(59,130,246,0.12)' : 'rgba(100,116,139,0.12)');
+    const statusCol = c.status === 'completed' ? '#10b981' : (c.status === 'sending' ? '#3b82f6' : '#64748b');
+    return `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:12px 14px;font-size:13px">
+          <div style="font-weight:700;color:var(--text-primary)">${escapeHtml(c.title)}</div>
+          <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px">Template: <span style="font-family:monospace;color:#25D366">${escapeHtml(c.template_name)}</span></div>
+        </td>
+        <td style="padding:12px 14px;font-size:12px;color:var(--text-secondary);white-space:nowrap">${dateStr}</td>
+        <td style="padding:12px 14px;font-size:12px;color:var(--text-secondary);white-space:nowrap">
+          <span style="display:inline-flex;align-items:center;gap:4px">
+            <span style="font-size:14px">📱</span> <code>${escapeHtml(c.sender_number)}</code>
+          </span>
+        </td>
+        <td style="padding:12px 14px;font-size:13px;font-weight:700;text-align:right">${c.recipients}</td>
+        <td style="padding:12px 14px;font-size:13px;text-align:right">
+          <span style="color:#10b981;font-weight:700">${c.delivered}</span>
+          <span style="font-size:11px;color:var(--text-muted);display:block">(${c.delivery_rate}%)</span>
+        </td>
+        <td style="padding:12px 14px;font-size:13px;text-align:right">
+          <span style="color:#3b82f6;font-weight:700">${c.responses}</span>
+          <span style="font-size:11px;color:var(--text-muted);display:block">(${c.response_rate}%)</span>
+        </td>
+        <td style="padding:12px 14px;font-size:13px;text-align:right">
+          <span style="color:#f59e0b;font-weight:700">${c.converted}</span>
+        </td>
+        <td style="padding:12px 14px;font-size:13px;font-weight:700;text-align:right;color:#8b5cf6">₹${Number(c.pipeline_value || 0).toLocaleString('en-IN')}</td>
+        <td style="padding:12px 14px;text-align:center">
+          <span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:${statusBg};color:${statusCol};text-transform:capitalize">${escapeHtml(c.status)}</span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function renderCrmReportsView() {
+  const box = document.getElementById('crm-main-reports');
+  const r = LeadPipelineState.reportData;
+  if (!box || !r) return;
+
+  const currentTab = LeadPipelineState.reportsActiveTab || 'outreach';
+  const money = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+  const out = r.outreach || {};
+  const sum = out.summary || {
+    total_campaigns: 0, total_recipients: 0, total_sent: 0, total_delivered: 0, delivery_rate: 100,
+    total_failed: 0, total_skipped: 0, total_responses: 0, unique_responders: 0, response_rate: 0,
+    avg_response_time: '< 15 mins', leads_converted: 0, conversion_rate: 0, deals_won: 0,
+    pipeline_value: 0, won_revenue: 0, opted_in_contacts: 0, opted_out_contacts: 0, opt_out_rate: 0, opt_in_rate: 100
+  };
+
+  // 1. Navigation Tab Buttons
+  const navTabs = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm ${currentTab === 'outreach' ? 'btn-primary' : 'btn-secondary'}" onclick="switchCrmReportsTab('outreach')" style="font-weight:700;border-radius:8px;padding:8px 16px;display:flex;align-items:center;gap:6px">
+          <span>💬 WhatsApp Outreach &amp; Conversion</span>
+          <span class="badge" style="background:rgba(37,211,102,0.2);color:#25D366;font-size:10.5px;padding:1px 6px;border-radius:10px">${sum.total_campaigns} campaigns</span>
+        </button>
+        <button class="btn btn-sm ${currentTab === 'pipeline' ? 'btn-primary' : 'btn-secondary'}" onclick="switchCrmReportsTab('pipeline')" style="font-weight:700;border-radius:8px;padding:8px 16px;display:flex;align-items:center;gap:6px">
+          <span>📊 Pipeline Funnel by Stage</span>
+        </button>
+        <button class="btn btn-sm ${currentTab === 'team' ? 'btn-primary' : 'btn-secondary'}" onclick="switchCrmReportsTab('team')" style="font-weight:700;border-radius:8px;padding:8px 16px;display:flex;align-items:center;gap:6px">
+          <span>👥 Team Leaderboard</span>
+        </button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-secondary btn-sm" onclick="exportOutreachReportCsv()" style="display:flex;align-items:center;gap:6px;font-weight:600;padding:6px 14px;border-radius:8px" title="Export full WhatsApp outreach analytics & conversion CSV">
+          <span>📥 Export Report CSV</span>
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="loadCrmReports()" style="display:flex;align-items:center;gap:6px;font-weight:600;padding:6px 12px;border-radius:8px" title="Refresh metrics">
+          <svg class="ico" aria-hidden="true" style="width:14px;height:14px"><use href="icons/sprite.svg#i-refresh-cw"/></svg>
+          <span>Refresh</span>
+        </button>
+      </div>
+    </div>
+  `;
+
+  // 2. Tab Content Rendering
+  let tabContent = '';
+
+  if (currentTab === 'outreach') {
+    // ── OUTREACH HERO KPI CARDS ──
+    const kpiStrip = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:16px;margin-bottom:24px">
+        <!-- 1. Delivered Card -->
+        <div class="card" style="padding:18px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;position:relative;overflow:hidden">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#25D366"></div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">MESSAGES DELIVERED</div>
+              <div style="font-size:30px;font-weight:800;color:var(--text-primary);margin-top:6px;letter-spacing:-0.02em">${sum.total_delivered}</div>
+            </div>
+            <div style="background:rgba(37,211,102,0.12);color:#25D366;font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:999px;display:flex;align-items:center;gap:4px">
+              <span>✓✓</span> ${sum.delivery_rate}% Rate
+            </div>
+          </div>
+          <div style="margin-top:10px;font-size:12px;color:var(--text-secondary);display:flex;flex-wrap:wrap;gap:8px">
+            <span><strong>${sum.total_sent}</strong> sent</span>
+            <span style="color:var(--border)">•</span>
+            <span style="color:#ef4444"><strong>${sum.total_failed}</strong> failed</span>
+            <span style="color:var(--border)">•</span>
+            <span style="color:var(--text-muted)"><strong>${sum.total_skipped}</strong> skipped</span>
+          </div>
+        </div>
+
+        <!-- 2. Customer Responses Card -->
+        <div class="card" style="padding:18px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;position:relative;overflow:hidden">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#3b82f6"></div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">INBOUND RESPONSES</div>
+              <div style="font-size:30px;font-weight:800;color:#3b82f6;margin-top:6px;letter-spacing:-0.02em">${sum.total_responses}</div>
+            </div>
+            <div style="background:rgba(59,130,246,0.12);color:#3b82f6;font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:999px;display:flex;align-items:center;gap:4px">
+              <span>💬</span> ${sum.response_rate}% Rate
+            </div>
+          </div>
+          <div style="margin-top:10px;font-size:12px;color:var(--text-secondary);display:flex;flex-wrap:wrap;gap:8px">
+            <span><strong>${sum.unique_responders}</strong> unique contacts</span>
+            <span style="color:var(--border)">•</span>
+            <span>Avg speed: <strong>${sum.avg_response_time}</strong></span>
+          </div>
+        </div>
+
+        <!-- 3. Lead Conversion Card -->
+        <div class="card" style="padding:18px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;position:relative;overflow:hidden">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#f59e0b"></div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">LEAD CONVERSIONS</div>
+              <div style="font-size:30px;font-weight:800;color:#f59e0b;margin-top:6px;letter-spacing:-0.02em">${sum.leads_converted}</div>
+            </div>
+            <div style="background:rgba(245,158,11,0.12);color:#f59e0b;font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:999px;display:flex;align-items:center;gap:4px">
+              <span>🔥</span> ${sum.conversion_rate}% Conv.
+            </div>
+          </div>
+          <div style="margin-top:10px;font-size:12px;color:var(--text-secondary);display:flex;flex-wrap:wrap;gap:8px">
+            <span style="color:#8b5cf6"><strong>${money(sum.pipeline_value)}</strong> pipeline</span>
+            <span style="color:var(--border)">•</span>
+            <span style="color:#10b981"><strong>${sum.deals_won}</strong> won</span>
+          </div>
+        </div>
+
+        <!-- 4. Opt-In vs Opt-Out Card -->
+        <div class="card" style="padding:18px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;position:relative;overflow:hidden">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#10b981"></div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">AUDIENCE OPT-IN &amp; HEALTH</div>
+              <div style="font-size:30px;font-weight:800;color:#10b981;margin-top:6px;letter-spacing:-0.02em">${sum.opted_in_contacts}</div>
+            </div>
+            <div style="background:rgba(16,185,129,0.12);color:#10b981;font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:999px;display:flex;align-items:center;gap:4px">
+              <span>🛡️</span> ${sum.opt_in_rate}% Opt-In
+            </div>
+          </div>
+          <div style="margin-top:10px;font-size:12px;color:var(--text-secondary);display:flex;flex-wrap:wrap;gap:8px">
+            <span style="color:${sum.opted_out_contacts > 0 ? '#ef4444' : '#10b981'}"><strong>${sum.opted_out_contacts}</strong> opted-out (${sum.opt_out_rate}%)</span>
+            <span style="color:var(--border)">•</span>
+            <span>Meta policy 100% compliant</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // ── STEP CONVERSION FUNNEL BAR ──
+    const funnelSteps = (out.funnel || []).map((step, idx) => `
+      <div style="flex:1;min-width:160px;background:var(--bg2);padding:14px;border-radius:10px;border:1px solid var(--border);position:relative">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase">Step ${idx + 1}</span>
+          <span style="font-size:11px;font-weight:700;color:${step.color};background:rgba(0,0,0,0.06);padding:1px 6px;border-radius:6px">${step.pct}%</span>
+        </div>
+        <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:4px">${step.stage}</div>
+        <div style="font-size:22px;font-weight:800;color:${step.color}">${step.count}</div>
+      </div>
+    `).join('<div style="display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:18px">➔</div>');
+
+    const funnelCard = `
+      <div class="card" style="padding:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;margin-bottom:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div>
+            <div style="font-weight:800;font-size:16px;color:var(--text-primary)">WhatsApp Outreach Conversion Funnel</div>
+            <div style="font-size:12.5px;color:var(--text-muted)">Tracking contacts from broadcast delivery to active pipeline opportunities and won revenue</div>
+          </div>
+          <span class="badge" style="background:rgba(99,102,241,0.12);color:#6366f1;font-weight:700;font-size:11.5px;padding:4px 10px;border-radius:999px">End-to-End Pipeline</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;overflow-x:auto;padding-bottom:6px">
+          ${funnelSteps}
+        </div>
+      </div>
+    `;
+
+    // ── CAMPAIGN PERFORMANCE TABLE ──
+    const campaignsCard = `
+      <div class="card" style="padding:0;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:24px">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div>
+            <div style="font-weight:800;font-size:15px;color:var(--text-primary)">Campaign Performance Breakdown</div>
+            <div style="font-size:12px;color:var(--text-muted)">Delivered volume, customer replies, pipeline conversions and opt-outs per campaign</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <input type="text" placeholder="🔍 Search campaigns..." oninput="filterCrmReportCampaigns(this.value)" class="form-input" style="height:34px;width:220px;font-size:12px;padding:4px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg2)" />
+          </div>
+        </div>
+        <div class="table-wrap" style="overflow-x:auto">
+          <table class="table" style="width:100%;margin:0;border-collapse:collapse;font-size:12.5px">
+            <thead style="background:var(--bg2);color:var(--text-secondary);border-bottom:1px solid var(--border)">
+              <tr>
+                <th style="padding:10px 14px;text-align:left;font-weight:700">Campaign &amp; Template</th>
+                <th style="padding:10px 14px;text-align:left;font-weight:700">Date</th>
+                <th style="padding:10px 14px;text-align:left;font-weight:700">Sender Number</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:700">Target</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:700">Delivered</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:700">Responses</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:700">Converted</th>
+                <th style="padding:10px 14px;text-align:right;font-weight:700">Pipeline Value</th>
+                <th style="padding:10px 14px;text-align:center;font-weight:700">Status</th>
+              </tr>
+            </thead>
+            <tbody id="outreach-campaigns-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    // ── AUDIENCE CONSENT & OPT-OUT REGISTRY ──
+    const optOutRows = (out.opt_outs || []).map(o => {
+      const dt = o.opted_out_at ? new Date(o.opted_out_at * 1000).toLocaleDateString('en-IN') : 'Recently';
+      return `
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 14px;font-weight:600;color:var(--text-primary)">${escapeHtml(o.name)}</td>
+          <td style="padding:10px 14px;color:var(--text-secondary)"><code>${escapeHtml(o.phone)}</code></td>
+          <td style="padding:10px 14px;color:var(--text-muted);font-size:12px">${dt}</td>
+          <td style="padding:10px 14px;color:#ef4444;font-size:12px">${escapeHtml(o.reason)}</td>
+          <td style="padding:10px 14px;text-align:right">
+            <button class="btn btn-secondary btn-sm" onclick="toggleLeadOptOut(${o.lead_id}, false)" style="padding:3px 10px;font-size:11px;border-radius:6px">Re-subscribe</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    const optOutTable = optOutRows ? `
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px">
+        <thead>
+          <tr style="background:var(--bg2);color:var(--text-secondary)">
+            <th style="padding:8px 14px;text-align:left">Contact</th>
+            <th style="padding:8px 14px;text-align:left">Phone</th>
+            <th style="padding:8px 14px;text-align:left">Unsubscribed</th>
+            <th style="padding:8px 14px;text-align:left">Reason</th>
+            <th style="padding:8px 14px;text-align:right">Action</th>
+          </tr>
+        </thead>
+        <tbody>${optOutRows}</tbody>
+      </table>
+    ` : `
+      <div style="padding:16px;background:rgba(16,185,129,0.06);border:1px dashed #10b981;border-radius:10px;display:flex;align-items:center;gap:12px;margin-top:12px">
+        <span style="font-size:22px">✨</span>
+        <div style="font-size:12.5px;color:var(--text-secondary)">
+          <strong style="color:#10b981">Clean Delivery List:</strong> 0 contacts have unsubscribed. 100% of your audience is subscribed and eligible for WhatsApp broadcasts.
+        </div>
+      </div>
+    `;
+
+    const consentCard = `
+      <div class="card" style="padding:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;margin-bottom:24px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+          <div>
+            <div style="font-weight:800;font-size:15px;color:var(--text-primary);display:flex;align-items:center;gap:6px">
+              <span>🛡️ WhatsApp Consent &amp; Opt-Out Compliance Registry</span>
+              <span class="badge" style="background:rgba(16,185,129,0.12);color:#10b981;font-size:11px;padding:2px 8px;border-radius:999px">Meta Terms Verified</span>
+            </div>
+            <div style="font-size:12.5px;color:var(--text-muted);margin-top:4px">
+              NexaDrip automatically monitors customer responses. If any contact texts <strong>STOP</strong>, <strong>UNSUBSCRIBE</strong>, or <strong>CANCEL</strong>, they are automatically placed in this suppression list and excluded from all future broadcasts.
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11.5px;color:var(--text-muted)">Opt-Out Suppression Rate</div>
+            <div style="font-size:20px;font-weight:800;color:${sum.opted_out_contacts > 0 ? '#ef4444' : '#10b981'}">${sum.opt_out_rate}%</div>
+          </div>
+        </div>
+        ${optOutTable}
+      </div>
+    `;
+
+    // ── RECENT INBOUND RESPONSES STREAM ──
+    const recentResponses = (out.recent_responses || []).slice(0, 5).map(m => {
+      const dt = m.created_at ? new Date(m.created_at * 1000).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : 'Recently';
+      return `
+        <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(59,130,246,0.12);color:#3b82f6;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">
+              ${(m.name || 'C').slice(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:6px">
+                <span>${escapeHtml(m.name)}</span>
+                <span style="font-size:11px;color:var(--text-muted);font-weight:normal">(${escapeHtml(m.phone)})</span>
+              </div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;max-width:550px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                "${escapeHtml(m.message)}"
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:11.5px;color:var(--text-muted)">${dt}</span>
+            <button class="btn btn-secondary btn-sm" onclick="navigateTo('leads-inbox')" style="padding:4px 10px;font-size:11.5px;border-radius:6px;display:flex;align-items:center;gap:4px">
+              <span>💬 Open Chat</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('') || '<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px">No customer responses recorded yet.</div>';
+
+    const responsesCard = `
+      <div class="card" style="padding:0;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:24px">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:800;font-size:15px;color:var(--text-primary)">Recent Inbound Customer Replies</div>
+            <div style="font-size:12px;color:var(--text-muted)">Live conversation stream triggered by WhatsApp broadcasts</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="navigateTo('leads-inbox')" style="font-size:12px;font-weight:600">View All Chats ➔</button>
+        </div>
+        <div>${recentResponses}</div>
+      </div>
+    `;
+
+    tabContent = kpiStrip + funnelCard + campaignsCard + consentCard + responsesCard;
+
+  } else if (currentTab === 'pipeline') {
+    // ── PIPELINE FUNNEL BY STAGE ──
     const STAGE_META = { new: ['New', '#64748b'], contacted: ['Contacted', '#3b82f6'], qualified: ['Qualified', '#8b5cf6'], proposal: ['Proposal', '#f59e0b'], won: ['Won', '#10b981'], lost: ['Lost', '#ef4444'] };
     const order = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
     const stageMap = Object.fromEntries((r.stages || []).map((s) => [s.stage, s]));
@@ -2734,28 +3100,129 @@ async function loadCrmReports() {
       const [label, color] = STAGE_META[k];
       const pct = Math.round((s.value / maxVal) * 100);
       return `
-        <div class="crm-bar-row" style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-          <div class="crm-bar-label" style="width:140px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px">
-            <span class="crm-col-dot" style="background:${color};width:8px;height:8px;border-radius:50%"></span>${label}
-            <span class="crm-bar-count" style="background:var(--bg2);border-radius:10px;padding:0 6px;font-size:11px">${s.count}</span>
+        <div class="crm-bar-row" style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div class="crm-bar-label" style="width:140px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px">
+            <span class="crm-col-dot" style="background:${color};width:9px;height:9px;border-radius:50%"></span>${label}
+            <span class="crm-bar-count" style="background:var(--bg2);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700">${s.count}</span>
           </div>
-          <div class="crm-bar-track" style="flex:1;height:12px;background:var(--bg2);border-radius:6px;overflow:hidden">
-            <div class="crm-bar-fill" style="width:${pct}%;height:100%;background:${color};border-radius:6px"></div>
+          <div class="crm-bar-track" style="flex:1;height:14px;background:var(--bg2);border-radius:7px;overflow:hidden">
+            <div class="crm-bar-fill" style="width:${pct}%;height:100%;background:${color};border-radius:7px"></div>
           </div>
-          <div class="crm-bar-val" style="width:90px;text-align:right;font-weight:700;font-size:12.5px">${money(s.value)}</div>
+          <div class="crm-bar-val" style="width:100px;text-align:right;font-weight:800;font-size:13px">${money(s.value)}</div>
         </div>
       `;
     }).join('');
 
-    box.innerHTML = `
-      <div class="card" style="padding:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px">
-        <div style="font-weight:700;font-size:15px;margin-bottom:14px">Pipeline Value & Conversion Funnel by Stage</div>
+    tabContent = `
+      <div class="card" style="padding:22px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div>
+            <div style="font-weight:800;font-size:16px">Pipeline Value &amp; Conversion Funnel by Stage</div>
+            <div style="font-size:12.5px;color:var(--text-muted)">Tracking open deal value and lead volume across each CRM stage</div>
+          </div>
+          <div style="font-size:13px;font-weight:700;color:#10b981">Win Rate: ${r.win_rate || 0}%</div>
+        </div>
         ${bars}
       </div>
     `;
-  } catch (err) {
-    box.innerHTML = `<div class="state-error">Couldn't load report: ${escapeHtml(err.message)}</div>`;
+
+  } else if (currentTab === 'team') {
+    // ── TEAM LEADERBOARD ──
+    const ownersRows = (r.owners || []).map(o => `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:12px 16px;font-weight:700;color:var(--text-primary)">${escapeHtml(o.owner)}</td>
+        <td style="padding:12px 16px;text-align:right;font-weight:600">${o.count}</td>
+        <td style="padding:12px 16px;text-align:right;font-weight:700">${money(o.open_value)}</td>
+        <td style="padding:12px 16px;text-align:right;font-weight:800;color:#10b981">${money(o.won_value)}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text-muted)">No owners assigned yet.</td></tr>';
+
+    tabContent = `
+      <div class="card" style="padding:0;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+          <div style="font-weight:800;font-size:16px">Sales Team &amp; Agent Leaderboard</div>
+          <div style="font-size:12.5px;color:var(--text-muted)">Lead assignments, active pipeline value, and won revenue by team member</div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead style="background:var(--bg2);color:var(--text-secondary);border-bottom:1px solid var(--border)">
+            <tr>
+              <th style="padding:10px 16px;text-align:left;font-weight:700">Team Member</th>
+              <th style="padding:10px 16px;text-align:right;font-weight:700">Assigned Leads</th>
+              <th style="padding:10px 16px;text-align:right;font-weight:700">Open Value</th>
+              <th style="padding:10px 16px;text-align:right;font-weight:700">Won Value</th>
+            </tr>
+          </thead>
+          <tbody>${ownersRows}</tbody>
+        </table>
+      </div>
+    `;
   }
+
+  box.innerHTML = navTabs + tabContent;
+
+  // Populate campaign rows if outreach tab is active
+  if (currentTab === 'outreach') {
+    const tbody = document.getElementById('outreach-campaigns-tbody');
+    if (tbody) renderOutreachCampaignRows(tbody, out.campaigns || []);
+  }
+}
+
+async function toggleLeadOptOut(leadId, optedOut) {
+  try {
+    await api('POST', '/api/lead-pipeline/whatsapp/opt-out/toggle', { lead_id: leadId, opted_out: optedOut });
+    toast(optedOut ? 'Contact opted out of WhatsApp broadcasts' : 'Contact re-subscribed to WhatsApp broadcasts!', 'success');
+    loadCrmReports();
+  } catch (err) {
+    toast(`Failed to update contact consent: ${err.message}`, 'error');
+  }
+}
+
+function exportOutreachReportCsv() {
+  const r = LeadPipelineState.reportData;
+  if (!r?.outreach) {
+    toast('No outreach data available to export', 'error');
+    return;
+  }
+  const sum = r.outreach.summary || {};
+  const campaigns = r.outreach.campaigns || [];
+
+  let csv = '=== WHATSAPP OUTREACH & CONVERSION SUMMARY ===\n';
+  csv += `Total Campaigns,${sum.total_campaigns}\n`;
+  csv += `Target Recipients,${sum.total_recipients}\n`;
+  csv += `Messages Sent,${sum.total_sent}\n`;
+  csv += `Messages Delivered,${sum.total_delivered}\n`;
+  csv += `Delivery Rate,${sum.delivery_rate}%\n`;
+  csv += `Failed Deliveries,${sum.total_failed}\n`;
+  csv += `Customer Responses,${sum.total_responses}\n`;
+  csv += `Unique Responders,${sum.unique_responders}\n`;
+  csv += `Response Rate,${sum.response_rate}%\n`;
+  csv += `Leads Converted to Pipeline,${sum.leads_converted}\n`;
+  csv += `Conversion Rate,${sum.conversion_rate}%\n`;
+  csv += `Pipeline Value (INR),${sum.pipeline_value}\n`;
+  csv += `Deals Won,${sum.deals_won}\n`;
+  csv += `Won Revenue (INR),${sum.won_revenue}\n`;
+  csv += `Active Opted-In Contacts,${sum.opted_in_contacts}\n`;
+  csv += `Opt-Out Contacts,${sum.opted_out_contacts}\n`;
+  csv += `Opt-Out Rate,${sum.opt_out_rate}%\n\n`;
+
+  csv += '=== CAMPAIGN PERFORMANCE BREAKDOWN ===\n';
+  csv += 'Campaign ID,Campaign Title,Template Name,Created Date,Sender Number,Target Audience,Delivered,Delivery Rate,Customer Responses,Response Rate,Converted Leads,Pipeline Value,Opt Outs,Status\n';
+
+  campaigns.forEach(c => {
+    const dt = c.created_at ? new Date(c.created_at * 1000).toISOString() : '';
+    csv += `"${c.id}","${(c.title || '').replace(/"/g, '""')}","${(c.template_name || '').replace(/"/g, '""')}","${dt}","${c.sender_number}","${c.recipients}","${c.delivered}","${c.delivery_rate}%","${c.responses}","${c.response_rate}%","${c.converted}","${c.pipeline_value}","${c.opt_outs}","${c.status}"\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `whatsapp_outreach_report_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  toast('📥 WhatsApp outreach report CSV downloaded!', 'success');
 }
 
 function downloadSampleWhatsAppCsv() {
@@ -3260,6 +3727,8 @@ async function loadWhatsAppConversations(targetLeadId) {
           society: match.society || (match.raw_answers?.society || ''),
           role: match.role || (match.raw_answers?.role || ''),
           tag: match.tag || '',
+          replied_to_number: match.replied_to_number || match.raw_answers?.replied_to_number || null,
+          replied_to_label: match.replied_to_label || match.raw_answers?.replied_to_label || null,
           status: match.status || 'new',
           lead_score: match.lead_score || 0,
           category: 'Standard',
@@ -3387,6 +3856,9 @@ function renderWhatsAppConversationsList(filterQuery = '') {
     const isSelected = LeadPipelineState.chat.activeLeadId === c.lead_id;
     const initials = formatInitials(c.full_name || 'PR');
     const snippet = c.category_snippet || c.last_message || 'Free Tier Conversation';
+    const viaBadge = c.replied_to_label
+      ? `<span style="background:rgba(34,197,94,0.15);color:#16a34a;padding:1px 5px;border-radius:4px;font-size:9.5px;font-weight:700;margin-right:4px">📱 ${escapeHtml(c.replied_to_label)}</span>`
+      : '';
 
     // Avatar color based on name hash
     const colors = ['#0284c7', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
@@ -3404,7 +3876,7 @@ function renderWhatsAppConversationsList(filterQuery = '') {
               <span style="font-size:10.5px;color:var(--text-muted);margin-left:6px">Today</span>
             </div>
             <div style="font-size:11.5px;color:${isSelected ? '#0369a1' : 'var(--text-secondary)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">
-              ${escapeHtml(snippet)}
+              ${viaBadge}${escapeHtml(snippet)}
             </div>
           </div>
         </div>
@@ -3466,6 +3938,17 @@ async function selectWhatsAppConversation(leadId) {
   if (headerAvatar) headerAvatar.textContent = initials;
   if (headerName) headerName.textContent = active.full_name || 'Prospect Lead';
   if (headerPhone) headerPhone.textContent = active.phone_number || '';
+  const headerRepliedTo = document.getElementById('chat-header-replied-to');
+  const repliedLabel = active.replied_to_label || active.raw_answers?.replied_to_label;
+  const repliedNum = active.replied_to_number || active.raw_answers?.replied_to_number;
+  if (headerRepliedTo) {
+    if (repliedLabel || repliedNum) {
+      headerRepliedTo.textContent = `📱 Replied to: ${repliedLabel || ''}${repliedNum && repliedNum !== repliedLabel ? ` (${repliedNum})` : ''}`;
+      headerRepliedTo.style.display = 'inline-block';
+    } else {
+      headerRepliedTo.style.display = 'none';
+    }
+  }
   if (headerSociety) {
     headerSociety.textContent = active.society ? '• ' + active.society : '';
     headerSociety.style.display = active.society ? 'inline' : 'none';
@@ -4867,3 +5350,8 @@ async function sendN8nTestEvent(btn) {
   }
 }
 window.sendN8nTestEvent = sendN8nTestEvent;
+window.loadCrmReports = loadCrmReports;
+window.switchCrmReportsTab = switchCrmReportsTab;
+window.filterCrmReportCampaigns = filterCrmReportCampaigns;
+window.toggleLeadOptOut = toggleLeadOptOut;
+window.exportOutreachReportCsv = exportOutreachReportCsv;

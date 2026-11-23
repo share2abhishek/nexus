@@ -50,6 +50,16 @@ function switchSettingsTab(tab, btn) {
   document.querySelectorAll('.settings-tab-btn').forEach(b => { b.classList.remove('active'); b.removeAttribute('aria-current'); });
   if (btn) { btn.classList.add('active'); btn.setAttribute('aria-current', 'page'); }
   State.settingsTab = tab;
+  try {
+    sessionStorage.setItem('nexus_settings_tab', tab);
+    sessionStorage.setItem('nexus_current_subtab', tab);
+    if (typeof State !== 'undefined' && State.currentPage === 'settings') {
+      const targetHash = `#settings/${tab}`;
+      if (window.location.hash !== targetHash && window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', targetHash);
+      }
+    }
+  } catch (e) {}
   if (tab === 'members') loadMembers();
   if (tab === 'backups') loadBackups();
   if (tab === 'ai') { loadUserSettings(); loadBusinessAi(); checkOllamaStatus(); refreshAiStatus(); }
@@ -68,7 +78,8 @@ window.openSettings = openSettings;
 
 async function loadSettings() {
   // Show the section asked for (or the one last open)
-  const tab = State.pendingSettingsTab || State.settingsTab || 'platforms';
+  const savedTab = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('nexus_settings_tab')) || null;
+  const tab = State.pendingSettingsTab || State.settingsTab || savedTab || 'platforms';
   State.pendingSettingsTab = null;
   switchSettingsTab(tab);
   try {

@@ -204,6 +204,9 @@ module.exports = (knex) => ({
   deleteAttachment(workspaceId, id) {
     return knex('sellbird_attachments').where({ id: Number(id), workspace_id: workspaceId }).del();
   },
+  async getAttachment(workspaceId, id) {
+    return knex('sellbird_attachments').where({ id: Number(id), workspace_id: workspaceId }).first();
+  },
   // The files to send with one email: the first email of a person gets every file, later ones only
   // the files marked "all emails"
   async attachmentsFor(workspaceId, campaignId, stepNumber) {
@@ -406,10 +409,31 @@ module.exports = (knex) => ({
     if (campaignId) q = q.where('o.campaign_id', campaignId);
 
     const rows = await q.orderBy('o.scheduled_at', 'asc').limit(limit).offset(offset);
-    return rows.map((r) => ({
-      ...r,
-      company_signals: parseJson(r.company_signals_json, {}),
-    }));
+    const campaignIds = [...new Set(rows.map((r) => r.campaign_id).filter(Boolean))];
+    const allAttachments = campaignIds.length
+      ? await knex('sellbird_attachments')
+          .where({ workspace_id: workspaceId })
+          .whereIn('campaign_id', campaignIds)
+          .select('id', 'campaign_id', 'filename', 'content_type', 'size', 'send_with')
+      : [];
+    const attachMap = {};
+    for (const a of allAttachments) {
+      attachMap[a.campaign_id] = attachMap[a.campaign_id] || [];
+      attachMap[a.campaign_id].push(a);
+    }
+
+    return rows.map((r) => {
+      const campAtts = attachMap[r.campaign_id] || [];
+      const itemAtts = (Number(r.step_number) || 1) > 1
+        ? campAtts.filter((a) => a.send_with === 'all')
+        : campAtts;
+      return {
+        ...r,
+        company_signals: parseJson(r.company_signals_json, {}),
+        attachments: itemAtts,
+        campaign_attachments: campAtts,
+      };
+    });
   },
 
   async getOutboxItem(workspaceId, id) {
@@ -439,9 +463,17 @@ module.exports = (knex) => ({
       .first();
 
     if (!r) return null;
+    const campAtts = await knex('sellbird_attachments')
+      .where({ workspace_id: workspaceId, campaign_id: r.campaign_id })
+      .select('id', 'campaign_id', 'filename', 'content_type', 'size', 'send_with');
+    const itemAtts = (Number(r.step_number) || 1) > 1
+      ? campAtts.filter((a) => a.send_with === 'all')
+      : campAtts;
     return {
       ...r,
       company_signals: parseJson(r.company_signals_json, {}),
+      attachments: itemAtts,
+      campaign_attachments: campAtts,
     };
   },
 

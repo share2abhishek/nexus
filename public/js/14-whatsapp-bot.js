@@ -85,6 +85,52 @@ function renderWhatsAppBot() {
           <button class="btn btn-secondary btn-sm" onclick="navigateTo('leads-settings')">Open WhatsApp setup</button>
         </div>` : ''}
 
+        <!-- Multi-Number Auto-Reply Routing Overview -->
+        <div class="settings-section" style="border-left:3px solid var(--accent-green,#25D366)">
+          <div class="settings-section-header">
+            <div>
+              <div class="settings-section-title">📱 Multi-Number Auto-Reply Routing</div>
+              <div class="settings-section-sub">
+                Auto-replies run automatically across all your WhatsApp numbers. Each customer reply is answered from the exact number they contacted.
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="navigateTo('leads-broadcast')" style="font-size:11.5px">
+              Manage Outreach Numbers
+            </button>
+          </div>
+          <div class="card-body" style="padding:12px 16px;background:var(--bg-card,var(--card-bg,#fff));border-radius:8px">
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-primary,#f8fafc);border-radius:6px;border:1px solid var(--border,#e5e7eb)">
+                <div>
+                  <strong>📱 Primary Inbound Line</strong>
+                  <div style="font-size:11px;color:var(--text-secondary,#6b7280)">${escapeHtml(d.primary_phone || 'Default Business Line')}</div>
+                </div>
+                <span style="background:rgba(34,197,94,0.12);color:#15803d;padding:2px 8px;border-radius:99px;font-weight:600;font-size:11px">
+                  Standard Bot Rules (Below)
+                </span>
+              </div>
+              ${(d.sender_numbers || []).map(num => `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-primary,#f8fafc);border-radius:6px;border:1px solid var(--border,#e5e7eb)">
+                  <div>
+                    <strong>📢 ${escapeHtml(num.label || num.display_number)}</strong> · <span style="font-size:11px;color:var(--text-secondary,#6b7280)">${escapeHtml(num.display_number)}</span>
+                  </div>
+                  <div>
+                    ${num.auto_reply_text ? `
+                      <span style="background:rgba(59,130,246,0.12);color:#2563eb;padding:2px 8px;border-radius:99px;font-weight:600;font-size:11px" title="${escapeHtml(num.auto_reply_text)}">
+                        💬 Custom Auto-Reply
+                      </span>
+                    ` : `
+                      <span style="background:rgba(34,197,94,0.12);color:#15803d;padding:2px 8px;border-radius:99px;font-weight:600;font-size:11px">
+                        Standard Bot Rules
+                      </span>
+                    `}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
         <div class="settings-section">
           <div class="settings-section-header">
             <div><div class="settings-section-title">1. Welcome message</div>

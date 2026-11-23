@@ -54,6 +54,8 @@
     "passport-facebook": "^3.0.0",
     "passport-linkedin-oauth2": "^2.0.0",
     "passport-pinterest": "^1.0.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^3.11.174",
     "pg": "^8.13.1",
     "sqlite3": "^5.1.7"
   },

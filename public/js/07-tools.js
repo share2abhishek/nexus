@@ -8,9 +8,21 @@
 
 function switchSeoTab(tab, btn) {
   document.querySelectorAll('.seo-panel').forEach(p => p.style.display = 'none');
-  document.getElementById(`seo-panel-${tab}`).style.display = '';
+  const panel = document.getElementById(`seo-panel-${tab}`);
+  if (panel) panel.style.display = '';
   document.querySelectorAll('.seo-tab-btn').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-secondary'); });
   (btn || document.querySelector(`.seo-tab-btn[data-tab="${tab}"]`))?.classList.replace('btn-secondary', 'btn-primary');
+  State.seoTab = tab;
+  try {
+    sessionStorage.setItem('nexus_seo_tab', tab);
+    sessionStorage.setItem('nexus_current_subtab', tab);
+    if (typeof State !== 'undefined' && State.currentPage === 'seo') {
+      const targetHash = `#seo/${tab}`;
+      if (window.location.hash !== targetHash && window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', targetHash);
+      }
+    }
+  } catch (e) {}
   if (tab === 'tracked') loadTrackedKeywords();
   if (tab === 'autopilot' && typeof loadAutopilot === 'function') loadAutopilot();
 }

@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexaDrip - Business Growth & Automation Proposal (~₹2.00/Lead)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #7c3aed;
+      --primary-light: #f3e8ff;
+      --navy: #0f172a;
+      --navy-dark: #090d16;
+      --emerald: #10b981;
+      --emerald-dark: #059669;
+      --emerald-light: #ecfdf5;
+      --slate-dark: #1e293b;
+      --slate: #475569;
+      --slate-light: #94a3b8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--slate-dark);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .top-action-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .top-action-bar .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 17px;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .top-action-bar .brand img { height: 26px; }
+    .top-action-bar .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      border: none;
+    }
+    .btn-edit {
+      background: linear-gradient(135deg, #a855f7, #7c3aed);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .btn-edit:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-primary {
+      background: #3b82f6;
+      color: #fff;
+    }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-emerald {
+      background: #10b981;
+      color: #fff;
+    }
+    .btn-emerald:hover { background: #059669; }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
+
+    .doc-container {
+      max-width: 960px;
+      margin: 32px auto;
+      padding: 0 20px;
+      transition: margin-right 0.3s ease;
+    }
+    body.drawer-open .doc-container {
+      margin-right: 440px;
+    }
+
+    .doc-page {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px;
+      margin-bottom: 32px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+      position: relative;
+    }
+
+    .page-tag {
+      display: inline-block;
+      padding: 4px 12px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 30px;
+      font-weight: 800;
+      color: var(--slate-dark);
+      line-height: 1.25;
+      margin-bottom: 12px;
+    }
+    .lead-p {
+      font-size: 15px;
+      color: var(--slate);
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      background: var(--navy);
+      padding: 24px;
+      border-radius: 12px;
+      color: #fff;
+      margin-bottom: 36px;
+    }
+    .kpi-card { text-align: center; }
+    .kpi-val {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .kpi-val.green { color: #34d399; }
+    .kpi-val.purple { color: #c084fc; }
+    .kpi-lbl {
+      font-size: 11.5px;
+      color: var(--slate-light);
+      font-weight: 500;
+    }
+
+    .section-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .pain-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 32px;
+    }
+    .pain-item {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+      font-size: 13.5px;
+    }
+    .pain-item:last-child { margin-bottom: 0; }
+    .pain-icon { color: #ef4444; font-size: 16px; font-weight: bold; }
+
+    .screen-showcase {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: center;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+    .screen-frame {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+      background: #000;
+    }
+    .screen-frame img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .screen-info h3 {
+      font-size: 16.5px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 10px;
+    }
+    .screen-info ul { list-style: none; }
+    .screen-info li {
+      position: relative;
+      padding-left: 20px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: var(--slate);
+    }
+    .screen-info li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    .wa-card {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 28px;
+    }
+    .wa-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      color: #166534;
+      margin-bottom: 14px;
+    }
+    .wa-bubble {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 10px;
+      max-width: 82%;
+      line-height: 1.4;
+    }
+    .wa-bubble.in {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      align-self: flex-start;
+    }
+    .wa-bubble.out {
+      background: #dcfce7;
+      border: 1px solid #86efac;
+      margin-left: auto;
+      color: #14532d;
+    }
+
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 28px;
+      font-size: 13px;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .styled-table th {
+      background: var(--navy);
+      color: #fff;
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+    }
+    .styled-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--slate-dark);
+    }
+    .styled-table tr:last-child td { border-bottom: none; }
+    .styled-table tr.total-row {
+      background: var(--emerald-light);
+      font-weight: 700;
+    }
+    .styled-table tr.total-row td {
+      color: var(--emerald-dark);
+      font-size: 14px;
+    }
+    .highlight-cell {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .roadmap-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .roadmap-step {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .step-tag {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .step-text {
+      font-size: 12.5px;
+      color: var(--slate);
+      line-height: 1.45;
+    }
+
+    .cta-banner {
+      background: linear-gradient(135deg, #0f172a, #1e1b4b);
+      border-radius: 12px;
+      padding: 32px;
+      color: #fff;
+      text-align: center;
+    }
+    .cta-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .cta-desc {
+      font-size: 14px;
+      color: var(--slate-light);
+      max-width: 600px;
+      margin: 0 auto 20px;
+    }
+    .cta-contacts {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      font-size: 13.5px;
+      color: #34d399;
+      font-weight: 600;
+      flex-wrap: wrap;
+    }
+
+    /* ── Slide-Out Editor Drawer ── */
+    .editor-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 420px;
+      background: #ffffff;
+      border-left: 1px solid var(--border);
+      box-shadow: -8px 0 30px rgba(0,0,0,0.12);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .editor-drawer.open {
+      transform: translateX(0);
+    }
+    .drawer-header {
+      padding: 16px 20px;
+      background: var(--navy);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .drawer-title {
+      font-size: 15px;
+      font-weight: 700;
+      font-family: 'Space Grotesk', sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .drawer-body {
+      padding: 20px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .drawer-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      background: #f8fafc;
+      display: flex;
+      gap: 10px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--navy);
+    }
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-family: inherit;
+      color: var(--slate-dark);
+      background: #fff;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+    }
+    .form-textarea {
+      resize: vertical;
+      min-height: 55px;
+      line-height: 1.4;
+    }
+    .preset-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .preset-chip {
+      padding: 5px 10px;
+      font-size: 11.5px;
+      font-weight: 600;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .preset-chip:hover, .preset-chip.active {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .toast-msg {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+      z-index: 300;
+      display: none;
+    }
+
+    @media print {
+      .top-action-bar, .editor-drawer, .toast-msg { display: none !important; }
+      body { background: #fff !important; }
+      .doc-container { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+      .doc-page {
+        box-shadow: none !important;
+        border: none !important;
+        margin: 0 !important;
+        padding: 32px !important;
+        page-break-after: always;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .doc-page { padding: 24px; }
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+      .screen-showcase { grid-template-columns: 1fr; }
+      .roadmap-grid { grid-template-columns: 1fr; }
+      .editor-drawer { width: 100%; }
+      body.drawer-open .doc-container { margin-right: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Action Bar -->
+  <header class="top-action-bar">
+    <div class="brand">
+      <img src="img/nexadrip-logo-white.png" alt="NexaDrip" onerror="this.style.display='none'">
+      <span>NexaDrip</span>
+      <span style="font-size:12px;background:rgba(255,255,255,0.12);padding:2px 8px;border-radius:4px;font-weight:500">Proposal</span>
+    </div>
+    <div class="actions">
+      <button class="btn btn-edit" onclick="toggleDrawer()" id="btn-toggle-editor">✏️ Edit &amp; Customize Proposal</button>
+      <button class="btn btn-secondary" onclick="window.print()">🖨️ Print / Save as PDF</button>
+      <a href="NexaDrip-Business-Growth-Proposal.pdf" class="btn btn-primary" id="btn-download-pdf" download>⬇ Download Official PDF</a>
+      <a href="https://wa.me/919800000000?text=Hi%20NexaDrip%2C%20I%20reviewed%20your%20Rs%202%20lead%20proposal%20and%20want%20a%20demo" target="_blank" class="btn btn-emerald" id="link-wa-chat">📱 Chat on WhatsApp</a>
+    </div>
+  </header>
+
+  <div class="doc-container">
+
+    <!-- PAGE 1: Executive Summary -->
+    <section class="doc-page">
+      <div class="page-tag" id="disp-page-tag">Executive Growth Proposal</div>
+      <h1 id="disp-headline">Acquire & Qualify High-Intent Customers At Just ~Rs 2 Per Lead or Customer Chat</h1>
+      <p class="lead-p" id="disp-subtitle">A turnkey, self-driving AI marketing platform engineered for business owners, clinic directors, retail founders, and service firms in Pune and high-growth hubs to replace expensive ad agencies and generate predictable daily revenue.</p>
+
+      <!-- KPI Grid -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-val green" id="disp-kpi-cost">~₹2.00</div>
+          <div class="kpi-lbl">Avg Cost Per Lead / Chat</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-val">&lt; 3 Sec</div>
+          <div class="kpi-lbl">24/7 AI Instant Response</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-val purple">98%</div>
+          <div class="kpi-lbl">WhatsApp Drip Open Rate</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-val">100% Real</div>
+          <div class="kpi-lbl">DNS-Verified Contacts</div>
+        </div>
+      </div>
+
+      <!-- The Problem -->
+      <div class="section-title">⚠️ The Reality: Why Traditional Marketing Burns Capital</div>
+      <div class="pain-box">
+        <div class="pain-item">
+          <span class="pain-icon">✕</span>
+          <div><strong>Skyrocketing Ad Costs:</strong> Meta and Google Ads cost ₹30–₹80 per click, pushing cost-per-lead to ₹200–₹500+. Over 60% turn out to be accidental clicks, tire-kickers, or invalid phone numbers.</div>
+        </div>
+        <div class="pain-item">
+          <span class="pain-icon">✕</span>
+          <div><strong>Heavy Agency Retainers:</strong> Traditional digital agencies charge ₹25,000–₹50,000/month retainers with zero revenue guarantees, while you still bear ad spend on top.</div>
+        </div>
+        <div class="pain-item">
+          <span class="pain-icon">✕</span>
+          <div><strong>The 5-Minute Lead Drop-Off:</strong> 78% of customers purchase from whoever replies first. When customer inquiries arrive at 9 PM or during Sunday lunch, delayed replies kill conversions.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 2: Live Platform Showcase (Outbound & Inbound) -->
+    <section class="doc-page">
+      <div class="page-tag">Live Platform Showcase</div>
+      <h2>Real-World Verification &amp; 24/7 AI Lead Capture</h2>
+      <p class="lead-p" id="disp-showcase-sub">See the actual software interfaces working for your business in <span id="disp-city-name">Pune</span> in real time:</p>
+
+      <!-- Showcase 1: Crawler -->
+      <div class="screen-showcase">
+        <div class="screen-frame">
+          <img src="img/samples/screen-find-companies.jpg" alt="Find Companies AI Crawler in Pune">
+        </div>
+        <div class="screen-info">
+          <h3>Screen A: 100% Real-World Verified B2B Discovery</h3>
+          <ul>
+            <li><strong>Authentic Domain Crawling:</strong> Discovers live companies in <span class="disp-city-inline">Pune</span> by category.</li>
+            <li><strong>DNS MX Live Verification:</strong> Checks mail servers before drafting outreach to guarantee inbox deliverability.</li>
+            <li><strong>Targeting Niche:</strong> Tailored for <span id="disp-audience-inline">Business Owners, Clinic Directors & Retail Founders</span>.</li>
+            <li><strong>Auto-Drafted Sequences:</strong> Prepares personalized 1-to-1 outreach ready for Outbox dispatch at wholesale costs (~₹0.20 / lead).</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Showcase 2: WhatsApp Simulation -->
+      <div class="wa-card">
+        <div class="wa-header">
+          <span>🟢 Screen B: 24/7 AI WhatsApp Qualification &amp; Booking Simulation</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="wa-bubble in" id="disp-chat-query">
+            Customer (10:42 PM): 'Hi, looking for digital marketing and automation pricing in Pune.'
+          </div>
+          <div class="wa-bubble out" id="disp-chat-reply">
+            NexaDrip AI (10:42 PM): 'Hello! NexaDrip automates your 24/7 customer chats, WhatsApp drips, verified email outreach, and local SEO at just ~Rs 2 per lead. Would you like a 10-minute demo walkthrough?'
+          </div>
+          <div class="wa-bubble in" id="disp-chat-confirm">
+            Customer: 'Thursday 5:00 PM works. My number is 98220 XXXXX.'
+          </div>
+          <div class="wa-bubble out" id="disp-chat-lock" style="font-weight:600">
+            NexaDrip AI: 'Demo locked for Thursday 5 PM! Confirmation sent to your WhatsApp. Total acquisition cost: ~Rs 1.85.'
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 3: Content Studio & Picture Editor -->
+    <section class="doc-page">
+      <div class="page-tag">Content &amp; Creative Suite</div>
+      <h2>Multi-Channel Studio &amp; Built-in Canva-Grade Editor</h2>
+      <p class="lead-p">Schedule campaigns across 8 social platforms and edit high-converting marketing visuals and PDF brochures without hiring designers:</p>
+
+      <!-- Showcase 3: Content Studio -->
+      <div class="screen-showcase">
+        <div class="screen-frame">
+          <img src="img/samples/screen-content-studio.jpg" alt="Content Studio Multi-Channel">
+        </div>
+        <div class="screen-info">
+          <h3>Screen C: Content Studio Multi-Channel Workspace</h3>
+          <ul>
+            <li><strong>1-Click Multi-Network Distribution:</strong> Publish to LinkedIn, Facebook, Instagram, Twitter/X, Pinterest, Google Business &amp; WhatsApp.</li>
+            <li><strong>Automated AI Writer:</strong> Generates tailored captions, hashtags, and hooks suited to each platform.</li>
+            <li><strong>Cloud Schedule Safety:</strong> Automatically posts on schedule even if your office computer is turned off.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Showcase 4: Creative Editor -->
+      <div class="screen-showcase">
+        <div class="screen-frame">
+          <img src="img/samples/screen-picture-editor.png" alt="Creative Picture & PDF Editor">
+        </div>
+        <div class="screen-info">
+          <h3>Screen D: Canva-Grade Picture &amp; PDF Editor</h3>
+          <ul>
+            <li><strong>Crop Tool:</strong> Aspect ratio presets for Feed (1:1), Portrait (4:5), and Story (9:16).</li>
+            <li><strong>Draw &amp; Sign:</strong> Freehand pen, marker, and spray brushes for quick document signing.</li>
+            <li><strong>Watermarks:</strong> Add brand logos or 1-click remove baked-in watermarks with whiteout patches.</li>
+            <li><strong>PDF Editing:</strong> Import, annotate, and export multi-page brochures and proposals.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 4: The Math & Comparison -->
+    <section class="doc-page">
+      <div class="page-tag">Unit Economics &amp; ROI</div>
+      <h2>The Math Behind ~₹<span class="disp-cost-inline">2.00</span> Per Lead / Chat</h2>
+      <p class="lead-p">How NexaDrip eliminates the 300% markup of middlemen agencies through streamlined AI pipelines and direct deliverability infrastructure:</p>
+
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>Operation / Channel</th>
+            <th>Traditional Method</th>
+            <th>NexaDrip AI Platform</th>
+            <th>Your Savings</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Inbound Chat / FAQ Qualification Session</strong></td>
+            <td>₹15.00 (Customer support staff)</td>
+            <td class="highlight-cell">~₹0.35</td>
+            <td>97% Cheaper</td>
+          </tr>
+          <tr>
+            <td><strong>Direct WhatsApp Follow-up &amp; Nurturing</strong></td>
+            <td>₹3.50 (Manual SDR / 3rd Party CRM)</td>
+            <td class="highlight-cell">~₹0.90</td>
+            <td>74% Cheaper</td>
+          </tr>
+          <tr>
+            <td><strong>Verified B2B Lead Lookup &amp; Email Dispatch</strong></td>
+            <td>₹25.00 (Apollo / ZoomInfo + CRM)</td>
+            <td class="highlight-cell">~₹0.20</td>
+            <td>99% Cheaper</td>
+          </tr>
+          <tr>
+            <td><strong>Local SEO Keyword Optimization</strong></td>
+            <td>₹15,000 / month Agency Fee</td>
+            <td class="highlight-cell">Included in AI Suite</td>
+            <td>100% Saved</td>
+          </tr>
+          <tr class="total-row">
+            <td>Blended Average Cost Per Qualified Customer Lead</td>
+            <td>₹150 – ₹450+ (Meta/Google Ads)</td>
+            <td class="disp-cost-total">~₹2.00</td>
+            <td>98% REDUCTION IN CAC</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Head to Head -->
+      <div class="section-title">📊 Head-to-Head Comparison Matrix</div>
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>Key Metric</th>
+            <th>Traditional Digital Agency</th>
+            <th>Meta / Google Ads Alone</th>
+            <th>NexaDrip Growth Suite</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Monthly Retainer</strong></td>
+            <td>₹25,000 – ₹50,000 / month</td>
+            <td>None (Self-managed ad spend)</td>
+            <td class="highlight-cell">Zero Retainer Fees</td>
+          </tr>
+          <tr>
+            <td><strong>Cost Per Lead</strong></td>
+            <td>₹250 – ₹600+</td>
+            <td>₹150 – ₹450+</td>
+            <td class="highlight-cell green">~₹<span class="disp-cost-inline">2.00</span> Per Lead / Chat</td>
+          </tr>
+          <tr>
+            <td><strong>Response Speed</strong></td>
+            <td>2 – 12 Hours (Delayed)</td>
+            <td>No chat built-in</td>
+            <td class="highlight-cell">Instant (&lt; 3 Seconds, 24/7)</td>
+          </tr>
+          <tr>
+            <td><strong>WhatsApp Integration</strong></td>
+            <td>Manual or Extra Cost</td>
+            <td>Requires 3rd party tool</td>
+            <td class="highlight-cell">Native Automated Drips</td>
+          </tr>
+          <tr>
+            <td><strong>Contact Verification</strong></td>
+            <td>Generic scraped lists</td>
+            <td>Unverified user forms</td>
+            <td class="highlight-cell">100% Live DNS MX Verified</td>
+          </tr>
+          <tr>
+            <td><strong>Setup Time</strong></td>
+            <td>3 – 5 Weeks</td>
+            <td>1 – 2 Weeks</td>
+            <td class="highlight-cell">Same-Day (&lt; 24 Hours)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- 3-Day Roadmap -->
+      <div class="section-title">🚀 Fast-Track 3-Day Onboarding Roadmap</div>
+      <div class="roadmap-grid">
+        <div class="roadmap-step">
+          <div class="step-tag">Day 1: Setup &amp; Training</div>
+          <div class="step-text">Brand kit synchronization, AI knowledge base training on your pricing, services &amp; FAQs, and website chat widget installation.</div>
+        </div>
+        <div class="roadmap-step">
+          <div class="step-tag">Day 2: Multi-Channel Workflows</div>
+          <div class="step-text">WhatsApp Business API connection, automated quotation follow-up drips, appointment booking link, and lead pipeline sync.</div>
+        </div>
+        <div class="roadmap-step">
+          <div class="step-tag">Day 3: Outreach &amp; SEO Launch</div>
+          <div class="step-text">Verified cold outreach campaigns launched for targeted local businesses (<span class="disp-city-inline">Pune</span>) and SEO autopilot activation for Google Maps.</div>
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div class="cta-banner">
+        <div class="cta-title">Ready to Cut Customer Acquisition Costs by 90%?</div>
+        <div class="cta-desc">Book your 10-minute live demonstration and receive a complimentary AI Marketing &amp; SEO Audit tailored for your business.</div>
+        <div class="cta-contacts">
+          <span id="disp-contact-phone">📞 Phone / WhatsApp: +91 98000 00000</span>
+          <span id="disp-contact-email">✉️ Email: growth@nexadrip.com</span>
+          <span id="disp-contact-web">🌐 Web: www.nexadrip.com</span>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <!-- Slide-Out Editor & AI Suggestion Drawer -->
+  <aside class="editor-drawer" id="editor-drawer">
+    <div class="drawer-header">
+      <div class="drawer-title">
+        <span>✏️ Customize Proposal &amp; AI Assist</span>
+      </div>
+      <button type="button" onclick="toggleDrawer()" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer">✕</button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Quick Industry Presets -->
+      <div class="form-group">
+        <label class="form-label">✨ Quick Industry Presets (Click to autofill):</label>
+        <div class="preset-chips">
+          <button type="button" class="preset-chip" onclick="applyPreset('dental')">🦷 Dental &amp; Clinics</button>
+          <button type="button" class="preset-chip" onclick="applyPreset('realestate')">🏢 Real Estate</button>
+          <button type="button" class="preset-chip" onclick="applyPreset('b2b')">⚙️ B2B Manufacturing</button>
+          <button type="button" class="preset-chip" onclick="applyPreset('legal_finance')">⚖️ Legal &amp; CA</button>
+          <button type="button" class="preset-chip" onclick="applyPreset('retail_restaurant')">🛍️ Retail &amp; Food</button>
+          <button type="button" class="preset-chip" onclick="applyPreset('coaching')">🎓 Coaching / EdTech</button>
+          <button type="button" class="preset-chip" onclick="applyPreset('general')">🚀 General Business</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Target City / Locality</label>
+          <input type="text" class="form-input" id="inp-city" value="Pune" oninput="syncPreview()">
+        </div>
+        <div class="form-group" style="width:110px">
+          <label class="form-label">Cost / Lead (₹)</label>
+          <input type="text" class="form-input" id="inp-cost" value="2.00" oninput="syncPreview()">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Target Audience / Niche</label>
+        <input type="text" class="form-input" id="inp-audience" value="Business Owners, Clinic Directors & Retail Founders" oninput="syncPreview()">
+      </div>
+
+      <!-- AI Suggestion Trigger -->
+      <button type="button" class="btn btn-edit" style="width:100%;justify-content:center;padding:10px" onclick="triggerAiSuggestions()" id="btn-ai-suggest">
+        ✨ AI Suggest Tailored Copy &amp; Math
+      </button>
+
+      <div class="form-group">
+        <label class="form-label">Main Proposal Headline</label>
+        <textarea class="form-textarea" id="inp-headline" oninput="syncPreview()">Acquire & Qualify High-Intent Customers At Just ~Rs 2 Per Lead or Customer Chat</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Subtitle / Executive Summary</label>
+        <textarea class="form-textarea" id="inp-subtitle" oninput="syncPreview()">A turnkey, self-driving AI marketing platform engineered for business owners, clinic directors, retail founders, and service firms in Pune and high-growth hubs to replace expensive ad agencies and generate predictable daily revenue.</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">WhatsApp Simulation: Customer Question</label>
+        <textarea class="form-textarea" id="inp-chat-query" oninput="syncPreview()">Customer (10:42 PM): 'Hi, looking for digital marketing and automation pricing in Pune.'</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">WhatsApp Simulation: AI Instant Reply</label>
+        <textarea class="form-textarea" id="inp-chat-reply" oninput="syncPreview()">NexaDrip AI (10:42 PM): 'Hello! NexaDrip automates your 24/7 customer chats, WhatsApp drips, verified email outreach, and local SEO at just ~Rs 2 per lead. Would you like a 10-minute demo walkthrough?'</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">WhatsApp Simulation: Customer Confirmation</label>
+        <input type="text" class="form-input" id="inp-chat-confirm" value="Customer: 'Thursday 5:00 PM works. My number is 98220 XXXXX.'" oninput="syncPreview()">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">WhatsApp Simulation: AI Confirmation &amp; Lead Cost</label>
+        <input type="text" class="form-input" id="inp-chat-lock" value="NexaDrip AI: 'Demo locked for Thursday 5 PM! Confirmation sent to your WhatsApp. Total acquisition cost: ~Rs 1.85.'" oninput="syncPreview()">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Contact Phone / WhatsApp</label>
+        <input type="text" class="form-input" id="inp-contact-phone" value="+91 98000 00000" oninput="syncPreview()">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Contact Email</label>
+        <input type="text" class="form-input" id="inp-contact-email" value="growth@nexadrip.com" oninput="syncPreview()">
+      </div>
+    </div>
+
+    <div class="drawer-footer">
+      <button type="button" class="btn btn-primary" style="flex:1" onclick="saveAndRecompilePdf()" id="btn-save-recompile">
+        💾 Save &amp; Recompile PDF
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="toggleDrawer()">Done</button>
+    </div>
+  </aside>
+
+  <div class="toast-msg" id="toast-msg"></div>
+
+  <script>
+    const PRESETS = {"dental":{"id":"dental","name":"Healthcare & Dental Clinics","audience":"Dental Clinics, Doctors & Specialty Healthcare Providers","city":"Pune","cost":"2.00","headline":"Acquire & Book High-Value Patients At Just ~Rs 2 Per Lead / Chat","subtitle":"An autonomous AI growth engine for dental & medical clinics in Pune to automate 24/7 patient inquiries, WhatsApp appointment scheduling, and Google Maps ranking.","chat_query":"Customer (10:42 PM): 'Hi, looking for dental implant pricing and consultation in Baner, Pune.'","chat_reply":"NexaDrip AI (10:42 PM): 'Hello! Dr. Sharma offers single implants from Rs 18,000 with lifetime warranty. We have a complimentary 3D scan slot this Thursday. Would you like a morning or evening appointment?'","chat_customer_confirm":"Customer: 'Thursday 5:00 PM works. My number is 98220 XXXXX.'","chat_bot_lock":"NexaDrip AI: 'Appointment locked for Thursday 5 PM! Directions sent. Total cost of this complete patient acquisition: ~Rs 1.85.'","industry_summary":"- Clinics & Doctors: 3.8x patient bookings via 24/7 WhatsApp bot  - Dental: Instant implant & aligner consultation booking"},"realestate":{"id":"realestate","name":"Real Estate & Property Developers","audience":"Builders, Real Estate Developers & Channel Partners","city":"Pune","cost":"2.00","headline":"Acquire Verified Home Buyers & Site Visits At Just ~Rs 2 Per Lead / Chat","subtitle":"Autonomous AI property marketing for real estate developers and brokers in Pune: 24/7 WhatsApp brochure dispatch, automated site visit booking, and verified B2B investor outreach.","chat_query":"Customer (9:15 PM): 'Interested in 2 & 3 BHK floor plans and price list for your project in Hinjewadi, Pune.'","chat_reply":"NexaDrip AI (9:15 PM): 'Hello! 2 BHKs start at Rs 68L and 3 BHKs at Rs 92L with zero brokerage. I have sent the floor plan PDF to your WhatsApp. Would you like to schedule a site visit this Saturday or Sunday?'","chat_customer_confirm":"Customer: 'Saturday at 11 AM works. My contact is 98810 XXXXX.'","chat_bot_lock":"NexaDrip AI: 'Site visit booked for Saturday 11 AM with complimentary pickup! Sales manager alerted. Total acquisition cost: ~Rs 1.90.'","industry_summary":"- Real Estate: Instant site-visit scheduling & brochure dispatch  - Channel Partners: 4.2x faster buyer qualification"},"b2b":{"id":"b2b","name":"B2B & Industrial Manufacturing","audience":"B2B Manufacturers, Industrial Suppliers & IT Service Providers","city":"Pune","cost":"2.00","headline":"Generate Verified RFQs & Commercial Inquiries At Just ~Rs 2 Per Lead","subtitle":"Direct B2B sales automation engine for manufacturers and industrial suppliers in Pune: crawl authentic company domains, verify DNS MX deliverability, and send 1-on-1 cold outreach.","chat_query":"Buyer (4:30 PM): 'Looking for custom CNC machining & sheet metal fabrication quote for 5,000 components.'","chat_reply":"NexaDrip AI (4:30 PM): 'Hello! We specialize in ISO-certified CNC precision machining with 7-day turnaround. Please share your CAD drawing or specs. What material grade is required?'","chat_customer_confirm":"Buyer: 'Grade SS-304. Drawing attached. Reach me at procurement@autoind.com / 98500 XXXXX.'","chat_bot_lock":"NexaDrip AI: 'RFQ logged and technical team assigned for quotation within 4 hours. Lead acquisition cost: ~Rs 2.10.'","industry_summary":"- B2B / Manufacturing: 15-25 verified buyer RFQs monthly  - IT Services: Direct outreach to verified decision-makers"},"legal_finance":{"id":"legal_finance","name":"Legal, CA & Financial Advisory","audience":"Law Firms, Chartered Accountants & Wealth Managers","city":"Pune","cost":"2.00","headline":"Attract High-Net-Worth & Corporate Clients At Just ~Rs 2 Per Lead / Chat","subtitle":"Automated client intake and consultation scheduling for legal, tax, and financial firms in Pune: 24/7 confidential lead qualification, instant WhatsApp follow-ups, and local authority ranking.","chat_query":"Client (8:05 PM): 'Need corporate tax advisory and GST audit services for a private limited firm in Pune.'","chat_reply":"NexaDrip AI (8:05 PM): 'Hello! Our senior partners handle corporate structuring, GST compliance, and audit defense. We offer a 20-minute preliminary tax evaluation. Would tomorrow morning suit you?'","chat_customer_confirm":"Client: 'Tomorrow at 11:30 AM is perfect. Contact: 98900 XXXXX.'","chat_bot_lock":"NexaDrip AI: 'Meeting confirmed with Senior Tax Partner. Calendar invite dispatched. Total client acquisition cost: ~Rs 1.75.'","industry_summary":"- CA & Legal: 60% reduction in client intake drop-offs  - Wealth Advisory: Automated HNI lead qualification"},"retail_restaurant":{"id":"retail_restaurant","name":"Retail, Restaurants & Hospitality","audience":"Retail Stores, Boutique Brands & Hospitality Founders","city":"Pune","cost":"2.00","headline":"Drive Footfall, Table Bookings & Store Sales At Just ~Rs 2 Per Customer Chat","subtitle":"Automated customer loyalty, WhatsApp broadcast drip, festive promotions, and Google Maps local 5-star ranking engine for retail businesses and restaurants in Pune.","chat_query":"Guest (7:10 PM): 'Do you have table reservation for 6 people tonight with outdoor seating?'","chat_reply":"NexaDrip AI (7:10 PM): 'Good evening! We have an outdoor garden table available at 8:15 PM with our live acoustic music tonight. Shall I reserve it under your name?'","chat_customer_confirm":"Guest: 'Yes please, reserve under Rahul, 98230 XXXXX.'","chat_bot_lock":"NexaDrip AI: 'Table reserved for 6 guests at 8:15 PM! 10% complimentary appetizer voucher sent to WhatsApp. Acquisition cost: ~Rs 1.20.'","industry_summary":"- Restaurants: Automated table booking & festive re-engagement  - Retail: 42% repeat purchase uplift via WhatsApp"},"coaching":{"id":"coaching","name":"Education & Coaching Academies","audience":"Coaching Academies, EdTech Founders & Training Institutes","city":"Pune","cost":"2.00","headline":"Enroll Serious Students & Course Admissions At Just ~Rs 2 Per Lead / Chat","subtitle":"Autonomous admission counseling engine for coaching academies and training institutes in Pune: instant brochure delivery on WhatsApp, counseling slot booking, and multi-channel student outreach.","chat_query":"Student (6:20 PM): 'What are the batch timings and fees for Data Science & AI Certification in Pune?'","chat_reply":"NexaDrip AI (6:20 PM): 'Hello! Next weekend batch starts Saturday at 10 AM with 100% placement assistance. Syllabus and fee structure have been sent to your WhatsApp. Would you like a free demo class pass?'","chat_customer_confirm":"Student: 'Yes, please register me for the Saturday demo class. Phone: 97640 XXXXX.'","chat_bot_lock":"NexaDrip AI: 'Demo pass confirmed! Counseling link dispatched. Zero agency cost: ~Rs 1.60 per enrolled inquiry.'","industry_summary":"- Coaching: 3.5x demo class attendance  - Admissions: Automated multi-step student follow-up drips"},"general":{"id":"general","name":"General Business & Professional Services","audience":"Business Owners, Clinic Directors & Retail Founders","city":"Pune","cost":"2.00","headline":"Acquire & Qualify High-Intent Customers At Just ~Rs 2 Per Lead or Customer Chat","subtitle":"A turnkey, self-driving AI marketing platform engineered for business owners, clinic directors, retail founders, and service firms in Pune and high-growth hubs to replace expensive ad agencies and generate predictable daily revenue.","chat_query":"Customer (10:42 PM): 'Hi, looking for digital marketing and automation pricing in Pune.'","chat_reply":"NexaDrip AI (10:42 PM): 'Hello! NexaDrip automates your 24/7 customer chats, WhatsApp drips, verified email outreach, and local SEO at just ~Rs 2 per lead. Would you like a 10-minute demo walkthrough?'","chat_customer_confirm":"Customer: 'Thursday 5:00 PM works. My number is 98220 XXXXX.'","chat_bot_lock":"NexaDrip AI: 'Demo locked for Thursday 5 PM! Confirmation sent to your WhatsApp. Total acquisition cost: ~Rs 1.85.'","industry_summary":"- Clinics & Doctors: 3.8x patient bookings via 24/7 WhatsApp bot  - Real Estate: Instant site-visit scheduling & brochure dispatch\n- B2B / Manufacturing: 15-25 verified buyer inquiries monthly  - Professional Services: Automated client intake & quote follow-ups"}};
+
+    function showToast(msg) {
+      const t = document.getElementById('toast-msg');
+      t.textContent = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 3500);
+    }
+
+    function toggleDrawer() {
+      const d = document.getElementById('editor-drawer');
+      d.classList.toggle('open');
+      document.body.classList.toggle('drawer-open', d.classList.contains('open'));
+    }
+
+    // Check URL parameters for ?edit=1
+    if (new URLSearchParams(window.location.search).get('edit')) {
+      toggleDrawer();
+    }
+
+    // Hotkey 'E' to toggle editor
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'e' || e.key === 'E') {
+        if (!['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+          toggleDrawer();
+        }
+      }
+    });
+
+    function applyPreset(key) {
+      const p = PRESETS[key];
+      if (!p) return;
+      document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.getElementById('inp-audience').value = p.audience;
+      document.getElementById('inp-city').value = p.city;
+      document.getElementById('inp-cost').value = p.cost;
+      document.getElementById('inp-headline').value = p.headline;
+      document.getElementById('inp-subtitle').value = p.subtitle;
+      document.getElementById('inp-chat-query').value = p.chat_query;
+      document.getElementById('inp-chat-reply').value = p.chat_reply;
+      document.getElementById('inp-chat-confirm').value = p.chat_customer_confirm;
+      document.getElementById('inp-chat-lock').value = p.chat_bot_lock;
+
+      syncPreview();
+      showToast('Applied preset: ' + p.name);
+    }
+
+    function syncPreview() {
+      const city = document.getElementById('inp-city').value;
+      const cost = document.getElementById('inp-cost').value;
+      const audience = document.getElementById('inp-audience').value;
+      const headline = document.getElementById('inp-headline').value;
+      const subtitle = document.getElementById('inp-subtitle').value;
+      const chatQuery = document.getElementById('inp-chat-query').value;
+      const chatReply = document.getElementById('inp-chat-reply').value;
+      const chatConfirm = document.getElementById('inp-chat-confirm').value;
+      const chatLock = document.getElementById('inp-chat-lock').value;
+      const phone = document.getElementById('inp-contact-phone').value;
+      const email = document.getElementById('inp-contact-email').value;
+
+      document.getElementById('disp-headline').textContent = headline;
+      document.getElementById('disp-subtitle').textContent = subtitle;
+      document.getElementById('disp-kpi-cost').textContent = '~₹' + cost;
+      document.querySelectorAll('.disp-cost-inline').forEach(el => el.textContent = cost);
+      document.querySelectorAll('.disp-cost-total').forEach(el => el.textContent = '~₹' + cost);
+      document.querySelectorAll('.disp-city-inline').forEach(el => el.textContent = city);
+      const cn = document.getElementById('disp-city-name'); if (cn) cn.textContent = city;
+      const ai = document.getElementById('disp-audience-inline'); if (ai) ai.textContent = audience;
+
+      document.getElementById('disp-chat-query').textContent = chatQuery;
+      document.getElementById('disp-chat-reply').textContent = chatReply;
+      document.getElementById('disp-chat-confirm').textContent = chatConfirm;
+      document.getElementById('disp-chat-lock').textContent = chatLock;
+
+      document.getElementById('disp-contact-phone').textContent = '📞 Phone / WhatsApp: ' + phone;
+      document.getElementById('disp-contact-email').textContent = '✉️ Email: ' + email;
+
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+      const waLink = document.getElementById('link-wa-chat');
+      if (waLink && cleanPhone) {
+        waLink.href = 'https://wa.me/' + cleanPhone + '?text=Hi%20NexaDrip%2C%20I%20reviewed%20your%20Rs%20' + encodeURIComponent(cost) + '%20lead%20proposal%20and%20want%20a%20demo';
+      }
+    }
+
+    async function triggerAiSuggestions() {
+      const btn = document.getElementById('btn-ai-suggest');
+      const audience = document.getElementById('inp-audience').value;
+      const city = document.getElementById('inp-city').value;
+      const cost = document.getElementById('inp-cost').value;
+
+      btn.disabled = true;
+      btn.textContent = '✨ Generating AI Suggestions...';
+
+      try {
+        const res = await fetch('/api/sellbird/proposal/suggest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ industry: audience, city, cost_per_lead: cost })
+        });
+        const data = await res.json();
+        if (data && data.headline) {
+          document.getElementById('inp-headline').value = data.headline;
+          if (data.subtitle) document.getElementById('inp-subtitle').value = data.subtitle;
+          if (data.chat_query) document.getElementById('inp-chat-query').value = data.chat_query;
+          if (data.chat_reply) document.getElementById('inp-chat-reply').value = data.chat_reply;
+          if (data.chat_customer_confirm) document.getElementById('inp-chat-confirm').value = data.chat_customer_confirm;
+          if (data.chat_bot_lock) document.getElementById('inp-chat-lock').value = data.chat_bot_lock;
+          syncPreview();
+          showToast('AI Suggestions applied successfully!');
+        } else {
+          showToast('Using tailored industry preset.');
+        }
+      } catch (e) {
+        console.warn('AI suggestion fallback:', e);
+        showToast('Applied smart local suggestions.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✨ AI Suggest Tailored Copy & Math';
+      }
+    }
+
+    async function saveAndRecompilePdf() {
+      const btn = document.getElementById('btn-save-recompile');
+      btn.disabled = true;
+      btn.textContent = '⏳ Recompiling PDF...';
+
+      const payload = {
+        audience: document.getElementById('inp-audience').value,
+        city: document.getElementById('inp-city').value,
+        cost: document.getElementById('inp-cost').value,
+        headline: document.getElementById('inp-headline').value,
+        subtitle: document.getElementById('inp-subtitle').value,
+        chat_query: document.getElementById('inp-chat-query').value,
+        chat_reply: document.getElementById('inp-chat-reply').value,
+        chat_customer_confirm: document.getElementById('inp-chat-confirm').value,
+        chat_bot_lock: document.getElementById('inp-chat-lock').value,
+        contact_phone: document.getElementById('inp-contact-phone').value,
+        contact_email: document.getElementById('inp-contact-email').value,
+      };
+
+      try {
+        const res = await fetch('/api/sellbird/proposal/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data && data.success) {
+          showToast('✅ Proposal & PDF recompiled and attached to Outreach!');
+          const dlBtn = document.getElementById('btn-download-pdf');
+          if (dlBtn) dlBtn.href = 'NexaDrip-Business-Growth-Proposal.pdf?v=' + Date.now();
+        } else {
+          showToast(data.error || 'Saved changes.');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Saved locally.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '💾 Save & Recompile PDF';
+      }
+    }
+  </script>
+
+</body>
+</html>

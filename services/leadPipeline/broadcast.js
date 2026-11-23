@@ -93,13 +93,19 @@ function fillText(text, person) {
 
 async function sendOne(config, engine, msg, person) {
   if (engine === 'evolution') {
+    const inst = msg.sender_evolution_instance
+      || (config.broadcast_phone_mode === 'custom' && config.broadcast_evolution_instance_name)
+      || config.evolution_instance_name || 'social-nexus';
     return evolutionApi.sendTextMessage({
       apiUrl: config.evolution_api_url, apiKey: config.evolution_api_key,
-      instanceName: config.evolution_instance_name || 'social-nexus', number: person.phone, text: fillText(msg.text, person),
+      instanceName: inst, number: person.phone, text: fillText(msg.text, person),
     });
   }
+  const pid = msg.sender_phone_number_id
+    || (config.broadcast_phone_mode === 'custom' && config.broadcast_whatsapp_phone_number_id)
+    || config.whatsapp_phone_number_id;
   return whatsappCloud.sendWhatsAppMessage({
-    phoneNumberId: config.whatsapp_phone_number_id, wabaId: config.whatsapp_business_account_id,
+    phoneNumberId: pid, wabaId: config.whatsapp_business_account_id,
     accessToken: config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN,
     to: person.phone, templateName: msg.template.name, languageCode: msg.template.language,
     templateParams: paramsFor(msg.template.params, person),
@@ -156,6 +162,7 @@ async function start(db, { workspaceId, userId, title, audience, message }) {
     template_language: engine === 'cloud_api' ? message.template.language : null,
     message_content: engine === 'cloud_api' ? (message.template.body || '') : String(message.text || ''),
     total_recipients: recipients.length,
+    sender_number: message.sender_number || null,
     sent_count: 0, failed_count: 0, skipped_count: skippedTotal,
     credits_cost: 0, status: 'sending', created_by: userId || null, created_at: t, updated_at: t,
     results_json: JSON.stringify({ skipped, failures: [] }),

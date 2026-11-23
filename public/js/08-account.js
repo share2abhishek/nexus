@@ -727,8 +727,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set default post mode
   setPostMode('schedule');
 
-  // Load initial page
-  navigateTo('dashboard');
+  // Load initial page: restore current page & subtab across browser refresh
+  let initialPage = '';
+  let initialSubtab = '';
+
+  const hash = (window.location.hash || '').replace(/^#\/?/, '').trim();
+  if (hash) {
+    const parts = hash.split('/');
+    initialPage = parts[0];
+    initialSubtab = parts[1] || '';
+  }
+
+  if (!initialPage) {
+    try {
+      initialPage = sessionStorage.getItem('nexus_current_page') || localStorage.getItem('nexus_last_page') || '';
+      initialSubtab = sessionStorage.getItem('nexus_current_subtab') || '';
+    } catch {}
+  }
+
+  if (initialPage === 'generate' || initialPage === 'content-studio') initialPage = 'studio';
+
+  // Ensure target page container exists in DOM; fallback to dashboard if unknown
+  if (!initialPage || !document.getElementById(`page-${initialPage}`)) {
+    initialPage = 'dashboard';
+    initialSubtab = '';
+  }
+
+  navigateTo(initialPage, initialSubtab);
 
   // Poll status every 60s
   setInterval(refreshStatus, 60000);

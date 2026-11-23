@@ -11,7 +11,7 @@ const chatbot = require('./chatbot');
 const { forwardToN8n, buildEvent, replyFrom } = require('./n8nForwarder');
 
 // Send a plain text WhatsApp message with the workspace's chosen engine
-async function sendText(config, phone, text) {
+async function sendText(config, phone, text, senderPhoneId) {
   const to = String(phone || '').replace(/[^0-9]/g, '');
   if ((config.delivery_engine || 'cloud_api') === 'evolution') {
     return evolutionApi.sendTextMessage({
@@ -20,10 +20,11 @@ async function sendText(config, phone, text) {
     });
   }
   const token = config.whatsapp_access_token || process.env.WHATSAPP_ACCESS_TOKEN;
-  if (!token || !config.whatsapp_phone_number_id) {
+  const pid = senderPhoneId || config.whatsapp_phone_number_id;
+  if (!token || !pid) {
     return { success: false, error: 'WhatsApp isn’t connected yet (WhatsApp → Setup).' };
   }
-  return whatsappCloud.sendWhatsAppMessage({ phoneNumberId: config.whatsapp_phone_number_id, accessToken: token, to, text });
+  return whatsappCloud.sendWhatsAppMessage({ phoneNumberId: pid, accessToken: token, to, text });
 }
 
 // Messages from one person are handled one at a time, in order: several arriving
@@ -39,7 +40,7 @@ function handleInboundWhatsApp(knex, args) {
   return run;
 }
 
-async function processInbound(knex, { config, phone, name, text, source }) {
+async function processInbound(knex, { config, phone, name, text, source, recipientPhoneId, recipientDisplay, recipientLabel, autoReplyText }) {
   const repo = leadPipelineRepoFactory(knex);
   const workspaceId = config.workspace_id;
   const cleanPhone = String(phone || '').replace(/[^0-9]/g, '');
@@ -52,14 +53,33 @@ async function processInbound(knex, { config, phone, name, text, source }) {
       full_name: senderName,
       phone_number: '+' + cleanPhone,
       form_id: source === 'evolution' ? 'evolution_whatsapp_inbound' : 'whatsapp_cloud_inbound',
-      intent_summary: `Wrote to you on WhatsApp: "${String(text).slice(0, 80)}"`,
+      intent_summary: `Wrote to ${recipientLabel || 'WhatsApp'}: "${String(text).slice(0, 80)}"`,
       status: 'new',
       lead_score: 50,
+      raw_answers: {
+        replied_to_number: recipientDisplay || null,
+        replied_to_label: recipientLabel || null,
+        last_phone_number_id: recipientPhoneId || null,
+      },
     });
+  } else {
+    // Update existing contact record with latest replied-to number metadata
+    await repo.updateLeadEvent(workspaceId, lead.id, {
+      raw_answers: {
+        ...(lead.raw_answers || {}),
+        replied_to_number: recipientDisplay || lead.raw_answers?.replied_to_number || null,
+        replied_to_label: recipientLabel || lead.raw_answers?.replied_to_label || null,
+        last_phone_number_id: recipientPhoneId || lead.raw_answers?.last_phone_number_id || null,
+      },
+    });
+    lead = await repo.getLeadEvent(workspaceId, lead.id);
   }
 
   await repo.addLeadMessage(workspaceId, lead.id, {
-    sender_type: 'lead', sender_name: senderName, message_text: text, channel: 'whatsapp',
+    sender_type: 'lead',
+    sender_name: senderName,
+    message_text: text,
+    channel: recipientLabel ? `whatsapp:${recipientLabel}` : 'whatsapp',
   });
 
   // Your n8n workflow (if an address is saved) gets every message as an event
@@ -67,15 +87,48 @@ async function processInbound(knex, { config, phone, name, text, source }) {
   const event = (extra) => buildEvent('whatsapp.message_received', workspaceId, {
     contact: { lead_id: lead.id, name: senderName, phone: '+' + cleanPhone },
     message: { text, source: source || 'cloud_api' },
+    recipient: {
+      phone_number_id: recipientPhoneId || null,
+      display_number: recipientDisplay || null,
+      label: recipientLabel || null,
+    },
     ...extra,
   });
+
+  // Number-specific dedicated auto-reply (if configured for this phone line)
+  if (autoReplyText && String(autoReplyText).trim()) {
+    try {
+      const activeReplyPhoneId = recipientPhoneId || lead?.raw_answers?.last_phone_number_id;
+      const firstName = String(senderName || '').split(/\s+/)[0] || 'there';
+      const customizedText = String(autoReplyText)
+        .replace(/\{\{\s*name\s*\}\}/gi, firstName)
+        .replace(/\{\{\s*business\s*\}\}/gi, config.meta_registered_phone || 'our team');
+
+      const res = await sendText(config, cleanPhone, customizedText, activeReplyPhoneId);
+      if (res?.success !== false) {
+        await knex('lead_conversation_messages').insert({
+          workspace_id: workspaceId,
+          lead_id: lead.id,
+          sender_type: 'bot',
+          sender_name: `${recipientLabel || 'Number'} Auto-reply`,
+          message_text: customizedText,
+          channel: recipientLabel ? `whatsapp:${recipientLabel}` : 'whatsapp',
+          created_at: Math.floor(Date.now() / 1000),
+        });
+      }
+      return { sent: [customizedText], reason: 'custom_number_reply' };
+    } catch (err) {
+      console.warn('[WhatsApp] Custom number auto-reply failed:', err.message);
+    }
+  }
 
   // Auto-replies first (customers expect an answer in seconds), scoring after
   let bot = null;
   try {
+    const activeReplyPhoneId = recipientPhoneId || lead?.raw_answers?.last_phone_number_id;
     bot = await chatbot.handleInbound(knex, {
       workspaceId, lead, text, name: senderName,
-      send: (reply) => sendText(config, cleanPhone, reply),
+      send: (reply) => sendText(config, cleanPhone, reply, activeReplyPhoneId),
       // "Let your n8n workflow answer": it responds {"reply": "…"} to send on WhatsApp
       askN8n: n8nUrl ? async () => {
         const r = await forwardToN8n(n8nUrl, event({ reply_wanted: true, how_to_reply: 'Respond with JSON {"reply": "your text"} to answer on WhatsApp.' }));

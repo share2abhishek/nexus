@@ -7,7 +7,7 @@
    ───────────────────────────────────────────────────────────────────────────── */
 
 const SellbirdState = {
-  activeTab: 'outbox',
+  activeTab: (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sellbird_active_tab')) || 'outbox',
   stats: null,
   campaigns: [],
   selectedCampaignId: '',
@@ -59,26 +59,9 @@ async function loadSellbird() {
     SellbirdState.campaigns = Array.isArray(campaigns) ? campaigns : [];
     populateSellbirdCampaignDropdowns(SellbirdState.campaigns);
 
-    // 2. Load active tab data
-    switch (SellbirdState.activeTab) {
-      case 'outbox':
-        await loadOutbox();
-        break;
-      case 'explorer':
-        await loadCompanies();
-        break;
-      case 'campaigns':
-        await loadCampaigns();
-        break;
-      case 'replies':
-        await loadReplies();
-        break;
-      case 'deliverability':
-        // Deliverability tab is populated by default static/metrics info
-        break;
-      default:
-        await loadOutbox();
-    }
+    // 2. Load active tab data & ensure active tab styling is aligned
+    const activeTab = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sellbird_active_tab')) || SellbirdState.activeTab || 'outbox';
+    switchSellbirdTab(activeTab);
   } catch (err) {
     console.error('[Sellbird] Error in loadSellbird:', err);
     toast(err.message || 'Couldn’t load Sales outreach', 'error');
@@ -87,6 +70,16 @@ async function loadSellbird() {
 
 function switchSellbirdTab(tabName, clickedBtn) {
   SellbirdState.activeTab = tabName;
+  try {
+    sessionStorage.setItem('sellbird_active_tab', tabName);
+    sessionStorage.setItem('nexus_current_subtab', tabName);
+    if (typeof State !== 'undefined' && State.currentPage === 'sellbird') {
+      const targetHash = `#sellbird/${tabName}`;
+      if (window.location.hash !== targetHash && window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', targetHash);
+      }
+    }
+  } catch (e) {}
 
   // Update floating tabs
   document.querySelectorAll('.sb-floating-tab').forEach((el) => el.classList.remove('active'));
@@ -761,20 +754,122 @@ function watchSellbirdSending(seconds = 90) {
 // a follow-up = only the files marked "every email"
 async function loadOutboxFiles() {
   SellbirdState.campaignFiles = SellbirdState.campaignFiles || {};
+  (SellbirdState.outboxItems || []).forEach((item) => {
+    if (item.campaign_id && Array.isArray(item.campaign_attachments)) {
+      SellbirdState.campaignFiles[item.campaign_id] = item.campaign_attachments;
+    }
+  });
   const ids = [...new Set((SellbirdState.outboxItems || []).map((i) => i.campaign_id).filter(Boolean))];
   await Promise.all(ids.map(async (cid) => {
-    try { SellbirdState.campaignFiles[cid] = (await api('GET', `/api/sellbird/campaigns/${cid}/attachments`)).attachments || []; }
-    catch { SellbirdState.campaignFiles[cid] = []; }
+    if (SellbirdState.campaignFiles[cid] && SellbirdState.campaignFiles[cid].length) return;
+    try {
+      SellbirdState.campaignFiles[cid] = (await api('GET', `/api/sellbird/campaigns/${cid}/attachments`)).attachments || [];
+    } catch {
+      SellbirdState.campaignFiles[cid] = [];
+    }
   }));
 }
+
+async function attachProposalToCampaign(campaignId) {
+  try {
+    toast('Attaching NexaDrip Growth Proposal PDF...', 'info');
+    const res = await api('POST', `/api/sellbird/campaigns/${campaignId}/attach-proposal`);
+    if (res.success) {
+      toast('✓ Proposal PDF attached to campaign for all emails!', 'success');
+      await loadOutbox();
+    }
+  } catch (err) {
+    toast(err.message || 'Could not attach proposal', 'error');
+  }
+}
+window.attachProposalToCampaign = attachProposalToCampaign;
+
 function renderEmailFilesRow(item) {
-  const all = (SellbirdState.campaignFiles || {})[item.campaign_id] || [];
-  const files = (item.step_number || 1) > 1 ? all.filter((a) => a.send_with === 'all') : all;
-  if (!files.length) return '';
-  return `<div class="sb-meta-row">
+  const all = item.campaign_attachments || (SellbirdState.campaignFiles || {})[item.campaign_id] || [];
+  const files = item.attachments || ((item.step_number || 1) > 1 ? all.filter((a) => a.send_with === 'all') : all);
+
+  if (files && files.length > 0) {
+    return `<div class="sb-meta-row" style="align-items:flex-start;margin-top:6px">
+      <span style="font-size:10.5px;font-weight:800;color:#6366f1;width:55px;padding-top:5px;display:flex;align-items:center;gap:3px">📎 FILES</span>
+      <div style="flex:1;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        ${files.map((a) => `
+          <div style="display:inline-flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #c7d2fe;padding:5px 10px;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.04)">
+            <span style="font-size:14px">📄</span>
+            <span style="font-size:12px;font-weight:700;color:#1e1b4b">${escapeHtml(a.filename)}</span>
+            <span style="font-size:11px;color:#64748b;background:#e2e8f0;padding:1px 6px;border-radius:4px">${fileSizeText(a.size)}</span>
+            <span style="font-size:10.5px;font-weight:600;color:#16a34a;background:#dcfce7;padding:1px 6px;border-radius:4px">✓ Attached to this email</span>
+            <a href="${a.id ? `/api/sellbird/attachments/${a.id}/download` : `/${encodeURIComponent(a.filename)}`}" target="_blank" style="font-size:11.5px;font-weight:600;color:#4f46e5;text-decoration:none;padding:2px 8px;border-radius:5px;background:#ede9fe" title="Preview attachment in browser">👁️ View PDF</a>
+            <a href="/nexadrip-proposal.html?edit=1" target="_blank" style="font-size:11.5px;font-weight:600;color:#0284c7;text-decoration:none;padding:2px 8px;border-radius:5px;background:#e0f2fe" title="Edit numbers, ROI, or customize proposal">✏️ Edit Proposal</a>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  }
+
+  // If this email is step 2 or 3, but step 1 had files
+  const firstOnly = all.filter((a) => a.send_with !== 'all');
+  if (firstOnly.length > 0) {
+    return `<div class="sb-meta-row" style="align-items:flex-start;margin-top:6px">
+      <span style="font-size:10.5px;font-weight:800;color:#94a3b8;width:55px;padding-top:4px">FILES</span>
+      <div style="flex:1;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <div style="display:inline-flex;align-items:center;gap:6px;background:#f8fafc;border:1px dashed #cbd5e1;padding:4px 9px;border-radius:6px;font-size:11.5px;color:#64748b">
+          <span>📎</span>
+          <span>${firstOnly.map((a) => escapeHtml(a.filename)).join(', ')} — Sent with Email 1</span>
+          <button type="button" class="sb-secondary-btn" onclick="openCampaignFilesModal(${item.campaign_id}, event)" style="padding:1px 6px;font-size:11px;margin-left:4px">Change to send with every email</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // If no files attached to campaign at all
+  return `<div class="sb-meta-row" style="align-items:center;margin-top:4px">
     <span style="font-size:10.5px;font-weight:800;color:#94a3b8;width:55px">FILES</span>
-    <span>${files.map((a) => `📎 ${escapeHtml(a.filename)} <span style="color:#64748b;font-size:12px">(${fileSizeText(a.size)})</span>`).join(' &nbsp; ')}</span>
+    <div style="display:inline-flex;align-items:center;gap:6px">
+      <span style="font-size:11.5px;color:#94a3b8">None attached</span>
+      <button type="button" onclick="attachProposalToCampaign(${item.campaign_id})" class="sb-secondary-btn" style="padding:2px 8px;font-size:11.5px;font-weight:600;color:#4f46e5;border-color:#c7d2fe;background:#f5f3ff">＋ Attach NexaDrip Proposal PDF</button>
+      <button type="button" onclick="openCampaignFilesModal(${item.campaign_id}, event)" class="sb-secondary-btn" style="padding:2px 7px;font-size:11px">📎 Manage files</button>
+    </div>
   </div>`;
+}
+
+function renderEmailAttachmentBox(item) {
+  const all = item.campaign_attachments || (SellbirdState.campaignFiles || {})[item.campaign_id] || [];
+  const files = item.attachments || ((item.step_number || 1) > 1 ? all.filter((a) => a.send_with === 'all') : all);
+  if (!files || !files.length) return '';
+  const f = files[0];
+  return `
+    <div class="sb-proposal-attached-card" style="margin:14px 0 16px;background:linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);border:1.5px solid #c7d2fe;border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 4px rgba(99,102,241,0.06)">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0">
+        <div style="width:40px;height:40px;border-radius:8px;background:#ede9fe;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">
+          📄
+        </div>
+        <div style="min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:700;color:#1e1b4b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              ${escapeHtml(f.filename)}
+            </span>
+            <span style="font-size:11px;font-weight:600;color:#16a34a;background:#dcfce7;padding:1px 7px;border-radius:10px">
+              ✓ Attached to this email
+            </span>
+            <span style="font-size:11px;color:#64748b">
+              (${fileSizeText(f.size)})
+            </span>
+          </div>
+          <div style="font-size:11.5px;color:#475569;margin-top:3px">
+            Customized growth proposal: WhatsApp 24/7 AI, multi-channel studio, SEO, and ~₹1.85 lead economics.
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <a href="${f.id ? `/api/sellbird/attachments/${f.id}/download` : `/${encodeURIComponent(f.filename)}`}" target="_blank" class="sb-secondary-btn" style="text-decoration:none;font-size:12px;font-weight:600;color:#4f46e5;background:#ffffff;border-color:#c7d2fe;padding:5px 10px;display:inline-flex;align-items:center;gap:4px">
+          👁️ Preview PDF
+        </a>
+        <a href="/nexadrip-proposal.html?edit=1" target="_blank" class="sb-secondary-btn" style="text-decoration:none;font-size:12px;font-weight:600;color:#0284c7;background:#ffffff;border-color:#bae6fd;padding:5px 10px;display:inline-flex;align-items:center;gap:4px">
+          ✏️ Edit & Customize
+        </a>
+      </div>
+    </div>
+  `;
 }
 
 async function loadOutbox() {
@@ -1117,7 +1212,7 @@ function renderOutbox() {
           <span class="sb-queue-time">${timeStr}</span>
         </div>
         <div class="sb-queue-snippet">${escapeHtml(item.subject || 'Outreach email')}</div>
-        <div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           ${isApproved
             ? ({
                 sent: '<span class="sb-sent-tag">✓ SENT</span>',
@@ -1128,6 +1223,7 @@ function renderOutbox() {
               }[item.status] || `<span class="sb-sent-tag">${escapeHtml(item.status)}</span>`)
             : `<span class="sb-needs-approval-tag">✉️ NEEDS YOUR OK · email ${item.step_number || 1}${item.error_message ? ' · ' + escapeHtml(item.error_message) : ''}</span>`
           }
+          ${((item.attachments && item.attachments.length) || ((SellbirdState.campaignFiles || {})[item.campaign_id] || []).length) ? '<span style="font-size:10px;font-weight:700;color:#4f46e5;background:#ede9fe;padding:1px 6px;border-radius:4px" title="Has attached proposal PDF">📎 PDF</span>' : ''}
         </div>
       </div>
     `;
@@ -1212,6 +1308,8 @@ function renderOutbox() {
           ? `<textarea id="sb-edit-body-${activeItem.id}" class="form-textarea" rows="9" style="font-size:13.5px;line-height:1.6;margin-bottom:18px;width:100%">${escapeHtml(activeItem.body)}</textarea>`
           : `<div class="sb-email-body-text">${escapeHtml(activeItem.body)}</div>`
         }
+
+        ${renderEmailAttachmentBox(activeItem)}
 
         <!-- Why Your Agent Wrote This Card (Screenshot 2) -->
         <div class="sb-agent-explainer-card">
@@ -1922,8 +2020,11 @@ async function openCampaignFilesModal(campaignId, ev) {
           <button type="button" onclick="closeCampaignFilesModal()" aria-label="Close" style="background:none;border:0;font-size:18px;cursor:pointer;color:#64748b">✕</button></div>
         <div style="font-size:12.5px;color:#475569;margin-bottom:12px">For example a brochure or price list. Each person gets the files with their first email; you can also send a file with every follow-up. Cold emails with attachments can land in spam more often than plain emails: a link is often safer.</div>
         <div id="sb-files-list" style="margin-bottom:12px"><span class="spinner"></span></div>
-        <label class="sb-secondary-btn" style="cursor:pointer;display:inline-block">＋ Add a file
-          <input id="sb-files-input" type="file" style="display:none" onchange="uploadCampaignFile(this)" /></label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <label class="sb-secondary-btn" style="cursor:pointer;display:inline-block">＋ Add a file
+            <input id="sb-files-input" type="file" style="display:none" onchange="uploadCampaignFile(this)" /></label>
+          <a href="/nexadrip-proposal.html?edit=1" target="_blank" class="sb-secondary-btn" style="text-decoration:none;display:inline-block;color:#7c3aed">✏️ Edit &amp; Customize Proposal PDF</a>
+        </div>
         <div id="sb-files-limits" style="font-size:11.5px;color:#64748b;margin-top:8px"></div>
       </div>
     </div>`);
